@@ -18,6 +18,7 @@
     "test": "bun test"
   },
   "devDependencies": {
+    "@rollup/rollup-darwin-x64": "4.56.0",
     "@types/bun": "latest",
     "@types/dompurify": "^3.2.0",
     "@types/node": "^20.0.0",
