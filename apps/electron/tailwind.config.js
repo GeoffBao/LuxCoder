@@ -61,6 +61,13 @@ export default {
           muted: 'hsl(var(--tooltip-muted) / <alpha-value>)',
         },
         'content-area': 'hsl(var(--content-area) / <alpha-value>)',
+        // CraftBuddy 品牌色板（Claude 暖色系，暗色工程工具版）
+        'craft-accent': {
+          DEFAULT: '#DA7756',
+          dim: 'rgba(218, 119, 86, 0.12)',
+        },
+        'craft-success': '#10b981',
+        'craft-warning': '#f59e0b',
       },
       // ===== 字体栈：Inter Variable 优先，回退 SF Pro Text / 系统中文字体 =====
       fontFamily: {
@@ -75,6 +82,17 @@ export default {
           'Microsoft YaHei',
           'system-ui',
           'sans-serif',
+        ],
+        mono: [
+          'JetBrains Mono',
+          'ui-monospace',
+          'SFMono-Regular',
+          'Menlo',
+          'Monaco',
+          'Cascadia Code',
+          'Consolas',
+          'Courier New',
+          'monospace',
         ],
       },
       // ===== 圆角：覆写 shadcn 标准三档，全部由 --radius 派生 =====

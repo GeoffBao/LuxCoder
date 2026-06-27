@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -141,45 +143,64 @@
   }
 
   .dark {
-    --background: 0 0% 7%;                /* 统一背景色 zinc-900 */
-    --foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --accent: 0 0% 40%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 55% 45%;
-    --destructive-foreground: 0 0% 98%;
-    --stop-hover-bg: hsl(0, 40%, 18%);
-    --card: 0 0% 7%;                      /* 卡片背景 = 背景色 */
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 7%;                   /* 弹出层 = 背景色 */
-    --popover-foreground: 0 0% 98%;
-    --dialog: 0 0% 12%;                   /* 设置弹窗：比背景更亮，悬浮感 */
-    --dialog-foreground: 0 0% 98%;
-    --content-area: 0 0% 7%;              /* 主内容区域背景 zinc-900 */
-    --sidebar-surface: 0 0% 7%;
-    --tabbar-surface: 0 0% 7%;
-    --sidebar-control-surface: 0 0% 14%;
-    --sidebar-control-surface-hover: 0 0% 18%;
-    --sidebar-control-stroke: 0 0% 100% / 0.08;
-    --input-surface: 0 0% 7%;
-    --tab-surface: 0 0% 7%;
-    /* 毛玻璃 Tooltip：深色半透明背景 + 白色文字 */
-    --tooltip: 0 0% 20%;
-    --tooltip-foreground: 0 0% 98%;
-    --tooltip-muted: 0 0% 70%;
-    /* 代码块背景 */
-    --code-bg: 210 13% 12%;                   /* #1e2228 */
-    /* 虚线边框色（新会话按钮、搜索按钮） */
-    --dashed-border: 0 0% 98% / 0.25;
-    --dashed-border-hover: 0 0% 98% / 0.40;
+    /* === 背景层次 === */
+    --background: 29 18% 9%;              /* #1A1612 暖黑，带棕调 */
+    --content-area: 29 18% 9%;            /* 主内容区 = 背景同色 */
+    --foreground: 38 27% 94%;             /* #F4F1EC 奶油白 */
+
+    /* === 次要文字与表面 === */
+    --muted: 31 17% 12%;                  /* #231E19 表面层 1（sidebar/card 背景） */
+    --muted-foreground: 36 19% 58%;       /* #A89880 暖灰次要文字 */
+
+    /* === 边框与输入 === */
+    --border: 27 17% 20%;                 /* #3D332B 分隔线 */
+    --input: 31 17% 12%;                  /* #231E19 */
+    --ring: 15 64% 60%;                   /* #DA7756 赭石橙聚焦环 */
+
+    /* === 主要交互色 === */
+    --primary: 38 27% 94%;                /* #F4F1EC 深色主题主按钮用浅色 */
+    --primary-foreground: 29 18% 9%;      /* #1A1612 */
+
+    --secondary: 31 17% 12%;              /* #231E19 */
+    --secondary-foreground: 38 27% 94%;   /* #F4F1EC */
+
+    /* === Accent：赭石橙（对齐 Claude 设计语言） === */
+    --accent: 15 64% 60%;                 /* #DA7756 Claude 赭石橙 */
+    --accent-foreground: 38 27% 94%;      /* #F4F1EC 橙底浅色文字 */
+
+    /* === 危险/停止 === */
+    --destructive: 0 62% 50%;             /* #ef4444 调暗版 */
+    --destructive-foreground: 38 27% 94%;
+    --stop-hover-bg: hsl(0, 38%, 14%);
+
+    /* === 组件层 === */
+    --card: 31 17% 12%;                   /* #231E19 卡片 = 表面层 1 */
+    --card-foreground: 38 27% 94%;
+    --popover: 24 17% 15%;                /* #2D2520 弹出层 = 表面层 2 */
+    --popover-foreground: 38 27% 94%;
+    --dialog: 24 17% 15%;                 /* #2D2520 弹窗 = 表面层 2 */
+    --dialog-foreground: 38 27% 94%;
+
+    /* === Sidebar & 控件表面 === */
+    --sidebar-surface: 31 17% 12%;        /* #231E19 表面层 1 */
+    --tabbar-surface: 31 17% 12%;
+    --sidebar-control-surface: 24 17% 15%;     /* #2D2520 表面层 2 */
+    --sidebar-control-surface-hover: 27 17% 20%; /* #3D332B 表面层 3（hover 提亮） */
+    --sidebar-control-stroke: 38 27% 94% / 0.08;
+    --input-surface: 29 18% 9%;           /* #1A1612 与背景融合 */
+    --tab-surface: 29 18% 9%;
+
+    /* === Tooltip === */
+    --tooltip: 24 17% 15%;                /* #2D2520 */
+    --tooltip-foreground: 38 27% 94%;
+    --tooltip-muted: 36 19% 58%;          /* #A89880 */
+
+    /* === 代码块背景（比主背景更深的暖黑） === */
+    --code-bg: 29 20% 6%;                 /* ~#13100D */
+
+    /* === 虚线边框 === */
+    --dashed-border: 38 27% 94% / 0.22;
+    --dashed-border-hover: 38 27% 94% / 0.38;
   }
 
   /* ===== 特殊风格主题 ===== */
