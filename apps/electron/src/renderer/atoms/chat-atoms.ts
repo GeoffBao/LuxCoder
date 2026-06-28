@@ -125,7 +125,7 @@ export const streamingToolActivitiesAtom = atom<ChatToolActivity[]>(
 
 /** 选中的模型（持久化到 localStorage） */
 export const selectedModelAtom = atomWithStorage<SelectedModel | null>(
-  'proma-selected-model',
+  'luxagents-selected-model',
   null,
 )
 
@@ -140,7 +140,7 @@ export const currentConversationAtom = atom<ConversationMeta | null>((get) => {
 
 /** 上下文长度（持久化到 localStorage，默认不限制） */
 export const contextLengthAtom = atomWithStorage<ContextLengthValue>(
-  'proma-context-length',
+  'luxagents-context-length',
   'infinite',
 )
 
@@ -149,7 +149,7 @@ export const parallelModeAtom = atom<boolean>(false)
 
 /** 思考模式（持久化到 localStorage） */
 export const thinkingEnabledAtom = atomWithStorage<boolean>(
-  'proma-thinking-enabled',
+  'luxagents-thinking-enabled',
   false,
 )
 
@@ -264,6 +264,6 @@ export const conversationParallelModeAtom = atom<Map<string, boolean>>(new Map()
 
 /** 思考块默认展开偏好（持久化到 localStorage） */
 export const thinkingExpandedAtom = atomWithStorage<boolean>(
-  'proma-thinking-expanded',
+  'luxagents-thinking-expanded',
   false,
 )
