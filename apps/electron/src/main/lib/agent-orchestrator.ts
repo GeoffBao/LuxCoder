@@ -2408,12 +2408,12 @@ export class AgentOrchestrator {
       await this.adapter.sendQueuedMessage(sessionId, sdkMessage)
       console.log(`[Agent 编排] 追加消息已注入: sessionId=${sessionId}, uuid=${uuid}, interrupt=${!!opts?.interrupt}`)
 
-      // 立即持久化到 JSONL
+      // 立即持久化到 JSONL — 仅存原始文本，不含 prompt 工程块（与 sendMessage 路径一致）
       const persistMsg: SDKMessage = {
         type: 'user',
         uuid,
         message: {
-          content: [{ type: 'text', text: enrichedText }],
+          content: [{ type: 'text', text }],
         },
         parent_tool_use_id: null,
         _createdAt: Date.now(),
