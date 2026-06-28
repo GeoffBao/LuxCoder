@@ -104,7 +104,7 @@ const TAIL_TABS: TabItem[] = [
 ];
 
 /** 暂时隐藏的 Tab（功能代码保留，待后续重新开放） */
-const HIDDEN_TABS = new Set<SettingsTab>(["bots", "shortcuts", "migration", "storage", "appearance"]);
+const HIDDEN_TABS = new Set<SettingsTab>(["bots", "shortcuts", "migration", "storage", "appearance", "tools", "voice-input"]);
 
 /** 根据标签页 id 渲染对应内容 */
 function renderTabContent(tab: SettingsTab): React.ReactElement {
