@@ -45,7 +45,7 @@ files:
   # PDF 内联预览使用本地 PDF.js 资源，避免运行时依赖 CDN。
   - node_modules/pdfjs-dist/**/*
   # 排除 workspace 包的 symlink（代码已被 esbuild/Vite 打包到 dist/ 中）
-  - "!node_modules/@luxagents/**"
+  - "!node_modules/@proma/**"
 
 # 通用额外资源
 extraResources:
@@ -58,8 +58,8 @@ extraResources:
   - from: ../../tutorial/tutorial-v2.md
     to: tutorial.md
   # LuxAgents 品牌 Logo 素材（品牌素材下载功能使用）
-  - from: resources/luxagents-logos
-    to: luxagents-logos
+  - from: resources/proma-logos
+    to: proma-logos
     filter:
       - "**/*"
   # 默认 Dock 图标（macOS app.dock.setIcon 使用）
