@@ -1,16 +1,16 @@
-const PROMA_REPO_URL = 'https://github.com/ErlichLiu/Proma'
+const LUXAGENTS_REPO_URL = 'https://github.com/GeoffBao/LuxAgents'
 
-let _promaVersion = '0.0.0'
+let _appVersion = '0.0.0'
 
-export function setPromaVersion(version: string): void {
-  _promaVersion = version
+export function setAppVersion(version: string): void {
+  _appVersion = version
 }
 
-export function getPromaVersion(): string {
-  return _promaVersion
+export function getAppVersion(): string {
+  return _appVersion
 }
 
-export function getPromaUserAgent(version?: string): string {
-  const v = version ?? _promaVersion
-  return `Proma/${v} (+${PROMA_REPO_URL})`
+export function getAppUserAgent(version?: string): string {
+  const v = version ?? _appVersion
+  return `LuxAgents/${v} (+${LUXAGENTS_REPO_URL})`
 }

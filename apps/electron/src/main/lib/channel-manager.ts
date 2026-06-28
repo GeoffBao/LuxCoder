@@ -24,7 +24,7 @@ import type {
 import { PROVIDER_DEFAULT_URLS } from '@proma/shared'
 import { getFetchFn } from './proxy-fetch'
 import { getEffectiveProxyUrl } from './proxy-settings-service'
-import { normalizeBaseUrl, normalizeAnthropicProviderUrl, getPromaUserAgent } from '@proma/core'
+import { normalizeBaseUrl, normalizeAnthropicProviderUrl, getAppUserAgent } from '@proma/core'
 import { normalizeHttpResponse, normalizeRequestError } from './channel-test-error'
 import pkg from '../../../package.json' with { type: 'json' }
 
@@ -355,10 +355,10 @@ async function testAnthropicCompatible(
   }
   if (provider === 'kimi-coding' || provider === 'zhipu-coding') {
     headers.Authorization = `Bearer ${apiKey}`
-    headers['User-Agent'] = getPromaUserAgent(pkg.version)
+    headers['User-Agent'] = getAppUserAgent(pkg.version)
   } else if (provider === 'xiaomi-token-plan') {
     headers.Authorization = `Bearer ${apiKey}`
-    headers['User-Agent'] = getPromaUserAgent(pkg.version)
+    headers['User-Agent'] = getAppUserAgent(pkg.version)
   } else if (provider === 'minimax' || provider === 'qwen-anthropic') {
     headers.Authorization = `Bearer ${apiKey}`
   } else {
@@ -523,10 +523,10 @@ async function fetchAnthropicCompatibleModels(
   }
   if (provider === 'kimi-coding' || provider === 'zhipu-coding') {
     headers.Authorization = `Bearer ${apiKey}`
-    headers['User-Agent'] = getPromaUserAgent(pkg.version)
+    headers['User-Agent'] = getAppUserAgent(pkg.version)
   } else if (provider === 'xiaomi-token-plan') {
     headers.Authorization = `Bearer ${apiKey}`
-    headers['User-Agent'] = getPromaUserAgent(pkg.version)
+    headers['User-Agent'] = getAppUserAgent(pkg.version)
   } else if (provider === 'minimax' || provider === 'qwen-anthropic') {
     headers.Authorization = `Bearer ${apiKey}`
   } else {

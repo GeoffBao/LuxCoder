@@ -37,7 +37,7 @@ import { isPromptTooLongError, isThinkingSignatureError, friendlyErrorMessage, m
 import { isTransientNetworkError, isMalformedResponseError } from './error-patterns'
 import { AgentEventBus } from './agent-event-bus'
 import { decryptApiKey, getChannelById, listChannels } from './channel-manager'
-import { getAdapter, fetchTitle, normalizeAnthropicBaseUrlForSdk, getPromaUserAgent } from '@proma/core'
+import { getAdapter, fetchTitle, normalizeAnthropicBaseUrlForSdk, getAppUserAgent } from '@proma/core'
 import pkg from '../../../package.json' with { type: 'json' }
 import { getFetchFn } from './proxy-fetch'
 import { getEffectiveProxyUrl } from './proxy-settings-service'
@@ -569,7 +569,7 @@ export class AgentOrchestrator {
     // - 其它：ANTHROPIC_API_KEY（SDK 内部会同时带上 x-api-key 和 Bearer）
     if (provider === 'kimi-coding' || provider === 'zhipu-coding' || provider === 'xiaomi-token-plan') {
       sdkEnv.ANTHROPIC_AUTH_TOKEN = apiKey
-      sdkEnv.ANTHROPIC_CUSTOM_HEADERS = `User-Agent: ${getPromaUserAgent(pkg.version)}`
+      sdkEnv.ANTHROPIC_CUSTOM_HEADERS = `User-Agent: ${getAppUserAgent(pkg.version)}`
     } else if (provider === 'minimax') {
       sdkEnv.ANTHROPIC_AUTH_TOKEN = apiKey
       sdkEnv.API_TIMEOUT_MS = '3000000'
@@ -1008,11 +1008,11 @@ export class AgentOrchestrator {
     if (channel.provider === 'kimi-coding') {
       // Kimi Coding Plan：只用 Bearer + 必须带 User-Agent
       process.env.ANTHROPIC_AUTH_TOKEN = apiKey
-      process.env.ANTHROPIC_CUSTOM_HEADERS = `User-Agent: ${getPromaUserAgent(pkg.version)}`
+      process.env.ANTHROPIC_CUSTOM_HEADERS = `User-Agent: ${getAppUserAgent(pkg.version)}`
     } else if (channel.provider === 'xiaomi-token-plan') {
       // 小米 Token Plan：Bearer + 必须带 User-Agent
       process.env.ANTHROPIC_AUTH_TOKEN = apiKey
-      process.env.ANTHROPIC_CUSTOM_HEADERS = `User-Agent: ${getPromaUserAgent(pkg.version)}`
+      process.env.ANTHROPIC_CUSTOM_HEADERS = `User-Agent: ${getAppUserAgent(pkg.version)}`
     } else if (channel.provider === 'minimax') {
       // MiniMax Coding Plan：Claude Code 兼容配置使用 Bearer
       process.env.ANTHROPIC_AUTH_TOKEN = apiKey
