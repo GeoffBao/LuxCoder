@@ -1,5 +1,5 @@
 /**
- * Proma 内置记忆 MCP
+ * LuxAgents 内置记忆 MCP
  *
  * 运行时注入 MemOS Cloud 工具。配置来源仍沿用 memory-service，
  * 不写入工作区 mcp.json。

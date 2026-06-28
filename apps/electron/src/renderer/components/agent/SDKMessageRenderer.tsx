@@ -1029,7 +1029,7 @@ function QuoteChip({ quote }: { quote: QuotedFileRef }): React.ReactElement {
 // ===== 用户输入消息渲染 =====
 
 
-const SCHEDULED_RUN_MARKER = '<!--PROMA_SCHEDULED_RUN-->'
+const SCHEDULED_RUN_MARKER = '<!--LUXAGENTS_SCHEDULED_RUN-->'
 
 function stripScheduledRunMarker(text: string): string {
   return text.replaceAll(SCHEDULED_RUN_MARKER, '').trim()

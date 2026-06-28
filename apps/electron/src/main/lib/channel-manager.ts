@@ -298,7 +298,7 @@ export async function testChannel(channelId: string): Promise<ChannelTestResult>
       case 'google':
         return await testGoogle(channel.baseUrl, apiKey, proxyUrl)
       default:
-        return { success: false, message: `不支持的供应商: ${channel.provider}。你可能过去使用的是 Proma 商业版，请重新下载商业版覆盖安装，当前版本为开源版本。` }
+        return { success: false, message: `不支持的供应商: ${channel.provider}。你可能过去使用的是 LuxAgents 商业版，请重新下载商业版覆盖安装，当前版本为开源版本。` }
     }
   } catch (error) {
     return normalizeRequestError(error)
@@ -310,7 +310,7 @@ export async function testChannel(channelId: string): Promise<ChannelTestResult>
  *
  * DeepSeek / Kimi 等以 /anthropic 为协议根路径的供应商，实际端点位于 /anthropic/v1/messages，
  * 由 normalizeAnthropicProviderUrl 统一按需补 /v1。
- * Kimi Coding Plan 必须发送 Proma User-Agent，否则返回 403。
+ * Kimi Coding Plan 必须发送 LuxAgents User-Agent，否则返回 403。
  */
 async function testAnthropicCompatible(
   baseUrl: string,
@@ -506,7 +506,7 @@ interface AnthropicModelItem {
  *
  * DeepSeek / Kimi 等以 /anthropic 为协议根路径的供应商，实际端点位于 /anthropic/v1/messages，
  * 由 normalizeAnthropicProviderUrl 统一按需补 /v1。
- * Kimi Coding Plan 必须发送 Proma User-Agent。
+ * Kimi Coding Plan 必须发送 LuxAgents User-Agent。
  * 文档: https://docs.anthropic.com/en/api/models-list
  */
 async function fetchAnthropicCompatibleModels(

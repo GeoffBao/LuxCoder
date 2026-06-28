@@ -58,8 +58,8 @@ extraResources:
   - from: ../../tutorial/tutorial-v2.md
     to: tutorial.md
   # LuxAgents 品牌 Logo 素材（品牌素材下载功能使用）
-  - from: resources/proma-logos
-    to: proma-logos
+  - from: resources/logos
+    to: logos
     filter:
       - "**/*"
   # 默认 Dock 图标（macOS app.dock.setIcon 使用）

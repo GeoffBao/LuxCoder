@@ -1,7 +1,7 @@
 /**
  * Agent 内置定时任务工具
  *
- * 通过 SDK MCP Server 暴露 Proma Automation 的创建、维护和运行记录能力。
+ * 通过 SDK MCP Server 暴露 LuxAgents Automation 的创建、维护和运行记录能力。
  * 这些工具服务于 Agent 模式，不经过渲染进程 IPC，因此这里必须独立做参数校验。
  */
 

@@ -1,5 +1,5 @@
 /**
- * BuiltinMcpDetailSheet — Proma 内置 MCP 托管详情
+ * BuiltinMcpDetailSheet — LuxAgents 内置 MCP 托管详情
  */
 
 import * as React from 'react'

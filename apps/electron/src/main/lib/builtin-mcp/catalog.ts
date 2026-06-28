@@ -1,5 +1,5 @@
 /**
- * Proma 内置 MCP 能力目录
+ * LuxAgents 内置 MCP 能力目录
  *
  * 这里只维护可展示的元数据和可用性判断，不负责运行时注入。
  * 这样前端能力摘要可以安全读取内置 MCP 列表，而不会引入 Agent 编排层循环依赖。
@@ -28,10 +28,10 @@ const BUILTIN_MCP_CATALOG: BuiltinMcpCatalogItem[] = [
     id: 'automation',
     name: 'automation',
     displayName: '定时任务',
-    description: '创建、查看、更新、删除和立即运行 Proma 持久化定时任务。',
+    description: '创建、查看、更新、删除和立即运行 LuxAgents 持久化定时任务。',
     category: 'automation',
     tools: [
-      { name: 'list_automations', description: '列出 Proma 定时任务。', readOnly: true },
+      { name: 'list_automations', description: '列出 LuxAgents 定时任务。', readOnly: true },
       { name: 'get_automation', description: '读取单个定时任务详情和运行记录。', readOnly: true },
       { name: 'create_automation', description: '创建持久化定时任务。' },
       { name: 'update_automation', description: '更新定时任务配置。' },
@@ -43,7 +43,7 @@ const BUILTIN_MCP_CATALOG: BuiltinMcpCatalogItem[] = [
     id: 'collaboration',
     name: 'collaboration',
     displayName: '协作子 Agent',
-    description: '创建、等待、读取和停止真实可见的 Proma 协作子 Agent 会话。',
+    description: '创建、等待、读取和停止真实可见的 LuxAgents 协作子 Agent 会话。',
     category: 'collaboration',
     tools: [
       { name: 'list_available_agent_models', description: '列出当前渠道下可用于协作子 Agent 的模型。', readOnly: true },

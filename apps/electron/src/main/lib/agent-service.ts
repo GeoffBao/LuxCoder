@@ -24,7 +24,7 @@ import type {
   AgentStreamEvent,
   AgentStreamPayload,
   AgentQueueMessageInput,
-  PromaPermissionMode,
+  LuxAgentsPermissionMode,
   AgentExternalRunSource,
   AgentMessage,
 } from '@luxagents/shared'
@@ -353,9 +353,9 @@ export function killOrphanedClaudeSubprocesses(): void {
 /**
  * 运行中动态切换会话的权限模式
  *
- * 同时更新 Proma 侧（canUseTool 动态读取）和 SDK 侧（query.setPermissionMode）。
+ * 同时更新 LuxAgents 侧（canUseTool 动态读取）和 SDK 侧（query.setPermissionMode）。
  */
-export async function updateAgentPermissionMode(sessionId: string, mode: PromaPermissionMode): Promise<void> {
+export async function updateAgentPermissionMode(sessionId: string, mode: LuxAgentsPermissionMode): Promise<void> {
   await orchestrator.updateSessionPermissionMode(sessionId, mode)
 }
 

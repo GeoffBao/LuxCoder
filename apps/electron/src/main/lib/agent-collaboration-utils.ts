@@ -5,14 +5,14 @@
  */
 
 import {
-  PROMA_DEFAULT_PERMISSION_MODE,
+  LUXAGENTS_DEFAULT_PERMISSION_MODE,
   type AgentDelegationRole,
   type AgentDelegationStatus,
   type AgentSessionMeta,
-  type PromaPermissionMode,
+  type LuxAgentsPermissionMode,
 } from '@luxagents/shared'
 
-const PERMISSION_RANK: Record<PromaPermissionMode, number> = {
+const PERMISSION_RANK: Record<LuxAgentsPermissionMode, number> = {
   plan: 0,
   auto: 1,
   bypassPermissions: 2,
@@ -27,17 +27,17 @@ export interface RecoveredDelegationState {
   title: string
   role: AgentDelegationRole
   goal: string
-  permissionMode: PromaPermissionMode
+  permissionMode: LuxAgentsPermissionMode
   status: AgentDelegationStatus
   startedAt: number
   completedAt?: number
 }
 
 export function resolveDelegationPermissionMode(
-  parentMode: PromaPermissionMode | undefined,
-  requestedMode: PromaPermissionMode | undefined,
-): PromaPermissionMode {
-  const parent = parentMode ?? PROMA_DEFAULT_PERMISSION_MODE
+  parentMode: LuxAgentsPermissionMode | undefined,
+  requestedMode: LuxAgentsPermissionMode | undefined,
+): LuxAgentsPermissionMode {
+  const parent = parentMode ?? LUXAGENTS_DEFAULT_PERMISSION_MODE
   const requested = requestedMode ?? parent
   return PERMISSION_RANK[requested] <= PERMISSION_RANK[parent] ? requested : parent
 }
@@ -46,7 +46,7 @@ export function buildRecoveredDelegationState(input: {
   parentSessionId: string
   delegationId: string
   session: AgentSessionMeta
-  fallbackPermissionMode?: PromaPermissionMode
+  fallbackPermissionMode?: LuxAgentsPermissionMode
 }): RecoveredDelegationState {
   const persistedStatus = input.session.delegationStatus
   // 从持久化记录恢复但不在 live Map 中，说明当前进程并没有这个委派在跑。
@@ -62,7 +62,7 @@ export function buildRecoveredDelegationState(input: {
     title: input.session.title,
     role: input.session.delegationRole ?? 'custom',
     goal: input.session.delegationGoal ?? '',
-    permissionMode: input.session.permissionMode ?? input.fallbackPermissionMode ?? PROMA_DEFAULT_PERMISSION_MODE,
+    permissionMode: input.session.permissionMode ?? input.fallbackPermissionMode ?? LUXAGENTS_DEFAULT_PERMISSION_MODE,
     status,
     startedAt: input.session.createdAt,
     completedAt: persistedStatus ? input.session.updatedAt : undefined,
@@ -77,7 +77,7 @@ export function buildDelegationPrompt(input: {
   expectedOutput?: string
 }): string {
   const expectedOutput = input.expectedOutput?.trim()
-  return `你是 Proma 协作子 Agent。你由父 Agent 会话 ${input.parentSessionId} 委派创建，委派 ID 为 ${input.delegationId}。
+  return `你是 LuxAgents 协作子 Agent。你由父 Agent 会话 ${input.parentSessionId} 委派创建，委派 ID 为 ${input.delegationId}。
 
 ## 工作边界
 

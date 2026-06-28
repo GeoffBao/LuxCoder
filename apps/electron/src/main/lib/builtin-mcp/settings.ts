@@ -1,5 +1,5 @@
 /**
- * Proma 内置 MCP 开关设置
+ * LuxAgents 内置 MCP 开关设置
  *
  * 仅管理用户是否允许注入某个内置 MCP。依赖是否可用（如 API Key）
  * 由各 MCP 自己的配置判断。

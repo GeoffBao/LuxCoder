@@ -543,11 +543,11 @@ export type AgentEvent =
   // 模型确认（SDK 确认实际使用的模型）
   | { type: 'model_resolved'; model: string }
   // 权限模式变更（Plan → bypassPermissions 等）
-  | { type: 'permission_mode_changed'; mode: PromaPermissionMode }
+  | { type: 'permission_mode_changed'; mode: LuxAgentsPermissionMode }
 
-// ===== Proma 内部事件（SDK 不覆盖的场景） =====
+// ===== LuxAgents 内部事件（SDK 不覆盖的场景） =====
 
-/** Proma 内部事件类型 */
+/** LuxAgents 内部事件类型 */
 export type PromaEvent =
   | { type: 'permission_request'; request: PermissionRequest }
   | { type: 'permission_resolved'; requestId: string; behavior: 'allow' | 'deny' }
@@ -560,7 +560,7 @@ export type PromaEvent =
   | { type: 'retry'; status: 'starting' | 'attempt' | 'cleared' | 'failed'; attempt?: number; maxAttempts?: number; delaySeconds?: number; reason?: string; attemptData?: RetryAttempt; error?: TypedError }
   | { type: 'model_resolved'; model: string }
   | { type: 'context_window'; contextWindow: number }
-  | { type: 'permission_mode_changed'; mode: PromaPermissionMode }
+  | { type: 'permission_mode_changed'; mode: LuxAgentsPermissionMode }
   | { type: 'title_updated'; title: string }
   | { type: 'external_run_started'; source: AgentExternalRunSource; sessionId: string; title?: string; workspaceId?: string; modelId?: string; startedAt: number }
   | { type: 'run_resumed'; sessionId: string }
@@ -606,7 +606,7 @@ export interface AgentSessionMeta {
   attachedDirectories?: string[]
   /** 附加的外部文件路径列表（绝对路径，发送时以父目录作为 SDK additionalDirectories） */
   attachedFiles?: string[]
-  /** 分叉来源：源会话的 Proma 工作目录（SDK session 文件在此目录的项目空间中，首次 resume 后清除） */
+  /** 分叉来源：源会话的 LuxAgents 工作目录（SDK session 文件在此目录的项目空间中，首次 resume 后清除） */
   forkSourceDir?: string
   /** 分叉来源：源会话的 SDK session ID（用于 rewind 时读取源会话的 file-history-snapshot 和备份文件） */
   forkSourceSdkSessionId?: string
@@ -619,7 +619,7 @@ export interface AgentSessionMeta {
   /** 最后一次流式执行是否被用户主动中断 */
   stoppedByUser?: boolean
   /** 该会话当前的权限模式（持久化到磁盘，重启后恢复）。未设置时新会话默认 auto */
-  permissionMode?: PromaPermissionMode
+  permissionMode?: LuxAgentsPermissionMode
   /** 来源定时任务 ID（该会话由定时任务自动创建/复用时标记，用于侧栏显示钟表图标 + 跳转设置） */
   sourceAutomationId?: string
   /**
@@ -757,7 +757,7 @@ export interface AgentGenerateTitleInput {
 
 // ===== MCP 服务器配置 =====
 
-/** MCP 传输类型；Proma 将 Streamable HTTP 规范化存储为 http */
+/** MCP 传输类型；LuxAgents 将 Streamable HTTP 规范化存储为 http */
 export type McpTransportType = 'stdio' | 'http' | 'sse'
 
 /** 外部配置中常见的 Streamable HTTP 别名 */
@@ -800,10 +800,10 @@ export interface McpToolSummary {
   readOnly?: boolean
 }
 
-/** Proma 内置 MCP 分类 */
+/** LuxAgents 内置 MCP 分类 */
 export type BuiltinMcpCategory = 'system' | 'automation' | 'collaboration' | 'memory' | 'media'
 
-/** Proma 内置 MCP 摘要，不写入工作区 mcp.json */
+/** LuxAgents 内置 MCP 摘要，不写入工作区 mcp.json */
 export interface BuiltinMcpServerSummary {
   id: string
   name: string
@@ -836,7 +836,7 @@ export interface SkillMeta {
   slug: string
   name: string
   description?: string
-  /** UI 分组名，用于把 Proma 内嵌 Skills 收拢到同一组 */
+  /** UI 分组名，用于把 LuxAgents 内嵌 Skills 收拢到同一组 */
   group?: string
   icon?: string
   version?: string
@@ -909,7 +909,7 @@ export interface AgentSendInput {
   /** 动态注入的 MCP 服务器（仅在本次会话中生效，如飞书群聊工具） */
   customMcpServers?: Record<string, Record<string, unknown>>
   /** 强制覆盖权限模式（飞书等无 UI 交互场景下强制 'bypassPermissions'） */
-  permissionModeOverride?: PromaPermissionMode
+  permissionModeOverride?: LuxAgentsPermissionMode
   /** 用户通过 /skill:xxx 引用的 Skill slug 列表 */
   mentionedSkills?: string[]
   /** 用户通过 #mcp:xxx 引用的 MCP 服务器名称列表 */
@@ -956,7 +956,7 @@ export interface MoveSessionToWorkspaceInput {
 
 /** Fork（分叉）会话输入 */
 export interface ForkSessionInput {
-  /** Proma 会话 ID */
+  /** LuxAgents 会话 ID */
   sessionId: string
   /** SDK 消息 uuid（截断点，inclusive）。省略时复制全部历史 */
   upToMessageUuid?: string
@@ -966,7 +966,7 @@ export interface ForkSessionInput {
 
 /** 快照回退输入（同一会话内回退到指定点） */
 export interface RewindSessionInput {
-  /** Proma 会话 ID */
+  /** LuxAgents 会话 ID */
   sessionId: string
   /** 回退到哪条 assistant message（inclusive，截断该消息之后的一切） */
   assistantMessageUuid: string
@@ -1256,22 +1256,22 @@ export interface ExitPlanModeResponse {
 
 // ===== 权限系统类型 =====
 
-/** 当前 Proma 支持的权限模式，值直接映射 SDK 原生 permissionMode */
-export const PROMA_PERMISSION_MODES = ['auto', 'bypassPermissions', 'plan'] as const
+/** 当前 LuxAgents 支持的权限模式，值直接映射 SDK 原生 permissionMode */
+export const LUXAGENTS_PERMISSION_MODES = ['auto', 'bypassPermissions', 'plan'] as const
 
-export type PromaPermissionMode = typeof PROMA_PERMISSION_MODES[number]
+export type LuxAgentsPermissionMode = typeof LUXAGENTS_PERMISSION_MODES[number]
 
-export const PROMA_DEFAULT_PERMISSION_MODE: PromaPermissionMode = 'bypassPermissions'
+export const LUXAGENTS_DEFAULT_PERMISSION_MODE: LuxAgentsPermissionMode = 'bypassPermissions'
 
-export interface PromaPermissionModeConfig {
+export interface LuxAgentsPermissionModeConfig {
   /** 对应 Claude Agent SDK 的 permissionMode */
-  sdkMode: PromaPermissionMode
+  sdkMode: LuxAgentsPermissionMode
   label: string
   description: string
 }
 
-/** Proma 权限模式的单一配置来源 */
-export const PROMA_PERMISSION_MODE_CONFIG = {
+/** LuxAgents 权限模式的单一配置来源 */
+export const LUXAGENTS_PERMISSION_MODE_CONFIG = {
   auto: {
     sdkMode: 'auto',
     label: '自动审批',
@@ -1287,19 +1287,19 @@ export const PROMA_PERMISSION_MODE_CONFIG = {
     label: '计划模式',
     description: '仅规划不执行，查看工具使用计划',
   },
-} as const satisfies Record<PromaPermissionMode, PromaPermissionModeConfig>
+} as const satisfies Record<LuxAgentsPermissionMode, LuxAgentsPermissionModeConfig>
 
 /** 权限模式定义顺序（用于循环切换） */
-export const PROMA_PERMISSION_MODE_ORDER: readonly PromaPermissionMode[] = PROMA_PERMISSION_MODES
+export const LUXAGENTS_PERMISSION_MODE_ORDER: readonly LuxAgentsPermissionMode[] = LUXAGENTS_PERMISSION_MODES
 
-export function isPromaPermissionMode(mode: string): mode is PromaPermissionMode {
-  return (PROMA_PERMISSION_MODES as readonly string[]).includes(mode)
+export function isLuxAgentsPermissionMode(mode: string): mode is LuxAgentsPermissionMode {
+  return (LUXAGENTS_PERMISSION_MODES as readonly string[]).includes(mode)
 }
 
 /** 规范化权限模式：不匹配当前三种模式时统一回到默认自动审批 */
-export function migratePermissionMode(mode: string): PromaPermissionMode {
-  if (isPromaPermissionMode(mode)) return mode
-  return PROMA_DEFAULT_PERMISSION_MODE
+export function migratePermissionMode(mode: string): LuxAgentsPermissionMode {
+  if (isLuxAgentsPermissionMode(mode)) return mode
+  return LUXAGENTS_DEFAULT_PERMISSION_MODE
 }
 
 /** 危险等级 */
@@ -1315,7 +1315,7 @@ export interface PermissionRequest {
   toolName: string
   /** 工具输入参数 */
   toolInput: Record<string, unknown>
-  /** 操作描述（人类可读，Proma 生成） */
+  /** 操作描述（人类可读，LuxAgents 生成） */
   description: string
   /** 具体命令（Bash 工具时有值��� */
   command?: string
@@ -1416,7 +1416,7 @@ export const AGENT_IPC_CHANNELS = {
   SAVE_MCP_CONFIG: 'agent:save-mcp-config',
   /** 测试 MCP 服务器连接 */
   TEST_MCP_SERVER: 'agent:test-mcp-server',
-  /** 启用或关闭 Proma 内置 MCP */
+  /** 启用或关闭 LuxAgents 内置 MCP */
   SET_BUILTIN_MCP_ENABLED: 'agent:set-builtin-mcp-enabled',
   /** 获取工作区 Skill 列表 */
   GET_SKILLS: 'agent:get-skills',

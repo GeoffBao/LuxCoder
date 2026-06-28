@@ -6,7 +6,7 @@
  * - HTTP 长轮询接收消息
  * - 发送消息/输入状态
  *
- * 消息路由到 Proma Agent，回复通过 iLink API 发送。
+ * 消息路由到 LuxAgents Agent，回复通过 iLink API 发送。
  */
 
 import { BrowserWindow } from 'electron'

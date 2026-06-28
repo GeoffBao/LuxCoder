@@ -65,7 +65,7 @@ import type {
   GitHubReleaseListOptions,
   PermissionRequest,
   PermissionResponse,
-  PromaPermissionMode,
+  LuxAgentsPermissionMode,
   AskUserRequest,
   AskUserResponse,
   ExitPlanModeResponse,
@@ -504,7 +504,7 @@ export interface ElectronAPI {
   /** 测试 MCP 服务器连接 */
   testMcpServer: (name: string, entry: import('@luxagents/shared').McpServerEntry) => Promise<{ success: boolean; message: string }>
 
-  /** 启用或关闭 Proma 内置 MCP */
+  /** 启用或关闭 LuxAgents 内置 MCP */
   setBuiltinMcpEnabled: (workspaceSlug: string, id: string, enabled: boolean) => Promise<WorkspaceCapabilities>
 
   /** 获取工作区 Skill 列表（含活跃和不活跃） */
@@ -573,7 +573,7 @@ export interface ElectronAPI {
   respondPermission: (response: PermissionResponse) => Promise<void>
 
   /** 热切换指定会话的权限模式（运行中生效，仅影响该 session） */
-  updateSessionPermissionMode: (sessionId: string, mode: PromaPermissionMode) => Promise<void>
+  updateSessionPermissionMode: (sessionId: string, mode: LuxAgentsPermissionMode) => Promise<void>
 
   /** 获取全局记忆配置 */
   getMemoryConfig: () => Promise<MemoryConfig>
@@ -1637,7 +1637,7 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.PERMISSION_RESPOND, response)
   },
 
-  updateSessionPermissionMode: (sessionId: string, mode: PromaPermissionMode) => {
+  updateSessionPermissionMode: (sessionId: string, mode: LuxAgentsPermissionMode) => {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.UPDATE_SESSION_PERMISSION_MODE, sessionId, mode)
   },
 

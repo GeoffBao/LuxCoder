@@ -1,11 +1,11 @@
 /**
- * Proma 内置 MCP 注册中心
+ * LuxAgents 内置 MCP 注册中心
  *
  * Orchestrator 只调用这里的统一入口；各内置 MCP 的可用性、注入条件和错误隔离
  * 都收敛在本模块，避免主编排流程继续膨胀。
  */
 
-import type { AgentSessionMeta, PromaPermissionMode } from '@luxagents/shared'
+import type { AgentSessionMeta, LuxAgentsPermissionMode } from '@luxagents/shared'
 import { injectAgentCollaborationMcpServer } from '../agent-collaboration-tools'
 import { injectAutomationMcpServer } from '../automation-agent-tools'
 import { injectNanoBananaMcpServer } from '../chat-tools/nano-banana-mcp'
@@ -21,7 +21,7 @@ export interface BuiltinMcpInjectContext {
   workspaceId?: string
   workspaceSlug?: string
   agentCwd?: string
-  permissionMode?: PromaPermissionMode
+  permissionMode?: LuxAgentsPermissionMode
   triggeredBy?: 'user' | 'automation' | 'delegation'
   sessionMeta?: AgentSessionMeta
 }

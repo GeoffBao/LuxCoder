@@ -72,7 +72,7 @@ async function downloadFile(url: string, destPath: string): Promise<void> {
 
   const response = await fetch(url, {
     headers: {
-      'User-Agent': 'Proma-Build-Script/1.0',
+      'User-Agent': 'LuxAgents-Build-Script/1.0',
     },
     redirect: 'follow',
   })
@@ -285,7 +285,7 @@ Bun 二进制下载脚本
  */
 async function main(): Promise<void> {
   console.log('='.repeat(60))
-  console.log('Proma Bun 二进制下载脚本')
+  console.log('LuxAgents Bun 二进制下载脚本')
   console.log('='.repeat(60))
 
   try {

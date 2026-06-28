@@ -291,7 +291,7 @@ async function callGeminiAndBuildResult(
         filename: result.attachment.filename,
         mediaType: result.attachment.mediaType,
       })
-      textParts.push(`[PROMA_IMAGE_ATTACHMENT:${attachmentMeta}]`)
+      textParts.push(`[LUXAGENTS_IMAGE_ATTACHMENT:${attachmentMeta}]`)
     } else if (part.text) {
       textParts.push(part.text)
     }
