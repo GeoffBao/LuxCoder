@@ -1,0 +1,1850 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LuxAgents — 企业 AI 研发工作台方案文档 v0.4</title>
+<meta name="description" content="LuxAgents 企业级 AI 研发工作台完整方案设计文档。暖黑深色主题，赭石橙 accent，自包含零 CDN 依赖。">
+<style>
+/* ============================================================
+   LuxAgents Design System v0.4
+   Warm-Dark Industrial Engineering Workstation Aesthetic
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+
+/* ── Tokens ────────────────────────────────────────────── */
+:root {
+  /* Surfaces */
+  --bg-root:        #0F0D0A;
+  --bg-surface-0:   #151310;
+  --bg-surface-1:   #1C1915;
+  --bg-surface-2:   #24201B;
+  --bg-surface-3:   #2D2822;
+  --bg-elevated:    #1F1B17;
+
+  /* Borders */
+  --border-subtle:  rgba(218, 119, 86, 0.10);
+  --border-default: rgba(218, 119, 86, 0.15);
+  --border-strong:  rgba(218, 119, 86, 0.28);
+  --border-accent:  rgba(218, 119, 86, 0.45);
+
+  /* Accent — Burnt Orange */
+  --accent:         #DA7756;
+  --accent-glow:    rgba(218, 119, 86, 0.18);
+  --accent-dim:     rgba(218, 119, 86, 0.50);
+  --accent-muted:   rgba(218, 119, 86, 0.30);
+
+  /* Semantic */
+  --success:        #34D399;
+  --warning:        #FBBF24;
+  --danger:         #FB7185;
+  --info:           #38BDF8;
+
+  /* Text */
+  --text-primary:   #F0EDE8;
+  --text-secondary: #B8B0A6;
+  --text-tertiary:  #7A7268;
+  --text-disabled:  #4A4440;
+
+  /* Typography */
+  --font-display:   'DM Sans', system-ui, -apple-system, sans-serif;
+  --font-body:      'DM Sans', system-ui, -apple-system, sans-serif;
+  --font-mono:      'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+
+  /* Spacing scale */
+  --space-xs:  4px;
+  --space-sm:  8px;
+  --space-md:  16px;
+  --space-lg:  24px;
+  --space-xl:  32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+  --space-4xl: 96px;
+
+  /* Radii */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Shadows */
+  --shadow-sm:  0 1px 3px rgba(0,0,0,.4);
+  --shadow-md:  0 4px 12px rgba(0,0,0,.5);
+  --shadow-lg:  0 8px 32px rgba(0,0,0,.6);
+  --shadow-glow: 0 0 24px var(--accent-glow);
+
+  /* Layout */
+  --sidebar-w: 240px;
+  --content-max: 900px;
+}
+
+/* ── Reset & Base ──────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg-root);
+  color: var(--text-primary);
+  line-height: 1.65;
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* ── App Shell ─────────────────────────────────────────── */
+#app {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── Sidebar ───────────────────────────────────────────── */
+#sidebar {
+  width: var(--sidebar-w);
+  min-width: var(--sidebar-w);
+  background: var(--bg-surface-1);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-lg);
+  gap: 2px;
+  overflow-y: auto;
+}
+
+.logo-block {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding-bottom: var(--space-lg);
+  margin-bottom: var(--space-md);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.logo-icon {
+  width: 36px; height: 36px;
+  background: var(--accent);
+  border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 700; font-size: 18px;
+  color: var(--bg-root);
+  flex-shrink: 0;
+}
+
+.logo-icon.small { width: 28px; height: 28px; font-size: 14px; border-radius: var(--radius-sm); }
+
+.logo-text { line-height: 1.2; }
+.logo-name { font-weight: 600; font-size: 15px; display: block; }
+.logo-sub  { font-size: 11px; color: var(--text-tertiary); font-family: var(--font-mono); }
+
+.nav-section-label {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--text-tertiary);
+  padding: var(--space-md) 0 var(--space-xs) var(--space-sm);
+}
+
+.nav-item {
+  display: flex; align-items: center; gap: var(--space-sm);
+  padding: 6px var(--space-sm);
+  font-size: 13px; color: var(--text-secondary);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  transition: all .15s ease;
+  cursor: pointer;
+  border: none; background: none;
+  width: 100%; text-align: left;
+  font-family: var(--font-body);
+}
+
+.nav-item:hover { background: var(--bg-surface-2); color: var(--text-primary); }
+.nav-item.active { background: var(--accent-glow); color: var(--accent); font-weight: 500; }
+
+.nav-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dot-chat   { background: var(--info); }
+.dot-code   { background: var(--success); }
+.dot-cowork { background: var(--accent); }
+
+.sidebar-footer {
+  margin-top: auto; padding-top: var(--space-lg);
+  border-top: 1px solid var(--border-subtle);
+  display: flex; flex-direction: column; gap: var(--space-xs);
+}
+
+.footer-tag {
+  font-size: 10px; color: var(--text-tertiary);
+  font-family: var(--font-mono); letter-spacing: 0.04em;
+}
+
+.footer-tag.accent { color: var(--accent-dim); }
+
+/* ── Main Content ──────────────────────────────────────── */
+#main {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+/* ── Section ───────────────────────────────────────────── */
+.section {
+  padding: var(--space-4xl) var(--space-3xl);
+  max-width: var(--content-max);
+}
+
+.section + .section { border-top: 1px solid var(--border-subtle); }
+
+.section-header {
+  display: flex; align-items: flex-start; gap: var(--space-lg);
+  margin-bottom: var(--space-2xl);
+}
+
+.section-num {
+  font-family: var(--font-mono);
+  font-size: 13px; font-weight: 600;
+  color: var(--accent-dim);
+  background: var(--accent-glow);
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-size: 26px; font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.section-desc {
+  font-size: 14px; color: var(--text-tertiary);
+  line-height: 1.5;
+}
+
+/* ── Hero ──────────────────────────────────────────────── */
+.hero-section {
+  padding-top: var(--space-4xl);
+  padding-bottom: var(--space-4xl);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.hero-eyebrow {
+  display: flex; gap: var(--space-sm); margin-bottom: var(--space-lg);
+}
+
+.hero-title {
+  font-family: var(--font-display);
+  font-size: 56px; font-weight: 700;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent) 80%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: var(--space-md);
+  line-height: 1.1;
+}
+
+.hero-sub {
+  font-size: 17px; color: var(--text-secondary);
+  line-height: 1.6; max-width: 560px;
+  margin-bottom: var(--space-xl);
+}
+
+/* ── Pills (Hero flow) ─────────────────────────────────── */
+.hero-pills {
+  display: flex; align-items: center; gap: var(--space-sm);
+  margin-bottom: var(--space-xl);
+  flex-wrap: wrap;
+}
+
+.pill {
+  display: flex; align-items: center; gap: var(--space-sm);
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-sm) var(--space-md);
+  transition: border-color .2s;
+}
+
+.pill:hover { border-color: var(--border-strong); }
+
+.pill-icon { font-size: 18px; }
+.pill-title { font-size: 13px; font-weight: 600; }
+.pill-desc { font-size: 11px; color: var(--text-tertiary); font-family: var(--font-mono); }
+
+.pill-arrow {
+  font-size: 18px; color: var(--accent-dim);
+  font-family: var(--font-mono);
+}
+
+.hero-quote {
+  background: var(--bg-surface-1);
+  border-left: 3px solid var(--accent);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  font-size: 14px; color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 640px;
+}
+
+/* ── Badges ────────────────────────────────────────────── */
+.badge {
+  font-size: 11px; font-weight: 500; padding: 2px 8px;
+  border-radius: var(--radius-sm); font-family: var(--font-mono);
+}
+
+.badge-accent {
+  background: var(--accent-glow); color: var(--accent);
+  border: 1px solid rgba(218,119,86,0.25);
+}
+
+.badge-dim {
+  background: var(--bg-surface-2); color: var(--text-tertiary);
+  border: 1px solid var(--border-subtle);
+}
+
+/* ── Card Grids ────────────────────────────────────────── */
+.card-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); }
+.card-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-md); }
+
+.card {
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  transition: border-color .2s, box-shadow .2s;
+}
+
+.card:hover { border-color: var(--border-default); }
+
+.card-highlight {
+  border-color: var(--border-strong);
+  background: var(--bg-surface-2);
+}
+
+.card-icon { font-size: 24px; margin-bottom: var(--space-sm); }
+.card-title { font-weight: 600; font-size: 15px; margin-bottom: var(--space-sm); }
+.card-body { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+
+/* ── Chips ─────────────────────────────────────────────── */
+.chip-row { display: flex; gap: var(--space-xs); flex-wrap: wrap; margin-bottom: var(--space-sm); }
+
+.chip {
+  font-family: var(--font-mono);
+  font-size: 11px; padding: 1px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid;
+}
+
+.chip-skill { color: var(--info); border-color: rgba(56,189,248,0.3); background: rgba(56,189,248,0.08); }
+.chip-mcp   { color: var(--success); border-color: rgba(52,211,153,0.3); background: rgba(52,211,153,0.08); }
+.chip-rag   { color: var(--warning); border-color: rgba(251,191,36,0.3); background: rgba(251,191,36,0.08); }
+
+/* ── Architecture SVG Diagram ──────────────────────────── */
+.arch-diagram-wrap {
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: var(--space-xl);
+  overflow-x: auto;
+}
+
+.arch-diagram-wrap svg { display: block; margin: 0 auto; }
+
+/* ── Boss Diagram ──────────────────────────────────────── */
+.boss-diagram {
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: var(--space-xl);
+  margin-bottom: var(--space-2xl);
+}
+
+.boss-diagram-title {
+  font-size: 13px; font-weight: 600; color: var(--text-tertiary);
+  margin-bottom: var(--space-lg);
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+}
+
+.boss-diagram-body {
+  display: flex; align-items: center; gap: var(--space-lg);
+  margin-bottom: var(--space-lg);
+}
+
+.bd-box {
+  flex: 1; background: var(--bg-surface-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+}
+
+.bd-box-title {
+  font-weight: 600; font-size: 14px; margin-bottom: var(--space-sm);
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.bd-card {
+  font-size: 12px; color: var(--text-secondary);
+  padding: 4px 0;
+  display: flex; align-items: center; gap: 6px;
+}
+
+.bd-card::before {
+  content: ''; width: 6px; height: 6px;
+  background: var(--text-tertiary);
+  border-radius: 50%; flex-shrink: 0;
+}
+
+.bd-card-red::before { background: var(--accent); }
+.bd-card-red { color: var(--accent); font-weight: 500; }
+
+.bd-arrows {
+  display: flex; flex-direction: column; gap: var(--space-lg);
+  flex-shrink: 0;
+}
+
+.bd-arrow-row {
+  display: flex; align-items: center; gap: var(--space-sm);
+  font-family: var(--font-mono); font-size: 11px;
+}
+
+.bd-arrow-label.get    { color: var(--info); }
+.bd-arrow-label.storing { color: var(--success); }
+.bd-arrow-line {
+  color: var(--text-tertiary);
+  letter-spacing: 2px;
+}
+
+.bd-desc {
+  font-size: 12px; color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  line-height: 1.5;
+}
+
+/* ── Kanban Demo ───────────────────────────────────────── */
+.kanban-demo {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--space-md);
+  margin-bottom: var(--space-2xl);
+  overflow-x: auto;
+}
+
+.kanban-col {
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+  min-width: 160px;
+}
+
+.kanban-col-active {
+  border-color: var(--accent-dim);
+  box-shadow: 0 0 20px rgba(218,119,86,0.06);
+}
+
+.kanban-col-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: var(--space-md);
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.kanban-col-title {
+  font-size: 13px; font-weight: 600;
+}
+
+.kanban-col-title-active { color: var(--accent); }
+
+.kanban-col-count {
+  font-family: var(--font-mono); font-size: 12px;
+  background: var(--bg-surface-2); color: var(--text-tertiary);
+  padding: 1px 6px; border-radius: var(--radius-sm);
+}
+
+.kanban-card {
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm);
+  margin-bottom: var(--space-sm);
+  transition: border-color .15s;
+}
+
+.kanban-card:hover { border-color: var(--border-default); }
+
+.kanban-card-selected {
+  border-color: var(--accent-dim);
+  box-shadow: 0 0 12px rgba(218,119,86,0.12);
+}
+
+.kanban-card-id {
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--text-tertiary); margin-bottom: 2px;
+}
+
+.kanban-card-title {
+  font-size: 12px; font-weight: 500; margin-bottom: 6px;
+}
+
+.kanban-card-badges { display: flex; gap: 4px; flex-wrap: wrap; }
+
+.badge-type {
+  font-family: var(--font-mono); font-size: 9px;
+  padding: 1px 5px; border-radius: var(--radius-sm);
+}
+
+.badge-type.feature { color: var(--info); background: rgba(56,189,248,0.1); }
+.badge-type.bug     { color: var(--danger); background: rgba(251,113,133,0.1); }
+.badge-type.task    { color: var(--text-tertiary); background: var(--bg-surface-3); }
+
+.badge-pri {
+  font-family: var(--font-mono); font-size: 9px;
+  padding: 1px 5px; border-radius: var(--radius-sm);
+}
+
+.badge-pri.p1 { color: var(--danger); background: rgba(251,113,133,0.1); }
+.badge-pri.p2 { color: var(--warning); background: rgba(251,191,36,0.1); }
+
+.kanban-card-status {
+  font-size: 10px; margin-top: 6px;
+  font-family: var(--font-mono);
+}
+
+.kanban-card-status.reviewing { color: var(--warning); }
+.kanban-card-status.spec      { color: var(--info); }
+.kanban-card-status.done      { color: var(--success); }
+
+.kanban-card-agent {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 10px; color: var(--accent);
+  font-family: var(--font-mono); margin-top: 6px;
+}
+
+.pulse-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.3; transform: scale(1.6); }
+}
+
+/* ── Task Detail Panel ─────────────────────────────────── */
+.task-detail-panel {
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: var(--space-lg);
+  margin-bottom: var(--space-2xl);
+}
+
+.tdp-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: var(--space-md);
+  flex-wrap: wrap; gap: var(--space-sm);
+}
+
+.tdp-header-left { display: flex; align-items: center; gap: var(--space-sm); }
+
+.tdp-icon {
+  font-size: 24px; color: var(--accent);
+}
+
+.tdp-id {
+  font-family: var(--font-mono); font-size: 14px; font-weight: 600;
+}
+
+.tdp-header-right {
+  font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary);
+}
+
+.rca-badge {
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--warning); background: rgba(251,191,36,0.1);
+  padding: 1px 6px; border-radius: var(--radius-sm);
+}
+
+.tdp-speckit {
+  display: flex; align-items: center; gap: var(--space-sm);
+  font-family: var(--font-mono); font-size: 12px;
+  margin-bottom: var(--space-lg);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-surface-2);
+  border-radius: var(--radius-md);
+}
+
+.tdp-speckit-label { color: var(--text-tertiary); margin-right: var(--space-sm); }
+
+.sk-step.done    { color: var(--success); }
+.sk-step.active  { color: var(--accent); font-weight: 600; }
+.sk-step.pending { color: var(--text-disabled); }
+.sk-sep          { color: var(--text-disabled); }
+
+.tdp-log-section { margin-bottom: var(--space-lg); }
+.tdp-log-label {
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--text-tertiary); text-transform: uppercase;
+  letter-spacing: 0.08em; margin-bottom: var(--space-sm);
+}
+
+.tdp-log {
+  background: var(--bg-surface-0);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  font-family: var(--font-mono); font-size: 12px; line-height: 1.8;
+}
+
+.log-line { opacity: 0; transform: translateX(-8px); }
+
+.log-ts { color: var(--text-disabled); margin-right: var(--space-sm); font-size: 11px; }
+.log-info    { color: var(--text-secondary); }
+.log-file    { color: var(--info); }
+.log-tool    { color: var(--warning); }
+.log-success { color: var(--success); }
+
+.diff-add { color: var(--success); }
+.diff-del { color: var(--danger); }
+
+/* Writeback section */
+.tdp-writeback-section { }
+.wb-item {
+  font-family: var(--font-mono); font-size: 12px;
+  padding: 3px 0;
+}
+
+.wb-success { color: var(--success); }
+.wb-pending { color: var(--text-tertiary); animation: wb-blink 1.5s ease-in-out infinite; }
+
+@keyframes wb-blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+
+/* ── Kanban Action Buttons ──────────────────────────────── */
+.kanban-card-actions {
+  display: flex; gap: 4px; margin-top: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.kanban-btn {
+  font-family: var(--font-mono); font-size: 9px; font-weight: 500;
+  padding: 2px 8px; border-radius: var(--radius-sm); border: 1px solid;
+  cursor: pointer; background: transparent;
+  transition: all .15s;
+}
+
+.kanban-btn.specify { color: var(--info); border-color: rgba(56,189,248,0.3); }
+.kanban-btn.specify:hover { background: rgba(56,189,248,0.1); }
+
+.kanban-btn.upload  { color: var(--accent); border-color: rgba(218,119,86,0.3); }
+.kanban-btn.upload:hover  { background: rgba(218,119,86,0.1); }
+
+.kanban-btn.implement { color: var(--success); border-color: rgba(52,211,153,0.3); }
+.kanban-btn.implement:hover { background: rgba(52,211,153,0.1); }
+
+.kanban-btn.submit  { color: var(--warning); border-color: rgba(251,191,36,0.3); }
+.kanban-btn.submit:hover  { background: rgba(251,191,36,0.1); }
+
+.kanban-btn.refresh { color: var(--text-tertiary); border-color: var(--border-subtle); }
+.kanban-btn.refresh:hover { background: var(--bg-surface-2); }
+.code-demo {
+  background: var(--bg-surface-0);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  margin-bottom: var(--space-lg);
+}
+
+.code-demo-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: var(--space-md) var(--space-lg);
+  background: var(--bg-surface-1);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-wrap: wrap; gap: var(--space-sm);
+}
+
+.code-demo-task { display: flex; align-items: center; gap: var(--space-sm); }
+.code-task-name { font-family: var(--font-mono); font-size: 13px; font-weight: 500; }
+
+.code-demo-meta {
+  display: flex; align-items: center; gap: var(--space-md);
+  font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary);
+}
+
+.code-branch { color: var(--info); }
+.code-model  { color: var(--accent-dim); }
+
+.code-demo-status {
+  padding: var(--space-sm) var(--space-lg);
+  background: var(--bg-surface-1);
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-mono); font-size: 12px;
+  display: flex; align-items: center; gap: var(--space-sm);
+}
+
+.code-log {
+  padding: var(--space-md) var(--space-lg);
+  font-family: var(--font-mono); font-size: 12px; line-height: 1.8;
+}
+
+/* ── Phase Timeline ────────────────────────────────────── */
+.phase-list { display: flex; flex-direction: column; gap: var(--space-sm); }
+
+.phase {
+  display: flex; gap: var(--space-lg);
+  padding: var(--space-lg);
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  transition: border-color .2s;
+}
+
+.phase:hover { border-color: var(--border-default); }
+
+.phase-current {
+  border-color: var(--accent-dim);
+  box-shadow: 0 0 16px rgba(218,119,86,0.06);
+}
+
+.phase-num {
+  font-family: var(--font-mono); font-size: 28px; font-weight: 700;
+  color: var(--accent-dim);
+  min-width: 56px; flex-shrink: 0;
+  line-height: 1;
+}
+
+.phase-content { flex: 1; }
+
+.phase-title {
+  font-weight: 600; font-size: 15px;
+  display: flex; align-items: center; gap: var(--space-sm);
+  margin-bottom: 4px;
+}
+
+.phase-branch {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 400;
+  color: var(--info);
+  background: rgba(56,189,248,0.08);
+  padding: 1px 6px; border-radius: var(--radius-sm);
+}
+
+.phase-week {
+  font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary);
+  margin-bottom: 4px;
+}
+
+.phase-desc {
+  font-size: 13px; color: var(--text-secondary); line-height: 1.5;
+  margin-bottom: var(--space-sm);
+}
+
+.phase-status {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  padding: 2px 8px; border-radius: var(--radius-sm);
+  display: inline-block;
+}
+
+.phase-status.current { background: var(--accent-glow); color: var(--accent); }
+.phase-status.todo    { background: var(--bg-surface-2); color: var(--text-disabled); }
+
+/* ── Tables (Stack, Brand, Risk, MVP) ──────────────────── */
+.stack-table {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.stack-row {
+  display: grid;
+  grid-template-columns: 120px 220px 1fr;
+  padding: var(--space-sm) var(--space-md);
+  align-items: center;
+}
+
+.stack-row + .stack-row { border-top: 1px solid var(--border-subtle); }
+.stack-header { background: var(--bg-surface-1); font-weight: 600; font-size: 12px; color: var(--text-tertiary); }
+
+.stack-label { font-family: var(--font-mono); font-size: 12px; color: var(--text-tertiary); }
+.stack-desc  { font-size: 12px; color: var(--text-secondary); }
+
+.tech-tag {
+  font-family: var(--font-mono); font-size: 11px;
+  background: var(--bg-surface-2); color: var(--text-secondary);
+  padding: 2px 8px; border-radius: var(--radius-sm);
+  display: inline-block; margin-right: 4px;
+}
+
+.accent-tag { color: var(--accent) !important; background: var(--accent-glow) !important; }
+
+/* Brand table */
+.brand-table { }
+.brand-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.brand-key { font-size: 12px; color: var(--text-tertiary); }
+.brand-val { font-size: 13px; font-weight: 500; }
+.brand-val.accent { color: var(--accent); }
+.brand-val.mono { font-family: var(--font-mono); font-size: 12px; }
+
+.color-swatches {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.swatch {
+  height: 48px; border-radius: var(--radius-md);
+  display: flex; align-items: flex-end;
+  padding: var(--space-xs) var(--space-sm);
+  font-family: var(--font-mono); font-size: 10px;
+  color: #F0EDE8;
+}
+
+.swatch-label { opacity: 0.8; }
+
+/* Replace table */
+.replace-table { margin-top: var(--space-lg); }
+.rt-title {
+  font-size: 13px; font-weight: 600; margin-bottom: var(--space-sm);
+}
+
+.rt-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 60px;
+  padding: 6px var(--space-sm);
+  font-size: 12px;
+}
+
+.rt-row + .rt-row { border-top: 1px solid var(--border-subtle); }
+.rt-header { font-weight: 600; color: var(--text-tertiary); font-size: 11px; }
+
+.rt-col.mono { font-family: var(--font-mono); font-size: 11px; }
+.rt-col.del  { color: var(--text-disabled); text-decoration: line-through; }
+.rt-col.add  { color: var(--success); }
+
+/* Risk table */
+.risk-table {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.risk-row {
+  display: grid;
+  grid-template-columns: 100px 1fr 120px;
+  padding: var(--space-sm) var(--space-md);
+  align-items: center;
+  font-size: 13px;
+}
+
+.risk-row + .risk-row { border-top: 1px solid var(--border-subtle); }
+.risk-header { background: var(--bg-surface-1); font-weight: 600; color: var(--text-tertiary); font-size: 11px; }
+
+.risk-badge {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  padding: 1px 8px; border-radius: var(--radius-sm);
+}
+
+.risk-badge.low      { color: var(--success); background: rgba(52,211,153,0.1); }
+.risk-badge.medium   { color: var(--warning); background: rgba(251,191,36,0.1); }
+.risk-badge.high     { color: var(--danger); background: rgba(251,113,133,0.1); }
+.risk-badge.critical { color: #fff; background: rgba(251,113,133,0.25); }
+
+.risk-auto    { color: var(--success); }
+.risk-confirm { color: var(--warning); }
+.risk-strong  { color: var(--danger); }
+.risk-deny    { color: var(--danger); font-weight: 600; }
+
+/* MVP */
+.demo-scenario {
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: var(--space-xl);
+  margin-bottom: var(--space-2xl);
+}
+
+.demo-title {
+  font-size: 16px; font-weight: 600; margin-bottom: var(--space-lg);
+}
+
+.demo-flow {
+  display: flex; align-items: center; gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.demo-step {
+  display: flex; align-items: center; gap: var(--space-sm);
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+}
+
+.demo-step-num {
+  font-family: var(--font-mono); font-size: 18px; font-weight: 700;
+  color: var(--accent);
+}
+
+.demo-step-text {
+  font-size: 12px; line-height: 1.4; max-width: 140px;
+}
+
+.demo-step-arrow {
+  font-size: 18px; color: var(--accent-dim);
+  font-family: var(--font-mono);
+}
+
+.mvp-table {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.mvp-row {
+  display: grid;
+  grid-template-columns: 100px 1fr 1fr;
+  padding: var(--space-sm) var(--space-md);
+  align-items: center;
+  font-size: 13px;
+}
+
+.mvp-row + .mvp-row { border-top: 1px solid var(--border-subtle); }
+.mvp-header { background: var(--bg-surface-1); font-weight: 600; color: var(--text-tertiary); font-size: 11px; }
+
+.mvp-phase {
+  font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+  color: var(--accent);
+}
+
+.dim { color: var(--text-disabled); }
+
+/* ── Footer ────────────────────────────────────────────── */
+.doc-footer {
+  padding: var(--space-xl) var(--space-3xl);
+  border-top: 1px solid var(--border-subtle);
+  display: flex; justify-content: space-between; align-items: center;
+}
+
+.footer-logo {
+  display: flex; align-items: center; gap: var(--space-sm);
+  font-size: 14px; font-weight: 500;
+}
+
+.footer-meta {
+  font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary);
+}
+
+/* ── Subsection titles ─────────────────────────────────── */
+.subsection-title {
+  font-size: 16px; font-weight: 600;
+  margin-bottom: var(--space-lg);
+  color: var(--text-primary);
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* ── Responsive ────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .card-grid-3 { grid-template-columns: 1fr 1fr; }
+  .kanban-demo { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 768px) {
+  #sidebar { display: none; }
+  #main { width: 100%; }
+  .section { padding: var(--space-xl) var(--space-md); }
+  .card-grid-2, .card-grid-3 { grid-template-columns: 1fr; }
+  .kanban-demo { grid-template-columns: 1fr; }
+  .phase { flex-direction: column; }
+  .boss-diagram-body { flex-direction: column; }
+  .bd-arrows { flex-direction: row; }
+  .hero-title { font-size: 36px; }
+  .risk-row, .mvp-row { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+
+<!-- ═══════════ SIDEBAR ═══════════ -->
+<nav id="sidebar">
+  <div class="logo-block">
+    <div class="logo-icon">L</div>
+    <div class="logo-text">
+      <span class="logo-name">LuxAgents</span>
+      <span class="logo-sub">Design Doc v0.4</span>
+    </div>
+  </div>
+
+  <div class="nav-section-label">概览</div>
+  <a class="nav-item active" href="#overview">产品定位</a>
+  <a class="nav-item" href="#architecture">系统架构</a>
+  <a class="nav-item" href="#stack">技术栈</a>
+
+  <div class="nav-section-label">三大模式</div>
+  <a class="nav-item" href="#chat"><span class="nav-dot dot-chat"></span>Chat 模式</a>
+  <a class="nav-item" href="#cowork"><span class="nav-dot dot-cowork"></span>Cowork 模式</a>
+  <a class="nav-item" href="#code"><span class="nav-dot dot-code"></span>Code 模式</a>
+
+  <div class="nav-section-label">工程</div>
+  <a class="nav-item" href="#migration">改造路线</a>
+  <a class="nav-item" href="#branding">品牌方案</a>
+  <a class="nav-item" href="#security">安全设计</a>
+  <a class="nav-item" href="#mvp">MVP 规划</a>
+
+  <div class="sidebar-footer">
+    <div class="footer-tag">基于 Proma 改造</div>
+    <div class="footer-tag accent">内部保密文档</div>
+  </div>
+</nav>
+
+<!-- ═══════════ MAIN ═══════════ -->
+<main id="main">
+
+<!-- ── Hero ──────────────────────────────────────────── -->
+<section id="overview" class="section hero-section">
+  <div class="hero-eyebrow">
+    <span class="badge badge-accent">Enterprise AI Workbench</span>
+    <span class="badge badge-dim">v0.4 · 2026-06</span>
+  </div>
+  <h1 class="hero-title">LuxAgents</h1>
+  <p class="hero-sub">面向企业研发组织的 AI Agent 工作台<br>把 Chat、Code、Cowork 连接成一个统一桌面应用</p>
+
+  <div class="hero-pills">
+    <div class="pill">
+      <span class="pill-icon">💬</span>
+      <div><div class="pill-title">Chat</div><div class="pill-desc">Claude · Hermes(P2)</div></div>
+    </div>
+    <span class="pill-arrow">→</span>
+    <div class="pill">
+      <span class="pill-icon">⚡</span>
+      <div><div class="pill-title">Code</div><div class="pill-desc">Claude Agent SDK</div></div>
+    </div>
+    <span class="pill-arrow">→</span>
+    <div class="pill">
+      <span class="pill-icon">🔁</span>
+      <div><div class="pill-title">Cowork</div><div class="pill-desc">TB 双向同步</div></div>
+    </div>
+  </div>
+
+  <div class="hero-quote">
+    研发工程师不再需要单独打开 Teambition —— 任务获取、需求 Spec、方案设计、AI 编码中、验收归档，全部在 LuxAgents 一体化完成。
+  </div>
+</section>
+
+<!-- ── 01 产品定位 ───────────────────────────────────── -->
+<section class="section" id="positioning">
+  <div class="section-header">
+    <div class="section-num">01</div>
+    <div>
+      <h2 class="section-title">产品定位</h2>
+      <p class="section-desc">LuxAgents 不是 ChatGPT UI，也不是单纯的 Claude Code GUI</p>
+    </div>
+  </div>
+
+  <div class="card-grid-3">
+    <div class="card">
+      <div class="card-icon">🎯</div>
+      <div class="card-title">目标用户</div>
+      <div class="card-body">软件部全体研发工程师、架构师、测试工程师、项目负责人、AI 平台团队</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">🏭</div>
+      <div class="card-title">部署形态</div>
+      <div class="card-body">Electron 桌面应用 + 企业 Agent Server，内部分发，支持 macOS / Windows</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔗</div>
+      <div class="card-title">核心集成</div>
+      <div class="card-body">Teambition 双向同步、Git worktree、RAG 知识库、MCP 工具、spec-kit 流程</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">🧠</div>
+      <div class="card-title">Chat 内核</div>
+      <div class="card-body">Claude Agent SDK（Phase 1）+ Hermes provider（Phase 2）— 具备 Skills、MCP 工具调用、RAG 知识检索能力的研发助理</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">⚙️</div>
+      <div class="card-title">Code 内核</div>
+      <div class="card-body">Claude Agent SDK — 文件读写、Shell 执行、工具调用、流式事件</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">📋</div>
+      <div class="card-title">Cowork 内核</div>
+      <div class="card-body">Claude Agent SDK + LuxAgents TaskOrchestrator — 五阶段看板 + Teambition 实时双向同步</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 02 系统架构 ───────────────────────────────────── -->
+<section id="architecture" class="section">
+  <div class="section-header">
+    <div class="section-num">02</div>
+    <div>
+      <h2 class="section-title">系统架构</h2>
+      <p class="section-desc">五层架构：UI → Core（Agent SDK）→ Provider → Connectors → Enterprise Services</p>
+    </div>
+  </div>
+
+  <div class="arch-diagram-wrap">
+    <svg viewBox="0 0 860 580" width="100%" max-width="860" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+          <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#1C1915" stroke-width="0.5"/>
+        </pattern>
+        <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <path d="M0,0 L8,3 L0,6 Z" fill="#DA7756" opacity="0.6"/>
+        </marker>
+        <linearGradient id="g-accent" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="rgba(218,119,86,0.15)"/>
+          <stop offset="100%" stop-color="rgba(218,119,86,0.05)"/>
+        </linearGradient>
+      </defs>
+
+      <!-- Background -->
+      <rect width="860" height="580" fill="#151310" rx="12"/>
+      <rect width="860" height="580" fill="url(#grid)" rx="12"/>
+
+      <!-- Layer: UI -->
+      <rect x="40" y="30" width="780" height="70" rx="8" fill="#1C1915" stroke="#2D2822" stroke-width="1"/>
+      <text x="60" y="52" font-family="JetBrains Mono" font-size="10" fill="#7A7268">UI Layer</text>
+      <rect x="60" y="60" width="110" height="30" rx="6" fill="rgba(56,189,248,0.1)" stroke="#38BDF8" stroke-width="1.2"/>
+      <text x="80" y="79" font-family="JetBrains Mono" font-size="11" fill="#38BDF8">Chat Mode</text>
+      <rect x="180" y="60" width="110" height="30" rx="6" fill="rgba(52,211,153,0.1)" stroke="#34D399" stroke-width="1.2"/>
+      <text x="200" y="79" font-family="JetBrains Mono" font-size="11" fill="#34D399">Code Mode</text>
+      <rect x="300" y="60" width="140" height="30" rx="6" fill="rgba(218,119,86,0.12)" stroke="#DA7756" stroke-width="1.2"/>
+      <text x="320" y="79" font-family="JetBrains Mono" font-size="11" fill="#DA7756">Cowork Mode</text>
+      <rect x="640" y="60" width="90" height="30" rx="6" fill="rgba(148,163,184,0.06)" stroke="#4A4440" stroke-width="1"/>
+      <text x="658" y="79" font-family="JetBrains Mono" font-size="11" fill="#7A7268">Settings</text>
+
+      <!-- Arrow 1 -->
+      <line x1="430" y1="100" x2="430" y2="140" stroke="#DA7756" stroke-width="1" opacity="0.4" marker-end="url(#arrow)"/>
+
+      <!-- Layer: Core -->
+      <rect x="40" y="145" width="780" height="80" rx="8" fill="#1C1915" stroke="#2D2822" stroke-width="1"/>
+      <text x="60" y="167" font-family="JetBrains Mono" font-size="10" fill="#7A7268">LuxAgents Core</text>
+      <rect x="60" y="175" width="110" height="38" rx="6" fill="rgba(148,163,184,0.06)" stroke="#4A4440" stroke-width="1"/>
+      <text x="72" y="192" font-family="JetBrains Mono" font-size="10" fill="#B8B0A6">Mode Router</text><text x="72" y="206" font-family="JetBrains Mono" font-size="8" fill="#7A7268">Chat·Code·Cowork</text>
+      <rect x="180" y="175" width="120" height="38" rx="6" fill="rgba(148,163,184,0.06)" stroke="#4A4440" stroke-width="1"/>
+      <text x="192" y="192" font-family="JetBrains Mono" font-size="10" fill="#B8B0A6">Session Mgr</text><text x="192" y="206" font-family="JetBrains Mono" font-size="8" fill="#7A7268">checkpoint·resume</text>
+      <rect x="310" y="175" width="130" height="38" rx="6" fill="rgba(251,113,133,0.06)" stroke="rgba(251,113,133,0.4)" stroke-width="1.2"/>
+      <text x="322" y="192" font-family="JetBrains Mono" font-size="10" fill="#FB7185">Permission Broker</text><text x="322" y="206" font-family="JetBrains Mono" font-size="8" fill="#7A7268">4-tier risk control</text>
+      <rect x="450" y="175" width="110" height="38" rx="6" fill="rgba(148,163,184,0.06)" stroke="#4A4440" stroke-width="1"/>
+      <text x="462" y="192" font-family="JetBrains Mono" font-size="10" fill="#B8B0A6">Artifact Store</text><text x="462" y="206" font-family="JetBrains Mono" font-size="8" fill="#7A7268">RCA·patch·diff</text>
+      <rect x="570" y="175" width="90" height="38" rx="6" fill="rgba(148,163,184,0.06)" stroke="#4A4440" stroke-width="1"/>
+      <text x="582" y="192" font-family="JetBrains Mono" font-size="10" fill="#B8B0A6">Audit Log</text><text x="582" y="206" font-family="JetBrains Mono" font-size="8" fill="#7A7268">immutable</text>
+      <rect x="670" y="175" width="120" height="38" rx="6" fill="rgba(218,119,86,0.08)" stroke="rgba(218,119,86,0.35)" stroke-width="1.2"/>
+      <text x="682" y="192" font-family="JetBrains Mono" font-size="10" fill="#DA7756">TaskOrchestrator</text><text x="682" y="206" font-family="JetBrains Mono" font-size="8" fill="#7A7268">6-phase 看板</text>
+
+      <!-- Arrow 2 -->
+      <line x1="430" y1="225" x2="430" y2="265" stroke="#DA7756" stroke-width="1" opacity="0.4" marker-end="url(#arrow)"/>
+
+      <!-- Layer: Provider Layer -->
+      <rect x="40" y="270" width="780" height="70" rx="8" fill="#1C1915" stroke="#2D2822" stroke-width="1"/>
+      <text x="60" y="292" font-family="JetBrains Mono" font-size="10" fill="#7A7268">Provider Layer</text>
+      <rect x="60" y="300" width="150" height="30" rx="6" fill="rgba(56,189,248,0.08)" stroke="rgba(56,189,248,0.35)" stroke-width="1.2"/>
+      <text x="78" y="319" font-family="JetBrains Mono" font-size="11" fill="#38BDF8">Hermes (Provider)</text>
+      <rect x="230" y="300" width="150" height="30" rx="6" fill="rgba(52,211,153,0.08)" stroke="rgba(52,211,153,0.35)" stroke-width="1.2"/>
+      <text x="248" y="319" font-family="JetBrains Mono" font-size="11" fill="#34D399">Claude (Provider)</text>
+      <rect x="400" y="300" width="130" height="30" rx="6" fill="rgba(148,163,184,0.06)" stroke="#4A4440" stroke-width="1"/>
+      <text x="418" y="319" font-family="JetBrains Mono" font-size="11" fill="#B8B0A6">MCPAdapter</text>
+      <rect x="550" y="300" width="130" height="30" rx="6" fill="rgba(148,163,184,0.06)" stroke="#4A4440" stroke-width="1"/>
+      <text x="568" y="319" font-family="JetBrains Mono" font-size="11" fill="#B8B0A6">SkillAdapter</text>
+
+      <!-- Arrow 3 -->
+      <line x1="430" y1="340" x2="430" y2="380" stroke="#DA7756" stroke-width="1" opacity="0.4" marker-end="url(#arrow)"/>
+
+      <!-- Layer: Enterprise Connectors -->
+      <rect x="40" y="385" width="780" height="70" rx="8" fill="#1C1915" stroke="#2D2822" stroke-width="1"/>
+      <text x="60" y="407" font-family="JetBrains Mono" font-size="10" fill="#7A7268">Enterprise Connectors</text>
+      <rect x="60" y="415" width="140" height="30" rx="6" fill="rgba(218,119,86,0.1)" stroke="rgba(218,119,86,0.4)" stroke-width="1.2"/>
+      <text x="78" y="434" font-family="JetBrains Mono" font-size="11" fill="#DA7756">Teambition</text>
+      <rect x="220" y="415" width="140" height="30" rx="6" fill="rgba(52,211,153,0.08)" stroke="rgba(52,211,153,0.35)" stroke-width="1.2"/>
+      <text x="238" y="434" font-family="JetBrains Mono" font-size="11" fill="#34D399">Git / Worktree</text>
+      <rect x="380" y="415" width="130" height="30" rx="6" fill="rgba(56,189,248,0.08)" stroke="rgba(56,189,248,0.35)" stroke-width="1.2"/>
+      <text x="398" y="434" font-family="JetBrains Mono" font-size="11" fill="#38BDF8">RAG / Knowledge</text>
+      <rect x="530" y="415" width="110" height="30" rx="6" fill="rgba(148,163,184,0.06)" stroke="#4A4440" stroke-width="1"/>
+      <text x="548" y="434" font-family="JetBrains Mono" font-size="11" fill="#B8B0A6">spec-kit</text>
+
+      <!-- Arrow 4 -->
+      <line x1="430" y1="455" x2="430" y2="490" stroke="#DA7756" stroke-width="1" opacity="0.4" marker-end="url(#arrow)"/>
+
+      <!-- Layer: Enterprise Services -->
+      <rect x="40" y="495" width="780" height="65" rx="8" fill="rgba(148,163,184,0.03)" stroke="#4A4440" stroke-width="1" stroke-dasharray="4,2"/>
+      <text x="60" y="517" font-family="JetBrains Mono" font-size="10" fill="#7A7268">Enterprise Services</text>
+      <rect x="60" y="525" width="110" height="26" rx="5" fill="rgba(148,163,184,0.04)" stroke="#4A4440" stroke-width="0.8"/>
+      <text x="78" y="542" font-family="JetBrains Mono" font-size="10" fill="#B8B0A6">SSO / RBAC</text>
+      <rect x="185" y="525" width="120" height="26" rx="5" fill="rgba(148,163,184,0.04)" stroke="#4A4440" stroke-width="0.8"/>
+      <text x="203" y="542" font-family="JetBrains Mono" font-size="10" fill="#B8B0A6">Model Gateway</text>
+      <rect x="320" y="525" width="100" height="26" rx="5" fill="rgba(148,163,184,0.04)" stroke="#4A4440" stroke-width="0.8"/>
+      <text x="338" y="542" font-family="JetBrains Mono" font-size="10" fill="#B8B0A6">Audit Service</text>
+      <rect x="435" y="525" width="100" height="26" rx="5" fill="rgba(148,163,184,0.04)" stroke="#4A4440" stroke-width="0.8"/>
+      <text x="453" y="542" font-family="JetBrains Mono" font-size="10" fill="#B8B0A6">Eval Service</text>
+      <rect x="550" y="525" width="100" height="26" rx="5" fill="rgba(148,163,184,0.04)" stroke="#4A4440" stroke-width="0.8"/>
+      <text x="568" y="542" font-family="JetBrains Mono" font-size="10" fill="#B8B0A6">Cost Service</text>
+    </svg>
+  </div>
+</section>
+
+<!-- ── 03 Chat 模式 ──────────────────────────────────── -->
+<section id="chat" class="section">
+  <div class="section-header">
+    <div class="section-num">03</div>
+    <div>
+      <h2 class="section-title">Chat 模式</h2>
+      <p class="section-desc">Phase 1：复用现有 Claude provider · Phase 2：接入 Hermes（企业内网 HTTP API）</p>
+    </div>
+  </div>
+
+  <div class="card-grid-2">
+    <div class="card">
+      <div class="card-title">内核：Claude Agent SDK</div>
+      <div class="card-body">Phase 1 复用现有 Claude provider（和 Code 模式共用），具备 Skills、MCP 工具调用、RAG 知识检索能力。Phase 2 接入 Hermes provider（企业内网 HTTP API），不改 agent loop。</div>
+    </div>
+    <div class="card">
+      <div class="card-title">知识包 Chips</div>
+      <div class="card-body">
+        <div class="chip-row">
+          <span class="chip chip-skill">Skills · camera_hal</span>
+          <span class="chip chip-mcp">MCP · perfetto</span>
+          <span class="chip chip-rag">RAG · sm8845_isp</span>
+        </div>
+        用户手动选择 + Hermes 自动记忆，支持项目级 ACL 权限控制。
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">转 Code / 转 Cowork</div>
+      <div class="card-body">Chat 结论可一键转成 Code run（带上下文），或转成 Cowork 任务卡（自动填充描述和知识包）。</div>
+    </div>
+    <div class="card">
+      <div class="card-title">来源引用</div>
+      <div class="card-body">回答中展示知识来源（文件路径、文档标题、RAG chunk），支持点击跳转。禁止越权检索其他项目知识包。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 05 Code 模式 ──────────────────────────────────── -->
+<section id="code" class="section">
+  <div class="section-header">
+    <div class="section-num">05</div>
+    <div>
+      <h2 class="section-title">Code 模式</h2>
+      <p class="section-desc">Claude Agent SDK 驱动的工程执行控制台</p>
+    </div>
+  </div>
+
+  <div class="code-demo">
+    <div class="code-demo-header">
+      <div class="code-demo-task">
+        <span class="badge-type bug">Bug</span>
+        <span class="badge-pri p2">P2</span>
+        <span class="code-task-name">Preview Stutter RCA</span>
+      </div>
+      <div class="code-demo-meta">
+        <span class="code-branch">⑂ feature/sm8845-rca</span>
+        <span class="code-model">Claude Sonnet · Local RAG</span>
+      </div>
+    </div>
+    <div class="code-demo-status">
+      <span class="sk-step done">✓ rca</span>
+      <span class="sk-sep">›</span>
+      <span class="sk-step active">● implement</span>
+      <span class="sk-sep">›</span>
+      <span class="sk-step pending">○ verify</span>
+    </div>
+    <div class="code-log">
+      <div class="log-line log-info"><span class="log-ts">[09:41:22]</span> task started: Preview Stutter RCA</div>
+      <div class="log-line log-success"><span class="log-ts">[09:42:10]</span> ✓ trace parsed: perfetto_0628.pftrace</div>
+      <div class="log-line log-file"><span class="log-ts">[09:42:31]</span> file camera/hal3/PreviewPipeline.cpp</div>
+      <div class="log-line log-tool"><span class="log-ts">[09:42:45]</span> tool mcp.perfetto.query → frame_drops</div>
+      <div class="log-line log-file"><span class="log-ts">[09:43:02]</span> file patches/hal3_preview_pipeline_fix.patch</div>
+      <div class="log-line log-success"><span class="log-ts">[09:43:05]</span> ✓ patch generated <span class="diff-add">+34</span> <span class="diff-del">-6</span></div>
+      <div class="log-line log-info"><span class="log-ts">[09:43:18]</span> running unit tests… 42/42 passed</div>
+      <div class="log-line log-success"><span class="log-ts">[09:43:20]</span> ✓ task checkpoint saved</div>
+    </div>
+  </div>
+
+  <div class="card-grid-2">
+    <div class="card">
+      <div class="card-title">Permission Broker</div>
+      <div class="card-body">所有工具调用、文件写入、Shell 命令、Git 操作统一经过 Permission Broker。低风险自动通过，中风险用户确认，高风险强制审批，critical 默认禁止。</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Artifact 归档</div>
+      <div class="card-body">RCA 报告、patch、diff、test result、TB 回写内容全部 artifact 化，不只存在聊天记录里，支持导出和回写。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 04 Cowork 模式 ────────────────────────────────── -->
+<section id="cowork" class="section">
+  <div class="section-header">
+    <div class="section-num">04</div>
+    <div>
+      <h2 class="section-title">Cowork 模式 — 核心设计</h2>
+      <p class="section-desc">六阶段看板 · 双审核门（TB + Gerrit）· 个人视图</p>
+    </div>
+  </div>
+
+  <!-- Boss Diagram -->
+  <div class="boss-diagram">
+    <div class="boss-diagram-title">// 老板设计意图：Teambition ↔ LuxAgents 双向数据流</div>
+    <div class="boss-diagram-body">
+      <div class="bd-box">
+        <div class="bd-box-title" style="color:var(--info)">Teambition</div>
+        <div class="bd-card">任务、需求、Bug</div>
+        <div class="bd-card">存档协同需求 Spec</div>
+        <div class="bd-card">存档协同方案 Spec</div>
+      </div>
+      <div class="bd-arrows">
+        <div class="bd-arrow-row"><span class="bd-arrow-label get">Get →</span></div>
+        <div class="bd-arrow-row"><span class="bd-arrow-label storing">← Store</span></div>
+        <div class="bd-arrow-row"><span class="bd-arrow-label get">Get →</span></div>
+        <div class="bd-arrow-row"><span class="bd-arrow-label storing">← Store</span></div>
+      </div>
+      <div class="bd-box">
+        <div class="bd-box-title" style="color:var(--accent)">LuxAgents</div>
+        <div class="bd-card">需求 Spec</div>
+        <div class="bd-card">方案设计 Spec</div>
+        <div class="bd-card bd-card-red">AI 编码中</div>
+      </div>
+    </div>
+    <div class="bd-desc">卡片从 Teambition 同步进来 → 选中卡片 = agent 在独立 worktree 里跑 → agent 进度实时回写 Teambition status + spec_url + 经验文档</div>
+  </div>
+
+  <!-- Kanban -->
+  <div class="subsection-title">六阶段看板（双审核门：TB 审核方案 + Gerrit 审核代码）</div>
+  <div class="kanban-demo" style="grid-template-columns: repeat(6, 1fr)">
+    <div class="kanban-col">
+      <div class="kanban-col-header">
+        <span class="kanban-col-title">待处理</span>
+        <span class="kanban-col-count">2</span>
+      </div>
+      <div class="kanban-card">
+        <div class="kanban-card-id">#REQ-401</div>
+        <div class="kanban-card-title">HDR 优化</div>
+        <div class="kanban-card-badges"><span class="badge-type feature">需求</span><span class="badge-pri p1">P1</span></div>
+        <div class="kanban-card-actions">
+          <button class="kanban-btn specify">生成方案</button>
+        </div>
+      </div>
+      <div class="kanban-card">
+        <div class="kanban-card-id">#REQ-412</div>
+        <div class="kanban-card-title">多帧降噪优化</div>
+        <div class="kanban-card-badges"><span class="badge-type feature">需求</span><span class="badge-pri p2">P2</span></div>
+        <div class="kanban-card-actions">
+          <button class="kanban-btn specify">生成方案</button>
+        </div>
+      </div>
+    </div>
+    <div class="kanban-col">
+      <div class="kanban-col-header">
+        <span class="kanban-col-title">方案设计</span>
+        <span class="kanban-col-count">1</span>
+      </div>
+      <div class="kanban-card">
+        <div class="kanban-card-id">#REQ-318</div>
+        <div class="kanban-card-title">多光谱 WB 方案设计</div>
+        <div class="kanban-card-badges"><span class="badge-type feature">需求</span></div>
+        <div class="kanban-card-status spec">AI 辅助生成中</div>
+        <div class="kanban-card-actions">
+          <button class="kanban-btn specify">生成方案</button>
+          <button class="kanban-btn upload">上传 TB</button>
+        </div>
+      </div>
+    </div>
+    <div class="kanban-col">
+      <div class="kanban-col-header">
+        <span class="kanban-col-title">TB 审核中</span>
+        <span class="kanban-col-count">1</span>
+      </div>
+      <div class="kanban-card">
+        <div class="kanban-card-id">#REQ-395</div>
+        <div class="kanban-card-title">夜景 HDR 合成方案</div>
+        <div class="kanban-card-badges"><span class="badge-type feature">需求</span></div>
+        <div class="kanban-card-status reviewing">等待专家 review</div>
+        <div class="kanban-card-actions">
+          <button class="kanban-btn refresh">刷新状态</button>
+        </div>
+      </div>
+    </div>
+    <div class="kanban-col kanban-col-active">
+      <div class="kanban-col-header">
+        <span class="kanban-col-title kanban-col-title-active">编码中</span>
+        <span class="kanban-col-count">2</span>
+      </div>
+      <div class="kanban-card kanban-card-selected">
+        <div class="kanban-card-id">#TB-1042</div>
+        <div class="kanban-card-title">暗纹噪声修复</div>
+        <div class="kanban-card-badges"><span class="badge-type bug">Bug</span><span class="badge-pri p2">P2</span></div>
+        <div class="kanban-card-agent">
+          <span class="pulse-dot"></span>agent 运行中
+        </div>
+        <div class="kanban-card-actions">
+          <button class="kanban-btn implement">开始编码</button>
+          <button class="kanban-btn submit">提交 Gerrit</button>
+        </div>
+      </div>
+      <div class="kanban-card">
+        <div class="kanban-card-id">#TB-1055</div>
+        <div class="kanban-card-title">低光 AE 收敛慢</div>
+        <div class="kanban-card-badges"><span class="badge-type bug">Bug</span><span class="badge-pri p2">P2</span></div>
+        <div class="kanban-card-actions">
+          <button class="kanban-btn implement">开始编码</button>
+        </div>
+      </div>
+    </div>
+    <div class="kanban-col">
+      <div class="kanban-col-header">
+        <span class="kanban-col-title">Gerrit 审核</span>
+        <span class="kanban-col-count">1</span>
+      </div>
+      <div class="kanban-card">
+        <div class="kanban-card-id">#TB-1038</div>
+        <div class="kanban-card-title">Preview 抖动 RCA</div>
+        <div class="kanban-card-badges"><span class="badge-type bug">Bug</span><span class="badge-pri p2">P2</span></div>
+        <div class="kanban-card-status reviewing">等待 Code Review</div>
+        <div class="kanban-card-actions">
+          <button class="kanban-btn refresh">刷新状态</button>
+        </div>
+      </div>
+    </div>
+    <div class="kanban-col">
+      <div class="kanban-col-header">
+        <span class="kanban-col-title">已完成</span>
+        <span class="kanban-col-count">3</span>
+      </div>
+      <div class="kanban-card">
+        <div class="kanban-card-id">#REQ-290</div>
+        <div class="kanban-card-title">夜景降噪</div>
+        <div class="kanban-card-status done">✓ done</div>
+      </div>
+      <div class="kanban-card">
+        <div class="kanban-card-id">#TB-1021</div>
+        <div class="kanban-card-title">ISP 色偏修复</div>
+        <div class="kanban-card-status done">✓ done</div>
+      </div>
+      <div class="kanban-card">
+        <div class="kanban-card-id">#TB-1009</div>
+        <div class="kanban-card-title">AE 收敛优化</div>
+        <div class="kanban-card-status done">✓ done</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Task Detail -->
+  <div class="subsection-title">选中 #TB-1042 → 展开执行面板</div>
+  <div class="task-detail-panel">
+    <div class="tdp-header">
+      <div class="tdp-header-left">
+        <span class="tdp-icon">⚙</span>
+        <span class="tdp-id">#TB-1042 暗纹噪声修复</span>
+        <span class="badge-type bug">Bug</span>
+        <span class="badge-pri p2">P2</span>
+        <span class="rca-badge">RCA</span>
+      </div>
+      <div class="tdp-header-right">⑂ worktree: vk/1042-denoise · opencode</div>
+    </div>
+    <div class="tdp-speckit">
+      <span class="tdp-speckit-label">spec-kit:</span>
+      <span class="sk-step done">✓ rca</span>
+      <span class="sk-sep">›</span>
+      <span class="sk-step active">● implement</span>
+      <span class="sk-sep">›</span>
+      <span class="sk-step pending">○ verify</span>
+    </div>
+    <div class="tdp-log-section">
+      <div class="tdp-log-label">— live log —</div>
+      <div class="tdp-log">
+        <div class="log-line log-info">&gt; 分析 BPS noise profile @ gain 16x …</div>
+        <div class="log-line log-info">&gt; 定位耦合源：RF TX burst 时序对齐</div>
+        <div class="log-line log-file">&gt; 编辑 ife_noise_cfg.c <span class="diff-add">(+18</span> <span class="diff-del">-4)</span></div>
+        <div class="log-line log-tool">&gt; tool: mcp.perfetto.query → frame_drops analysis</div>
+        <div class="log-line log-success">&gt; ✓ patch generated: ife_noise_cfg.patch</div>
+      </div>
+    </div>
+    <div class="tdp-writeback-section">
+      <div class="tdp-log-label">— Teambition 回写 —</div>
+      <div class="wb-item wb-success">✓ status → 编码中</div>
+      <div class="wb-item wb-success">✓ spec_url 已写回自定义字段</div>
+      <div class="wb-item wb-pending">⬆ 经验文档(RCA)上传中…</div>
+    </div>
+  </div>
+
+  <!-- Design Points -->
+  <div class="subsection-title">Cowork 设计要点</div>
+  <div class="card-grid-2">
+    <div class="card card-highlight">
+      <div class="card-title">🔄 研发不再需要打开 Teambition</div>
+      <div class="card-body">任务从 TB 自动同步进来，工程师在 LuxAgents 内完成全部操作：查看任务 → 生成 Spec → AI 编码中 → 验收归档。状态、Spec URL、经验文档自动回写 TB，TB 只作为数据存档后台。</div>
+    </div>
+    <div class="card card-highlight">
+      <div class="card-title">⑂ 独立 Git Worktree</div>
+      <div class="card-body">每张 编码中 卡片对应一个独立 git worktree，agent 在隔离环境里运行，不影响主分支。多任务并行时互不干扰，完成后 PR 合并。</div>
+    </div>
+    <div class="card card-highlight">
+      <div class="card-title">📝 五阶段 Spec-kit 流程</div>
+      <div class="card-body">任务 → 需求 Spec（AI 生成 + 人工确认）→ 方案 Spec（AI 生成 + 人工确认）→ AI 编码中（agent 执行）→ 验收归档（结果回写 TB）。每阶段产物存档到 TB 自定义字段。</div>
+    </div>
+    <div class="card card-highlight">
+      <div class="card-title">📋 任务类型分流</div>
+      <div class="card-body">需求 → 完整六阶段（方案设计 + TB 审核）；Bug/简单任务 → 直接 编码中（跳过方案设计 + TB 审核），提交 Gerrit 时附带最小化 fix description。</div>
+    </div>
+    <div class="card card-highlight">
+      <div class="card-title">📝 方案文档模板</div>
+      <div class="card-body">模板植入 LuxAgents：问题描述 → 根因分析 → 方案对比 → 实施计划 → 测试计划。AI 辅助填充草稿，人工确认后上传 TB 附件存档。</div>
+    </div>
+    <div class="card card-highlight">
+      <div class="card-title">👤 个人看板视图</div>
+      <div class="card-body">只显示责任人是自己的任务。TB 上 Leader 分配任务时指定责任人，LuxAgents 自动拉取 assignee = 我的任务。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 06 技术栈 ─────────────────────────────────────── -->
+<section id="stack" class="section">
+  <div class="section-header">
+    <div class="section-num">06</div>
+    <div>
+      <h2 class="section-title">技术栈</h2>
+      <p class="section-desc">继承 Proma Bun + Electron 方向</p>
+    </div>
+  </div>
+  <div class="stack-table">
+    <div class="stack-row stack-header">
+      <div class="stack-col">层级</div>
+      <div class="stack-col">技术选型</div>
+      <div class="stack-col">说明</div>
+    </div>
+    <div class="stack-row">
+      <div class="stack-col stack-label">桌面框架</div>
+      <div class="stack-col"><span class="tech-tag">Electron</span></div>
+      <div class="stack-col stack-desc">继承 Proma，不替换</div>
+    </div>
+    <div class="stack-row">
+      <div class="stack-col stack-label">运行时</div>
+      <div class="stack-col"><span class="tech-tag">Bun</span></div>
+      <div class="stack-col stack-desc">Proma 原有 monorepo 结构</div>
+    </div>
+    <div class="stack-row">
+      <div class="stack-col stack-label">语言</div>
+      <div class="stack-col"><span class="tech-tag">TypeScript</span></div>
+      <div class="stack-col stack-desc">全栈统一</div>
+    </div>
+    <div class="stack-row">
+      <div class="stack-col stack-label">UI</div>
+      <div class="stack-col"><span class="tech-tag">React</span> <span class="tech-tag">Tailwind</span></div>
+      <div class="stack-col stack-desc">Proma 原有，增加 LuxAgents 主题 tokens</div>
+    </div>
+    <div class="stack-row">
+      <div class="stack-col stack-label">状态管理</div>
+      <div class="stack-col"><span class="tech-tag">Jotai</span></div>
+      <div class="stack-col stack-desc">Proma 原有，新增 WorkItem / Artifact atoms</div>
+    </div>
+    <div class="stack-row">
+      <div class="stack-col stack-label">本地存储</div>
+      <div class="stack-col"><span class="tech-tag">JSON/JSONL</span>（按需加 <span class="tech-tag">SQLite FTS5</span>）</div>
+      <div class="stack-col stack-desc">JSON/JSONL 为主，全文搜索后续引入 FTS5（参考 craft-agents-max）</div>
+    </div>
+    <div class="stack-row">
+      <div class="stack-col stack-label">Chat Agent</div>
+      <div class="stack-col"><span class="tech-tag accent-tag">Claude · Hermes(P2)</span></div>
+      <div class="stack-col stack-desc">Phase 2 接入 · 企业内网 HTTP API</div>
+    </div>
+    <div class="stack-row">
+      <div class="stack-col stack-label">Code Agent</div>
+      <div class="stack-col"><span class="tech-tag accent-tag">Claude Agent SDK</span></div>
+      <div class="stack-col stack-desc">Anthropic 官方，streaming + MCP</div>
+    </div>
+    <div class="stack-row">
+      <div class="stack-col stack-label">工具协议</div>
+      <div class="stack-col"><span class="tech-tag">MCP</span></div>
+      <div class="stack-col stack-desc">统一工具接入标准</div>
+    </div>
+    <div class="stack-row">
+      <div class="stack-col stack-label">企业后端</div>
+      <div class="stack-col"><span class="tech-tag">NestJS</span> / <span class="tech-tag">FastAPI</span></div>
+      <div class="stack-col stack-desc">按团队能力选择</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 07 改造路线 ───────────────────────────────────── -->
+<section id="migration" class="section">
+  <div class="section-header">
+    <div class="section-num">07</div>
+    <div>
+      <h2 class="section-title">改造路线</h2>
+      <p class="section-desc">基于 Proma fork，六阶段渐进改造，总计约 11.5 周</p>
+    </div>
+  </div>
+  <div class="phase-list">
+    <div class="phase phase-current">
+      <div class="phase-num">P0</div>
+      <div class="phase-content">
+        <div class="phase-title">Baseline <span class="phase-branch">luxagents/bootstrap</span></div>
+        <div class="phase-week">1 周</div>
+        <div class="phase-desc">跑通 Proma 原版，建立代码地图，推送 GitHub 仓库，确认 Electron main / renderer / preload / atoms 结构</div>
+        <div class="phase-status current">进行中</div>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="phase-num">P1</div>
+      <div class="phase-content">
+        <div class="phase-title">Branding <span class="phase-branch">luxagents/branding</span></div>
+        <div class="phase-week">1 周</div>
+        <div class="phase-desc">品牌替换（Proma→LuxAgents）、数据目录迁移、暖黑主题 tokens、三模式 Tab 框架、App icon</div>
+        <div class="phase-status todo">待开始</div>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="phase-num">P2</div>
+      <div class="phase-content">
+        <div class="phase-title">Chat Mode <span class="phase-branch">luxagents/chat</span></div>
+        <div class="phase-week">1 周</div>
+        <div class="phase-desc">Chat UI 改造、保持现有 Claude provider（Phase 2 再接入 Hermes）</div>
+        <div class="phase-status todo">待开始</div>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="phase-num">P3</div>
+      <div class="phase-content">
+        <div class="phase-title">Code Mode <span class="phase-branch">luxagents/code</span></div>
+        <div class="phase-week">0.5 周</div>
+        <div class="phase-desc">Agent 模式重命名为 Code（不改功能），ModeSwitcher 标签替换</div>
+        <div class="phase-status todo">待开始</div>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="phase-num">P4</div>
+      <div class="phase-content">
+        <div class="phase-title">Cowork Mode <span class="phase-branch">luxagents/cowork</span></div>
+        <div class="phase-week">4 周</div>
+        <div class="phase-desc">五阶段看板、Teambition 双向同步、TaskOrchestrator、spec-kit 流程、RAG 自动注入、回写 status + spec_url + 经验文档</div>
+        <div class="phase-status todo">待开始</div>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="phase-num">P5</div>
+      <div class="phase-content">
+        <div class="phase-title">Enterprise <span class="phase-branch">luxagents/enterprise</span></div>
+        <div class="phase-week">4 周</div>
+        <div class="phase-desc">SSO、RBAC、Model Gateway、RAG ACL、中心化审计、Eval Service、Cost Dashboard、Admin Console、内部分发更新</div>
+        <div class="phase-status todo">待开始</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 08 品牌方案 ───────────────────────────────────── -->
+<section id="branding" class="section">
+  <div class="section-header">
+    <div class="section-num">08</div>
+    <div>
+      <h2 class="section-title">品牌方案</h2>
+      <p class="section-desc">Proma → LuxAgents 完整替换清单</p>
+    </div>
+  </div>
+  <div class="card-grid-2">
+    <div class="card">
+      <div class="card-title">命名体系</div>
+      <div class="brand-table">
+        <div class="brand-row"><span class="brand-key">产品名</span><span class="brand-val accent">LuxAgents</span></div>
+        <div class="brand-row"><span class="brand-key">中文名</span><span class="brand-val">立讯 AI 研发工作台</span></div>
+        <div class="brand-row"><span class="brand-key">CLI</span><span class="brand-val mono">luxagents</span></div>
+        <div class="brand-row"><span class="brand-key">URL Scheme</span><span class="brand-val mono">luxagents://</span></div>
+        <div class="brand-row"><span class="brand-key">数据目录</span><span class="brand-val mono">~/.luxagents/</span></div>
+        <div class="brand-row"><span class="brand-key">Bundle ID</span><span class="brand-val mono">com.luxshare.luxagents</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">色板 & 语义映射</div>
+      <div class="color-swatches">
+        <div class="swatch" style="background:#0F0D0A"><span class="swatch-label">#0F0D0A<br>Root 背景</span></div>
+        <div class="swatch" style="background:#1C1915"><span class="swatch-label">#1C1915<br>Surface 1 · 卡片</span></div>
+        <div class="swatch" style="background:#24201B"><span class="swatch-label">#24201B<br>Surface 2 · hover</span></div>
+        <div class="swatch" style="background:#DA7756"><span class="swatch-label">#DA7756<br>Accent · 主色</span></div>
+        <div class="swatch" style="background:#34D399"><span class="swatch-label">#34D399<br>Success · 通过</span></div>
+        <div class="swatch" style="background:#F0EDE8; color:#0F0D0A"><span class="swatch-label">#F0EDE8<br>Text primary</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="replace-table">
+    <div class="rt-title">代码级替换清单</div>
+    <div class="rt-row rt-header">
+      <div class="rt-col">原 Proma</div>
+      <div class="rt-col">LuxAgents</div>
+      <div class="rt-col">阶段</div>
+    </div>
+    <div class="rt-row"><div class="rt-col mono del">@proma/electron</div><div class="rt-col mono add">@luxagents/electron</div><div class="rt-col">P1</div></div>
+    <div class="rt-row"><div class="rt-col mono del">~/.proma</div><div class="rt-col mono add">~/.luxagents</div><div class="rt-col">P1</div></div>
+    <div class="rt-row"><div class="rt-col mono del">proma://</div><div class="rt-col mono add">luxagents://</div><div class="rt-col">P1</div></div>
+    <div class="rt-row"><div class="rt-col mono del">proma:* IPC</div><div class="rt-col mono add">luxagents:* IPC</div><div class="rt-col">P1</div></div>
+    <div class="rt-row"><div class="rt-col mono del">ai.proma.app</div><div class="rt-col mono add">com.luxshare.luxagents</div><div class="rt-col">P1</div></div>
+  </div>
+</section>
+
+<!-- ── 09 安全设计 ───────────────────────────────────── -->
+<section id="security" class="section">
+  <div class="section-header">
+    <div class="section-num">09</div>
+    <div>
+      <h2 class="section-title">安全设计</h2>
+      <p class="section-desc">Permission Broker · 审计日志 · RAG ACL</p>
+    </div>
+  </div>
+  <div class="risk-table">
+    <div class="risk-row risk-header">
+      <div class="risk-col">风险等级</div>
+      <div class="risk-col">示例操作</div>
+      <div class="risk-col">默认策略</div>
+    </div>
+    <div class="risk-row">
+      <div class="risk-col"><span class="risk-badge low">LOW</span></div>
+      <div class="risk-col">读取 workspace 内文件、读取公开知识包</div>
+      <div class="risk-col risk-auto">自动允许</div>
+    </div>
+    <div class="risk-row">
+      <div class="risk-col"><span class="risk-badge medium">MEDIUM</span></div>
+      <div class="risk-col">修改普通代码文件、运行测试命令</div>
+      <div class="risk-col risk-confirm">用户确认</div>
+    </div>
+    <div class="risk-row">
+      <div class="risk-col"><span class="risk-badge high">HIGH</span></div>
+      <div class="risk-col">Git commit、Teambition 回写、改配置</div>
+      <div class="risk-col risk-strong">强制确认</div>
+    </div>
+    <div class="risk-row">
+      <div class="risk-col"><span class="risk-badge critical">CRITICAL</span></div>
+      <div class="risk-col">访问密钥、删除目录、跨项目数据、push</div>
+      <div class="risk-col risk-deny">默认禁止</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 10 MVP 规划 ───────────────────────────────────── -->
+<section id="mvp" class="section">
+  <div class="section-header">
+    <div class="section-num">10</div>
+    <div>
+      <h2 class="section-title">MVP 规划</h2>
+      <p class="section-desc">最小可行闭环 Demo 场景</p>
+    </div>
+  </div>
+  <div class="demo-scenario">
+    <div class="demo-title">🎯 第一版 Demo：Preview Stutter RCA 全流程</div>
+    <div class="demo-flow">
+      <div class="demo-step">
+        <div class="demo-step-num">1</div>
+        <div class="demo-step-text">Cowork 看到 TB-1832 Preview stutter</div>
+      </div>
+      <span class="demo-step-arrow">→</span>
+      <div class="demo-step">
+        <div class="demo-step-num">2</div>
+        <div class="demo-step-text">点击「生成方案」，spec-kit 自动生成 spec+plan</div>
+      </div>
+      <span class="demo-step-arrow">→</span>
+      <div class="demo-step">
+        <div class="demo-step-num">3</div>
+        <div class="demo-step-text">上传 TB 审核 → 通过 → 点击「开始编码」</div>
+      </div>
+      <span class="demo-step-arrow">→</span>
+      <div class="demo-step">
+        <div class="demo-step-num">4</div>
+        <div class="demo-step-text">Agent SDK 分析日志 → RCA+patch</div>
+      </div>
+      <span class="demo-step-arrow">→</span>
+      <div class="demo-step">
+        <div class="demo-step-num">5</div>
+        <div class="demo-step-text">提交 Gerrit 审核 → +2 → 完成</div>
+      </div>
+    </div>
+  </div>
+  <div class="mvp-table">
+    <div class="mvp-row mvp-header">
+      <div class="mvp-col">阶段</div>
+      <div class="mvp-col">做什么</div>
+      <div class="mvp-col">不做什么</div>
+    </div>
+    <div class="mvp-row"><div class="mvp-col mvp-phase">MVP 0</div><div class="mvp-col">Proma fork 跑通，品牌壳，三模式 Tab（Chat·Cowork·Code）</div><div class="mvp-col dim">不改核心功能</div></div>
+    <div class="mvp-row"><div class="mvp-col mvp-phase">MVP 1</div><div class="mvp-col">Chat 保持 Claude provider，Skills/MCP/RAG chips（Hermes 留 Phase 2）</div><div class="mvp-col dim">不做 Hermes 接入</div></div>
+    <div class="mvp-row"><div class="mvp-col mvp-phase">MVP 2</div><div class="mvp-col">Cowork 接 Teambition（MCP），六阶段看板 + spec-kit 按钮，任务同步</div><div class="mvp-col dim">不做全自动任务分配</div></div>
+    <div class="mvp-row"><div class="mvp-col mvp-phase">MVP 3</div><div class="mvp-col">Code 模式 = Agent 重命名，保持 Claude Agent SDK</div><div class="mvp-col dim">不做 project-centric UI 改造</div></div>
+    <div class="mvp-row"><div class="mvp-col mvp-phase">MVP 4</div><div class="mvp-col">spec-kit 深度集成、RAG 知识库、TB 回写、文档模板库</div><div class="mvp-col dim">不做大规模多租户</div></div>
+    <div class="mvp-row"><div class="mvp-col mvp-phase">MVP 5</div><div class="mvp-col">SSO、RBAC、Model Gateway、Hermes 接入、审计、成本看板</div><div class="mvp-col dim">不急着做 marketplace</div></div>
+  </div>
+</section>
+
+<!-- ── Footer ───────────────────────────────────────────── -->
+<div class="doc-footer">
+  <div class="footer-logo">
+    <div class="logo-icon small">L</div>
+    <span>LuxAgents Design Doc v0.4</span>
+  </div>
+  <div class="footer-meta">基于 Proma 改造 · 内部保密 · 2026-06</div>
+</div>
+
+</main>
+</div>
+
+<script>
+// ── Nav active tracking ──────────────────────────────────
+const sections = ['overview','positioning','architecture','chat','cowork','code','stack','migration','branding','security','mvp'];
+const navItems = {};
+
+sections.forEach(id => {
+  const el = document.querySelector(`a[href="#${id}"]`);
+  if (el) navItems[id] = el;
+});
+
+function updateNav() {
+  const main = document.getElementById('main');
+  const scrollY = main.scrollTop + 120;
+  let current = sections[0];
+
+  sections.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      const mainRect = main.getBoundingClientRect();
+      if (rect.top - mainRect.top <= 120) current = id;
+    }
+  });
+
+  Object.values(navItems).forEach(n => n.classList.remove('active'));
+  if (navItems[current]) navItems[current].classList.add('active');
+}
+
+document.getElementById('main').addEventListener('scroll', updateNav, { passive: true });
+
+// ── Log line animation ───────────────────────────────────
+setTimeout(() => {
+  document.querySelectorAll('.log-line').forEach((el, i) => {
+    setTimeout(() => {
+      el.style.transition = 'all 0.4s ease';
+      el.style.opacity = '1';
+      el.style.transform = 'translateX(0)';
+    }, i * 100 + 200);
+  });
+}, 400);
+</script>
+
+</body>
+</html>

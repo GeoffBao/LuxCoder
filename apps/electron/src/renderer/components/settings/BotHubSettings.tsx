@@ -16,7 +16,7 @@ import { FeishuSettings } from './FeishuSettings'
 import { DingTalkSettings } from './DingTalkSettings'
 import { WeChatSettings } from './WeChatSettings'
 import { BotDefaultSettings } from './BotDefaultSettings'
-import { PromaLogoSettings } from './PromaLogoSettings'
+import { AppLogoSettings } from './AppLogoSettings'
 import feishuLogo from '@/assets/bots/feishu.png'
 import dingtalkLogo from '@/assets/bots/dingding.png'
 import wechatLogo from '@/assets/bots/wechat.png'
@@ -171,7 +171,7 @@ function renderPlatformPanel(id: BotPlatformId): React.ReactElement {
     case 'defaults':
       return <BotDefaultSettings />
     case 'logos':
-      return <PromaLogoSettings />
+      return <AppLogoSettings />
   }
 }
 

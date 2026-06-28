@@ -37,7 +37,7 @@ export function TutorialBanner(): React.ReactElement | null {
   }
 
   const handleLearnNow = async () => {
-    const result = openTab(tabs, { type: 'tutorial', sessionId: TUTORIAL_TAB_ID, title: 'Proma 使用教程' })
+    const result = openTab(tabs, { type: 'tutorial', sessionId: TUTORIAL_TAB_ID, title: 'LuxAgents 使用教程' })
     setTabs(result.tabs)
     setActiveTabId(result.activeTabId)
     await handleDismiss()
@@ -73,8 +73,8 @@ export function TutorialBanner(): React.ReactElement | null {
             <GraduationCap size={20} className="text-primary" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-foreground">Proma 使用教程</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">了解 Proma 的全部功能和使用技巧</p>
+            <h3 className="text-sm font-semibold text-foreground">LuxAgents 使用教程</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">了解 LuxAgents 的全部功能和使用技巧</p>
           </div>
         </div>
 

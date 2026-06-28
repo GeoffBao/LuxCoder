@@ -1358,3 +1358,32 @@ function _safeExtractAll(zip: AdmZip, targetDir: string): void {
   }
   zip.extractAllTo(targetDir, true)
 }
+
+/**
+ * 数据目录迁移：首次启动时将 ~/.proma/ 迁移到 ~/.luxagents/
+ *
+ * 非破坏性迁移，保留原目录。迁移完成后写入 flag 文件，避免重复执行。
+ */
+export function migrateDataDirIfNeeded(): void {
+  const home = homedir()
+  const oldDir = join(home, '.proma')
+  const newDir = join(home, '.luxagents')
+  const flagFile = join(newDir, '.migrated-from-proma')
+
+  // 新目录已存在且已迁移过 → 跳过
+  if (existsSync(flagFile)) return
+
+  // 旧目录不存在 → 全新安装，无需迁移
+  if (!existsSync(oldDir)) return
+
+  // 新目录已存在但无 flag → 用户已手动建目录，跳过
+  if (existsSync(newDir)) return
+
+  try {
+    cpSync(oldDir, newDir, { recursive: true })
+    writeFileSync(flagFile, new Date().toISOString(), 'utf-8')
+    console.log(`[迁移] 已将 ~/.proma/ 迁移到 ~/.luxagents/（原目录保留）`)
+  } catch (err) {
+    console.warn('[迁移] 数据迁移失败，将使用全新目录:', err)
+  }
+}
