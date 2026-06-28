@@ -29,7 +29,7 @@ import { VersionHistory } from './VersionHistory'
 declare const __APP_VERSION__: string
 const APP_VERSION = __APP_VERSION__
 
-const GITHUB_RELEASES_URL = 'https://github.com/ErlichLiu/Proma/releases'
+const GITHUB_RELEASES_URL = 'https://github.com/GeoffBao/LuxAgents/releases'
 
 /** 更新状态卡片 */
 function UpdateCard(): React.ReactElement | null {
@@ -442,7 +442,7 @@ function ShellEnvironmentCard(): React.ReactElement | null {
 export function AboutSettings(): React.ReactElement {
   return (
     <SettingsSection
-      title="关于 Proma"
+      title="关于 LuxAgents"
       description="集成通用 AI Agent 的下一代人工智能软件"
     >
       <SettingsCard>
@@ -467,12 +467,12 @@ export function AboutSettings(): React.ReactElement {
         </SettingsRow>
         <SettingsRow label="项目地址">
           <a
-            href="https://github.com/ErlichLiu/Proma.git"
+            href="https://github.com/GeoffBao/LuxAgents"
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm text-primary hover:underline"
           >
-            github.com/ErlichLiu/Proma
+            github.com/GeoffBao/LuxAgents
           </a>
         </SettingsRow>
       </SettingsCard>
