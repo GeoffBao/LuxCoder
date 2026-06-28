@@ -103,6 +103,9 @@ const TAIL_TABS: TabItem[] = [
   { id: "about", label: "关于/更新", icon: <Info size={16} /> },
 ];
 
+/** 暂时隐藏的 Tab（功能代码保留，待后续重新开放） */
+const HIDDEN_TABS = new Set<SettingsTab>(["bots", "shortcuts", "migration", "storage", "appearance"]);
+
 /** 根据标签页 id 渲染对应内容 */
 function renderTabContent(tab: SettingsTab): React.ReactElement {
   switch (tab) {
@@ -210,18 +213,7 @@ export function SettingsPanel({
 
   // 工具 tab 两种模式都显示，Agent Skills / MCP 独立在侧边栏能力中心管理。
   const tabs = React.useMemo(() => {
-    if (appMode === "agent") {
-      return [
-        ...BASE_TABS,
-        TOOLS_TAB,
-        VOICE_INPUT_TAB,
-        BOTS_TAB,
-        TUTORIAL_TAB,
-        SHORTCUTS_TAB,
-        ...TAIL_TABS,
-      ];
-    }
-    return [
+    const allTabs = [
       ...BASE_TABS,
       TOOLS_TAB,
       VOICE_INPUT_TAB,
@@ -230,6 +222,7 @@ export function SettingsPanel({
       SHORTCUTS_TAB,
       ...TAIL_TABS,
     ];
+    return allTabs.filter((t) => !HIDDEN_TABS.has(t.id));
   }, [appMode]);
 
   // 当前 tab 标题
