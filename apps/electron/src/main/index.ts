@@ -57,6 +57,7 @@ function registerProtocolsAndHandlers(): void {
 
 
 
+import { migrateDataDirIfNeeded } from './lib/migration-service'
 import { getSettings, updateSettings } from './lib/settings-service'
 import { handlePromaFileRequest } from './lib/local-file-protocol'
 
@@ -476,6 +477,8 @@ app.whenReady().then(bootstrap).catch(handleBootstrapFailure)
  * 单点失败不应阻止窗口和托盘的创建（用户至少要能看到界面）。
  */
 async function bootstrap(): Promise<void> {
+  migrateDataDirIfNeeded()
+
   // 初始化 LuxAgents 版本号（供 User-Agent 等全局标识使用）
   setAppVersion(app.getVersion())
 
