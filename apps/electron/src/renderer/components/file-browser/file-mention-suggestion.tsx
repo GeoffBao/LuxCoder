@@ -12,14 +12,8 @@ import type { SuggestionOptions, SuggestionProps } from '@tiptap/suggestion'
 import { toast } from 'sonner'
 import { FileMentionList } from './FileMentionList'
 import type { FileMentionRef } from './FileMentionList'
-<<<<<<< HEAD
 import type { FileIndexEntry, FileSearchResult } from '@luxagents/shared'
-import { createMentionPopup, positionPopup } from '@/components/agent/mention-popup-utils'
-=======
-import type { FileIndexEntry, FileSearchResult } from '@proma/shared'
 import { createMentionPopup, positionPopup, isSuggestionTriggerPresent } from '@/components/agent/mention-popup-utils'
->>>>>>> 97920a16 (fix(mention): Esc 可关闭引用弹窗并修复异步竞态导致的幽灵弹窗 (#984))
-
 export function createFileMentionSuggestion(
   workspacePathRef: React.RefObject<string | null>,
   mentionActiveRef: React.MutableRefObject<boolean>,
