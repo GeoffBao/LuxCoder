@@ -44,6 +44,7 @@
         "@emoji-mart/react": "^1.1.1",
         "@larksuiteoapi/node-sdk": "^1.65.0",
         "@luxagents/core": "workspace:*",
+        "@luxagents/session-core": "workspace:*",
         "@luxagents/shared": "workspace:*",
         "@luxagents/ui": "workspace:*",
         "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -155,6 +156,16 @@
         "@anthropic-ai/claude-agent-sdk": ">=0.2.123",
         "@anthropic-ai/sdk": ">=0.70.0",
         "@modelcontextprotocol/sdk": ">=1.0.0",
+      },
+    },
+    "packages/session-core": {
+      "name": "@luxagents/session-core",
+      "version": "0.1.0",
+      "dependencies": {
+        "@luxagents/shared": "workspace:*",
+      },
+      "devDependencies": {
+        "typescript": "^5.0.0",
       },
     },
     "packages/shared": {
@@ -381,6 +392,8 @@
     "@luxagents/core": ["@luxagents/core@workspace:packages/core"],
 
     "@luxagents/electron": ["@luxagents/electron@workspace:apps/electron"],
+
+    "@luxagents/session-core": ["@luxagents/session-core@workspace:packages/session-core"],
 
     "@luxagents/shared": ["@luxagents/shared@workspace:packages/shared"],
 

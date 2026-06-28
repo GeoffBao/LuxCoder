@@ -60,6 +60,7 @@
     "@emoji-mart/react": "^1.1.1",
     "@larksuiteoapi/node-sdk": "^1.65.0",
     "@luxagents/core": "workspace:*",
+    "@luxagents/session-core": "workspace:*",
     "@luxagents/shared": "workspace:*",
     "@luxagents/ui": "workspace:*",
     "@radix-ui/react-alert-dialog": "^1.1.15",
