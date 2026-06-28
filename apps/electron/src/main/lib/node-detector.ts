@@ -7,7 +7,7 @@
 import { execSync, spawnSync } from 'child_process'
 import { existsSync } from 'fs'
 import { join } from 'path'
-import type { NodeRuntimeStatus } from '@proma/shared'
+import type { NodeRuntimeStatus } from '@luxagents/shared'
 import { getNodeInstallPathFromRegistry } from './windows-env'
 
 /**

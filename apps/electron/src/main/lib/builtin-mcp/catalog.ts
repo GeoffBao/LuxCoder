@@ -5,7 +5,7 @@
  * 这样前端能力摘要可以安全读取内置 MCP 列表，而不会引入 Agent 编排层循环依赖。
  */
 
-import type { BuiltinMcpServerSummary, McpToolSummary } from '@proma/shared'
+import type { BuiltinMcpServerSummary, McpToolSummary } from '@luxagents/shared'
 import { getToolCredentials, getToolState } from '../chat-tool-config'
 import { getMemoryConfig } from '../memory-service'
 import { isBuiltinMcpUserEnabled } from './settings'

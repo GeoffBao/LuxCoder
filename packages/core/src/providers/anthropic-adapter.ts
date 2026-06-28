@@ -23,7 +23,7 @@
  * - UA 格式：`LuxAgents/<version> (+https://github.com/GeoffBao/LuxAgents)`
  */
 
-import type { ProviderType } from '@proma/shared'
+import type { ProviderType } from '@luxagents/shared'
 import type {
   ProviderAdapter,
   ProviderRequest,

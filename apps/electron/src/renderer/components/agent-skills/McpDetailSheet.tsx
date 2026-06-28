@@ -7,7 +7,7 @@
 import * as React from 'react'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { McpServerForm } from '@/components/settings/McpServerForm'
-import type { McpServerEntry } from '@proma/shared'
+import type { McpServerEntry } from '@luxagents/shared'
 
 interface McpDetailSheetProps {
   open: boolean

@@ -8,7 +8,7 @@ import type {
   AutomationRun,
   SDKAssistantMessage,
   SDKMessage,
-} from '@proma/shared'
+} from '@luxagents/shared'
 
 interface AutomationNotificationCardPayload {
   automation: Automation

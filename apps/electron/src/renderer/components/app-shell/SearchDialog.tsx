@@ -38,7 +38,7 @@ import {
 import type {
   MessageSearchResult,
   AgentMessageSearchResult,
-} from '@proma/shared'
+} from '@luxagents/shared'
 
 /** 标题搜索结果项 */
 interface TitleResult {
