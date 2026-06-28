@@ -156,5 +156,5 @@
   "build": {
     "extends": "electron-builder.yml"
   },
-  "proma": {}
+  "luxagents": {}
 }

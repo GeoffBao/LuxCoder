@@ -203,15 +203,15 @@ export function MarkdownRichEditor({
         className={cn(
           editing ? 'min-h-0 flex-1 overflow-auto scrollbar-thin' : 'h-full min-h-full flex-1',
           isEditable
-            ? '[&_.proma-mermaid-preview]:hidden [&_.proma-code-source-body]:block'
+            ? '[&_.luxagents-mermaid-preview]:hidden [&_.luxagents-code-source-body]:block'
             : [
-                '[&_.proma-code-block--mermaid]:overflow-visible',
-                '[&_.proma-code-block--mermaid]:rounded-none',
-                '[&_.proma-code-block--mermaid]:border-0',
-                '[&_.proma-code-block--mermaid]:bg-transparent',
-                '[&_.proma-code-block--mermaid_.proma-code-header]:hidden',
-                '[&_.proma-code-block--mermaid_.proma-mermaid-preview]:block',
-                '[&_.proma-code-block--mermaid_.proma-code-source-body]:hidden',
+                '[&_.luxagents-code-block--mermaid]:overflow-visible',
+                '[&_.luxagents-code-block--mermaid]:rounded-none',
+                '[&_.luxagents-code-block--mermaid]:border-0',
+                '[&_.luxagents-code-block--mermaid]:bg-transparent',
+                '[&_.luxagents-code-block--mermaid_.luxagents-code-header]:hidden',
+                '[&_.luxagents-code-block--mermaid_.luxagents-mermaid-preview]:block',
+                '[&_.luxagents-code-block--mermaid_.luxagents-code-source-body]:hidden',
               ],
         )}
       />

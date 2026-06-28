@@ -548,7 +548,7 @@ export type AgentEvent =
 // ===== LuxAgents 内部事件（SDK 不覆盖的场景） =====
 
 /** LuxAgents 内部事件类型 */
-export type PromaEvent =
+export type LuxAgentsEvent =
   | { type: 'permission_request'; request: PermissionRequest }
   | { type: 'permission_resolved'; requestId: string; behavior: 'allow' | 'deny' }
   | { type: 'ask_user_request'; request: AskUserRequest }
@@ -575,7 +575,7 @@ export type AgentExternalRunSource = 'feishu' | 'dingtalk' | 'wechat' | 'bridge'
 /** IPC 传输的统一 payload（替代 AgentEvent） */
 export type AgentStreamPayload =
   | { kind: 'sdk_message'; message: SDKMessage }
-  | { kind: 'proma_event'; event: PromaEvent }
+  | { kind: 'luxagents_event'; event: LuxAgentsEvent }
 
 // ===== Agent 会话管理 =====
 

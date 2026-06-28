@@ -39,7 +39,7 @@ import {
 
 // ===== 行数计算 =====
 
-const thickCaretPluginKey = new PluginKey<boolean>('promaThickInputCaret')
+const thickCaretPluginKey = new PluginKey<boolean>('luxagentsThickInputCaret')
 
 const ThickInputCaret = Extension.create({
   name: 'thickInputCaret',
@@ -79,12 +79,12 @@ const ThickInputCaret = Extension.create({
                 state.selection.from,
                 () => {
                   const caret = document.createElement('span')
-                  caret.className = 'proma-input-caret'
+                  caret.className = 'luxagents-input-caret'
                   caret.setAttribute('aria-hidden', 'true')
                   return caret
                 },
                 {
-                  key: 'proma-input-caret',
+                  key: 'luxagents-input-caret',
                   side: 1,
                 },
               ),
@@ -711,7 +711,7 @@ export function RichTextInput({
         .rich-text-input .ProseMirror:focus {
           caret-color: transparent;
         }
-        .rich-text-input .proma-input-caret {
+        .rich-text-input .luxagents-input-caret {
           display: inline-block;
           width: 0;
           height: 1em;
@@ -719,7 +719,7 @@ export function RichTextInput({
           vertical-align: baseline;
           pointer-events: none;
         }
-        .rich-text-input .proma-input-caret::after {
+        .rich-text-input .luxagents-input-caret::after {
           content: '';
           position: absolute;
           left: 0;
@@ -729,9 +729,9 @@ export function RichTextInput({
           border-radius: 999px;
           background: hsl(var(--foreground));
           transform: translateY(calc(-50% + 2px));
-          animation: proma-input-caret-blink 1s steps(1, end) infinite;
+          animation: luxagents-input-caret-blink 1s steps(1, end) infinite;
         }
-        @keyframes proma-input-caret-blink {
+        @keyframes luxagents-input-caret-blink {
           0%, 49% {
             opacity: 1;
           }

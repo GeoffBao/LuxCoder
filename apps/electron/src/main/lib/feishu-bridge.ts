@@ -1825,7 +1825,7 @@ class FeishuBridge {
       }
     }
 
-    if (payload.kind === 'proma_event' && payload.event.type === 'title_updated') {
+    if (payload.kind === 'luxagents_event' && payload.event.type === 'title_updated') {
       this.updateSessionMirrorGroupName(sessionId, payload.event.title)
     }
   }

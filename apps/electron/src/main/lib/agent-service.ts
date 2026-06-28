@@ -140,7 +140,7 @@ export async function runAgent(
         updateAgentSessionMeta(input.sessionId, { automationGraduated: true })
         // 向渲染进程发送毕业事件，触发 toast 提示
         eventBus.emit(input.sessionId, {
-          kind: 'proma_event',
+          kind: 'luxagents_event',
           event: { type: 'automation_graduated' },
         })
       }
@@ -171,7 +171,7 @@ export async function runAgent(
       },
       onTitleUpdated: (title) => {
         eventBus.emit(input.sessionId, {
-          kind: 'proma_event',
+          kind: 'luxagents_event',
           event: { type: 'title_updated', title },
         })
         if (!webContents.isDestroyed()) {
@@ -258,7 +258,7 @@ export async function runAgentHeadless(
       onTitleUpdated: (title) => {
         callbacks.onTitleUpdated(title)
         eventBus.emit(runInput.sessionId, {
-          kind: 'proma_event',
+          kind: 'luxagents_event',
           event: { type: 'title_updated', title },
         })
         // 同步到渲染进程
@@ -272,7 +272,7 @@ export async function runAgentHeadless(
       onRunStarted: ({ startedAt: persistedStartedAt }) => {
         const session = getAgentSessionMeta(runInput.sessionId)
         eventBus.emit(runInput.sessionId, {
-          kind: 'proma_event',
+          kind: 'luxagents_event',
           event: {
             type: 'external_run_started',
             source: callbacks.source ?? 'bridge',

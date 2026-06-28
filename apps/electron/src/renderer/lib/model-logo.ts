@@ -110,7 +110,7 @@ import MiniMaxLogo from '@/assets/models/minimax.png'
 import XiaomiLogo from '@/assets/models/xiaomi.png'
 
 // LuxAgents
-import LuxAgentsLogo from '@/assets/models/proma.png'
+import LuxAgentsLogo from '@/assets/models/luxagents.png'
 
 // Cohere
 import CohereLogo from '@/assets/models/cohere.png'
@@ -311,7 +311,7 @@ export function getProviderLogo(provider: ProviderType): string {
  * 服务（常以 /anthropic 结尾）不应被误判为 Claude（见 #659）。
  */
 const URL_LOGO_MAP: Array<[RegExp, string]> = [
-  [/proma\.cool/i, LuxAgentsLogo],
+  [/luxagents\.cool/i, LuxAgentsLogo],
   [/moonshot\.cn|kimi/i, KimiLogo],
   [/bigmodel\.cn|zhipuai/i, ZhipuLogo],
   [/minimax/i, MiniMaxLogo],

@@ -31,7 +31,7 @@ async function refreshChatTools(setter: (tools: Awaited<ReturnType<typeof window
 
 /** MemOS Cloud · 云端记忆（原有实现） */
 function MemOSSection(): React.ReactElement {
-  const [config, setConfig] = React.useState<MemoryConfig>({ enabled: false, apiKey: '', userId: 'proma-user' })
+  const [config, setConfig] = React.useState<MemoryConfig>({ enabled: false, apiKey: '', userId: 'luxagents-user' })
   const [saving, setSaving] = React.useState(false)
   const [loading, setLoading] = React.useState(true)
   const setChatTools = useSetAtom(chatToolsAtom)

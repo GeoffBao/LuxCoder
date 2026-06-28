@@ -1041,7 +1041,7 @@ export class AgentOrchestrator {
       console.log(`[Agent 编排] 检测到回退 resume: resumeSessionAt=${rewindResumeAt}`)
     }
 
-    console.log(`[Agent 编排] Resume 状态: sdkSessionId=${existingSdkSessionId || '无'}, proma sessionId=${sessionId}`)
+    console.log(`[Agent 编排] Resume 状态: sdkSessionId=${existingSdkSessionId || '无'}, LuxAgents sessionId=${sessionId}`)
 
     // 5. 持久化用户消息（SDKMessage 格式）
     const userSDKMsg: SDKMessage = {
@@ -1087,7 +1087,7 @@ export class AgentOrchestrator {
               key: 'd',
               label: '下载最新安装包',
               action: 'open_external',
-              payload: 'https://proma.cool/download',
+              payload: 'https://luxagents.cool/download',
             },
             {
               key: 'i',
@@ -1205,7 +1205,7 @@ export class AgentOrchestrator {
         const toolLines: string[] = ['用户在消息中明确引用了以下工具，请在本次回复中主动调用：']
         for (const slug of mentionedSkills ?? []) {
           const qualifiedName = workspaceSlug
-            ? `proma-workspace-${workspaceSlug}:${slug}`
+            ? `luxagents-workspace-${workspaceSlug}:${slug}`
             : slug
           toolLines.push(`- Skill: ${qualifiedName}（请立即调用此 Skill）`)
         }
@@ -1242,14 +1242,14 @@ export class AgentOrchestrator {
 
       const emitPlanModeChanged = (active: boolean, source: 'initial' | 'tool' | 'permission'): void => {
         this.eventBus.emit(sessionId, {
-          kind: 'proma_event',
+          kind: 'luxagents_event',
           event: { type: 'plan_mode_changed', sessionId, active, source },
         })
       }
 
       // 当初始模式为 plan 时，通知渲染进程展示计划模式 UI（如「Agent 正在规划」横幅）
       if (initialPermissionMode === 'plan') {
-        this.eventBus.emit(sessionId, { kind: 'proma_event', event: { type: 'enter_plan_mode', sessionId } })
+        this.eventBus.emit(sessionId, { kind: 'luxagents_event', event: { type: 'enter_plan_mode', sessionId } })
         emitPlanModeChanged(true, 'initial')
       }
 
@@ -1264,7 +1264,7 @@ export class AgentOrchestrator {
           toolInput,
           signal,
           (request: ExitPlanModeRequest) => {
-            this.eventBus.emit(sessionId, { kind: 'proma_event', event: { type: 'exit_plan_mode_request', request } })
+            this.eventBus.emit(sessionId, { kind: 'luxagents_event', event: { type: 'exit_plan_mode_request', request } })
           },
         )
       }
@@ -1273,11 +1273,11 @@ export class AgentOrchestrator {
       const autoCanUseTool = permissionService.createCanUseTool(
         sessionId,
         (request: PermissionRequest) => {
-          this.eventBus.emit(sessionId, { kind: 'proma_event', event: { type: 'permission_request', request } })
+          this.eventBus.emit(sessionId, { kind: 'luxagents_event', event: { type: 'permission_request', request } })
         },
         (sid, toolInput, signal, sendAskUser) => askUserService.handleAskUserQuestion(sid, toolInput, signal, sendAskUser),
         (request: AskUserRequest) => {
-          this.eventBus.emit(sessionId, { kind: 'proma_event', event: { type: 'ask_user_request', request } })
+          this.eventBus.emit(sessionId, { kind: 'luxagents_event', event: { type: 'ask_user_request', request } })
         },
       )
 
@@ -1397,7 +1397,7 @@ export class AgentOrchestrator {
         if (toolName === 'EnterPlanMode') {
           planModeEntered = true
           emitPlanModeChanged(true, 'tool')
-          this.eventBus.emit(sessionId, { kind: 'proma_event', event: { type: 'enter_plan_mode', sessionId } })
+          this.eventBus.emit(sessionId, { kind: 'luxagents_event', event: { type: 'enter_plan_mode', sessionId } })
           return { behavior: 'allow' as const, updatedInput: input }
         }
 
@@ -1406,7 +1406,7 @@ export class AgentOrchestrator {
           return askUserService.handleAskUserQuestion(
             sessionId, input, options.signal,
             (request: AskUserRequest) => {
-              this.eventBus.emit(sessionId, { kind: 'proma_event', event: { type: 'ask_user_request', request } })
+              this.eventBus.emit(sessionId, { kind: 'luxagents_event', event: { type: 'ask_user_request', request } })
             },
           )
         }
@@ -1556,14 +1556,14 @@ export class AgentOrchestrator {
           resolvedModel = model
           console.log(`[Agent 编排] SDK 确认模型: ${resolvedModel}`)
           // 通知渲染进程更新流式状态中的模型信息
-          this.eventBus.emit(sessionId, { kind: 'proma_event', event: { type: 'model_resolved', model } })
+          this.eventBus.emit(sessionId, { kind: 'luxagents_event', event: { type: 'model_resolved', model } })
         },
         onContextWindow: (cw: number) => {
           console.log(`[Agent 编排] 缓存 contextWindow: ${cw}`)
           // result 消息里的真实 contextWindow 透传到 renderer，
           // 覆盖流式过程中按模型名推断的 fallback 值（智谱等端点会把 [1m] 等后缀剥掉，导致 fallback 不准）
           this.eventBus.emit(sessionId, {
-            kind: 'proma_event',
+            kind: 'luxagents_event',
             event: { type: 'context_window', contextWindow: cw },
           })
         },
@@ -1616,11 +1616,11 @@ export class AgentOrchestrator {
             }
 
             this.eventBus.emit(sessionId, {
-              kind: 'proma_event',
+              kind: 'luxagents_event',
               event: { type: 'retry', status: 'starting', attempt: retryAttempt, maxAttempts: MAX_AUTO_RETRIES, delaySeconds: delaySec, reason: lastRetryableError ?? '未知错误' },
             })
             this.eventBus.emit(sessionId, {
-              kind: 'proma_event',
+              kind: 'luxagents_event',
               event: { type: 'retry', status: 'attempt', attemptData },
             })
 
@@ -1699,7 +1699,7 @@ export class AgentOrchestrator {
               const sub = msg.type === 'system' ? (msg as { subtype?: string }).subtype : undefined
               if (msg.type === 'assistant' || msg.type === 'user' || sub === 'task_started' || sub === 'task_progress') {
                 awaitingBackgroundWake = false
-                this.eventBus.emit(sessionId, { kind: 'proma_event', event: { type: 'run_resumed', sessionId } })
+                this.eventBus.emit(sessionId, { kind: 'luxagents_event', event: { type: 'run_resumed', sessionId } })
               }
             }
 
@@ -1804,7 +1804,7 @@ export class AgentOrchestrator {
                 // 如果之前有重试记录，发送 retry_failed
                 if (retryAttemptsScheduled > 0 && lastRetryableError) {
                   this.eventBus.emit(sessionId, {
-                    kind: 'proma_event',
+                    kind: 'luxagents_event',
                     event: { type: 'retry', status: 'failed', attemptData: { attempt: retryAttemptsScheduled, timestamp: Date.now(), reason: lastRetryableError, errorMessage: typedError.message, delaySeconds: 0 } },
                   })
                 }
@@ -1933,7 +1933,7 @@ export class AgentOrchestrator {
 
           // 正常完成 — 如果之前有重试，发送 retry_cleared
           if (!wasStoppedByUser && retryAttemptsScheduled > 0) {
-            this.eventBus.emit(sessionId, { kind: 'proma_event', event: { type: 'retry', status: 'cleared' } })
+            this.eventBus.emit(sessionId, { kind: 'luxagents_event', event: { type: 'retry', status: 'cleared' } })
             console.log(`[Agent 编排] 重试成功，已在第 ${attempt} 次尝试后恢复`)
           }
           retrySucceeded = true
@@ -2110,7 +2110,7 @@ export class AgentOrchestrator {
           // 如果之前有重试记录，发送 retry_failed
           if (retryAttemptsScheduled > 0 && lastRetryableError) {
             this.eventBus.emit(sessionId, {
-              kind: 'proma_event',
+              kind: 'luxagents_event',
               event: { type: 'retry', status: 'failed', attemptData: { attempt: retryAttemptsScheduled, timestamp: Date.now(), reason: lastRetryableError, errorMessage: userFacingError, delaySeconds: 0 } },
             })
           }
@@ -2138,7 +2138,7 @@ export class AgentOrchestrator {
           ? '重试等待已达到 5 分钟后仍然失败'
           : `重试 ${retryAttemptsScheduled || MAX_AUTO_RETRIES} 次后仍然失败`
         this.eventBus.emit(sessionId, {
-          kind: 'proma_event',
+          kind: 'luxagents_event',
           event: { type: 'retry', status: 'failed', attemptData: { attempt: retryAttemptsScheduled || MAX_AUTO_RETRIES, timestamp: Date.now(), reason: lastRetryableError, errorMessage: retryFailureMessage, delaySeconds: 0 } },
         })
 
@@ -2200,7 +2200,7 @@ export class AgentOrchestrator {
     if (!this.activeSessions.has(sessionId)) return
     this.sessionPermissionModes.set(sessionId, mode)
     this.eventBus.emit(sessionId, {
-      kind: 'proma_event',
+      kind: 'luxagents_event',
       event: { type: 'plan_mode_changed', sessionId, active: mode === 'plan', source: 'permission' },
     })
     // 同步通知 SDK 侧

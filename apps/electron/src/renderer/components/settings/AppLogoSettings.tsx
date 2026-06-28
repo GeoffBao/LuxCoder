@@ -172,7 +172,7 @@ function LogoCard({ logo }: { logo: LogoVariant }): React.ReactElement {
     try {
       const saved = await window.electronAPI.saveResourceFileAs(
         logo.resourcePath,
-        `proma-${logo.id}.png`,
+        `.png`,
       )
       if (saved) {
         toast.success(`${logo.name} 已保存`)

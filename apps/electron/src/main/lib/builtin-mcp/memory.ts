@@ -13,7 +13,7 @@ export async function injectMemoryMcpServer(
   mcpServers: Record<string, Record<string, unknown>>,
 ): Promise<void> {
   const memoryConfig = getMemoryConfig()
-  const memUserId = memoryConfig.userId?.trim() || 'proma-user'
+  const memUserId = memoryConfig.userId?.trim() || 'luxagents-user'
   if (!memoryConfig.enabled || !memoryConfig.apiKey) return
 
   const { z } = await import('zod')

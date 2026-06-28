@@ -56,7 +56,7 @@ import { agentDiffUnseenChangesAtom, agentDiffUnseenFilesAtom } from '@/atoms/ag
 import { previewFileMapAtom } from '@/atoms/preview-atoms'
 import type { NotificationSoundType } from '@/types/settings'
 import { toast } from 'sonner'
-import type { AgentStreamEvent, AgentStreamCompletePayload, AgentEvent, AgentStreamPayload, SDKAssistantMessage, SDKUserMessage, SDKSystemMessage, SDKContentBlock, SDKUserContentBlock, PromaEvent, AgentSessionMeta } from '@luxagents/shared'
+import type { AgentStreamEvent, AgentStreamCompletePayload, AgentEvent, AgentStreamPayload, SDKAssistantMessage, SDKUserMessage, SDKSystemMessage, SDKContentBlock, SDKUserContentBlock, LuxAgentsEvent, AgentSessionMeta } from '@luxagents/shared'
 import { inferContextWindow } from '@luxagents/shared'
 import { buildExternalAgentRunActivation } from '@/lib/external-agent-run'
 import { getAgentCompletionMarkers } from '@/lib/agent-completion-presence'
@@ -103,7 +103,7 @@ function uniqueTruthyPaths(paths: Array<string | null | undefined>): string[] {
 // ============================================================================
 
 function payloadToLegacyEvents(payload: AgentStreamPayload): AgentEvent[] {
-  if (payload.kind === 'proma_event') {
+  if (payload.kind === 'luxagents_event') {
     const evt = payload.event
     switch (evt.type) {
       case 'permission_request':
@@ -370,7 +370,7 @@ export function useGlobalAgentListeners(): void {
       return sessions.find((s) => s.id === sessionId)?.title ?? '未命名会话'
     }
 
-    const activateExternalAgentRun = (event: Extract<PromaEvent, { type: 'external_run_started' }>): void => {
+    const activateExternalAgentRun = (event: Extract<LuxAgentsEvent, { type: 'external_run_started' }>): void => {
       const applyActivation = (sessions: AgentSessionMeta[]): void => {
         const activation = buildExternalAgentRunActivation({
           tabs: store.get(tabsAtom),
@@ -561,12 +561,12 @@ export function useGlobalAgentListeners(): void {
         unstable_batchedUpdates(() => {
         const { sessionId, payload } = streamEvent
 
-        if (payload.kind === 'proma_event' && payload.event.type === 'external_run_started') {
+        if (payload.kind === 'luxagents_event' && payload.event.type === 'external_run_started') {
           activateExternalAgentRun(payload.event)
         }
 
         // 自动任务会话被用户接管（毕业）：向用户提示，后续定时运行将新建独立会话
-        if (payload.kind === 'proma_event' && payload.event.type === 'automation_graduated') {
+        if (payload.kind === 'luxagents_event' && payload.event.type === 'automation_graduated') {
           toast('已接管自动任务会话，后续定时运行将创建新会话。', { duration: 3000 })
           window.electronAPI.listAgentSessions()
             .then((sessions) => store.set(agentSessionsAtom, sessions))

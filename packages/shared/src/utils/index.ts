@@ -1,5 +1,5 @@
 /**
- * Shared utility functions for proma
+ * Shared utility functions for LuxAgents
  */
 
 // Placeholder - will be expanded as needed

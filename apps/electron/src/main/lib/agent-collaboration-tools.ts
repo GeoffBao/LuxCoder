@@ -108,7 +108,7 @@ export function registerCollaborationEventBus(eventBus: import('./agent-event-bu
   eventBus.on((sessionId: string, payload: AgentStreamPayload) => {
     const record = Array.from(delegations.values()).find((d) => d.childSessionId === sessionId)
     if (!record || record.status !== 'running') return
-    if (payload.kind !== 'proma_event') return
+    if (payload.kind !== 'luxagents_event') return
 
     const event = payload.event
     if (event.type === 'ask_user_request') {
@@ -130,12 +130,12 @@ export function registerCollaborationEventBus(eventBus: import('./agent-event-bu
       blockedEvents.set(blocked.id, blocked)
 
       eventBus.emit(record.parentSessionId, {
-        kind: 'proma_event',
+        kind: 'luxagents_event',
         event: {
           type: 'delegation_blocked' as const,
           delegationId: record.delegationId,
           blockedEvent: blocked,
-        } as import('@luxagents/shared').PromaEvent,
+        } as import('@luxagents/shared').LuxAgentsEvent,
       })
     }
 
@@ -154,12 +154,12 @@ export function registerCollaborationEventBus(eventBus: import('./agent-event-bu
       blockedEvents.set(blocked.id, blocked)
 
       eventBus.emit(record.parentSessionId, {
-        kind: 'proma_event',
+        kind: 'luxagents_event',
         event: {
           type: 'delegation_blocked' as const,
           delegationId: record.delegationId,
           blockedEvent: blocked,
-        } as import('@luxagents/shared').PromaEvent,
+        } as import('@luxagents/shared').LuxAgentsEvent,
       })
     }
 
@@ -958,7 +958,7 @@ export async function injectAgentCollaborationMcpServer(
             blocked.resolved = !!sessionId
             if (blocked.resolved && _eventBusRef) {
               _eventBusRef.emit(blocked.childSessionId, {
-                kind: 'proma_event',
+                kind: 'luxagents_event',
                 event: { type: 'ask_user_resolved', requestId: blocked.askUserRequestId },
               })
             }
@@ -972,7 +972,7 @@ export async function injectAgentCollaborationMcpServer(
             blocked.resolved = !!sessionId
             if (blocked.resolved && _eventBusRef) {
               _eventBusRef.emit(blocked.childSessionId, {
-                kind: 'proma_event',
+                kind: 'luxagents_event',
                 event: { type: 'permission_resolved', requestId: blocked.permissionRequestId, behavior },
               })
             }

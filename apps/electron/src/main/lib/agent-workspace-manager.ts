@@ -463,7 +463,7 @@ export function ensurePluginManifest(workspaceSlug: string, workspaceName: strin
   }
 
   const manifest = {
-    name: `proma-workspace-${workspaceSlug}`,
+    name: `luxagents-workspace-${workspaceSlug}`,
     version: '1.0.0',
   }
 

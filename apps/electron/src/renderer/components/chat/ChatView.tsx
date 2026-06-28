@@ -447,8 +447,8 @@ function ChatViewInner({ conversationId }: ChatViewProps): React.ReactElement {
     const handler = (): void => {
       if (isStreaming) handleStop()
     }
-    window.addEventListener('proma:stop-generation', handler)
-    return () => window.removeEventListener('proma:stop-generation', handler)
+    window.addEventListener('luxagents:stop-generation', handler)
+    return () => window.removeEventListener('luxagents:stop-generation', handler)
   }, [isStreaming, handleStop])
 
   /** 删除消息 */

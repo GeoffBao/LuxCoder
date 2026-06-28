@@ -462,8 +462,8 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
   // 检查 Agent 渠道列表中是否存在可用的模型（渠道 enabled + 模型 enabled）
   const hasAvailableModel = React.useMemo(() => {
     // LuxAgents 官方渠道（商业版）：只要 enabled 且有可用模型，直接视为可用
-    const promaOfficial = globalChannels.find((c) => c.id === 'proma-official')
-    if (promaOfficial?.enabled && promaOfficial.models.some((m) => m.enabled)) return true
+    const luxagentsOfficial = globalChannels.find((c) => c.id === 'luxagents-official')
+    if (luxagentsOfficial?.enabled && luxagentsOfficial.models.some((m) => m.enabled)) return true
     // 其他渠道：需在 agentChannelIds 白名单中
     if (!agentChannelIds || agentChannelIds.length === 0) return false
     return globalChannels.some(
@@ -1852,8 +1852,8 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     const handler = (): void => {
       if (streaming) handleStop()
     }
-    window.addEventListener('proma:stop-generation', handler)
-    return () => window.removeEventListener('proma:stop-generation', handler)
+    window.addEventListener('luxagents:stop-generation', handler)
+    return () => window.removeEventListener('luxagents:stop-generation', handler)
   }, [streaming, handleStop])
 
   // 监听快捷键系统分发的 focus-input 事件（Cmd+L）
@@ -1862,8 +1862,8 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
       const proseMirror = document.querySelector('[data-input-mode="agent"] .ProseMirror') as HTMLElement | null
       proseMirror?.focus()
     }
-    window.addEventListener('proma:focus-input', handler)
-    return () => window.removeEventListener('proma:focus-input', handler)
+    window.addEventListener('luxagents:focus-input', handler)
+    return () => window.removeEventListener('luxagents:focus-input', handler)
   }, [])
 
   const allAskUserRequests = useAtomValue(allPendingAskUserRequestsAtom)

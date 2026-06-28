@@ -289,7 +289,7 @@ function realpathOrResolve(path: string): string {
 function getAuthorizedRoots(options?: FileAccessOptions): string[] {
   const roots: string[] = [
     getAgentWorkspacesDir(),
-    join(tmpdir(), 'proma-preview'),
+    join(tmpdir(), 'luxagents-preview'),
   ]
 
   const workspaceSlugs = new Set<string>()
@@ -388,7 +388,7 @@ function ensurePathAllowed(filePath: string, options?: FileAccessOptions): boole
 /**
  * 在 ensurePathAllowed 基础上，额外放行「已授权仓库的 worktree」。
  *
- * worktree 常被放在主仓库之外（如 ~/proma-dev/worktrees/xxx），其路径不在任何
+ * worktree 常被放在主仓库之外（如 ~/luxagents-dev/worktrees/xxx），其路径不在任何
  * 授权根下，会被 ensurePathAllowed 拒绝。但只要它回溯到的主仓库已被授权，就应放行。
  * 用 git 自身背书（--git-common-dir），避免粗暴跳过安全检查。
  */
@@ -485,7 +485,7 @@ async function getMacAppIconViaSips(appPath: string): Promise<string> {
   const icnsPath = candidates.find((p) => existsSync(p))
   if (!icnsPath) return ''
 
-  const tmp = mkdtempSync(join(tmpdir(), 'proma-icon-'))
+  const tmp = mkdtempSync(join(tmpdir(), 'luxagents-icon-'))
   const outPath = join(tmp, 'icon.png')
   try {
     const r = await runCmd('sips', ['-s', 'format', 'png', '-Z', '64', icnsPath, '--out', outPath], { timeoutMs: 4000 })
@@ -2195,7 +2195,7 @@ export function registerIpcHandlers(): void {
       if (sessionId) {
         event.sender.send(AGENT_IPC_CHANNELS.STREAM_EVENT, {
           sessionId,
-          payload: { kind: 'proma_event', event: { type: 'permission_resolved', requestId, behavior } },
+          payload: { kind: 'luxagents_event', event: { type: 'permission_resolved', requestId, behavior } },
         })
       }
     }
@@ -2271,7 +2271,7 @@ export function registerIpcHandlers(): void {
       try {
         const { searchMemory } = await import('./lib/memos-client')
         const result = await searchMemory(
-          { apiKey: config.apiKey, userId: config.userId?.trim() || 'proma-user', baseUrl: config.baseUrl },
+          { apiKey: config.apiKey, userId: config.userId?.trim() || 'luxagents-user', baseUrl: config.baseUrl },
           'test connection',
           1,
         )
@@ -2346,7 +2346,7 @@ export function registerIpcHandlers(): void {
         try {
           const { searchMemory } = await import('./lib/memos-client')
           const result = await searchMemory(
-            { apiKey: config.apiKey, userId: config.userId?.trim() || 'proma-user', baseUrl: config.baseUrl },
+            { apiKey: config.apiKey, userId: config.userId?.trim() || 'luxagents-user', baseUrl: config.baseUrl },
             'test connection',
             1,
           )
@@ -2429,7 +2429,7 @@ export function registerIpcHandlers(): void {
       if (sessionId) {
         event.sender.send(AGENT_IPC_CHANNELS.STREAM_EVENT, {
           sessionId,
-          payload: { kind: 'proma_event', event: { type: 'ask_user_resolved', requestId } },
+          payload: { kind: 'luxagents_event', event: { type: 'ask_user_resolved', requestId } },
         })
       }
     }
@@ -2449,7 +2449,7 @@ export function registerIpcHandlers(): void {
         // 通知渲染进程请求已处理
         event.sender.send(AGENT_IPC_CHANNELS.STREAM_EVENT, {
           sessionId,
-          payload: { kind: 'proma_event', event: { type: 'exit_plan_mode_resolved', requestId: response.requestId } },
+          payload: { kind: 'luxagents_event', event: { type: 'exit_plan_mode_resolved', requestId: response.requestId } },
         })
 
         // 如果用户选择了新的权限模式，通知渲染进程更新 UI
@@ -2465,7 +2465,7 @@ export function registerIpcHandlers(): void {
           }
           event.sender.send(AGENT_IPC_CHANNELS.STREAM_EVENT, {
             sessionId,
-            payload: { kind: 'proma_event', event: { type: 'permission_mode_changed', mode: targetMode } },
+            payload: { kind: 'luxagents_event', event: { type: 'permission_mode_changed', mode: targetMode } },
           })
           console.log(`[IPC] ExitPlanMode 权限模式切换: ${targetMode}`)
         }
@@ -2795,7 +2795,7 @@ export function registerIpcHandlers(): void {
       const { existsSync, mkdirSync } = await import('node:fs')
       const { writeFile } = await import('node:fs/promises')
 
-      const tmpDir = join(tmpdir(), 'proma-preview')
+      const tmpDir = join(tmpdir(), 'luxagents-preview')
       if (!existsSync(tmpDir)) {
         mkdirSync(tmpDir, { recursive: true })
       }
@@ -3656,7 +3656,7 @@ export function registerIpcHandlers(): void {
         const lark = await import('@larksuiteoapi/node-sdk')
         const QRCode = (await import('qrcode')).default
         const result = await lark.registerApp({
-          source: 'proma',
+          source: 'luxagents',
           signal: abort.signal,
           onQRCodeReady: async (info) => {
             if (event.sender.isDestroyed()) return
@@ -3938,7 +3938,7 @@ export function registerIpcHandlers(): void {
 
   // 迁移取消时清理临时解压目录
   ipcMain.handle('migration:cancelImport', async (_, tempDir: string) => {
-    if (tempDir && existsSync(tempDir) && tempDir.includes('proma-import-')) {
+    if (tempDir && existsSync(tempDir) && tempDir.includes('luxagents-import-')) {
       rmSync(tempDir, { recursive: true, force: true })
       console.log(`[迁移] 已清理临时目录: ${tempDir}`)
     }
@@ -4173,8 +4173,8 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('migration:saveFileDialog', async (_, mode: string) => {
     const { dialog } = await import('electron')
-    const ext = mode === 'personal' ? 'proma-backup' : 'proma-share'
-    const defaultName = `proma-migration-${new Date().toISOString().slice(0, 10)}.${ext}`
+    const ext = mode === 'personal' ? 'luxagents-backup' : 'luxagents-share'
+    const defaultName = `luxagents-migration-${new Date().toISOString().slice(0, 10)}.${ext}`
     const result = await dialog.showSaveDialog({
       title: '保存迁移文件',
       defaultPath: defaultName,

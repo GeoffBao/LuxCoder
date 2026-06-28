@@ -30,12 +30,12 @@ export async function commitVoiceDictationText(
 
   const mainWindow = getMainWindow()
   const shouldWriteProma =
-    settings.outputMode === 'proma-input' ||
+    settings.outputMode === 'luxagents-input' ||
     (settings.outputMode === 'auto' && targetWasPromaInput)
 
   if (shouldWriteProma && mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send(VOICE_DICTATION_IPC_CHANNELS.INSERT_TEXT, { text: trimmed })
-    return { mode: 'proma-input', success: true, message: '已写入 LuxAgents 输入框' }
+    return { mode: 'luxagents-input', success: true, message: '已写入 LuxAgents 输入框' }
   }
 
   if (settings.outputMode === 'auto') {
