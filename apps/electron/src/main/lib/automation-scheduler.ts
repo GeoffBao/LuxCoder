@@ -21,7 +21,7 @@ import {
   AUTOMATION_DEFAULT_SESSION_MODE,
   type Automation,
   type AutomationRun,
-} from '@proma/shared'
+} from '@luxagents/shared'
 import {
   listAutomations,
   getAutomation,

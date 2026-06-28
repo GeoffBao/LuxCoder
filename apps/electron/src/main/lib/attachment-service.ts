@@ -27,8 +27,8 @@ import type {
   FileDialogFile,
   FileDialogLargeFile,
   FileDialogSkippedFile,
-} from '@proma/shared'
-import { MAX_ATTACHMENT_SIZE } from '@proma/shared'
+} from '@luxagents/shared'
+import { MAX_ATTACHMENT_SIZE } from '@luxagents/shared'
 
 /** 支持的图片 MIME 类型 */
 const IMAGE_MIME_TYPES = new Set([

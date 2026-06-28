@@ -23,7 +23,7 @@ import {
 import { ScrollMinimap } from '@/components/ai-elements/scroll-minimap'
 import type { MinimapItem } from '@/components/ai-elements/scroll-minimap'
 import { StickyUserMessage } from '@/components/ai-elements/sticky-user-message'
-import { useSmoothStream } from '@proma/ui'
+import { useSmoothStream } from '@luxagents/ui'
 import { formatMessageTime } from '@/components/chat/ChatMessageItem'
 import { getModelLogo, resolveModelDisplayName, resolveModelProvider } from '@/lib/model-logo'
 import { userProfileAtom } from '@/atoms/user-profile'
@@ -37,7 +37,7 @@ import { groupIntoTurns, MessageGroupRenderer, getGroupId, getGroupPreview, extr
 import { buildLiveGroupSet } from './live-group-set'
 import { ContentBlock } from './ContentBlock'
 import { parseThinkTagsFromText } from './thinking-tag-parser'
-import type { AgentEventUsage, RetryAttempt, SDKMessage } from '@proma/shared'
+import type { AgentEventUsage, RetryAttempt, SDKMessage } from '@luxagents/shared'
 import type { AgentStreamState } from '@/atoms/agent-atoms'
 
 function stableStringify(value: unknown): string {

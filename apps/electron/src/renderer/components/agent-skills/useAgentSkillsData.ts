@@ -14,7 +14,7 @@ import {
   currentAgentWorkspaceIdAtom,
   workspaceCapabilitiesVersionAtom,
 } from '@/atoms/agent-atoms'
-import type { BuiltinMcpServerSummary, SkillMeta, WorkspaceMcpConfig } from '@proma/shared'
+import type { BuiltinMcpServerSummary, SkillMeta, WorkspaceMcpConfig } from '@luxagents/shared'
 
 export interface AgentSkillsData {
   /** 当前工作区（未选中时为 null） */

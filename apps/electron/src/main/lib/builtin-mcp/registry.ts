@@ -5,7 +5,7 @@
  * 都收敛在本模块，避免主编排流程继续膨胀。
  */
 
-import type { AgentSessionMeta, PromaPermissionMode } from '@proma/shared'
+import type { AgentSessionMeta, PromaPermissionMode } from '@luxagents/shared'
 import { injectAgentCollaborationMcpServer } from '../agent-collaboration-tools'
 import { injectAutomationMcpServer } from '../automation-agent-tools'
 import { injectNanoBananaMcpServer } from '../chat-tools/nano-banana-mcp'

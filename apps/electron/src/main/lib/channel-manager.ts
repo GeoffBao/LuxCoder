@@ -20,11 +20,11 @@ import type {
   FetchModelsInput,
   FetchModelsResult,
   ProviderType,
-} from '@proma/shared'
-import { PROVIDER_DEFAULT_URLS } from '@proma/shared'
+} from '@luxagents/shared'
+import { PROVIDER_DEFAULT_URLS } from '@luxagents/shared'
 import { getFetchFn } from './proxy-fetch'
 import { getEffectiveProxyUrl } from './proxy-settings-service'
-import { normalizeBaseUrl, normalizeAnthropicProviderUrl, getAppUserAgent } from '@proma/core'
+import { normalizeBaseUrl, normalizeAnthropicProviderUrl, getAppUserAgent } from '@luxagents/core'
 import { normalizeHttpResponse, normalizeRequestError } from './channel-test-error'
 import pkg from '../../../package.json' with { type: 'json' }
 

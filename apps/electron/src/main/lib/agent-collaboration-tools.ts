@@ -16,7 +16,7 @@ import type {
   PermissionRequest,
   PromaPermissionMode,
   SDKMessage,
-} from '@proma/shared'
+} from '@luxagents/shared'
 import {
   createAgentSession,
   getAgentSessionMeta,
@@ -135,7 +135,7 @@ export function registerCollaborationEventBus(eventBus: import('./agent-event-bu
           type: 'delegation_blocked' as const,
           delegationId: record.delegationId,
           blockedEvent: blocked,
-        } as import('@proma/shared').PromaEvent,
+        } as import('@luxagents/shared').PromaEvent,
       })
     }
 
@@ -159,7 +159,7 @@ export function registerCollaborationEventBus(eventBus: import('./agent-event-bu
           type: 'delegation_blocked' as const,
           delegationId: record.delegationId,
           blockedEvent: blocked,
-        } as import('@proma/shared').PromaEvent,
+        } as import('@luxagents/shared').PromaEvent,
       })
     }
 

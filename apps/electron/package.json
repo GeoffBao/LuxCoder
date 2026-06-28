@@ -1,10 +1,10 @@
 {
-  "name": "@proma/electron",
+  "name": "@luxagents/electron",
   "version": "0.13.19",
   "description": "Proma next gen ai software with general agents - Electron App",
   "main": "dist/main.cjs",
   "author": {
-    "name": "ErlichLiu",
+    "name": "GeoffBao",
     "email": "erlichliu@gmail.com"
   },
   "private": true,
@@ -57,9 +57,9 @@
     "@emoji-mart/data": "^1.2.1",
     "@emoji-mart/react": "^1.1.1",
     "@larksuiteoapi/node-sdk": "^1.65.0",
-    "@proma/core": "workspace:*",
-    "@proma/shared": "workspace:*",
-    "@proma/ui": "workspace:*",
+    "@luxagents/core": "workspace:*",
+    "@luxagents/shared": "workspace:*",
+    "@luxagents/ui": "workspace:*",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-collapsible": "^1.1.12",
     "@radix-ui/react-context-menu": "^2.2.16",

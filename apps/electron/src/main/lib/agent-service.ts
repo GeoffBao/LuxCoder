@@ -14,7 +14,7 @@ import { join, dirname } from 'node:path'
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { BrowserWindow } from 'electron'
 import type { WebContents } from 'electron'
-import { AGENT_IPC_CHANNELS, MAX_ATTACHMENT_SIZE } from '@proma/shared'
+import { AGENT_IPC_CHANNELS, MAX_ATTACHMENT_SIZE } from '@luxagents/shared'
 import type {
   AgentSendInput,
   AgentGenerateTitleInput,
@@ -27,7 +27,7 @@ import type {
   PromaPermissionMode,
   AgentExternalRunSource,
   AgentMessage,
-} from '@proma/shared'
+} from '@luxagents/shared'
 import { ClaudeAgentAdapter, scanAndKillOrphanedClaudeSubprocesses } from './adapters/claude-agent-adapter'
 import { AgentEventBus } from './agent-event-bus'
 import { AgentOrchestrator } from './agent-orchestrator'
@@ -324,7 +324,7 @@ setAgentStopper(stopAgent)
 export async function rewindAgentSession(
   sessionId: string,
   assistantMessageUuid: string,
-): Promise<import('@proma/shared').RewindSessionResult> {
+): Promise<import('@luxagents/shared').RewindSessionResult> {
   return orchestrator.rewindSession(sessionId, assistantMessageUuid)
 }
 
