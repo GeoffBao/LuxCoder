@@ -20,7 +20,7 @@ import { activeViewAtom } from '@/atoms/active-view'
 import { interfaceVariantAtom } from '@/atoms/theme'
 import { isLegacyCoworkMode } from '@/components/app-shell/code-main-view-model'
 import { WindowControls } from '@/components/WindowControls'
-import { detectIsWindows } from '@/lib/platform'
+import { detectIsWindows, WINDOW_CONTROLS_INSET_RIGHT } from '@/lib/platform'
 import { cn } from '@/lib/utils'
 
 const MIN_RIGHT_PANEL_WIDTH = 300
@@ -108,7 +108,7 @@ export function AppShell({ contextValue }: AppShellProps): React.ReactElement {
       <div
         className={cn(
           'titlebar-drag-region fixed top-0 left-0 h-[50px] z-50',
-          isWindows ? 'right-[126px]' : 'right-0'
+          isWindows ? WINDOW_CONTROLS_INSET_RIGHT : 'right-0'
         )}
       />
 
