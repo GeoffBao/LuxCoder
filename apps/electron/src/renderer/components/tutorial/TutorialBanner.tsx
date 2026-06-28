@@ -9,7 +9,7 @@
 
 import * as React from 'react'
 import { useAtom, useSetAtom } from 'jotai'
-import { GraduationCap, X } from 'lucide-react'
+import { BookOpen, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { tabsAtom, activeTabIdAtom, openTab, TUTORIAL_TAB_ID } from '@/atoms/tab-atoms'
 
@@ -37,7 +37,7 @@ export function TutorialBanner(): React.ReactElement | null {
   }
 
   const handleLearnNow = async () => {
-    const result = openTab(tabs, { type: 'tutorial', sessionId: TUTORIAL_TAB_ID, title: 'LuxAgents 使用教程' })
+    const result = openTab(tabs, { type: 'tutorial', sessionId: TUTORIAL_TAB_ID, title: 'LuxAgents 使用指南' })
     setTabs(result.tabs)
     setActiveTabId(result.activeTabId)
     await handleDismiss()
@@ -70,11 +70,11 @@ export function TutorialBanner(): React.ReactElement | null {
         {/* 图标 + 标题 */}
         <div className="flex items-center gap-3 mb-3">
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-            <GraduationCap size={20} className="text-primary" />
+            <BookOpen size={20} className="text-primary" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-foreground">LuxAgents 使用教程</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">了解 LuxAgents 的全部功能和使用技巧</p>
+            <h3 className="text-sm font-semibold text-foreground">LuxAgents 使用指南</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">了解三种工作模式、Skills 系统和最佳实践</p>
           </div>
         </div>
 
@@ -85,7 +85,7 @@ export function TutorialBanner(): React.ReactElement | null {
             onClick={handleLearnNow}
             className="flex-1 h-8 text-xs"
           >
-            立即学习
+            查看指南
           </Button>
           <Button
             size="sm"
@@ -93,13 +93,13 @@ export function TutorialBanner(): React.ReactElement | null {
             onClick={handleLater}
             className="h-8 text-xs text-muted-foreground"
           >
-            稍后再学
+            稍后查看
           </Button>
         </div>
 
         {/* 提示文字 */}
         <p className="text-[11px] text-muted-foreground/60 mt-3 text-center">
-          你可以随时点击顶栏「教程」标签重新打开
+          可随时在顶栏「指南」标签或设置中重新打开
         </p>
       </div>
     </div>

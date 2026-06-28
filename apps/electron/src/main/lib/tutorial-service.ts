@@ -93,27 +93,27 @@ export function createWelcomeConversation(): ConversationMeta | null {
     const userMessage: ChatMessage = {
       id: randomUUID(),
       role: 'user',
-      content: '你好，我是 LuxAgents 的新用户，希望快速上手。这是完整的使用教程，作为你的参考。',
+      content: '你好，我刚开始使用 LuxAgents，帮我快速了解这个工具。这是完整的使用指南，作为你的参考。',
       createdAt: now,
       attachments: [attachment],
     }
     appendMessage(meta.id, userMessage)
 
-    // 4. 追加 assistant 欢迎消息（引导式对话：先了解用户，再生成个性化最佳实践）
+    // 4. 追加 assistant 欢迎消息（企业导向：了解角色，推荐最短路径上手）
     const assistantMessage: ChatMessage = {
       id: randomUUID(),
       role: 'assistant',
-      content: `你好，欢迎来到 LuxAgents！LuxAgents 是一个通用的 Agent，其实它可以完成任何事，说实话这也挺难的，因为你要构建完整的工作环境才能做到，这会涉及到一些新的概念或者思考方式，不过别担心，我们做了很多设计可以帮助你靠谱稳定的越用越好用。
+      content: `你好，欢迎使用 LuxAgents。
 
-在介绍功能之前，想先认识一下你：
+LuxAgents 是面向研发团队的 AI Agent 工作台，整合了 **Chat**（AI 对话助理）、**Code**（AI 编程工作台）、**Cowork**（协作看板，即将上线）三种工作模式。
 
-1. 怎么称呼你？
-2. 你的职业或主要角色是什么？（比如独立开发者、产品经理、数据分析师、运营、学生……）
-3. 你最近在做什么工作或项目？有哪些场景或痛点想交给 AI 帮忙？
+为了给你推荐最合适的上手路径，想先了解你的情况：
 
-了解你的背景之后，我会为你单独整理一份专属的 LuxAgents 使用最佳实践——告诉你哪些功能最值得用、推荐的 Skills / MCP 配置，以及贴合你场景的工作流模板。
+1. 你在团队中主要承担什么角色？（研发工程师、架构师、产品经理、测试、运营……）
+2. 你最迫切想用 AI 提效的是哪类工作？（编码、文档、数据分析、任务管理……）
+3. 你的 IT 环境是什么情况？（有企业 API、使用个人 API Key、还是由团队统一配置）
 
-直接在下面回复就好，可以一次说完，也可以分几条慢慢聊。`,
+告诉我你的情况，我会根据你的角色给出**具体的配置步骤**和**最适合你的工作流建议**，帮你最快速度跑通第一个真实任务。`,
       createdAt: now + 1,
       model: 'LuxAgents',
     }

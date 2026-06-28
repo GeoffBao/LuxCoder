@@ -98,7 +98,7 @@ function TutorialTabContent(): React.ReactElement {
   }
 
   if (loadState === 'error') {
-    return <div className="flex h-full items-center justify-center text-xs text-muted-foreground">教程加载失败</div>
+    return <div className="flex h-full items-center justify-center text-xs text-muted-foreground">使用指南加载失败</div>
   }
 
   return (

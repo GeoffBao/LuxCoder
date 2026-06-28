@@ -10,7 +10,7 @@
 
 import { useMemo, useState } from 'react'
 import { useAtomValue, useSetAtom } from 'jotai'
-import { GraduationCap, ChevronRight, ChevronLeft, HardDriveDownload, Users } from 'lucide-react'
+import { BookOpen, ChevronRight, ChevronLeft, HardDriveDownload, Users2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { EnvironmentCheckPanel } from '@/components/environment/EnvironmentCheckPanel'
 import { isShellEnvironmentOkAtom } from '@/atoms/environment'
@@ -48,66 +48,64 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
     <div className="flex h-screen flex-col items-center justify-center bg-gradient-to-br from-background via-background to-muted/20 p-8">
       {step === 'welcome' && (
         <>
-          <div className="mb-12 text-center">
-            <h1 className="text-4xl font-bold mb-4">欢迎使用 LuxAgents</h1>
-            <p className="text-lg text-muted-foreground">
-              下一代桌面 AI 软件，让通用 Agent 触手可及
+          <div className="mb-10 text-center">
+            <h1 className="text-4xl font-bold mb-3">欢迎使用 LuxAgents</h1>
+            <p className="text-base text-muted-foreground max-w-md">
+              面向研发组织的 AI Agent 工作台，整合 Chat、Code、Cowork 三种工作模式
             </p>
           </div>
 
-          <div className="w-full max-w-2xl">
-            <div className="space-y-3">
-              <button
-                onClick={() => handleFinish(true)}
-                className="w-full rounded-xl bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 border border-primary/15 p-4 flex items-center gap-4 hover:from-primary/10 hover:via-primary/15 hover:to-primary/10 transition-colors text-left"
-              >
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <GraduationCap size={20} className="text-primary" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-sm font-semibold text-foreground">查看使用教程</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    了解 LuxAgents 的全部功能和使用技巧
-                  </p>
-                </div>
-              </button>
+          <div className="w-full max-w-2xl space-y-3">
+            {/* 主推：查看使用指南 */}
+            <button
+              onClick={() => handleFinish(true)}
+              className="w-full rounded-xl bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 border border-primary/15 p-4 flex items-center gap-4 hover:from-primary/10 hover:via-primary/15 hover:to-primary/10 transition-colors text-left"
+            >
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <BookOpen size={20} className="text-primary" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-foreground">查看使用指南</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  了解三种工作模式、Skills 系统、团队配置分发等核心功能
+                </p>
+              </div>
+              <ChevronRight size={16} className="text-muted-foreground/50 flex-shrink-0" />
+            </button>
 
-              <p className="text-sm text-muted-foreground pt-2">
-                自己或身边的人已经在用 LuxAgents？直接导入现有配置
+            {/* 团队配置导入 */}
+            <div className="pt-1">
+              <p className="text-xs text-muted-foreground mb-2 px-0.5">
+                已有团队配置？直接导入，跳过手动设置
               </p>
-
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={handleOpenMigration}
-                  className="rounded-xl bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 border border-primary/15 p-4 flex items-center gap-3 hover:from-primary/10 hover:via-primary/15 hover:to-primary/10 transition-colors text-left"
+                  className="rounded-xl border border-border/60 bg-card/50 p-4 flex items-start gap-3 hover:bg-card hover:border-border transition-colors text-left"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <HardDriveDownload size={20} className="text-primary" />
+                  <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <HardDriveDownload size={17} className="text-muted-foreground" />
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-sm font-semibold text-foreground">从其他设备迁移</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      导入自己其他设备上的配置
-                      <br/>
-                      <br/>
-                      需要先在原设备上导出 .proma-backup 文件，再双击导入即可
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-medium text-foreground">从其他设备迁移</h3>
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                      导入自己在其他设备上的完整配置<br/>
+                      （.luxagents-backup 文件）
                     </p>
                   </div>
                 </button>
                 <button
                   onClick={handleOpenMigration}
-                  className="rounded-xl bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 border border-primary/15 p-4 flex items-center gap-3 hover:from-primary/10 hover:via-primary/15 hover:to-primary/10 transition-colors text-left"
+                  className="rounded-xl border border-border/60 bg-card/50 p-4 flex items-start gap-3 hover:bg-card hover:border-border transition-colors text-left"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <Users size={20} className="text-primary" />
+                  <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Users2 size={17} className="text-muted-foreground" />
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-sm font-semibold text-foreground">导入其他用户的配置</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      从同事或团队成员处导入环境
-                      <br/>
-                      <br/>
-                      需要先导出 .proma-share 文件，再双击导入即可
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-medium text-foreground">导入团队配置</h3>
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                      从管理员或同事处获取配置包<br/>
+                      （.luxagents-share 文件）
                     </p>
                   </div>
                 </button>
@@ -116,18 +114,18 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
           </div>
 
           <div className="w-full max-w-2xl mt-8 flex flex-col items-center gap-2">
-            <Button className="w-full h-12 text-base" onClick={handleNextFromWelcome}>
+            <Button className="w-full h-11 text-sm" onClick={handleNextFromWelcome}>
               {isWindows ? (
                 <>
                   下一步：环境检测
                   <ChevronRight className="ml-1 h-4 w-4" />
                 </>
               ) : (
-                '开始使用'
+                '直接开始使用'
               )}
             </Button>
-            <p className="text-xs text-muted-foreground/60">
-              这些内容之后也能在设置中找到，不用担心错过
+            <p className="text-xs text-muted-foreground/50">
+              以上内容均可在设置中随时访问
             </p>
           </div>
         </>
@@ -136,9 +134,9 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
       {step === 'environment' && isWindows && (
         <div className="w-full max-w-2xl">
           <div className="mb-6 text-center">
-            <h2 className="text-2xl font-semibold mb-2">先检查一下环境</h2>
+            <h2 className="text-2xl font-semibold mb-2">运行环境检测</h2>
             <p className="text-sm text-muted-foreground">
-              LuxAgents 在 Windows 上需要 Git Bash 或 WSL 才能执行命令
+              Code 模式在 Windows 上需要 Git Bash 或 WSL 才能执行 Shell 命令
             </p>
           </div>
 
@@ -161,7 +159,7 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
                 onClick={() => handleFinish()}
                 variant={shellOk ? 'default' : 'outline'}
               >
-                {shellOk ? '开始使用' : '稍后处理（进入主界面）'}
+                {shellOk ? '开始使用' : '稍后处理，进入主界面'}
               </Button>
             </div>
           </div>
