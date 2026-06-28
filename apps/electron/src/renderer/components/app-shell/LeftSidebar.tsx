@@ -1654,6 +1654,12 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
     setViewMode('active')
     if (targetMode === mode) return
 
+    // cowork 暂无会话，直接切换
+    if (targetMode === 'cowork') {
+      setMode('cowork')
+      return
+    }
+
     const isChatMode = targetMode === 'chat'
     const sessions = isChatMode ? conversations : agentSessions
     const lastId = isChatMode ? currentConversationId : currentAgentSessionId
@@ -1661,20 +1667,20 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
     if (lastId) {
       const match = sessions.find((s) => s.id === lastId)
       if (match) {
-        openSession(targetMode, match.id, match.title)
+        openSession(targetMode as 'chat' | 'agent', match.id, match.title)
         return
       }
     }
 
-    const tab = tabs.find((t) => t.type === targetMode)
+    const tab = tabs.find((t) => t.type === targetMode as 'chat' | 'agent')
     if (tab) {
-      openSession(targetMode, tab.sessionId, tab.title)
+      openSession(targetMode as 'chat' | 'agent', tab.sessionId, tab.title)
       return
     }
 
     const recent = sessions.find((s) => !s.archived && !draftSessionIds.has(s.id))
     if (recent) {
-      openSession(targetMode, recent.id, recent.title)
+      openSession(targetMode as 'chat' | 'agent', recent.id, recent.title)
       return
     }
 

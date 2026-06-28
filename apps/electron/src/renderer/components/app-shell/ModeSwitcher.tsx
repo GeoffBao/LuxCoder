@@ -1,11 +1,12 @@
 /**
- * ModeSwitcher - Chat/Agent 模式切换（带滑动指示器）
+ * ModeSwitcher - Chat/Cowork/Code 三模式切换（带滑动指示器）
  *
  * 切换模式时自动恢复上一次在该模式下查看的对话/会话：
  * 1. 优先恢复上次选中的对话 ID
  * 2. 其次查找已打开的同类型 Tab
  * 3. 兜底打开最近的对话/会话（列表首项）
  * 4. 都没有则仅切换模式
+ * Cowork 模式无会话，直接切换。
  */
 
 import * as React from 'react'
@@ -15,13 +16,16 @@ import { conversationsAtom, currentConversationIdAtom } from '@/atoms/chat-atoms
 import { agentSessionsAtom, currentAgentSessionIdAtom } from '@/atoms/agent-atoms'
 import { tabsAtom } from '@/atoms/tab-atoms'
 import { useOpenSession } from '@/hooks/useOpenSession'
-import { Bot, MessageSquare } from 'lucide-react'
+import { Code2, MessageSquare, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const modes: { value: AppMode; label: string; icon: React.ReactNode }[] = [
-  { value: 'agent', label: 'Agent', icon: <Bot size={15} /> },
   { value: 'chat', label: 'Chat', icon: <MessageSquare size={15} /> },
+  { value: 'cowork', label: 'Cowork', icon: <Users size={15} /> },
+  { value: 'agent', label: 'Code', icon: <Code2 size={15} /> },
 ]
+
+const SLIDER_TRANSLATE = ['translate-x-0', 'translate-x-full', 'translate-x-[200%]'] as const
 
 export function ModeSwitcher(): React.ReactElement {
   const [mode, setMode] = useAtom(appModeAtom)
@@ -32,8 +36,17 @@ export function ModeSwitcher(): React.ReactElement {
   const currentAgentSessionId = useAtomValue(currentAgentSessionIdAtom)
   const tabs = useAtomValue(tabsAtom)
 
+  const modeIndex = modes.findIndex((m) => m.value === mode)
+  const sliderTranslate = SLIDER_TRANSLATE[modeIndex] ?? 'translate-x-0'
+
   /** 尝试恢复目标模式下的上一个对话/会话，按优先级 fallback */
   const restoreSession = React.useCallback((targetMode: AppMode) => {
+    // cowork 暂无会话，直接切换
+    if (targetMode === 'cowork') {
+      setMode('cowork')
+      return
+    }
+
     const isChatMode = targetMode === 'chat'
     const sessions = isChatMode ? conversations : agentSessions
     const lastId = isChatMode ? currentConversationId : currentAgentSessionId
@@ -75,8 +88,8 @@ export function ModeSwitcher(): React.ReactElement {
         {/* 滑动背景指示器 */}
         <div
           className={cn(
-            'mode-slider pointer-events-none absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg bg-background shadow-sm transition-transform duration-300 ease-in-out',
-            mode === 'agent' ? 'translate-x-0' : 'translate-x-full'
+            'mode-slider pointer-events-none absolute top-1 bottom-1 w-[calc(33.333%-2.667px)] rounded-lg bg-background shadow-sm transition-transform duration-300 ease-in-out',
+            sliderTranslate
           )}
         />
         {modes.map(({ value, label, icon }) => (
