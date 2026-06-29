@@ -2,7 +2,7 @@
  * AppearanceSettings - 外观设置页
  *
  * 特殊风格选择 + 主题模式切换（浅色/深色/跟随系统/特殊风格）。
- * 通过 Jotai atom 管理状态，持久化到 ~/.proma/settings.json。
+ * 通过 Jotai atom 管理状态，持久化到 ~/.luxagents/settings.json。
  */
 
 import * as React from 'react'

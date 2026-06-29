@@ -2,8 +2,8 @@
  * Agent 会话管理器
  *
  * 负责 Agent 会话的 CRUD 操作和消息持久化。
- * - 会话索引：~/.proma/agent-sessions.json（轻量元数据）
- * - 消息存储：~/.proma/agent-sessions/{id}.jsonl（JSONL 格式，逐行追加）
+ * - 会话索引：~/.luxagents/agent-sessions.json（轻量元数据）
+ * - 消息存储：~/.luxagents/agent-sessions/{id}.jsonl（JSONL 格式，逐行追加）
  *
  * 照搬 conversation-manager.ts 的模式。
  */
@@ -1034,7 +1034,7 @@ export function truncateSDKMessages(id: string, upToUuidInclusive: string): SDKM
 /**
  * 从 SDK session JSONL 中查找指定 assistant message 之后最近的 user message UUID
  *
- * SDK session JSONL（~/.proma/sdk-config/projects/...）中的消息都带有 uuid，
+ * SDK session JSONL（~/.luxagents/sdk-config/projects/...）中的消息都带有 uuid，
  * 但 LuxAgents 自己构造的 user message 没有 uuid。此函数直接读取 SDK 的 JSONL
  * 来解析 rewindFiles 所需的 user message UUID。
  *

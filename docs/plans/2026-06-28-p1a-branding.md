@@ -4,7 +4,7 @@
 
 **Goal:** 把 Proma 视觉/系统层面替换为 LuxAgents：品牌字符串、数据目录、Electron 元数据、localStorage 键名、三模式 Tab，不改任何核心功能逻辑，不改 `@proma/*` 包名（留给 P1b）。
 
-**Architecture:** 逐文件替换，无结构变化。新增 `migration-service.ts` 在首次启动时把 `~/.proma/` 数据迁移到 `~/.luxagents/`（非破坏性，保留原目录）。ModeSwitcher 扩展为三按钮滑块（Chat / Code / Work），Work 为占位 UI。
+**Architecture:** 逐文件替换，无结构变化。新增 `migration-service.ts` 在首次启动时把 `~/.luxagents/` 数据迁移到 `~/.luxagents/`（非破坏性，保留原目录）。ModeSwitcher 扩展为三按钮滑块（Chat / Code / Work），Work 为占位 UI。
 
 **Tech Stack:** TypeScript, Electron, React, Jotai, Tailwind CSS, esbuild
 
@@ -123,7 +123,7 @@ copyright: Copyright © 2024-2026 Luxshare
 
 - [ ] **Step 2: 更新 fileAssociations（mac + win 各一处）**
 
-mac 和 win 的 fileAssociations 把 `.proma-backup` / `.proma-share` 改为 `.luxagents-backup` / `.luxagents-share`：
+mac 和 win 的 fileAssociations 把 `.luxagents-backup` / `.luxagents-share` 改为 `.luxagents-backup` / `.luxagents-share`：
 
 ```yaml
 # mac section
@@ -233,7 +233,7 @@ protocol.handle('luxagents-file', handlePromaFileRequest)
 `3. 系统 Keychain 无法解密保存的凭证（删除 ~/.luxagents/feishu.json 等后重新登录）\n\n` +
 ```
 
-- [ ] **Step 7: 更新注释中的 ~/.proma/ 路径引用**
+- [ ] **Step 7: 更新注释中的 ~/.luxagents/ 路径引用**
 
 约第 490 行注释：
 ```typescript
@@ -290,9 +290,9 @@ if (process.env.LUXAGENTS_DEV === '1') {
  */
 ```
 
-- [ ] **Step 3: 替换文件内所有注释中的 ~/.proma/ 路径**
+- [ ] **Step 3: 替换文件内所有注释中的 ~/.luxagents/ 路径**
 
-用 sed 批量替换注释（共约 30 处 JSDoc `@returns ~/.proma/...`）：
+用 sed 批量替换注释（共约 30 处 JSDoc `@returns ~/.luxagents/...`）：
 
 ```bash
 sed -i '' 's|~\/\.proma\/|~\/.luxagents\/|g' apps/electron/src/main/lib/config-paths.ts
@@ -325,7 +325,7 @@ git commit -m "brand: rename data directory .proma → .luxagents"
 /**
  * 迁移服务
  *
- * 首次启动时将 ~/.proma/ 迁移到 ~/.luxagents/（非破坏性，保留原目录）。
+ * 首次启动时将 ~/.luxagents/ 迁移到 ~/.luxagents/（非破坏性，保留原目录）。
  * 迁移完成后标记 flag 文件，避免重复执行。
  */
 
@@ -426,7 +426,7 @@ export const TUTORIAL_TAB_TITLE = 'LuxAgents 使用教程'
 
 - [ ] **Step 4: 更新 theme.ts 注释**
 
-把注释中 `~/.proma/settings.json` → `~/.luxagents/settings.json`（如有）。
+把注释中 `~/.luxagents/settings.json` → `~/.luxagents/settings.json`（如有）。
 
 - [ ] **Step 5: 类型检查**
 
@@ -834,4 +834,4 @@ git log --oneline -10
 - **PromaPermissionMode 类型名**不在 P1a 范围，留给 P1b。
 - `handlePromaFileRequest` 函数名不在 P1a 范围，留给 P1b。
 - logo 图片资源（proma-black.png 等）物理文件不替换 — 无 LuxAgents 设计稿，保留原图。
-- 迁移服务只处理 `~/.proma` → `~/.luxagents` 一次性迁移；`~/.proma-dev` 留给手动处理（开发者知道自己在做什么）。
+- 迁移服务只处理 `~/.luxagents` → `~/.luxagents` 一次性迁移；`~/.luxagents-dev` 留给手动处理（开发者知道自己在做什么）。

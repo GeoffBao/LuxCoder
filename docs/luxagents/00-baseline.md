@@ -150,10 +150,10 @@ export const appModeAtom = atomWithStorage<AppMode>('proma-app-mode', 'agent')
 | # | 原 | 改 | 位置 | 阶段 |
 |---|----|----|------|------|
 | 1 | `APP_NAME = 'Proma'` | `'LuxAgents'` | `packages/shared/src/config/index.ts` | P1a |
-| 2 | `~/.proma/` (prod) / `~/.proma-dev/` (dev) | `~/.luxagents/` / `~/.luxagents-dev/` | `config-paths.ts` | P1a |
+| 2 | `~/.luxagents/` (prod) / `~/.luxagents-dev/` (dev) | `~/.luxagents/` / `~/.luxagents-dev/` | `config-paths.ts` | P1a |
 | 3 | `com.proma.app` / `ai.proma.app` | `com.luxshare.luxagents` | `electron-builder.yml` + `main/index.ts` | P1a |
 | 4 | `Proma` (productName) | `LuxAgents` | `electron-builder.yml` | P1a |
-| 5 | `.proma-backup` / `.proma-share` | `.luxagents-backup` / `.luxagents-share` | `electron-builder.yml` + `main/index.ts` | P1a |
+| 5 | `.luxagents-backup` / `.luxagents-share` | `.luxagents-backup` / `.luxagents-share` | `electron-builder.yml` + `main/index.ts` | P1a |
 | 6 | `proma-file://` 协议 | `luxagents-file://` | `apps/electron/src/main/index.ts` | P1a |
 | 7 | `proma-*` localStorage keys | `luxagents-*` | 所有 `atomWithStorage` 调用 | P1a |
 | 8 | Proma logo 资源 | LuxAgents logo | `resources/proma-logos/` + `renderer/assets/bots/proma-logos/` | P1a |
@@ -162,7 +162,7 @@ export const appModeAtom = atomWithStorage<AppMode>('proma-app-mode', 'agent')
 | 11 | `proma-coach` skill | `luxagents-coach` | `default-skills/proma-coach/SKILL.md` | P1a |
 | 12 | `PromaLogoSettings.tsx` | Logo 设置页替换 | `renderer/components/settings/` | P1a |
 | 13 | `@proma/shared` 等 4 个包名 | `@luxagents/shared` 等 | 全库 300+ import + package.json + tsconfig | P1b |
-| 14 | `~/.proma/` → `~/.luxagents/` 迁移 | 自动迁移脚本 | `migration-service.ts` | P1a |
+| 14 | `~/.luxagents/` → `~/.luxagents/` 迁移 | 自动迁移脚本 | `migration-service.ts` | P1a |
 
 ## Notes
 
