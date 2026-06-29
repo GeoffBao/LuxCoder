@@ -1,6 +1,6 @@
 {
   "name": "@luxagents/shared",
-  "version": "0.1.35",
+  "version": "0.1.0",
   "license": "AGPL-3.0-only",
   "description": "Shared types, configs and utilities for LuxAgents",
   "type": "module",

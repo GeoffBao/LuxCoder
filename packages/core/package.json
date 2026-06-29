@@ -1,6 +1,6 @@
 {
   "name": "@luxagents/core",
-  "version": "0.2.11",
+  "version": "0.1.0",
   "license": "AGPL-3.0-only",
   "description": "LuxAgents core types,storage and core logic with agents",
   "type": "module",
