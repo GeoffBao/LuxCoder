@@ -291,12 +291,14 @@ jobs:
         with:
           node-version: 20
 
-      - name: 安装依赖
-        run: bun install --frozen-lockfile
-
-      # Windows 上 Bun 的 .bin 元数据可能损坏，强制重建
-      - name: 修复 Bun bin 元数据 (Windows)
-        run: bun install --force
+      # Windows 上 bun install --frozen-lockfile 会写坏 .bin 元数据
+      # 解决方案：直接删掉 node_modules 再做一次干净的 bun install
+      - name: 安装依赖 (Windows — 删除旧 node_modules 确保 bin 元数据干净)
+        shell: pwsh
+        run: |
+          if (Test-Path node_modules) { Remove-Item -Recurse -Force node_modules }
+          if (Test-Path apps/electron/node_modules) { Remove-Item -Recurse -Force apps/electron/node_modules }
+          bun install
 
       # 构建应用
       - name: 构建 Electron 应用
