@@ -25,6 +25,9 @@ jobs:
   build-mac-arm64:
     name: build (macos-latest, mac, arm64, --arm64)
     runs-on: macos-latest
+    env:
+      MAC_CERTS: ${{ secrets.MAC_CERTS }}
+      MAC_CERTS_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
 
     steps:
       - name: 检出代码
@@ -43,12 +46,9 @@ jobs:
       - name: 安装依赖
         run: bun install --frozen-lockfile
 
-      # macOS 代码签名准备（无 Secret 时跳过，产出未签名包）
+      # 有签名证书时导入；无证书（内部构建）时跳过，产出未签名包
       - name: 导入 macOS 签名证书
-        if: ${{ secrets.MAC_CERTS != '' }}
-        env:
-          MAC_CERTS: ${{ secrets.MAC_CERTS }}
-          MAC_CERTS_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
+        if: env.MAC_CERTS != ''
         run: |
           KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
           KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
@@ -61,19 +61,17 @@ jobs:
           security list-keychain -d user -s "$KEYCHAIN_PATH"
           rm $RUNNER_TEMP/cert.p12
 
-      # 构建应用
       - name: 构建 Electron 应用
         run: bun run electron:build
         working-directory: .
 
-      # 打包并发布到 GitHub Releases
       - name: 打包并发布 (macOS arm64)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.MAC_CERTS != '' && 'true' || 'false' }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ env.MAC_CERTS != '' }}
         run: |
           for i in 1 2 3; do
             npx electron-builder --mac --arm64 --publish always && break
@@ -83,8 +81,11 @@ jobs:
         working-directory: apps/electron
 
   build-mac-x64:
-    name: build (macos-15-intel, mac, x64, --x64)
-    runs-on: macos-15-intel
+    name: build (macos-13, mac, x64, --x64)
+    runs-on: macos-13
+    env:
+      MAC_CERTS: ${{ secrets.MAC_CERTS }}
+      MAC_CERTS_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
 
     steps:
       - name: 检出代码
@@ -103,12 +104,8 @@ jobs:
       - name: 安装依赖
         run: bun install --frozen-lockfile
 
-      # macOS 代码签名准备（无 Secret 时跳过）
       - name: 导入 macOS 签名证书
-        if: ${{ secrets.MAC_CERTS != '' }}
-        env:
-          MAC_CERTS: ${{ secrets.MAC_CERTS }}
-          MAC_CERTS_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
+        if: env.MAC_CERTS != ''
         run: |
           KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
           KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
@@ -121,19 +118,17 @@ jobs:
           security list-keychain -d user -s "$KEYCHAIN_PATH"
           rm $RUNNER_TEMP/cert.p12
 
-      # 构建应用
       - name: 构建 Electron 应用
         run: bun run electron:build
         working-directory: .
 
-      # 打包并发布到 GitHub Releases
       - name: 打包并发布 (macOS x64)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.MAC_CERTS != '' && 'true' || 'false' }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ env.MAC_CERTS != '' }}
         run: |
           for i in 1 2 3; do
             npx electron-builder --mac --x64 --publish always && break
