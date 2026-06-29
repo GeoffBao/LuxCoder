@@ -43,26 +43,22 @@ jobs:
       - name: 安装依赖
         run: bun install --frozen-lockfile
 
-      # macOS 代码签名准备
+      # macOS 代码签名准备（无 Secret 时跳过，产出未签名包）
       - name: 导入 macOS 签名证书
+        if: ${{ secrets.MAC_CERTS != '' }}
         env:
           MAC_CERTS: ${{ secrets.MAC_CERTS }}
           MAC_CERTS_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
         run: |
-          # 创建临时 keychain
           KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
           KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
-
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-
-          # 导入证书
           echo "$MAC_CERTS" | base64 --decode > $RUNNER_TEMP/cert.p12
           security import $RUNNER_TEMP/cert.p12 -P "$MAC_CERTS_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
           security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security list-keychain -d user -s "$KEYCHAIN_PATH"
-
           rm $RUNNER_TEMP/cert.p12
 
       # 构建应用
@@ -71,12 +67,13 @@ jobs:
         working-directory: .
 
       # 打包并发布到 GitHub Releases
-      - name: 打包并发布 (macOS)
+      - name: 打包并发布 (macOS arm64)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.MAC_CERTS != '' && 'true' || 'false' }}
         run: |
           for i in 1 2 3; do
             npx electron-builder --mac --arm64 --publish always && break
@@ -106,26 +103,22 @@ jobs:
       - name: 安装依赖
         run: bun install --frozen-lockfile
 
-      # macOS 代码签名准备
+      # macOS 代码签名准备（无 Secret 时跳过）
       - name: 导入 macOS 签名证书
+        if: ${{ secrets.MAC_CERTS != '' }}
         env:
           MAC_CERTS: ${{ secrets.MAC_CERTS }}
           MAC_CERTS_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
         run: |
-          # 创建临时 keychain
           KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
           KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
-
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-
-          # 导入证书
           echo "$MAC_CERTS" | base64 --decode > $RUNNER_TEMP/cert.p12
           security import $RUNNER_TEMP/cert.p12 -P "$MAC_CERTS_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
           security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security list-keychain -d user -s "$KEYCHAIN_PATH"
-
           rm $RUNNER_TEMP/cert.p12
 
       # 构建应用
@@ -140,6 +133,7 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.MAC_CERTS != '' && 'true' || 'false' }}
         run: |
           for i in 1 2 3; do
             npx electron-builder --mac --x64 --publish always && break
@@ -304,6 +298,10 @@ jobs:
 
       - name: 安装依赖
         run: bun install --frozen-lockfile
+
+      # Windows 上 Bun 的 .bin 元数据可能损坏，强制重建
+      - name: 修复 Bun bin 元数据 (Windows)
+        run: bun install --force
 
       # 构建应用
       - name: 构建 Electron 应用
