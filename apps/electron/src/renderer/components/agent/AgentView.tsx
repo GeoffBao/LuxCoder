@@ -1347,6 +1347,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
       window.electronAPI.queueAgentMessage({
         sessionId,
         userMessage: cleanedText,
+        rawUserMessage: effectiveText,
         uuid: localUuid,
         interrupt: streaming,
         ...(mentionedSkills.length > 0 && { mentionedSkills }),
