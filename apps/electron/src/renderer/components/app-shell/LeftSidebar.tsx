@@ -2090,27 +2090,12 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
       {/* macOS 需要避开左上角红绿灯；边栏覆盖全局标题栏拖拽层，因此留白自身也要可拖拽。 */}
       <div className={cn('w-full flex-shrink-0 titlebar-drag-region', isMac ? 'h-[30px]' : 'h-1')} />
 
-      {/* 模式切换器 + 折叠按钮 */}
-      <div className="titlebar-drag-region flex items-start gap-1.5 px-3">
-        <div className="flex-1 min-w-0">
-          <ModeSwitcher />
-        </div>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              onClick={() => setSidebarCollapsed(true)}
-              className={cn(
-                'sidebar-collapse-button mt-2 size-10 flex-shrink-0 flex items-center justify-center rounded-[10px] text-foreground/40 sidebar-control-surface hover:text-foreground/60 titlebar-no-drag transition-[background-color,color] duration-150'
-              )}
-            >
-              <PanelLeftClose size={14} />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="right">收起侧边栏 ({navigator.platform.includes('Mac') ? '⌘B' : 'Ctrl+B'})</TooltipContent>
-        </Tooltip>
+      {/* 模式切换器（全宽，Chat/Work/Code 对称居中） */}
+      <div className="titlebar-drag-region px-3">
+        <ModeSwitcher />
       </div>
 
-      {/* 新对话/新会话按钮 + 搜索按钮 */}
+      {/* 新对话/新会话按钮 + 搜索按钮 + 折叠按钮 */}
       <div className="px-3 pt-2 flex items-center gap-1.5">
         <button
           onClick={mode === 'agent' ? handleNewAgentSession : handleNewConversation}
@@ -2129,6 +2114,17 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
             </button>
           </TooltipTrigger>
           <TooltipContent side="bottom">搜索 ({getAcceleratorDisplay(getActiveAccelerator('global-search'))})</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => setSidebarCollapsed(true)}
+              className="sidebar-collapse-button flex-shrink-0 size-[36px] flex items-center justify-center rounded-[10px] text-foreground/40 sidebar-control-surface hover:text-foreground/60 transition-[background-color,color] duration-150 titlebar-no-drag"
+            >
+              <PanelLeftClose size={14} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">收起侧边栏 ({navigator.platform.includes('Mac') ? '⌘B' : 'Ctrl+B'})</TooltipContent>
         </Tooltip>
       </div>
 

@@ -51,7 +51,7 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
           <div className="mb-10 text-center">
             <h1 className="text-4xl font-bold mb-3">欢迎使用 LuxAgents</h1>
             <p className="text-base text-muted-foreground max-w-md">
-              面向研发组织的 AI Agent 工作台，整合 Chat、Code、Cowork 三种工作模式
+              面向研发组织的 AI Agent 工作台，整合 Chat、Code、Work 三种工作模式
             </p>
           </div>
 

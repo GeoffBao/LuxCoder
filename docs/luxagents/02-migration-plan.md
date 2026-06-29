@@ -66,7 +66,7 @@ luxagents/
             ├── main/       # 改造：App 名称、数据目录、权限策略
             ├── renderer/
             │   ├── atoms/  # 改造：增加 WorkItem、Artifact atoms
-            │   ├── modes/  # 新增：Chat / Code / Cowork 模式
+            │   ├── modes/  # 新增：Chat / Code / Work 模式
             │   └── components/ # 改造：LuxAgents 组件库
             └── preload/    # 改造：增加 LuxAgents IPC channels
 ```
@@ -81,11 +81,11 @@ luxagents/
 | Phase 1a | Branding | `luxagents/branding` | 品牌字符串 + 主题 + 数据目录 + 三模式 Tab + 完整品牌替换清单 | 1 周 |
 | Phase 1b | Namespace | `luxagents/namespace` | `@proma/*` → `@luxagents/*` 包名替换（300+ import） | 1 周 |
 | Phase 2 | Chat Mode | `luxagents/chat` | Chat 模式保持现有 provider（anthropic），和 Agent 共用；后续 Phase 接入 Hermes | 1 周 |
-| Phase 3 | Cowork Mode | `luxagents/cowork` | TB API(MCP) + 六阶段看板 + 双向同步 + TaskOrchestrator | 4 周 |
+| Phase 3 | Work Mode | `luxagents/cowork` | TB API(MCP) + 六阶段看板 + 双向同步 + TaskOrchestrator | 4 周 |
 | Phase 4 | Code Mode | `luxagents/code` | Agent 模式重命名为 Code（不改功能），ModeSwitcher 标签替换 | 0.5 周 |
 | Phase 5 | Enterprise | `luxagents/enterprise` | SSO、RBAC、Model Gateway、审计、Cost Dashboard | 4 周 |
 
-> **模式顺序**：Chat → Cowork → Code（与 Claude Desktop App 一致）
+> **模式顺序**：Chat → Work → Code（与 Claude Desktop App 一致）
 > **架构决策**：P2 Runtime Adapters 已取消。Hermes 作为 Agent SDK 的 provider 接入，部署在企业内网服务端，用户只需安装 LuxAgents。
 > Phase 1 拆分原因：包名 namespace 替换影响 300+ 文件 import，与品牌字符串替换独立进行，降低单次 PR 风险。
 > 术语统一：全项目使用「Claude Agent SDK」替代「Claude Code SDK」。
@@ -160,7 +160,7 @@ Proma 原版可以正常运行，文档齐全，GitHub 仓库已建立。
 
 - [ ] 窗口标题：Proma → LuxAgents
 - [ ] macOS traffic lights 保留
-- [ ] 顶部新增三模式 Tab：Chat / Code / Cowork
+- [ ] 顶部新增三模式 Tab：Chat / Code / Work
 - [ ] Sidebar logo 替换
 - [ ] About 页面更新（`AboutSettings.tsx`）
 - [ ] App icon 占位替换
@@ -265,7 +265,7 @@ apps/electron/src/renderer/
 - [ ] 实现 `ChatInput.tsx`
 - [ ] 接入真实 `HermesAdapter`
 - [ ] 实现"转 Code"入口
-- [ ] 实现"转 Cowork"入口
+- [ ] 实现"转 Work"入口
 
 ### 验收标准
 
@@ -276,11 +276,11 @@ apps/electron/src/renderer/
 
 ---
 
-## 8. Phase 3：Cowork Mode
+## 8. Phase 3：Work Mode
 
 ### 目标
 
-新建 Cowork 模式，接入 Teambition（MCP 协议），实现六阶段看板、任务双向同步。
+新建 Work 模式，接入 Teambition（MCP 协议），实现六阶段看板、任务双向同步。
 
 ### 预估周期：4 周
 
@@ -326,10 +326,10 @@ apps/electron/src/renderer/
 apps/electron/src/renderer/
 └── modes/
     └── cowork/
-        ├── CoworkMode.tsx        # Cowork 模式主容器
-        ├── CoworkBoard.tsx       # 六阶段看板
+        ├── WorkMode.tsx        # Work 模式主容器
+        ├── WorkBoard.tsx       # 六阶段看板
         ├── WorkItemCard.tsx      # 任务卡片
-        ├── CoworkDetail.tsx      # 详情面板（方案文档/审核状态/Coding 进度）
+        ├── WorkDetail.tsx      # 详情面板（方案文档/审核状态/Coding 进度）
         └── WritebackPanel.tsx    # TB 回写状态
 
 packages/connectors/src/
@@ -341,7 +341,7 @@ packages/connectors/src/
 
 ### 任务清单
 
-- [ ] 实现六阶段看板 UI（CoworkBoard + WorkItemCard）
+- [ ] 实现六阶段看板 UI（WorkBoard + WorkItemCard）
 - [ ] 实现 TB MCP Server（对接阿里定制 URL）
 - [ ] 实现任务拉取（按责任人过滤，自动进入待处理列）
 - [ ] 实现方案文档模板 + AI 辅助生成
@@ -463,7 +463,7 @@ Code 模式暂与现有 Agent 模式保持一致。ModeSwitcher 中 "Agent" → 
 | `~/.proma` 路径改名影响已有数据 | 用户数据丢失 | `migration-service.ts` 首次启动自动迁移 |
 | Hermes 集成复杂度 | Chat MVP 延迟 | 先用 stub，再逐步接真实 Hermes |
 | Claude Agent SDK 权限事件不完整 | 安全风险 | `PermissionBroker` 统一拦截（沿用现有 agent-permission-service） |
-| Teambition API 权限受限 | Cowork 闭环受阻 | 先只读同步 + 手动回写 |
+| Teambition API 权限受限 | Work 闭环受阻 | 先只读同步 + 手动回写 |
 | 全局字符串替换遗漏 | 品牌不一致 | 用 `rg "proma\|Proma"` 验证 |
 | Jotai atoms 命名冲突 | 状态异常 | 新增 atoms 统一加 `luxagents` 前缀 |
 | Phase 1b 包名替换引入构建错误 | 开发中断 | 单独分支，typecheck 通过后合并 |
@@ -477,7 +477,7 @@ Code 模式暂与现有 Agent 模式保持一致。ModeSwitcher 中 "Agent" → 
 - [ ] Phase 1b 待开始
 - [ ] Phase 2（Chat）待开始
 - [ ] Phase 3（Code）待开始
-- [ ] Phase 4（Cowork）待开始
+- [ ] Phase 4（Work）待开始
 - [ ] Phase 5（Enterprise）待开始
 
 ---

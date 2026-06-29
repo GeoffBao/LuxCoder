@@ -5,10 +5,10 @@ LuxAgents is an internal enterprise AI R&D workbench derived from Proma.
 ## Goals
 
 - Enterprise AI agent desktop workbench
-- Chat / Cowork / Code modes (matching Claude Desktop App pattern)
+- Chat / Work / Code modes (matching Claude Desktop App pattern)
 - Phase 1: Chat & Code share Claude Agent SDK (anthropic provider)
 - Phase 2: Hermes provider for Chat (enterprise intranet HTTP API)
-- Cowork: Teambition MCP + spec-kit + 6-phase kanban + dual review gates
+- Work: Teambition MCP + spec-kit + 6-phase kanban + dual review gates
 - RAG / Skills / MCP governance
 - Enterprise branding and auditability
 
@@ -33,7 +33,7 @@ Claude Agent SDK (single engine)
 | P1a | Branding | `luxagents/branding` | Name, theme, data dir, 3-mode tabs | 1w |
 | P1b | Namespace | `luxagents/namespace` | `@proma/*` → `@luxagents/*` | 1w |
 | P2 | Chat | `luxagents/chat` | Chat UI, keep Claude provider | 1w |
-| P3 | Cowork | `luxagents/cowork` | TB MCP + 6-phase kanban + spec-kit | 4w |
+| P3 | Work | `luxagents/cowork` | TB MCP + 6-phase kanban + spec-kit | 4w |
 | P4 | Code | `luxagents/code` | Rename Agent → Code | 0.5w |
 | P5 | Enterprise | `luxagents/enterprise` | SSO, RBAC, Model Gateway, Hermes, Audit | 4w |
 

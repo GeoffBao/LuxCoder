@@ -87,7 +87,7 @@ export const appModeAtom = atomWithStorage<AppMode>('proma-app-mode', 'agent')
 ```
 
 - ModeSwitcher 只暴露 Chat / Agent 两个按钮
-- 需要扩展为 Chat / Code / Cowork 三模式
+- 需要扩展为 Chat / Code / Work 三模式
 
 ## Architecture Decision: One SDK, Two Providers
 
@@ -99,7 +99,7 @@ export const appModeAtom = atomWithStorage<AppMode>('proma-app-mode', 'agent')
 │  provider: hermes  │ provider: anthropic│
 │  (Hermes Agent)    │  (Claude)          │
 ├────────────────────┼────────────────────┤
-│  Chat Mode         │  Code / Cowork     │
+│  Chat Mode         │  Code / Work     │
 │  知识助理           │  工程执行          │
 └────────────────────┴────────────────────┘
 ```
@@ -131,7 +131,7 @@ export const appModeAtom = atomWithStorage<AppMode>('proma-app-mode', 'agent')
 - [ ] spec-kit workflow engine (rca → implement → verify)
 - [ ] TB writeback (status, spec_url, attachments)
 - [ ] Git worktree manager
-- [ ] Cowork mode UI (kanban + task detail + writeback panel)
+- [ ] Work mode UI (kanban + task detail + writeback panel)
 - [ ] RAG/Knowledge ACL system
 - [ ] SSO/RBAC (P6)
 - [ ] Model Gateway (P6)
@@ -141,7 +141,7 @@ export const appModeAtom = atomWithStorage<AppMode>('proma-app-mode', 'agent')
 参考 craft-agents-max 的混合方案：
 - 会话消息 → JSONL（不改）
 - 配置/记忆 → JSON + Markdown（不改）
-- Cowork 看板 → JSON/JSONL 起步
+- Work 看板 → JSON/JSONL 起步
 - 全文搜索 → 后续加 SQLite FTS5（参考 craft-agents-max `{workspace}/.craft/memory-index/`）
 - MVP 阶段不引入数据库
 

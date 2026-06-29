@@ -27,7 +27,7 @@ function getGreeting(hour: number): string {
 /** 模式配置 */
 const MODE_CONFIG: Record<AppMode, { icon: React.ReactNode; label: string }> = {
   chat: { icon: <MessageSquare size={15} />, label: 'Chat' },
-  cowork: { icon: <Users size={15} />, label: 'Cowork' },
+  cowork: { icon: <Users size={15} />, label: 'Work' },
   agent: { icon: <Code2 size={15} />, label: 'Code' },
   scratch: { icon: <StickyNote size={15} />, label: 'Scratch Pad' },
 }

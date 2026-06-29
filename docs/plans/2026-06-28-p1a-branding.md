@@ -4,7 +4,7 @@
 
 **Goal:** 把 Proma 视觉/系统层面替换为 LuxAgents：品牌字符串、数据目录、Electron 元数据、localStorage 键名、三模式 Tab，不改任何核心功能逻辑，不改 `@proma/*` 包名（留给 P1b）。
 
-**Architecture:** 逐文件替换，无结构变化。新增 `migration-service.ts` 在首次启动时把 `~/.proma/` 数据迁移到 `~/.luxagents/`（非破坏性，保留原目录）。ModeSwitcher 扩展为三按钮滑块（Chat / Code / Cowork），Cowork 为占位 UI。
+**Architecture:** 逐文件替换，无结构变化。新增 `migration-service.ts` 在首次启动时把 `~/.proma/` 数据迁移到 `~/.luxagents/`（非破坏性，保留原目录）。ModeSwitcher 扩展为三按钮滑块（Chat / Code / Work），Work 为占位 UI。
 
 **Tech Stack:** TypeScript, Electron, React, Jotai, Tailwind CSS, esbuild
 
@@ -604,7 +604,7 @@ git commit -m "brand: rename proma-coach skill and PromaLogoSettings component"
 
 ---
 
-## Task 9: ModeSwitcher 三模式（Chat / Code / Cowork）
+## Task 9: ModeSwitcher 三模式（Chat / Code / Work）
 
 **Files:**
 - Modify: `apps/electron/src/renderer/atoms/app-mode.ts`
@@ -635,11 +635,11 @@ export const appModeAtom = atomWithStorage<AppMode>('luxagents-app-mode', 'agent
 
 ```typescript
 /**
- * ModeSwitcher - Chat/Code/Cowork 三模式切换（带滑动指示器）
+ * ModeSwitcher - Chat/Code/Work 三模式切换（带滑动指示器）
  *
  * - Chat：对话模式（切换时恢复上次对话）
  * - Code：Agent 模式（切换时恢复上次会话）
- * - Cowork：协作模式（P3 实现，P1a 仅 UI 占位）
+ * - Work：协作模式（P3 实现，P1a 仅 UI 占位）
  */
 
 import * as React from 'react'
@@ -662,7 +662,7 @@ interface ModeConfig {
 const modes: ModeConfig[] = [
   { value: 'chat', label: 'Chat', icon: <MessageSquare size={14} /> },
   { value: 'agent', label: 'Code', icon: <Bot size={14} /> },
-  { value: 'cowork', label: 'Cowork', icon: <Network size={14} />, disabled: true },
+  { value: 'cowork', label: 'Work', icon: <Network size={14} />, disabled: true },
 ]
 
 export function ModeSwitcher(): React.ReactElement {
@@ -768,17 +768,17 @@ cd apps/electron && bun run dev:electron
 ```
 
 验证：
-- ModeSwitcher 显示 Chat / Code / Cowork 三个按钮
+- ModeSwitcher 显示 Chat / Code / Work 三个按钮
 - 点击 Chat 切换正常，滑块动画流畅
 - 点击 Code 切换正常
-- Cowork 按钮为半透明 disabled 状态，hover 无效，点击无反应
+- Work 按钮为半透明 disabled 状态，hover 无效，点击无反应
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add apps/electron/src/renderer/atoms/app-mode.ts \
   apps/electron/src/renderer/components/app-shell/ModeSwitcher.tsx
-git commit -m "feat: extend ModeSwitcher to 3 modes (Chat/Code/Cowork)"
+git commit -m "feat: extend ModeSwitcher to 3 modes (Chat/Code/Work)"
 ```
 
 ---

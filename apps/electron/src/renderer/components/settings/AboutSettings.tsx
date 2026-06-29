@@ -454,7 +454,7 @@ export function AboutSettings(): React.ReactElement {
         </SettingsRow>
         <SettingsRow
           label="开源协议"
-          description="社区版基于 AGPL-3.0 开源，商业授权请联系 erlichliu@gmail.com"
+          description="社区版基于 AGPL-3.0 开源，商业授权请联系 geoffbao0822@gmail.com"
         >
           <a
             href="https://www.gnu.org/licenses/agpl-3.0.html"

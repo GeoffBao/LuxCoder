@@ -563,6 +563,10 @@
   background-color: hsl(var(--sidebar-control-surface-hover));
 }
 
+.sidebar-collapse-button:hover {
+  background-color: hsl(var(--sidebar-control-surface));
+}
+
 /* Windows 自定义窗口控制按钮
  *
  * 可点击性关键点（解决 Windows 用户点击失效 / 需要双击的 bug）：

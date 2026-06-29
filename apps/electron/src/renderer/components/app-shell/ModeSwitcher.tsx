@@ -1,12 +1,12 @@
 /**
- * ModeSwitcher - Chat/Cowork/Code 三模式切换（带滑动指示器）
+ * ModeSwitcher - Chat/Work/Code 三模式切换（带滑动指示器）
  *
  * 切换模式时自动恢复上一次在该模式下查看的对话/会话：
  * 1. 优先恢复上次选中的对话 ID
  * 2. 其次查找已打开的同类型 Tab
  * 3. 兜底打开最近的对话/会话（列表首项）
  * 4. 都没有则仅切换模式
- * Cowork 模式无会话，直接切换。
+ * Work 模式无会话，直接切换。
  */
 
 import * as React from 'react'
@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils'
 
 const modes: { value: AppMode; label: string; icon: React.ReactNode }[] = [
   { value: 'chat', label: 'Chat', icon: <MessageSquare size={15} /> },
-  { value: 'cowork', label: 'Cowork', icon: <Users size={15} /> },
+  { value: 'cowork', label: 'Work', icon: <Users size={15} /> },
   { value: 'agent', label: 'Code', icon: <Code2 size={15} /> },
 ]
 
@@ -88,7 +88,7 @@ export function ModeSwitcher(): React.ReactElement {
         {/* 滑动背景指示器 */}
         <div
           className={cn(
-            'mode-slider pointer-events-none absolute top-1 bottom-1 w-[calc(33.333%-2.667px)] rounded-lg bg-background shadow-sm transition-transform duration-300 ease-in-out',
+            'mode-slider pointer-events-none absolute top-1 bottom-1 left-1 w-[calc(33.333%-2.667px)] rounded-lg bg-background shadow-sm transition-transform duration-300 ease-in-out',
             sliderTranslate
           )}
         />

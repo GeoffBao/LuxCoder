@@ -105,7 +105,7 @@ export function createWelcomeConversation(): ConversationMeta | null {
       role: 'assistant',
       content: `你好，欢迎使用 LuxAgents。
 
-LuxAgents 是面向研发团队的 AI Agent 工作台，整合了 **Chat**（AI 对话助理）、**Code**（AI 编程工作台）、**Cowork**（协作看板，即将上线）三种工作模式。
+LuxAgents 是面向研发团队的 AI Agent 工作台，整合了 **Chat**（AI 对话助理）、**Code**（AI 编程工作台）、**Work**（协作看板，即将上线）三种工作模式。
 
 为了给你推荐最合适的上手路径，想先了解你的情况：
 
