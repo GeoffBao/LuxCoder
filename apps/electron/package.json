@@ -1,7 +1,7 @@
 {
   "name": "@luxagents/electron",
-  "version": "0.1.44",
-  "description": "Proma next gen ai software with general agents - Electron App",
+  "version": "0.1.45",
+  "description": "LuxAgents next gen ai software with general agents - Electron App",
   "main": "dist/main.cjs",
   "author": {
     "name": "GeoffBao",
