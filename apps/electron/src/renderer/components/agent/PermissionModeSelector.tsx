@@ -15,6 +15,7 @@ import { agentPermissionModeMapAtom, agentDefaultPermissionModeAtom, sessionPers
 import type { LuxAgentsPermissionMode } from '@luxagents/shared'
 import { LUXAGENTS_PERMISSION_MODE_CONFIG, LUXAGENTS_PERMISSION_MODE_ORDER } from '@luxagents/shared'
 import { updatePlanModeSessionSet } from '@/lib/agent-plan-mode'
+import { inputToolbarButtonClass } from '@/components/ai-elements/input-toolbar-styles'
 
 const MODE_ICONS: Record<LuxAgentsPermissionMode, React.ComponentType<{ className?: string }>> = {
   auto: Compass,
@@ -95,7 +96,7 @@ export function PermissionModeSelector({ sessionId }: PermissionModeSelectorProp
             size="icon"
             aria-label={config.label}
             onClick={() => { cycleMode(); requestAnimationFrame(() => document.querySelector<HTMLElement>('.ProseMirror')?.focus()) }}
-            className="size-[36px] rounded-full text-foreground/60 hover:text-foreground"
+            className={inputToolbarButtonClass}
           >
             <Icon className="size-5" />
           </Button>
