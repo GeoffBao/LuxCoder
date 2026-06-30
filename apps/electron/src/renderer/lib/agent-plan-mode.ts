@@ -1,4 +1,4 @@
-import type { AgentPlanModeChangeSource } from '@luxagents/shared'
+import type { AgentPlanModeChangeSource, LuxAgentsPermissionMode } from '@luxagents/shared'
 
 export interface PlanModeChange {
   active: boolean
@@ -32,4 +32,12 @@ export function updatePlanModeSessionSet(
   const next = new Set(prev)
   next.delete(sessionId)
   return next
+}
+
+/** 输入区处于计划阶段时，权限按钮也优先展示计划模式图标。 */
+export function getDisplayedPermissionMode(
+  permissionMode: LuxAgentsPermissionMode,
+  planModeActive: boolean,
+): LuxAgentsPermissionMode {
+  return planModeActive ? 'plan' : permissionMode
 }
