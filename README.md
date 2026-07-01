@@ -175,7 +175,8 @@ bun run dist:fast      # 快速打包当前平台
 - `chat-service.ts`：Chat 流式调用、Provider Adapter 集成。
 - `conversation-manager.ts`：Chat 会话索引和消息存储。
 - `channel-manager.ts`：渠道 CRUD、API Key 加密、连接测试、模型获取。
-- `feishu-bridge.ts`：飞书集成（消息同步、任务通知、OAuth 认证）。
+- `feishu-bridge.ts` / `dingtalk-bridge.ts` / `wechat-bridge.ts`：远程机器人桥接。
+- `chat-tool-*`、`document-parser.ts`、`workspace-watcher.ts`：工具、文档解析和文件监听。
 
 渲染进程以 Jotai 管理状态，关键 atoms 位于 `apps/electron/src/renderer/atoms/`。Agent IPC 监听器在应用顶层全局挂载，避免切换页面时丢失流式事件或权限请求。
 
