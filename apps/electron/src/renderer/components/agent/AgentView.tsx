@@ -1942,6 +1942,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
           filterChannelIds={agentChannelIds}
           externalSelectedModel={externalSelectedModel}
           onModelSelect={handleModelSelect}
+          useSharedOpenState
         />
       ),
     },
