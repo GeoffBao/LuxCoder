@@ -158,6 +158,15 @@ export function getSettingsPath(): string {
 }
 
 /**
+ * 获取系统默认 App 探测缓存路径
+ *
+ * @returns ~/.luxagents/default-apps.json
+ */
+export function getDefaultAppsCachePath(): string {
+  return join(getConfigDir(), 'default-apps.json')
+}
+
+/**
  * 获取用户档案文件路径
  *
  * @returns ~/.luxagents/user-profile.json
@@ -573,7 +582,7 @@ export function getWeChatSyncPath(): string {
 /**
  * 获取微信聊天绑定持久化路径
  *
- * @returns ~/.proma/wechat-bindings.json
+ * @returns ~/.luxagents/wechat-bindings.json
  */
 export function getWeChatBindingsPath(): string {
   return join(getConfigDir(), 'wechat-bindings.json')
@@ -591,7 +600,7 @@ export function getDingTalkConfigPath(): string {
 /**
  * 获取某个钉钉 Bot 的聊天绑定持久化路径
  *
- * @returns ~/.proma/dingtalk-bindings-{botId}.json
+ * @returns ~/.luxagents/dingtalk-bindings-{botId}.json
  */
 export function getDingTalkBotBindingsPath(botId: string): string {
   return join(getConfigDir(), `dingtalk-bindings-${botId}.json`)
