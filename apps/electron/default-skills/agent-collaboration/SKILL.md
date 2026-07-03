@@ -2,11 +2,7 @@
 name: agent-collaboration
 description: Proma 协作子 Agent Skill。当需要并行探索多个方向（多样性探索）、对抗性审查验证已有方案、或多个长耗时独立任务需要真实可见的子会话时触发。用于判断是否以及如何调用 Proma 内置 collaboration 工具创建协作子会话。简单搜索、短调研、单文件修改、一次性代码审查优先使用 SDK SubAgent。
 group: proma
-<<<<<<< HEAD
-version: "1.0.2"
-=======
-version: “1.1.0”
->>>>>>> 42c574a6 (feat: 协作子会话触发策略更积极——对抗式审查 + 多样性探索 (#1074))
+version: "1.1.0"
 ---
 
 # Proma Agent Collaboration

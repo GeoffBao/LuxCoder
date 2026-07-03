@@ -3134,8 +3134,14 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
   const treeItems = buildAgentSessionTrees(unboundSessions)
   /** 项目 ID → 主题色映射（归档项目的会话回退到未绑定列表，但 projectId 仍在，继续显示其项目色） */
   const projectColorMap = React.useMemo(() => buildProjectColorMap(projects), [projects])
+  const prevActiveIdsRef = React.useRef<Set<string>>(new Set())
   const activeSessions = treeItems
-    .filter((item) => ACTIVE_SESSION_STATUSES.has(getSessionTreeStatus(item, agentIndicatorMap)))
+    .filter((item) =>
+      ACTIVE_SESSION_STATUSES.has(getSessionTreeStatus(item, agentIndicatorMap))
+      // 当用户点击"查看"时，会话的 completed 指示器被清除，但它仍是当前选中会话——
+      // 若它上一帧还在 activeSessions 中，保持其位置不变以避免视觉跳动
+      || (item.session.id === activeSessionId && prevActiveIdsRef.current.has(item.session.id))
+    )
     .slice()
     .sort((a, b) => {
       const delta = ACTIVE_SESSION_STATUS_PRIORITY[getSessionTreeStatus(a, agentIndicatorMap)]
@@ -3144,6 +3150,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
       return b.session.updatedAt - a.session.updatedAt
     })
   const activeIds = collectAgentSessionTreeIds(activeSessions)
+  React.useEffect(() => { prevActiveIdsRef.current = activeIds })
   // 非活跃部分按自然策略（最近 3 天窗口 + 预览上限）计算，且不依赖当前选中态，
   // 保持 group.sessions 的 updatedAt 倒序——这样点击已可见会话时顺序保持稳定，
   // 不会因为它变成 activeSessionId 而被提到顶部。
