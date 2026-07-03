@@ -274,7 +274,8 @@ function mapPermissionMode(mode: string | undefined): LuxAgentsPermissionMode | 
     case 'safe':
     case 'ask':
     case 'auto':
-      return 'auto'
+      // 历史 auto/safe/ask 统一迁到完全自动（auto 权限模式已移除）
+      return 'bypassPermissions'
     case 'plan':
       return 'plan'
     default:

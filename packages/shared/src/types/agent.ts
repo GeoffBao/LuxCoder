@@ -1311,7 +1311,7 @@ export interface ExitPlanModeRequest {
 }
 
 /** ExitPlanMode 用户选择行为 */
-export type ExitPlanModeAction = 'approve_auto' | 'approve_edit' | 'deny' | 'feedback'
+export type ExitPlanModeAction = 'approve_bypass' | 'deny' | 'feedback'
 
 /** ExitPlanMode 响应（渲染进程 → 主进程） */
 export interface ExitPlanModeResponse {
@@ -1326,7 +1326,7 @@ export interface ExitPlanModeResponse {
 // ===== 权限系统类型 =====
 
 /** 当前 LuxAgents 支持的权限模式，值直接映射 SDK 原生 permissionMode */
-export const LUXAGENTS_PERMISSION_MODES = ['auto', 'bypassPermissions', 'plan'] as const
+export const LUXAGENTS_PERMISSION_MODES = ['bypassPermissions', 'plan'] as const
 
 export type LuxAgentsPermissionMode = typeof LUXAGENTS_PERMISSION_MODES[number]
 
@@ -1341,11 +1341,6 @@ export interface LuxAgentsPermissionModeConfig {
 
 /** LuxAgents 权限模式的单一配置来源 */
 export const LUXAGENTS_PERMISSION_MODE_CONFIG = {
-  auto: {
-    sdkMode: 'auto',
-    label: '自动审批',
-    description: 'SDK 内置审批器自动判断，危险操作才需确认',
-  },
   bypassPermissions: {
     sdkMode: 'bypassPermissions',
     label: '完全自动',
@@ -1365,7 +1360,7 @@ export function isLuxAgentsPermissionMode(mode: string): mode is LuxAgentsPermis
   return (LUXAGENTS_PERMISSION_MODES as readonly string[]).includes(mode)
 }
 
-/** 规范化权限模式：不匹配当前三种模式时统一回到默认自动审批 */
+/** 规范化权限模式：历史 auto 或其它非法值统一回到默认完全自动模式 */
 export function migratePermissionMode(mode: string): LuxAgentsPermissionMode {
   if (isLuxAgentsPermissionMode(mode)) return mode
   return LUXAGENTS_DEFAULT_PERMISSION_MODE
@@ -1386,7 +1381,7 @@ export interface PermissionRequest {
   toolInput: Record<string, unknown>
   /** 操作描述（人类可读，LuxAgents 生成） */
   description: string
-  /** 具体命令（Bash 工具时有值��� */
+  /** 具体命令（Bash 工具时有值） */
   command?: string
   /** 危险等级 */
   dangerLevel: DangerLevel
