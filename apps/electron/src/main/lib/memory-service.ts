@@ -2,7 +2,7 @@
  * 全局记忆配置服务
  *
  * 管理 MemOS Cloud 记忆配置的读写。
- * 存储在 ~/.proma/memory.json（全局共享）
+ * 存储在 ~/.luxagents/memory.json（全局共享）
  */
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'

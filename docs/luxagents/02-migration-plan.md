@@ -34,7 +34,7 @@ proma-v2/
 ### 本地数据目录（原 Proma）
 
 ```
-~/.proma/
+~/.luxagents/
 ├── conversations/
 │   └── {conversation-id}.jsonl
 ├── agent-sessions.json
@@ -107,7 +107,7 @@ luxagents/
 - [ ] Skills 配置可见
 - [ ] MCP 配置可见
 - [ ] Provider 配置可见
-- [ ] 记录本地数据目录结构 `~/.proma/`
+- [ ] 记录本地数据目录结构 `~/.luxagents/`
 - [ ] 完成 `00-baseline.md`
 - [ ] 完成 `01-code-map.md`
 - [ ] 建立 GitHub 仓库 LuxAgents
@@ -133,10 +133,10 @@ Proma 原版可以正常运行，文档齐全，GitHub 仓库已建立。
 |---|---|
 | `Proma` | `LuxAgents` |
 | `proma` | `luxagents` |
-| `~/.proma` | `~/.luxagents` |
+| `~/.luxagents` | `~/.luxagents` |
 | `proma-file://` 协议注册 | `luxagents-file://` |
 | `ai.proma.app` / `com.proma.app` | `com.luxshare.luxagents` |
-| `.proma-backup` / `.proma-share` 文件扩展名 | `.luxagents-backup` / `.luxagents-share` |
+| `.luxagents-backup` / `.luxagents-share` 文件扩展名 | `.luxagents-backup` / `.luxagents-share` |
 
 > ⚠️ 注意：IPC channel 常量（`AGENT_IPC_CHANNELS` 等）的字符串值**无 `proma:` 前缀**，无需替换。真正需要替换的是 `proma-file://` 自定义协议（`apps/electron/src/main/index.ts:33`）。
 
@@ -168,9 +168,9 @@ Proma 原版可以正常运行，文档齐全，GitHub 仓库已建立。
 
 #### 5.4 数据目录迁移
 
-- [ ] 找到所有 `~/.proma` 引用：`rg "\.proma" apps/ packages/`
+- [ ] 找到所有 `~/.luxagents` 引用：`rg "\.proma" apps/ packages/`
 - [ ] 统一改为 `~/.luxagents`（修改 `config-paths.ts`）
-- [ ] 在 `migration-service.ts` 实现首次启动自动迁移：`~/.proma → ~/.luxagents`
+- [ ] 在 `migration-service.ts` 实现首次启动自动迁移：`~/.luxagents → ~/.luxagents`
 - [ ] 确认 `agent-sessions.json`、`conversations/`、`agent-workspaces/` 路径全部更新
 
 ### 任务清单
@@ -178,7 +178,7 @@ Proma 原版可以正常运行，文档齐全，GitHub 仓库已建立。
 - [ ] 全局替换字符串 `Proma` / `proma`（品牌字符串，不含包名）
 - [ ] 替换 `proma-file://` 协议注册 → `luxagents-file://`
 - [ ] 数据目录改为 `~/.luxagents`（`config-paths.ts`）
-- [ ] 在 `migration-service.ts` 实现 `~/.proma → ~/.luxagents` 迁移逻辑
+- [ ] 在 `migration-service.ts` 实现 `~/.luxagents → ~/.luxagents` 迁移逻辑
 - [ ] 新增 LuxAgents CSS 主题 tokens
 - [ ] 顶部三模式 Tab 框架（暂时只是 UI，不切换功能）
 - [ ] App icon 占位
@@ -429,7 +429,7 @@ Code 模式暂与现有 Agent 模式保持一致。ModeSwitcher 中 "Agent" → 
 | `apps/electron/package.json` | 重命名 app name / bundle ID | Phase 1a |
 | `apps/electron/electron-builder.yml` | appId、productName、文件扩展名 | Phase 1a |
 | `packages/shared/src/config/index.ts` | `APP_NAME` 常量 | Phase 1a |
-| `apps/electron/src/main/lib/config-paths.ts` | `~/.proma` → `~/.luxagents` | Phase 1a |
+| `apps/electron/src/main/lib/config-paths.ts` | `~/.luxagents` → `~/.luxagents` | Phase 1a |
 | `apps/electron/src/main/lib/migration-service.ts` | 新增 proma→luxagents 目录迁移 | Phase 1a |
 | `apps/electron/src/main/index.ts` | 协议注册、窗口标题、菜单 | Phase 1a |
 | `packages/*/package.json`（全部） | namespace `@proma/*` → `@luxagents/*` | Phase 1b |
@@ -460,7 +460,7 @@ Code 模式暂与现有 Agent 模式保持一致。ModeSwitcher 中 "Agent" → 
 
 | 风险 | 影响 | 应对 |
 |---|---|---|
-| `~/.proma` 路径改名影响已有数据 | 用户数据丢失 | `migration-service.ts` 首次启动自动迁移 |
+| `~/.luxagents` 路径改名影响已有数据 | 用户数据丢失 | `migration-service.ts` 首次启动自动迁移 |
 | Hermes 集成复杂度 | Chat MVP 延迟 | 先用 stub，再逐步接真实 Hermes |
 | Claude Agent SDK 权限事件不完整 | 安全风险 | `PermissionBroker` 统一拦截（沿用现有 agent-permission-service） |
 | Teambition API 权限受限 | Work 闭环受阻 | 先只读同步 + 手动回写 |

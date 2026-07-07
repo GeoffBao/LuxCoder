@@ -110,7 +110,7 @@
   - `apps/electron/src/renderer/components/agent-skills/McpCard.tsx` / `McpDetailSheet.tsx` / `BuiltinMcpDetailSheet.tsx`
   - `apps/electron/src/renderer/components/settings/McpServerForm.tsx`
   - `packages/shared/src/utils/mcp-transport.ts` / `mcp-transport.test.ts` — MCP 传输层工具
-- notes: MCP 配置按工作区隔离，存储于 `~/.proma/agent-workspaces/{slug}/mcp.json`；内置 MCP 通过 registry.ts 注册
+- notes: MCP 配置按工作区隔离，存储于 `~/.luxagents/agent-workspaces/{slug}/mcp.json`；内置 MCP 通过 registry.ts 注册
 
 ---
 
@@ -129,25 +129,25 @@
 ## Storage
 
 - path:
-  - `apps/electron/src/main/lib/config-paths.ts` — **所有本地路径函数**，核心改造点：`~/.proma/` → `~/.luxagents/`（正式版）/ `~/.proma-dev/` → `~/.luxagents-dev/`（开发版）
+  - `apps/electron/src/main/lib/config-paths.ts` — **所有本地路径函数**，核心改造点：`~/.luxagents/` → `~/.luxagents/`（正式版）/ `~/.luxagents-dev/` → `~/.luxagents-dev/`（开发版）
   - `apps/electron/src/main/lib/storage-service.ts` — 通用 JSON 文件读写服务
   - `apps/electron/src/main/lib/conversation-manager.ts` — 对话索引 + 每对话 JSONL 文件
   - `apps/electron/src/main/lib/agent-session-manager.ts` — Agent 会话索引 + 每会话 JSONL 文件
   - `apps/electron/src/main/lib/memory-service.ts` — 跨会话记忆存储与检索
-  - `apps/electron/src/main/lib/attachment-service.ts` — 附件文件管理（`~/.proma/attachments/`）
+  - `apps/electron/src/main/lib/attachment-service.ts` — 附件文件管理（`~/.luxagents/attachments/`）
   - `apps/electron/src/main/lib/settings-service.ts` — 应用设置持久化（`settings.json`）
   - `apps/electron/src/main/lib/user-profile-service.ts` — 用户档案持久化（`user-profile.json`）
   - `apps/electron/src/main/lib/migration-service.ts` — 数据迁移服务
-- notes: 无本地数据库，全部 JSON + JSONL 文件；改目录名后需提供从 `~/.proma/` 迁移的脚本，否则老用户数据丢失
+- notes: 无本地数据库，全部 JSON + JSONL 文件；改目录名后需提供从 `~/.luxagents/` 迁移的脚本，否则老用户数据丢失
 
 ---
 
 ## Branding Strings
 
 - path:
-  - `apps/electron/electron-builder.yml` — `appId: com.proma.app`、`productName: Proma`、文件扩展名 `.proma-backup` / `.proma-share`、资源目录 `proma-logos`、麦克风权限描述、GitHub repo 名称
+  - `apps/electron/electron-builder.yml` — `appId: com.proma.app`、`productName: Proma`、文件扩展名 `.luxagents-backup` / `.luxagents-share`、资源目录 `proma-logos`、麦克风权限描述、GitHub repo 名称
   - `packages/shared/src/config/index.ts` — `APP_NAME = 'Proma'`（全局常量，所有 UI 文案来源）
-  - `apps/electron/src/main/lib/config-paths.ts` — 目录名 `.proma` / `.proma-dev`
+  - `apps/electron/src/main/lib/config-paths.ts` — 目录名 `.proma` / `.luxagents-dev`
   - `apps/electron/src/renderer/components/settings/PromaLogoSettings.tsx` — Proma Logo 下载页，含 `proma-black/white/blue.png` 资源引用
   - `apps/electron/src/renderer/components/settings/AboutSettings.tsx` — "关于 Proma"、GitHub URL `github.com/ErlichLiu/Proma`
   - `apps/electron/default-skills/proma-coach/SKILL.md` — 内置 Skill 名称
