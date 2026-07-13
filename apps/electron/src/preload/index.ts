@@ -6,6 +6,7 @@
  */
 
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
+import { PROJECT_IPC_CHANNELS, TASK_IPC_CHANNELS, SESSION_COMMAND_CHANNEL } from '@luxagents/shared/channels'
 import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, MEMORY_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS } from '@luxagents/shared'
 import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, SCRATCH_PAD_IPC_CHANNELS, APP_ICON_IPC_CHANNELS, DOCK_BADGE_IPC_CHANNELS, STORAGE_IPC_CHANNELS } from '../types'
 import type {
@@ -104,7 +105,19 @@ import type {
   Automation,
   CreateAutomationInput,
   UpdateAutomationInput,
+  CreateProjectInput,
+  LoadedProject,
+  ProjectAsset,
+  UpdateProjectInput,
+  UploadProjectAssetInput,
+  SessionKanbanCommand,
+  TaskSpec,
+  RunLogEntry,
+  ProjectsChangedEventPayload,
+  TaskGeneratedEventPayload,
 } from '@luxagents/shared'
+import type { WorkTask, WorkApprovalRecord, WorkAuditLogEntry } from '@luxagents/shared'
+import { WORK_IPC_CHANNELS } from '@luxagents/shared/channels'
 import type {
   UserProfile,
   AppSettings,
@@ -125,6 +138,31 @@ import type {
   TrayCreateSessionData,
   TrayOpenAgentSessionData,
 } from '../types'
+
+interface TaskCreateRequest {
+  yaml: string
+  orchestratorSessionId?: string
+  attachToExistingSessionId?: string
+}
+
+interface TaskGenerateRequest {
+  goal: string
+  title?: string
+  projectId?: string
+}
+
+interface TaskRunOptions {
+  runId?: string
+  orchestratorSessionId?: string
+  params?: Record<string, unknown>
+  verifyOnComplete?: boolean
+}
+
+interface TaskResults {
+  spec: TaskSpec | null
+  log: RunLogEntry[]
+  runId: string
+}
 import { QUICK_TASK_IPC_CHANNELS, TRAY_IPC_CHANNELS, VOICE_DICTATION_IPC_CHANNELS } from '../types'
 
 /**
@@ -1028,6 +1066,51 @@ export interface ElectronAPI {
   runAutomationNow: (id: string) => Promise<void>
   /** 订阅任务列表变更事件 */
   onAutomationChanged: (callback: () => void) => () => void
+
+  // ===== Projects / Tasks Conductor =====
+  getProjects: (workspaceRoot: string) => Promise<LoadedProject[]>
+  getProject: (workspaceRoot: string, idOrSlug: string) => Promise<LoadedProject | undefined>
+  createProject: (workspaceRoot: string, input: CreateProjectInput) => Promise<LoadedProject>
+  updateProject: (workspaceRoot: string, slug: string, patch: UpdateProjectInput) => Promise<LoadedProject>
+  deleteProject: (workspaceRoot: string, slug: string) => Promise<void>
+  listProjectAssets: (workspaceRoot: string, slug: string) => Promise<ProjectAsset[]>
+  uploadProjectAsset: (workspaceRoot: string, slug: string, input: UploadProjectAssetInput) => Promise<ProjectAsset>
+  deleteProjectAsset: (workspaceRoot: string, slug: string, filename: string) => Promise<void>
+  validateTask: (yaml: string) => Promise<unknown>
+  createTask: (workspaceRoot: string, workspaceId: string, request: TaskCreateRequest) => Promise<unknown>
+  generateTask: (workspaceRoot: string, workspaceId: string, request: TaskGenerateRequest) => Promise<{ orchestratorSessionId: string }>
+  runTask: (workspaceRoot: string, workspaceId: string, slug: string, options?: TaskRunOptions) => Promise<unknown>
+  pauseTask: (workspaceRoot: string, workspaceId: string, slug: string, runId: string) => Promise<void>
+  resumeTask: (workspaceRoot: string, workspaceId: string, slug: string, runId: string) => Promise<void>
+  stopKanbanTask: (workspaceRoot: string, workspaceId: string, slug: string, runId: string) => Promise<void>
+  getTask: (workspaceRoot: string, slug: string) => Promise<unknown>
+  listTasks: (workspaceRoot: string) => Promise<string[]>
+  getTaskResults: (workspaceRoot: string, slug: string, runId?: string) => Promise<TaskResults | null>
+  sendSessionCommand: (sessionId: string, command: SessionKanbanCommand) => Promise<AgentSessionMeta>
+  onProjectsChanged: (callback: (payload: ProjectsChangedEventPayload) => void) => () => void
+  onTaskGenerated: (callback: (payload: TaskGeneratedEventPayload) => void) => () => void
+
+  // ===== Work 模式 =====
+  /** 获取全部 Work 任务 */
+  listWorkTasks: () => Promise<WorkTask[]>
+  /** 获取单个 Work 任务 */
+  getWorkTask: (taskId: string) => Promise<WorkTask | undefined>
+  /** 获取任务迁移审计日志 */
+  getWorkTaskAuditLog: (taskId: string) => Promise<WorkAuditLogEntry[]>
+  /** 手动创建本地任务（本地通道，不计入 KPI） */
+  createWorkTask: (
+    input: Pick<WorkTask, 'title' | 'description' | 'type' | 'priority' | 'workspaceId' | 'assigneeName'>,
+  ) => Promise<WorkTask>
+  /** 从 TW 拉取任务 */
+  pullWorkTasksFromTw: (projectId: string) => Promise<WorkTask[]>
+  /** 提交审批（批准/驳回） */
+  submitWorkApproval: (taskId: string, approval: WorkApprovalRecord) => Promise<WorkTask>
+  /** 取消任务 */
+  cancelWorkTask: (taskId: string) => Promise<WorkTask>
+  /** 订阅单任务变更事件 */
+  onWorkTaskUpdated: (callback: (task: WorkTask) => void) => () => void
+  /** 订阅任务列表变更事件 */
+  onWorkTasksChanged: (callback: () => void) => () => void
 }
 
 interface MigrationExportResult {
@@ -2351,6 +2434,59 @@ const electronAPI: ElectronAPI = {
     const listener = (): void => callback()
     ipcRenderer.on(AUTOMATION_IPC_CHANNELS.CHANGED, listener)
     return () => { ipcRenderer.removeListener(AUTOMATION_IPC_CHANNELS.CHANGED, listener) }
+  },
+
+  // ===== Projects / Tasks Conductor =====
+  getProjects: (workspaceRoot: string) => ipcRenderer.invoke(PROJECT_IPC_CHANNELS.GET, workspaceRoot),
+  getProject: (workspaceRoot: string, idOrSlug: string) => ipcRenderer.invoke(PROJECT_IPC_CHANNELS.GET_ONE, workspaceRoot, idOrSlug),
+  createProject: (workspaceRoot: string, input: CreateProjectInput) => ipcRenderer.invoke(PROJECT_IPC_CHANNELS.CREATE, workspaceRoot, input),
+  updateProject: (workspaceRoot: string, slug: string, patch: UpdateProjectInput) => ipcRenderer.invoke(PROJECT_IPC_CHANNELS.UPDATE, workspaceRoot, slug, patch),
+  deleteProject: (workspaceRoot: string, slug: string) => ipcRenderer.invoke(PROJECT_IPC_CHANNELS.DELETE, workspaceRoot, slug),
+  listProjectAssets: (workspaceRoot: string, slug: string) => ipcRenderer.invoke(PROJECT_IPC_CHANNELS.LIST_ASSETS, workspaceRoot, slug),
+  uploadProjectAsset: (workspaceRoot: string, slug: string, input: UploadProjectAssetInput) => ipcRenderer.invoke(PROJECT_IPC_CHANNELS.UPLOAD_ASSET, workspaceRoot, slug, input),
+  deleteProjectAsset: (workspaceRoot: string, slug: string, filename: string) => ipcRenderer.invoke(PROJECT_IPC_CHANNELS.DELETE_ASSET, workspaceRoot, slug, filename),
+  validateTask: (yaml: string) => ipcRenderer.invoke(TASK_IPC_CHANNELS.VALIDATE, yaml),
+  createTask: (workspaceRoot: string, workspaceId: string, request: TaskCreateRequest) => ipcRenderer.invoke(TASK_IPC_CHANNELS.CREATE, workspaceRoot, workspaceId, request),
+  generateTask: (workspaceRoot: string, workspaceId: string, request: TaskGenerateRequest) => ipcRenderer.invoke(TASK_IPC_CHANNELS.GENERATE, workspaceRoot, workspaceId, request),
+  runTask: (workspaceRoot: string, workspaceId: string, slug: string, options?: TaskRunOptions) => ipcRenderer.invoke(TASK_IPC_CHANNELS.RUN, workspaceRoot, workspaceId, slug, options),
+  pauseTask: (workspaceRoot: string, workspaceId: string, slug: string, runId: string) => ipcRenderer.invoke(TASK_IPC_CHANNELS.PAUSE, workspaceRoot, workspaceId, slug, runId),
+  resumeTask: (workspaceRoot: string, workspaceId: string, slug: string, runId: string) => ipcRenderer.invoke(TASK_IPC_CHANNELS.RESUME, workspaceRoot, workspaceId, slug, runId),
+  stopKanbanTask: (workspaceRoot: string, workspaceId: string, slug: string, runId: string) => ipcRenderer.invoke(TASK_IPC_CHANNELS.STOP, workspaceRoot, workspaceId, slug, runId),
+  getTask: (workspaceRoot: string, slug: string) => ipcRenderer.invoke(TASK_IPC_CHANNELS.GET, workspaceRoot, slug),
+  listTasks: (workspaceRoot: string) => ipcRenderer.invoke(TASK_IPC_CHANNELS.LIST, workspaceRoot),
+  getTaskResults: (workspaceRoot: string, slug: string, runId?: string) => ipcRenderer.invoke(TASK_IPC_CHANNELS.GET_RESULTS, workspaceRoot, slug, runId),
+  sendSessionCommand: (sessionId: string, command: SessionKanbanCommand) => ipcRenderer.invoke(SESSION_COMMAND_CHANNEL, sessionId, command),
+  onProjectsChanged: (callback: (payload: ProjectsChangedEventPayload) => void) => {
+    const listener = (_event: unknown, payload: ProjectsChangedEventPayload): void => callback(payload)
+    ipcRenderer.on(PROJECT_IPC_CHANNELS.CHANGED, listener)
+    return () => { ipcRenderer.removeListener(PROJECT_IPC_CHANNELS.CHANGED, listener) }
+  },
+  onTaskGenerated: (callback: (payload: TaskGeneratedEventPayload) => void) => {
+    const listener = (_event: unknown, payload: TaskGeneratedEventPayload): void => callback(payload)
+    ipcRenderer.on(TASK_IPC_CHANNELS.GENERATED, listener)
+    return () => { ipcRenderer.removeListener(TASK_IPC_CHANNELS.GENERATED, listener) }
+  },
+
+  // ===== Work 模式 =====
+  listWorkTasks: () => ipcRenderer.invoke(WORK_IPC_CHANNELS.LIST_TASKS),
+  getWorkTask: (taskId: string) => ipcRenderer.invoke(WORK_IPC_CHANNELS.GET_TASK, taskId),
+  getWorkTaskAuditLog: (taskId: string) => ipcRenderer.invoke(WORK_IPC_CHANNELS.GET_TASK_AUDIT_LOG, taskId),
+  createWorkTask: (
+    input: Pick<WorkTask, 'title' | 'description' | 'type' | 'priority' | 'workspaceId' | 'assigneeName'>,
+  ) => ipcRenderer.invoke(WORK_IPC_CHANNELS.CREATE_TASK, input),
+  pullWorkTasksFromTw: (projectId: string) => ipcRenderer.invoke(WORK_IPC_CHANNELS.PULL_FROM_TW, projectId),
+  submitWorkApproval: (taskId: string, approval: WorkApprovalRecord) =>
+    ipcRenderer.invoke(WORK_IPC_CHANNELS.SUBMIT_APPROVAL, taskId, approval),
+  cancelWorkTask: (taskId: string) => ipcRenderer.invoke(WORK_IPC_CHANNELS.CANCEL_TASK, taskId),
+  onWorkTaskUpdated: (callback: (task: WorkTask) => void) => {
+    const listener = (_: unknown, task: WorkTask): void => callback(task)
+    ipcRenderer.on(WORK_IPC_CHANNELS.TASK_UPDATED, listener)
+    return () => { ipcRenderer.removeListener(WORK_IPC_CHANNELS.TASK_UPDATED, listener) }
+  },
+  onWorkTasksChanged: (callback: () => void) => {
+    const listener = (): void => callback()
+    ipcRenderer.on(WORK_IPC_CHANNELS.TASKS_CHANGED, listener)
+    return () => { ipcRenderer.removeListener(WORK_IPC_CHANNELS.TASKS_CHANGED, listener) }
   },
 }
 
