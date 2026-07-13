@@ -45,6 +45,7 @@ export interface ConductorSessionHostDependencies {
   getAgentSessionMessages: (sessionId: string) => AgentMessage[]
   getAgentWorkspace: (workspaceId: string) => AgentWorkspace | undefined
   getAgentSessionWorkspacePath: (workspaceSlug: string, sessionId: string) => string
+  getDefaultAgentChannelId?: () => string | undefined
   getOrchestrator: () => ConductorOrchestrator
 }
 
@@ -69,9 +70,14 @@ export class LuxAgentsConductorSessionHost implements ConductorSessionHost {
 
   async createSession(workspaceId: string, options: CreateSessionOptions): Promise<{ id: string }> {
     const permissionMode = mapPermissionMode(options.permissionMode)
+    const channelId = options.llmConnection
+      ?? (options.parentSessionId
+        ? this.deps.getAgentSessionMeta(options.parentSessionId)?.channelId
+        : undefined)
+      ?? this.deps.getDefaultAgentChannelId?.()
     const session = this.deps.createAgentSession(
       options.name,
-      options.llmConnection,
+      channelId,
       workspaceId,
       options.model,
     )
@@ -212,11 +218,12 @@ export class LuxAgentsConductorSessionHost implements ConductorSessionHost {
 
 /** 在 Electron 主进程中延迟加载真实服务，避免纯逻辑测试触发 Electron 模块。 */
 export async function createLuxAgentsConductorSessionHost(): Promise<LuxAgentsConductorSessionHost> {
-  const [sessionManager, agentService, workspaceManager, configPaths] = await Promise.all([
+  const [sessionManager, agentService, workspaceManager, configPaths, settingsService] = await Promise.all([
     import('./agent-session-manager'),
     import('./agent-service'),
     import('./agent-workspace-manager'),
     import('./config-paths'),
+    import('./settings-service'),
   ])
   return new LuxAgentsConductorSessionHost({
     createAgentSession: sessionManager.createAgentSession,
@@ -225,6 +232,7 @@ export async function createLuxAgentsConductorSessionHost(): Promise<LuxAgentsCo
     getAgentSessionMessages: sessionManager.getAgentSessionMessages,
     getAgentWorkspace: workspaceManager.getAgentWorkspace,
     getAgentSessionWorkspacePath: configPaths.getAgentSessionWorkspacePath,
+    getDefaultAgentChannelId: () => settingsService.getSettings().agentChannelId,
     getOrchestrator: agentService.getOrchestrator,
   })
 }

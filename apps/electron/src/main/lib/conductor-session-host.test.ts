@@ -41,11 +41,13 @@ function createDependencies(): {
   updates: Array<Record<string, unknown>>
   stopped: string[]
   created: string[]
+  createdChannelIds: Array<string | undefined>
 } {
   const sentInputs: AgentSendInput[] = []
   const updates: Array<Record<string, unknown>> = []
   const stopped: string[] = []
   const created: string[] = []
+  const createdChannelIds: Array<string | undefined> = []
   const persistedMessages: AgentMessage[] = []
   let callbacks: {
     onError: (error: string) => void
@@ -70,8 +72,10 @@ function createDependencies(): {
   const session = createMeta()
 
   const deps: ConductorSessionHostDependencies = {
-    createAgentSession: () => {
+    createAgentSession: (_title, channelId) => {
       created.push(session.id)
+      createdChannelIds.push(channelId)
+      if (channelId !== undefined) session.channelId = channelId
       return session
     },
     getAgentSessionMeta: () => session,
@@ -108,12 +112,14 @@ function createDependencies(): {
     updates,
     stopped,
     created,
+    createdChannelIds,
   }
 }
 
 describe('LuxAgentsConductorSessionHost', () => {
   test('创建 session 时映射 OSS 选项并持久化 Conductor 元数据', async () => {
-    const { deps, updates } = createDependencies()
+    const testDeps = createDependencies()
+    const { deps, updates } = testDeps
     const host = new LuxAgentsConductorSessionHost(deps)
 
     await expect(host.createSession('workspace-1', {
@@ -130,6 +136,7 @@ describe('LuxAgentsConductorSessionHost', () => {
       taskDraft: true,
     })).resolves.toEqual({ id: 'session-1' })
 
+    expect(testDeps.createdChannelIds).toEqual(['channel-1'])
     expect(updates).toEqual([{
       permissionMode: 'bypassPermissions',
       sessionStatus: 'in-progress',
@@ -150,6 +157,32 @@ describe('LuxAgentsConductorSessionHost', () => {
       permissionMode: 'unsupported-mode',
     })).rejects.toThrow('不支持的权限模式: unsupported-mode')
     expect(created).toEqual([])
+  })
+
+  test('未指定显式渠道时，生成 session 使用配置的默认 Agent 渠道', async () => {
+    const testDeps = createDependencies()
+    const deps = Object.assign(testDeps.deps, {
+      getDefaultAgentChannelId: () => 'configured-default-channel',
+    })
+    const host = new LuxAgentsConductorSessionHost(deps)
+
+    await host.createSession('workspace-1', { name: '生成 task' })
+    await host.sendMessage('session-1', '生成 task 内容')
+
+    expect(testDeps.createdChannelIds).toEqual(['configured-default-channel'])
+    expect(testDeps.sentInputs[0]?.channelId).toBe('configured-default-channel')
+  })
+
+  test('子 session 未指定渠道时优先继承父 session 元数据中的渠道', async () => {
+    const testDeps = createDependencies()
+    const deps = Object.assign(testDeps.deps, {
+      getDefaultAgentChannelId: () => 'configured-default-channel',
+    })
+    const host = new LuxAgentsConductorSessionHost(deps)
+
+    await host.createSession('workspace-1', { parentSessionId: 'session-1' })
+
+    expect(testDeps.createdChannelIds).toEqual(['channel-1'])
   })
 
   test('发送消息时映射 AgentSendInput，并将错误与完成回调合并为一次完成事件', async () => {

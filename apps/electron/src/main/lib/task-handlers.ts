@@ -57,6 +57,33 @@ let sessionHostPromise: Promise<LuxAgentsConductorSessionHost> | undefined
 
 const runners = new Map<string, TaskRunner>()
 
+export interface TaskRunnerController {
+  pause(slug: string, runId: string): void
+  stop(slug: string, runId: string): Promise<void>
+}
+
+type TaskRunnerResolver = (workspaceRoot: string, workspaceId: string) => Promise<TaskRunnerController>
+
+export async function pauseTaskRun(
+  resolveRunner: TaskRunnerResolver,
+  workspaceRoot: string,
+  workspaceId: string,
+  slug: string,
+  runId: string,
+): Promise<void> {
+  (await resolveRunner(workspaceRoot, workspaceId)).pause(slug, runId)
+}
+
+export async function stopTaskRun(
+  resolveRunner: TaskRunnerResolver,
+  workspaceRoot: string,
+  workspaceId: string,
+  slug: string,
+  runId: string,
+): Promise<void> {
+  await (await resolveRunner(workspaceRoot, workspaceId)).stop(slug, runId)
+}
+
 function getSessionHost(): Promise<LuxAgentsConductorSessionHost> {
   sessionHostPromise ??= createLuxAgentsConductorSessionHost()
   return sessionHostPromise
@@ -264,17 +291,16 @@ export function registerTaskHandlers(window: BrowserWindow): void {
     return (await getRunnerFor(workspaceRoot, workspaceId)).run(slug, options)
   })
 
-  ipcMain.handle(TASK_IPC_CHANNELS.PAUSE, async (_event, _workspaceRoot: string, workspaceId: string, slug: string, runId: string) => {
-    const runner = runners.get(workspaceId)
-    runner?.pause(slug, runId)
+  ipcMain.handle(TASK_IPC_CHANNELS.PAUSE, async (_event, workspaceRoot: string, workspaceId: string, slug: string, runId: string) => {
+    await pauseTaskRun(getRunnerFor, workspaceRoot, workspaceId, slug, runId)
   })
 
   ipcMain.handle(TASK_IPC_CHANNELS.RESUME, async (_event, workspaceRoot: string, workspaceId: string, slug: string, runId: string) => {
     ;(await getRunnerFor(workspaceRoot, workspaceId)).resume(slug, runId)
   })
 
-  ipcMain.handle(TASK_IPC_CHANNELS.STOP, async (_event, _workspaceRoot: string, workspaceId: string, slug: string, runId: string) => {
-    await runners.get(workspaceId)?.stop(slug, runId)
+  ipcMain.handle(TASK_IPC_CHANNELS.STOP, async (_event, workspaceRoot: string, workspaceId: string, slug: string, runId: string) => {
+    await stopTaskRun(getRunnerFor, workspaceRoot, workspaceId, slug, runId)
   })
 
   ipcMain.handle(TASK_IPC_CHANNELS.GET, (_event, workspaceRoot: string, slug: string) => {
