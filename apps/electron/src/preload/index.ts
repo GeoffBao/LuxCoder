@@ -671,6 +671,7 @@ export interface ElectronAPI {
 
   /** 获取工作区文件目录路径 */
   getWorkspaceFilesPath: (workspaceSlug: string) => Promise<string>
+  getWorkspaceRootPath: (workspaceSlug: string) => Promise<string>
 
   /** 打开文件夹选择对话框 */
   openFolderDialog: () => Promise<{ path: string; name: string } | null>
@@ -1810,6 +1811,10 @@ const electronAPI: ElectronAPI = {
 
   getWorkspaceFilesPath: (workspaceSlug: string) => {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.GET_WORKSPACE_FILES_PATH, workspaceSlug)
+  },
+
+  getWorkspaceRootPath: (workspaceSlug: string) => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.GET_WORKSPACE_ROOT_PATH, workspaceSlug)
   },
 
   openFolderDialog: () => {
