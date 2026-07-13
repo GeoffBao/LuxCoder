@@ -4,6 +4,8 @@
  * 包含 Agent SDK 集成所需的事件类型、会话管理、消息持久化和 IPC 通道常量。
  */
 
+import type { LoadedProject } from '../projects/types'
+
 // ===== 记忆配置 =====
 
 /** 全局记忆配置（MemOS Cloud） */
@@ -576,6 +578,46 @@ export type AgentExternalRunSource = 'feishu' | 'dingtalk' | 'wechat' | 'bridge'
 export type AgentStreamPayload =
   | { kind: 'sdk_message'; message: SDKMessage }
   | { kind: 'luxagents_event'; event: LuxAgentsEvent }
+
+// ===== Kanban / Projects / Tasks IPC 契约 =====
+
+/** Task 生成/校验阶段的轻量错误信息 */
+export interface TaskContractIssue {
+  /** 出错字段路径（可选，兼容全局错误） */
+  path?: string
+  /** 面向用户的错误说明 */
+  message: string
+}
+
+/** projects:changed 推送事件 */
+export interface ProjectsChangedEventPayload {
+  kind: 'projects:changed'
+  workspaceId: string
+  projects: LoadedProject[]
+}
+
+/** tasks:generated 推送事件 */
+export interface TaskGeneratedEventPayload {
+  kind: 'tasks:generated'
+  workspaceId: string
+  orchestratorSessionId: string
+  status: 'saved' | 'invalid' | 'error'
+  slug?: string
+  errors?: TaskContractIssue[]
+}
+
+/** Kanban 迁移阶段新增的 IPC 推送事件 */
+export type KanbanIpcEventPayload =
+  | ProjectsChangedEventPayload
+  | TaskGeneratedEventPayload
+
+/** session:command 的判别式命令契约 */
+export type SessionKanbanCommand =
+  | { kind: 'move_to_workspace'; workspaceId: string }
+  | { kind: 'set_project_id'; projectId?: string }
+  | { kind: 'set_kanban_column'; kanbanColumn: string | null }
+  | { kind: 'set_session_status'; status: string }
+  | { kind: 'set_task_node_count'; taskNodeCount: number }
 
 // ===== Agent 会话管理 =====
 
