@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { ProjectConfig } from '@luxagents/shared/projects';
 import * as projectContracts from '@luxagents/shared/projects';
+import * as projectStorage from '../storage.ts';
 
 describe('projects package export boundary', () => {
   test('package root 仅暴露 renderer-safe contract', () => {
@@ -13,9 +14,11 @@ describe('projects package export boundary', () => {
     };
 
     expect(sampleConfig.slug).toBe('demo');
-    expect(projectContracts).not.toHaveProperty('loadProjectConfig');
-    expect(projectContracts).not.toHaveProperty('saveProjectConfig');
-    expect(projectContracts).not.toHaveProperty('createProject');
-    expect(projectContracts).not.toHaveProperty('deleteProject');
+
+    const leakedStorageExports = Object.keys(projectStorage).filter((exportName) =>
+      Object.prototype.hasOwnProperty.call(projectContracts, exportName),
+    );
+
+    expect(leakedStorageExports).toEqual([]);
   });
 });

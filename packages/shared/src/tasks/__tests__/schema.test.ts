@@ -2,13 +2,15 @@ import { describe, expect, test } from 'bun:test';
 import { TaskSpecSchema, type TaskSpec } from '@luxagents/shared/tasks';
 import * as taskContracts from '@luxagents/shared/tasks';
 import { parseTaskYaml, serializeTaskYaml } from '../storage.ts';
+import * as taskStorage from '../storage.ts';
 
 describe('tasks package contracts', () => {
   test('package root 仅暴露 renderer-safe contract', () => {
-    expect(taskContracts).not.toHaveProperty('parseTaskYaml');
-    expect(taskContracts).not.toHaveProperty('serializeTaskYaml');
-    expect(taskContracts).not.toHaveProperty('saveTaskSpec');
-    expect(taskContracts).not.toHaveProperty('appendRunLog');
+    const leakedStorageExports = Object.keys(taskStorage).filter((exportName) =>
+      Object.prototype.hasOwnProperty.call(taskContracts, exportName),
+    );
+
+    expect(leakedStorageExports).toEqual([]);
   });
 
   test('重复 node id 视为无效 spec', () => {
