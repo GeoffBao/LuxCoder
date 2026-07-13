@@ -136,17 +136,12 @@ export function loadProjectConfig(workspaceRootPath: string, projectSlug: string
   return readJsonFileSafe<ProjectConfig>(configPath);
 }
 
-/** 保存项目 config.json（原子写入，自动更新 updatedAt） */
+/** 保存项目 config.json（原子写入，保持调用方传入的时间戳） */
 export function saveProjectConfig(workspaceRootPath: string, config: ProjectConfig): void {
   const dir = getProjectPath(workspaceRootPath, config.slug);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 
-  const storageConfig: ProjectConfig = {
-    ...config,
-    updatedAt: Date.now(),
-  };
-
-  atomicWriteFileSync(join(dir, 'config.json'), JSON.stringify(storageConfig, null, 2));
+  atomicWriteFileSync(join(dir, 'config.json'), JSON.stringify(config, null, 2));
 }
 
 // ============================================================

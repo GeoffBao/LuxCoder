@@ -20,6 +20,26 @@ afterEach(() => {
   }
 });
 
+function withMockedNow<T>(values: number[], run: () => T): T {
+  const originalNow = Date.now;
+  let index = 0;
+
+  Date.now = () => {
+    const value = values[Math.min(index, values.length - 1)];
+    index += 1;
+    if (value === undefined) {
+      throw new Error('withMockedNow 需要至少一个时间值');
+    }
+    return value;
+  };
+
+  try {
+    return run();
+  } finally {
+    Date.now = originalNow;
+  }
+}
+
 describe('projects package contracts', () => {
   test('package root 仅暴露 renderer-safe contract', () => {
     const sampleConfig: ProjectConfig = {
@@ -72,10 +92,12 @@ describe('workspace project storage', () => {
   test('创建项目会生成 URL-safe 唯一 slug 并持久化 config', () => {
     const workspaceRoot = createTempWorkspaceRoot();
 
-    const firstProject = projectStorage.createProject(workspaceRoot, {
-      name: 'Alpha Project!!!',
-      description: '第一个项目',
-    });
+    const firstProject = withMockedNow([1000, 1001], () =>
+      projectStorage.createProject(workspaceRoot, {
+        name: 'Alpha Project!!!',
+        description: '第一个项目',
+      }),
+    );
     const secondProject = projectStorage.createProject(workspaceRoot, {
       name: 'Alpha Project!!!',
     });
@@ -92,13 +114,17 @@ describe('workspace project storage', () => {
 
     const configPath = join(projectStorage.getProjectPath(workspaceRoot, firstProject.slug), 'config.json');
     const storedConfig = JSON.parse(readFileSync(configPath, 'utf-8')) as {
+      id: string;
       slug: string;
       description?: string;
       absolutePath?: string;
+      updatedAt: number;
     };
 
+    expect(storedConfig.id).toBe(firstProject.id);
     expect(storedConfig.slug).toBe('alpha-project');
     expect(storedConfig.description).toBe('第一个项目');
+    expect(storedConfig.updatedAt).toBe(firstProject.updatedAt);
     expect(storedConfig.absolutePath).toBeUndefined();
 
     const projectFiles = readdirSync(projectStorage.getProjectPath(workspaceRoot, firstProject.slug));
@@ -116,18 +142,55 @@ describe('workspace project storage', () => {
     const memoryPath = projectStorage.getProjectMemoryPath(workspaceRoot, project.slug);
     writeFileSync(memoryPath, '已归档前的记忆', 'utf-8');
 
-    const archived = projectStorage.updateProject(workspaceRoot, project.slug, {
-      archivedAt: 123456789,
-    });
+    const archived = withMockedNow([2000, 2001], () =>
+      projectStorage.updateProject(workspaceRoot, project.slug, {
+        archivedAt: 123456789,
+      }),
+    );
     expect(archived.archivedAt).toBe(123456789);
+    expect(archived.updatedAt).toBe(2000);
 
-    const unarchived = projectStorage.updateProject(workspaceRoot, project.slug, {
-      archivedAt: undefined,
-    });
+    const reloadedArchived = projectStorage.loadProjectConfig(workspaceRoot, project.slug);
+    expect(reloadedArchived).not.toBeNull();
+    expect(reloadedArchived?.archivedAt).toBe(123456789);
+    expect(reloadedArchived?.updatedAt).toBe(archived.updatedAt);
+
+    const unarchived = withMockedNow([3000, 3001], () =>
+      projectStorage.updateProject(workspaceRoot, project.slug, {
+        archivedAt: undefined,
+      }),
+    );
     expect(unarchived.archivedAt).toBeUndefined();
+    expect(unarchived.updatedAt).toBe(3000);
+
+    const reloadedUnarchived = projectStorage.loadProjectConfig(workspaceRoot, project.slug);
+    expect(reloadedUnarchived).not.toBeNull();
+    expect(reloadedUnarchived?.archivedAt).toBeUndefined();
+    expect(reloadedUnarchived?.updatedAt).toBe(unarchived.updatedAt);
 
     expect(projectStorage.listProjectAssets(workspaceRoot, project.slug)).toHaveLength(1);
     expect(projectStorage.readProjectMemory(workspaceRoot, project.slug)).toBe('已归档前的记忆');
+  });
+
+  test('更新项目后返回值与重载 config.json 的 updatedAt 完全一致', () => {
+    const workspaceRoot = createTempWorkspaceRoot();
+    const project = projectStorage.createProject(workspaceRoot, {
+      name: 'Timestamp Project',
+      description: 'before',
+    });
+
+    const updated = withMockedNow([4000, 4001], () =>
+      projectStorage.updateProject(workspaceRoot, project.slug, {
+        description: 'after',
+      }),
+    );
+
+    expect(updated.description).toBe('after');
+
+    const reloaded = projectStorage.loadProjectConfig(workspaceRoot, project.slug);
+    expect(reloaded).not.toBeNull();
+    expect(reloaded?.description).toBe('after');
+    expect(reloaded?.updatedAt).toBe(updated.updatedAt);
   });
 
   test('上传资产会保留 runtime absolutePath，并拒绝不安全路径名', () => {
