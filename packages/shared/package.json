@@ -10,7 +10,8 @@
     ".": "./src/index.ts",
     "./types": "./src/types/index.ts",
     "./config": "./src/config/index.ts",
-    "./utils": "./src/utils/index.ts"
+    "./utils": "./src/utils/index.ts",
+    "./projects": "./src/projects/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
