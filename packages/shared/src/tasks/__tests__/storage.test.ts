@@ -208,6 +208,38 @@ describe('task storage', () => {
     ]);
   });
 
+  test('readRunLog 会保留 run-started 的 params 与 verifyOnComplete', () => {
+    const workspaceRoot = createTempWorkspaceRoot();
+    const slug = 'demo-task';
+    const runId = 'run-1';
+
+    appendRunLog(workspaceRoot, slug, runId, {
+      t: '2026-07-13T00:00:00.000Z',
+      kind: 'run-started',
+      taskId: slug,
+      runId,
+      params: {
+        topic: 'alpha',
+        count: 2,
+      },
+      verifyOnComplete: false,
+    });
+
+    expect(readRunLog(workspaceRoot, slug, runId)).toEqual([
+      {
+        t: '2026-07-13T00:00:00.000Z',
+        kind: 'run-started',
+        taskId: slug,
+        runId,
+        params: {
+          topic: 'alpha',
+          count: 2,
+        },
+        verifyOnComplete: false,
+      },
+    ]);
+  });
+
   test('run spec snapshot 按 runId 隔离存储', () => {
     const workspaceRoot = createTempWorkspaceRoot();
     const slug = 'demo-task';

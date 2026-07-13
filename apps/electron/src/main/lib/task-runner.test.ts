@@ -351,4 +351,60 @@ describe('TaskRunner', () => {
     expect(rehydratedHost.sentMessages.get(reviewSessionId ?? '')?.[0]).toContain('review draft output')
     expect(rehydratedHost.sentMessages.get(reviewSessionId ?? '')?.[0]).not.toContain('MUTATED')
   })
+
+  test('rehydrate 会恢复运行参数与 verifyOnComplete，避免受 live task.yaml 漂移影响', async () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    saveTaskSpec(workspaceRoot, buildSpec({
+      params: [
+        { name: 'topic', type: 'string', default: 'beta' },
+      ],
+      nodes: [
+        { id: 'draft', kind: 'session', prompt: 'draft ${params.topic}' },
+        { id: 'review', kind: 'session', prompt: 'review ${params.topic} ${nodes.draft.output}', depends_on: ['draft'] },
+      ],
+    }))
+
+    const firstHost = new FakeConductorSessionHost()
+    const firstRunner = createRunner(workspaceRoot, firstHost)
+    firstRunner.run('demo-task', {
+      orchestratorSessionId: 'orchestrator-1',
+      params: { topic: 'alpha' },
+      verifyOnComplete: false,
+    })
+    await flushAsyncWork()
+
+    saveTaskSpec(workspaceRoot, buildSpec({
+      params: [
+        { name: 'topic', type: 'string', default: 'gamma' },
+      ],
+      nodes: [
+        { id: 'draft', kind: 'session', prompt: 'draft ${params.topic} (mutated)' },
+        { id: 'review', kind: 'session', prompt: 'MUTATED ${params.topic} ${nodes.draft.output}', depends_on: ['draft'] },
+      ],
+    }))
+
+    const rehydratedHost = new FakeConductorSessionHost()
+    const rehydratedRunner = createRunner(workspaceRoot, rehydratedHost)
+
+    rehydratedRunner.resume('demo-task', 'run-1')
+    await flushAsyncWork()
+
+    rehydratedHost.completeSession('session-1', { workspaceId: 'ws-1', finalText: 'draft output' })
+    await flushAsyncWork()
+
+    expect(rehydratedHost.createdSessions.map((session) => session.options.taskNodeId)).toEqual(['review'])
+    const reviewSessionId = rehydratedHost.createdSessions[0]?.id
+    expect(reviewSessionId).toBeDefined()
+    expect(rehydratedHost.sentMessages.get(reviewSessionId ?? '')?.[0]).toContain('review alpha draft output')
+    expect(rehydratedHost.sentMessages.get(reviewSessionId ?? '')?.[0]).not.toContain('MUTATED')
+
+    rehydratedHost.completeSession(reviewSessionId ?? '', { workspaceId: 'ws-1', finalText: 'reviewed alpha' })
+
+    await expect(rehydratedRunner.waitUntilSettled('demo-task', 'run-1')).resolves.toEqual(
+      expect.objectContaining({
+        status: 'completed',
+      }),
+    )
+    expect(rehydratedHost.sentMessages.has('orchestrator-1')).toBe(false)
+  })
 })

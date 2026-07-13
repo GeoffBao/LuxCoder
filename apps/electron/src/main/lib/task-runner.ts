@@ -126,6 +126,7 @@ const INPUTS_REF_RE = /\$\{\s*inputs\.([a-zA-Z_][a-zA-Z0-9_]*)\s*\}/g;
 
 type DistributiveOmit<T, K extends keyof T> = T extends unknown ? Omit<T, K> : never;
 type RunLogEntryInput = DistributiveOmit<RunLogEntry, 't'>;
+type RunStartedLogEntry = Extract<RunLogEntry, { kind: 'run-started' }>;
 
 interface NodeStateEntry {
   state: NodeRunState;
@@ -175,7 +176,14 @@ class ActiveRun {
     try {
       writeRunSpecSnapshot(this.deps.workspaceRoot, this.slug, this.runId, this.spec);
     } catch { /* ignore */ }
-    this.log({ kind: 'run-started', taskId: this.spec.id, runId: this.runId, orchestratorSessionId: this.opts.orchestratorSessionId });
+    this.log({
+      kind: 'run-started',
+      taskId: this.spec.id,
+      runId: this.runId,
+      orchestratorSessionId: this.opts.orchestratorSessionId,
+      params: this.opts.params,
+      verifyOnComplete: this.opts.verifyOnComplete,
+    });
     this.runStatus = 'running';
     if (this.opts.orchestratorSessionId) {
       void this.deps.host.setKanbanColumn(this.opts.orchestratorSessionId, 'in-progress');
@@ -676,11 +684,15 @@ export class TaskRunner {
     })();
     const log = readRunLog(this.deps.workspaceRoot, slug, runId);
     if (log.length === 0) throw new Error(`无法恢复 "${slug}:${runId}"：没有运行日志`);
-    const started = log.find((e) => e.kind === 'run-started');
-    const orchestratorSessionId = started && started.kind === 'run-started' ? started.orchestratorSessionId : undefined;
+    const started = log.find((entry): entry is RunStartedLogEntry => entry.kind === 'run-started');
+    const orchestratorSessionId = started?.orchestratorSessionId;
     const run = new ActiveRun(
       spec, slug, runId,
-      { orchestratorSessionId, params: resolveParams(spec), verifyOnComplete: true },
+      {
+        orchestratorSessionId,
+        params: started?.params ?? resolveParams(spec),
+        verifyOnComplete: started?.verifyOnComplete ?? true,
+      },
       this.deps,
     );
     run.hydrate(log, (nodeId) => readNodeOutput(this.deps.workspaceRoot, slug, runId, nodeId));

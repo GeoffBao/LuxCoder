@@ -30,7 +30,15 @@ const NODES_DIR = 'nodes';
 export type NodeRunState = 'pending' | 'running' | 'done' | 'failed' | 'cancelled' | 'skipped';
 
 export type RunLogEntry =
-  | { t: string; kind: 'run-started'; taskId: string; runId: string; orchestratorSessionId?: string }
+  | {
+      t: string;
+      kind: 'run-started';
+      taskId: string;
+      runId: string;
+      orchestratorSessionId?: string;
+      params?: Record<string, unknown>;
+      verifyOnComplete?: boolean;
+    }
   | { t: string; kind: 'node-scheduled'; nodeId: string }
   | { t: string; kind: 'node-spawned'; nodeId: string; sessionId: string }
   | { t: string; kind: 'node-finished'; nodeId: string; sessionId: string; state: NodeRunState; reason?: string }
@@ -52,6 +60,8 @@ const RunLogEntrySchema = z.discriminatedUnion('kind', [
     taskId: z.string(),
     runId: z.string(),
     orchestratorSessionId: z.string().optional(),
+    params: z.record(z.string(), z.unknown()).optional(),
+    verifyOnComplete: z.boolean().optional(),
   }),
   z.object({
     t: z.string(),
