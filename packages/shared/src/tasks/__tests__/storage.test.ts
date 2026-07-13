@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import type { TaskSpec } from '../schema.ts';
@@ -72,6 +72,46 @@ describe('task storage', () => {
     expect(readdirSync(taskDir(workspaceRoot, second.id)).some((entry) => entry.endsWith('.tmp'))).toBe(false);
   });
 
+  test('saveTaskSpec 会拒绝 depends_on 指向未知节点的 spec', () => {
+    const workspaceRoot = createTempWorkspaceRoot();
+    const invalid = buildSpec({
+      nodes: [
+        {
+          id: 'draft',
+          kind: 'session',
+          prompt: 'draft the task',
+          depends_on: ['missing-node'],
+        },
+      ],
+    });
+
+    expect(() => saveTaskSpec(workspaceRoot, invalid)).toThrow(/未知节点|无效/i);
+    expect(existsSync(taskDir(workspaceRoot, invalid.id))).toBe(false);
+  });
+
+  test('saveTaskSpec 会拒绝存在循环依赖的 spec', () => {
+    const workspaceRoot = createTempWorkspaceRoot();
+    const invalid = buildSpec({
+      nodes: [
+        {
+          id: 'draft',
+          kind: 'session',
+          prompt: 'draft the task',
+          depends_on: ['review'],
+        },
+        {
+          id: 'review',
+          kind: 'session',
+          prompt: 'review the task',
+          depends_on: ['draft'],
+        },
+      ],
+    });
+
+    expect(() => saveTaskSpec(workspaceRoot, invalid)).toThrow(/循环|无效/i);
+    expect(existsSync(taskDir(workspaceRoot, invalid.id))).toBe(false);
+  });
+
   test('readRunLog 会跳过损坏的最终 JSONL 行，rehydrate 不会误判节点成功', () => {
     const workspaceRoot = createTempWorkspaceRoot();
     const slug = 'demo-task';
@@ -112,6 +152,62 @@ describe('task storage', () => {
     });
   });
 
+  test('readRunLog 会跳过合法 JSON 但缺少 kind、必需字段或非法 state 的行', () => {
+    const workspaceRoot = createTempWorkspaceRoot();
+    const slug = 'demo-task';
+    const runId = 'run-1';
+    const logPath = join(runDir(workspaceRoot, slug, runId), 'run-log.jsonl');
+
+    appendRunLog(workspaceRoot, slug, runId, {
+      t: '2026-07-13T00:00:00.000Z',
+      kind: 'run-started',
+      taskId: slug,
+      runId,
+    });
+
+    writeFileSync(
+      logPath,
+      [
+        readFileSync(logPath, 'utf-8').trimEnd(),
+        JSON.stringify({ t: '2026-07-13T00:00:01.000Z', nodeId: 'draft' }),
+        JSON.stringify({ t: '2026-07-13T00:00:02.000Z', kind: 'node-spawned', nodeId: 'draft' }),
+        JSON.stringify({
+          t: '2026-07-13T00:00:03.000Z',
+          kind: 'node-finished',
+          nodeId: 'draft',
+          sessionId: 'session-1',
+          state: 'broken',
+        }),
+        JSON.stringify({
+          t: '2026-07-13T00:00:04.000Z',
+          kind: 'node-finished',
+          nodeId: 'draft',
+          sessionId: 'session-1',
+          state: 'done',
+        }),
+        '',
+      ].join('\n'),
+      'utf-8',
+    );
+
+    const log = readRunLog(workspaceRoot, slug, runId);
+    expect(log).toEqual([
+      {
+        t: '2026-07-13T00:00:00.000Z',
+        kind: 'run-started',
+        taskId: slug,
+        runId,
+      },
+      {
+        t: '2026-07-13T00:00:04.000Z',
+        kind: 'node-finished',
+        nodeId: 'draft',
+        sessionId: 'session-1',
+        state: 'done',
+      },
+    ]);
+  });
+
   test('run spec snapshot 按 runId 隔离存储', () => {
     const workspaceRoot = createTempWorkspaceRoot();
     const slug = 'demo-task';
@@ -126,6 +222,25 @@ describe('task storage', () => {
 
     expect(readRunSpecSnapshot(workspaceRoot, slug, 'run-1')).toEqual(first);
     expect(readRunSpecSnapshot(workspaceRoot, slug, 'run-2')).toEqual(second);
+  });
+
+  test('readRunSpecSnapshot 在结构无效时返回 null', () => {
+    const workspaceRoot = createTempWorkspaceRoot();
+    const slug = 'demo-task';
+    const runId = 'run-1';
+
+    mkdirSync(runDir(workspaceRoot, slug, runId), { recursive: true });
+    writeFileSync(
+      join(runDir(workspaceRoot, slug, runId), 'spec.json'),
+      JSON.stringify({
+        id: slug,
+        title: 'Broken snapshot',
+        goal: 'missing nodes',
+      }),
+      'utf-8',
+    );
+
+    expect(readRunSpecSnapshot(workspaceRoot, slug, runId)).toBeNull();
   });
 
   test('节点输出可持久化并回读', () => {
@@ -148,6 +263,26 @@ describe('task storage', () => {
         count: 2,
       },
     });
+  });
+
+  test('readNodeOutput 在缺少 text 时返回 null', () => {
+    const workspaceRoot = createTempWorkspaceRoot();
+    const slug = 'demo-task';
+    const runId = 'run-1';
+    const outputPath = join(runDir(workspaceRoot, slug, runId), 'nodes', 'draft.json');
+
+    mkdirSync(join(runDir(workspaceRoot, slug, runId), 'nodes'), { recursive: true });
+    writeFileSync(
+      outputPath,
+      JSON.stringify({
+        params: {
+          summary: 'only params',
+        },
+      }),
+      'utf-8',
+    );
+
+    expect(readNodeOutput(workspaceRoot, slug, runId, 'draft')).toBeNull();
   });
 
   test('rehydrate 会把缺失输出文件的 done 节点回退为 pending', () => {

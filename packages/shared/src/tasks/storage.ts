@@ -13,8 +13,8 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, appendFileSync, write
 import { join } from 'path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { validateTaskInput } from './validate.ts';
-import { TaskSpecSchema, type TaskSpec } from './schema.ts';
-import type { NodeOutput } from './refs.ts';
+import { z, type TaskSpec } from './schema.ts';
+import { NodeOutputSchema, type NodeOutput } from './refs.ts';
 import type { ValidationResult, ValidationIssue } from './validate.ts';
 
 const TASKS_DIR = 'tasks';
@@ -44,6 +44,60 @@ export interface RehydratedNodeState {
   sessionId?: string;
   attempt: number;
 }
+
+const RunLogEntrySchema = z.discriminatedUnion('kind', [
+  z.object({
+    t: z.string(),
+    kind: z.literal('run-started'),
+    taskId: z.string(),
+    runId: z.string(),
+    orchestratorSessionId: z.string().optional(),
+  }),
+  z.object({
+    t: z.string(),
+    kind: z.literal('node-scheduled'),
+    nodeId: z.string(),
+  }),
+  z.object({
+    t: z.string(),
+    kind: z.literal('node-spawned'),
+    nodeId: z.string(),
+    sessionId: z.string(),
+  }),
+  z.object({
+    t: z.string(),
+    kind: z.literal('node-finished'),
+    nodeId: z.string(),
+    sessionId: z.string(),
+    state: z.enum(['pending', 'running', 'done', 'failed', 'cancelled', 'skipped']),
+    reason: z.string().optional(),
+  }),
+  z.object({
+    t: z.string(),
+    kind: z.literal('node-retry'),
+    nodeId: z.string(),
+    attempt: z.number(),
+    reason: z.string(),
+  }),
+  z.object({
+    t: z.string(),
+    kind: z.enum(['run-paused', 'run-resumed', 'run-stopped', 'run-completed', 'run-failed', 'run-verifying']),
+  }),
+  z.object({
+    t: z.string(),
+    kind: z.literal('verdict'),
+    result: z.enum(['pass', 'fail', 'unparsed']),
+    reason: z.string().optional(),
+    nodes: z.array(z.string()).optional(),
+  }),
+  z.object({
+    t: z.string(),
+    kind: z.literal('budget-breach'),
+    metric: z.enum(['tokens', 'parallel', 'iterations']),
+    value: z.number(),
+    limit: z.number(),
+  }),
+]);
 
 // ---------------------------------------------------------------------------
 // 路径辅助
@@ -111,12 +165,13 @@ export function loadTaskSpec(workspaceRoot: string, slug: string): (ValidationRe
 
 /** 写入 spec 到磁盘。先通过 Zod 验证格式。 */
 export function saveTaskSpec(workspaceRoot: string, spec: TaskSpec): void {
-  const parsed = TaskSpecSchema.safeParse(spec);
-  if (!parsed.success) {
-    throw new Error(`拒绝保存无效的 task spec: ${parsed.error.issues.map((i) => i.message).join('; ')}`);
+  const validation = validateTaskInput(spec);
+  if (!validation.valid || !validation.spec) {
+    const messages = validation.errors.map((issue) => `${issue.path}: ${issue.message}`).join('; ');
+    throw new Error(`拒绝保存无效的 task spec: ${messages}`);
   }
-  ensureDir(taskDir(workspaceRoot, parsed.data.id));
-  atomicWriteSync(taskYamlPath(workspaceRoot, parsed.data.id), serializeTaskYaml(parsed.data));
+  ensureDir(taskDir(workspaceRoot, validation.spec.id));
+  atomicWriteSync(taskYamlPath(workspaceRoot, validation.spec.id), serializeTaskYaml(validation.spec));
 }
 
 /** 列出所有 task slug（包含 task.yaml 的 tasks/ 子目录） */
@@ -149,7 +204,10 @@ export function readRunLog(workspaceRoot: string, slug: string, runId: string): 
     const trimmed = line.trim();
     if (!trimmed) continue;
     try {
-      out.push(JSON.parse(trimmed) as RunLogEntry);
+      const parsed = RunLogEntrySchema.safeParse(JSON.parse(trimmed));
+      if (parsed.success) {
+        out.push(parsed.data);
+      }
     } catch {
       // 跳过损坏/截断的行
     }
@@ -241,7 +299,8 @@ export function readRunSpecSnapshot(workspaceRoot: string, slug: string, runId: 
   const path = join(runDir(workspaceRoot, slug, runId), RUN_SPEC);
   if (!existsSync(path)) return null;
   try {
-    return JSON.parse(readFileSync(path, 'utf-8')) as TaskSpec;
+    const parsed = validateTaskInput(JSON.parse(readFileSync(path, 'utf-8')));
+    return parsed.valid ? (parsed.spec ?? null) : null;
   } catch {
     return null;
   }
@@ -261,7 +320,8 @@ export function readNodeOutput(workspaceRoot: string, slug: string, runId: strin
   const path = join(runDir(workspaceRoot, slug, runId), NODES_DIR, `${nodeId}.json`);
   if (!existsSync(path)) return null;
   try {
-    return JSON.parse(readFileSync(path, 'utf-8')) as NodeOutput;
+    const parsed = NodeOutputSchema.safeParse(JSON.parse(readFileSync(path, 'utf-8')));
+    return parsed.success ? parsed.data : null;
   } catch {
     return null;
   }

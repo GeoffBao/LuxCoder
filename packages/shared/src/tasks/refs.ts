@@ -10,7 +10,7 @@
  * 参照 OSS: packages/shared/src/tasks/refs.ts
  */
 
-import type { InputRef } from './schema.ts';
+import { z, type InputRef } from './schema.ts';
 
 export interface NodeRef {
   kind: 'node';
@@ -31,6 +31,11 @@ export interface NodeOutput {
   text: string;
   params?: Record<string, unknown>;
 }
+
+export const NodeOutputSchema = z.object({
+  text: z.string(),
+  params: z.record(z.string(), z.unknown()).optional(),
+});
 
 export interface InterpolationContext {
   nodeOutputs: Record<string, NodeOutput>;
