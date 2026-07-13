@@ -24,6 +24,12 @@ import { getAgentWorkspacePath } from './config-paths'
 const WorkspaceIdSchema = z.string().min(1, 'workspaceId 必填')
 const TaskSlugSchema = z.string().regex(/^[a-z0-9][a-z0-9-]*$/, 'task slug 必须是 URL-safe slug')
 const RunIdSchema = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/, 'runId 必须是安全的路径片段')
+const NodeRelatedRunLogKinds = new Set<RunLogEntry['kind']>([
+  'node-scheduled',
+  'node-spawned',
+  'node-finished',
+  'node-retry',
+])
 
 export interface TaskRunState {
   taskSlug: string
@@ -132,9 +138,14 @@ export class TaskRepository {
       return null
     }
 
-    const nodeIds = spec?.nodes.map((node) => node.id) ?? []
+    const nodeIds = new Set(spec?.nodes.map((node) => node.id) ?? [])
+    for (const entry of log) {
+      if (NodeRelatedRunLogKinds.has(entry.kind)) {
+        nodeIds.add(entry.nodeId)
+      }
+    }
     const nodeOutputs: Record<string, NodeOutput> = {}
-    const nodeStates = rehydrateNodeStates(nodeIds, log, (nodeId) => {
+    const nodeStates = rehydrateNodeStates(Array.from(nodeIds), log, (nodeId) => {
       const output = readNodeOutput(workspaceRoot, slug, parsedRunId, nodeId)
       if (output) {
         nodeOutputs[nodeId] = output

@@ -26,6 +26,25 @@ import { getAgentWorkspacePath } from './config-paths'
 
 const WorkspaceIdSchema = z.string().min(1, 'workspaceId 必填')
 const ProjectSlugSchema = z.string().regex(/^[a-z0-9][a-z0-9-]*$/, 'project slug 必须是 URL-safe slug')
+const ProjectNameSchema = z.string().trim().min(1, '项目名称不能为空')
+const OptionalProjectStringSchema = z.string().optional()
+const CreateProjectInputSchema = z.object({
+  name: ProjectNameSchema,
+  description: OptionalProjectStringSchema,
+  workingDirectory: OptionalProjectStringSchema,
+  details: OptionalProjectStringSchema,
+  colorTheme: OptionalProjectStringSchema,
+  color: OptionalProjectStringSchema,
+})
+const UpdateProjectInputSchema = z.object({
+  name: ProjectNameSchema.optional(),
+  description: OptionalProjectStringSchema,
+  workingDirectory: OptionalProjectStringSchema,
+  details: OptionalProjectStringSchema,
+  colorTheme: OptionalProjectStringSchema,
+  color: OptionalProjectStringSchema,
+  archivedAt: z.number().optional(),
+})
 
 export interface ProjectRepositoryOptions {
   resolveWorkspaceRoot?: (workspaceId: string) => string
@@ -51,6 +70,14 @@ export class ProjectRepository {
     return ProjectSlugSchema.parse(projectSlug)
   }
 
+  private parseCreateProjectInput(input: CreateProjectInput): CreateProjectInput {
+    return CreateProjectInputSchema.parse(input)
+  }
+
+  private parseUpdateProjectInput(input: UpdateProjectInput): UpdateProjectInput {
+    return UpdateProjectInputSchema.parse(input)
+  }
+
   listProjects(workspaceId: string): LoadedProject[] {
     return loadWorkspaceProjects(this.resolveWorkspaceRoot(workspaceId))
   }
@@ -60,14 +87,17 @@ export class ProjectRepository {
   }
 
   createProject(workspaceId: string, input: CreateProjectInput): ProjectConfig {
-    return createProjectInStorage(this.resolveWorkspaceRoot(workspaceId), input)
+    return createProjectInStorage(
+      this.resolveWorkspaceRoot(workspaceId),
+      this.parseCreateProjectInput(input),
+    )
   }
 
   updateProject(workspaceId: string, projectSlug: string, input: UpdateProjectInput): ProjectConfig {
     return updateProjectInStorage(
       this.resolveWorkspaceRoot(workspaceId),
       this.parseProjectSlug(projectSlug),
-      input,
+      this.parseUpdateProjectInput(input),
     )
   }
 

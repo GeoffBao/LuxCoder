@@ -58,6 +58,43 @@ describe('ProjectRepository', () => {
     expect(() => repository.deleteProject('ws-alpha', '../escape')).toThrow(/slug/i)
   })
 
+  test('createProject 在委托 Shared storage 前拒绝无效运行时输入', () => {
+    const repository = createRepository({ 'ws-alpha': createTempWorkspaceRoot() })
+
+    const invalidCreateInputs = [
+      [{ name: '' }, /name/i],
+      [{ name: '   ' }, /name/i],
+      [{ name: 'Proma', description: 123 }, /description/i],
+      [{ name: 'Proma', workingDirectory: ['not-a-path'] }, /workingDirectory/i],
+      [{ name: 'Proma', details: { note: 'bad' } }, /details/i],
+      [{ name: 'Proma', colorTheme: true }, /colorTheme/i],
+      [{ name: 'Proma', color: 8080 }, /color/i],
+    ] as const
+
+    for (const [input, errorPattern] of invalidCreateInputs) {
+      expect(() => repository.createProject('ws-alpha', input as never)).toThrow(errorPattern)
+    }
+  })
+
+  test('updateProject 在委托 Shared storage 前拒绝无效运行时输入', () => {
+    const repository = createRepository({ 'ws-alpha': createTempWorkspaceRoot() })
+    const created = repository.createProject('ws-alpha', { name: 'Proma' })
+
+    const invalidUpdateInputs = [
+      [{ name: '' }, /name/i],
+      [{ description: 123 }, /description/i],
+      [{ workingDirectory: ['not-a-path'] }, /workingDirectory/i],
+      [{ details: { note: 'bad' } }, /details/i],
+      [{ colorTheme: true }, /colorTheme/i],
+      [{ color: 8080 }, /color/i],
+      [{ archivedAt: 'yesterday' }, /archivedAt/i],
+    ] as const
+
+    for (const [input, errorPattern] of invalidUpdateInputs) {
+      expect(() => repository.updateProject('ws-alpha', created.slug, input as never)).toThrow(errorPattern)
+    }
+  })
+
   test('通过 Shared storage 读写项目、资产和 Memory', () => {
     const repository = createRepository({ 'ws-alpha': createTempWorkspaceRoot() })
 

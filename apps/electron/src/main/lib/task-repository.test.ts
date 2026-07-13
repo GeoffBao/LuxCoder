@@ -152,4 +152,67 @@ describe('TaskRepository', () => {
       }),
     )
   })
+
+  test('getRunState 在 spec 缺失时也会从 run-log 节点事件恢复 nodeStates', () => {
+    const repository = createRepository({ 'ws-alpha': createTempWorkspaceRoot() })
+
+    repository.appendRunLog('ws-alpha', 'orphan-task', 'run-2', {
+      t: '2026-07-13T00:10:00.000Z',
+      kind: 'run-started',
+      taskId: 'orphan-task',
+      runId: 'run-2',
+    })
+    repository.appendRunLog('ws-alpha', 'orphan-task', 'run-2', {
+      t: '2026-07-13T00:10:01.000Z',
+      kind: 'node-scheduled',
+      nodeId: 'draft',
+    })
+    repository.appendRunLog('ws-alpha', 'orphan-task', 'run-2', {
+      t: '2026-07-13T00:10:02.000Z',
+      kind: 'node-spawned',
+      nodeId: 'draft',
+      sessionId: 'session-2',
+    })
+    repository.appendRunLog('ws-alpha', 'orphan-task', 'run-2', {
+      t: '2026-07-13T00:10:03.000Z',
+      kind: 'node-finished',
+      nodeId: 'draft',
+      sessionId: 'session-2',
+      state: 'done',
+    })
+    repository.appendRunLog('ws-alpha', 'orphan-task', 'run-2', {
+      t: '2026-07-13T00:10:04.000Z',
+      kind: 'node-retry',
+      nodeId: 'retry-only',
+      attempt: 2,
+      reason: 'transient',
+    })
+    repository.writeNodeOutput('ws-alpha', 'orphan-task', 'run-2', 'draft', {
+      text: 'recovered',
+      params: { summary: 'rehydrated' },
+    })
+
+    expect(repository.getRunState('ws-alpha', 'orphan-task', 'run-2')).toEqual(
+      expect.objectContaining({
+        spec: null,
+        nodeOutputs: {
+          draft: {
+            text: 'recovered',
+            params: { summary: 'rehydrated' },
+          },
+        },
+        nodeStates: {
+          draft: {
+            attempt: 1,
+            sessionId: 'session-2',
+            state: 'done',
+          },
+          'retry-only': {
+            attempt: 0,
+            state: 'pending',
+          },
+        },
+      }),
+    )
+  })
 })
