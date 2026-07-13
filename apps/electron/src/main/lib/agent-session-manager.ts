@@ -372,9 +372,11 @@ function convertLegacyMessage(legacy: AgentMessage): SDKMessage {
 /**
  * 更新会话元数据
  */
+export type AgentSessionMetaUpdates = Partial<Pick<AgentSessionMeta, 'title' | 'channelId' | 'modelId' | 'sdkSessionId' | 'workspaceId' | 'pinned' | 'archived' | 'attachedDirectories' | 'attachedFiles' | 'forkSourceDir' | 'forkSourceSdkSessionId' | 'resumeAtMessageUuid' | 'stoppedByUser' | 'sessionStatus' | 'permissionMode' | 'completedButUnconfirmed' | 'sourceAutomationId' | 'automationGraduated' | 'parentSessionId' | 'rootSessionId' | 'sourceDelegationId' | 'delegationRole' | 'delegationStatus' | 'delegationDepth' | 'delegationGoal' | 'origin' | 'workTaskId' | 'projectId' | 'kanbanColumn' | 'taskSlug' | 'taskRunId' | 'taskNodeId' | 'taskNodeCount' | 'taskDraft'>>
+
 export function updateAgentSessionMeta(
   id: string,
-  updates: Partial<Pick<AgentSessionMeta, 'title' | 'channelId' | 'modelId' | 'sdkSessionId' | 'workspaceId' | 'pinned' | 'archived' | 'attachedDirectories' | 'attachedFiles' | 'forkSourceDir' | 'forkSourceSdkSessionId' | 'resumeAtMessageUuid' | 'stoppedByUser' | 'permissionMode' | 'completedButUnconfirmed' | 'sourceAutomationId' | 'automationGraduated' | 'parentSessionId' | 'rootSessionId' | 'sourceDelegationId' | 'delegationRole' | 'delegationStatus' | 'delegationDepth' | 'delegationGoal' | 'projectId' | 'kanbanColumn' | 'taskSlug' | 'taskRunId' | 'taskNodeId' | 'taskNodeCount' | 'taskDraft'>>,
+  updates: AgentSessionMetaUpdates,
 ): AgentSessionMeta {
   const index = readIndex()
   const idx = index.sessions.findIndex((s) => s.id === id)
@@ -399,6 +401,26 @@ export function updateAgentSessionMeta(
 
   console.log(`[Agent 会话] 已更新会话: ${updated.title} (${updated.id})`)
   return updated
+}
+
+/** 更新 Conductor 运行状态，不修改会话标题。 */
+export function setSessionStatus(id: string, status: string): AgentSessionMeta {
+  return updateAgentSessionMeta(id, { sessionStatus: status })
+}
+
+/** 更新会话看板列；传入 null 时清除列值。 */
+export function setKanbanColumn(id: string, column: string | null): AgentSessionMeta {
+  return updateAgentSessionMeta(id, { kanbanColumn: column ?? undefined })
+}
+
+/** 更新 Conductor 节点总数。 */
+export function setTaskNodeCount(id: string, count: number): AgentSessionMeta {
+  return updateAgentSessionMeta(id, { taskNodeCount: count })
+}
+
+/** 更新会话所属项目 ID。 */
+export function setSessionProjectId(id: string, projectId: string): AgentSessionMeta {
+  return updateAgentSessionMeta(id, { projectId })
 }
 
 /**

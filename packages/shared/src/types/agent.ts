@@ -660,6 +660,8 @@ export interface AgentSessionMeta {
   completedButUnconfirmed?: boolean
   /** 最后一次流式执行是否被用户主动中断 */
   stoppedByUser?: boolean
+  /** Conductor 当前运行状态，与标题和看板列独立持久化 */
+  sessionStatus?: string
   /** 该会话当前的权限模式（持久化到磁盘，重启后恢复）。未设置时新会话默认 auto */
   permissionMode?: LuxAgentsPermissionMode
   /** 来源定时任务 ID（该会话由定时任务自动创建/复用时标记，用于侧栏显示钟表图标 + 跳转设置） */
@@ -683,6 +685,24 @@ export interface AgentSessionMeta {
   delegationDepth?: number
   /** 委派目标摘要，便于 UI 展示和追溯 */
   delegationGoal?: string
+  /** 会话来源：'work' 表示由 Work 模式闭环编排创建（见 WorkTask.agentSessionId 反向关联） */
+  origin?: 'work'
+  /** 来源 Work 任务 displayId（origin: 'work' 时必有） */
+  workTaskId?: string
+  /** 绑定的项目 ID（project.config.id），看板过滤用 */
+  projectId?: string
+  /** 看板列 ID（'todo' | 'in-progress' | 'done'），与 sessionStatus 独立 */
+  kanbanColumn?: string
+  /** Tasks Conductor: 所属 task spec slug */
+  taskSlug?: string
+  /** Tasks Conductor: 所属 run id */
+  taskRunId?: string
+  /** Tasks Conductor: DAG 节点 id */
+  taskNodeId?: string
+  /** Tasks Conductor: orchestrator 上的 DAG 总节点数（看板进度分母） */
+  taskNodeCount?: number
+  /** Tasks Conductor: generate 时的草稿标记（adopt 前不在看板显示） */
+  taskDraft?: boolean
   /** 创建时间戳 */
   createdAt: number
   /** 更新时间戳 */
@@ -960,10 +980,12 @@ export interface AgentSendInput {
   mentionedSessionIds?: string[]
   /** 渲染进程生成的流式开始时间戳，主进程原样回传到 STREAM_COMPLETE，确保竞态保护比较的是同一个值 */
   startedAt?: number
-  /** 触发来源：用户手动、定时任务、父 Agent 委派（用于 UI 区分标记） */
-  triggeredBy?: 'user' | 'automation' | 'delegation'
+  /** 触发来源：用户手动、定时任务、父 Agent 委派、Work 模式闭环编排（用于 UI 区分标记） */
+  triggeredBy?: 'user' | 'automation' | 'delegation' | 'work'
   /** 定时任务执行上下文（注入到系统提示词，用户不可见） */
   automationContext?: string
+  /** Work 模式任务上下文（THO 组装出的 systemPrompt，注入到系统提示词，用户不可见） */
+  workContext?: string
 }
 
 // ===== Agent 队列消息 =====
