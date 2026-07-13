@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { TaskSpec } from '@luxagents/shared/tasks/schema'
-import { saveTaskSpec } from '@luxagents/shared/tasks/storage'
+import { appendRunLog, saveTaskSpec, writeRunSpecSnapshot } from '@luxagents/shared/tasks/storage'
 import {
   TaskRunner,
   type ConductorSessionHost,
@@ -406,5 +406,70 @@ describe('TaskRunner', () => {
       }),
     )
     expect(rehydratedHost.sentMessages.has('orchestrator-1')).toBe(false)
+  })
+
+  test('legacy rehydrate 使用 spec 默认参数并默认进入 verifyOnComplete', async () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    const originalSpec = buildSpec({
+      params: [
+        { name: 'topic', type: 'string', default: 'alpha' },
+      ],
+      nodes: [
+        { id: 'draft', kind: 'session', prompt: 'draft ${params.topic}' },
+        { id: 'review', kind: 'session', prompt: 'review ${params.topic} ${nodes.draft.output}', depends_on: ['draft'] },
+      ],
+    })
+    saveTaskSpec(workspaceRoot, originalSpec)
+
+    appendRunLog(workspaceRoot, 'demo-task', 'run-1', {
+      t: '2026-07-13T00:00:00.000Z',
+      kind: 'run-started',
+      taskId: 'demo-task',
+      runId: 'run-1',
+      orchestratorSessionId: 'orchestrator-1',
+    })
+    appendRunLog(workspaceRoot, 'demo-task', 'run-1', {
+      t: '2026-07-13T00:00:01.000Z',
+      kind: 'node-scheduled',
+      nodeId: 'draft',
+    })
+    appendRunLog(workspaceRoot, 'demo-task', 'run-1', {
+      t: '2026-07-13T00:00:02.000Z',
+      kind: 'node-spawned',
+      nodeId: 'draft',
+      sessionId: 'session-1',
+    })
+    writeRunSpecSnapshot(workspaceRoot, 'demo-task', 'run-1', originalSpec)
+
+    saveTaskSpec(workspaceRoot, buildSpec({
+      params: [
+        { name: 'topic', type: 'string', default: 'gamma' },
+      ],
+      nodes: [
+        { id: 'draft', kind: 'session', prompt: 'draft ${params.topic} (mutated)' },
+        { id: 'review', kind: 'session', prompt: 'MUTATED ${params.topic} ${nodes.draft.output}', depends_on: ['draft'] },
+      ],
+    }))
+
+    const host = new FakeConductorSessionHost()
+    const runner = createRunner(workspaceRoot, host)
+
+    runner.resume('demo-task', 'run-1')
+    await flushAsyncWork()
+    host.completeSession('session-1', { workspaceId: 'ws-1', finalText: 'draft output' })
+    await flushAsyncWork()
+
+    const reviewSessionId = host.createdSessions[0]?.id
+    expect(reviewSessionId).toBeDefined()
+    expect(host.sentMessages.get(reviewSessionId ?? '')?.[0]).toContain('review alpha draft output')
+    expect(host.sentMessages.get(reviewSessionId ?? '')?.[0]).not.toContain('MUTATED')
+
+    host.completeSession(reviewSessionId ?? '', { workspaceId: 'ws-1', finalText: 'reviewed alpha' })
+    await flushAsyncWork()
+
+    expect(runner.getRunState('demo-task', 'run-1')).toEqual(
+      expect.objectContaining({ status: 'verifying' }),
+    )
+    expect(host.sentMessages.get('orchestrator-1')?.[0]).toContain('Verify the final result')
   })
 })
