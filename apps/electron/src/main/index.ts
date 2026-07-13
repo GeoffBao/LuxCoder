@@ -83,6 +83,7 @@ for (const key of Object.keys(process.env)) {
 
 import { createApplicationMenu } from './menu'
 import { registerIpcHandlers } from './ipc'
+import { registerTaskHandlers } from './lib/task-handlers'
 import { createTray, destroyTray, getTray } from './tray'
 import { initializeRuntime } from './lib/runtime-init'
 import { seedDefaultSkills } from './lib/config-paths'
@@ -360,6 +361,7 @@ function createWindow(): void {
     },
     ...titleBarOptions,
   })
+  registerTaskHandlers(mainWindow)
   installWindowsZoomInFallback(mainWindow)
 
   // Load the renderer
