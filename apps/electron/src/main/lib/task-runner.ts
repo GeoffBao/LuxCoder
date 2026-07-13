@@ -21,6 +21,7 @@ import {
   writeNodeOutput,
   readNodeOutput,
   readRunLog,
+  readRunSpecSnapshot,
   loadTaskSpec,
   writeRunSpecSnapshot,
   type RunLogEntry,
@@ -667,15 +668,19 @@ export class TaskRunner {
   }
 
   private rehydrate(slug: string, runId: string): RunSnapshot {
-    const loaded = loadTaskSpec(this.deps.workspaceRoot, slug);
-    if (!loaded?.spec || !loaded.valid) throw new Error(`无法恢复 "${slug}:${runId}"：task.yaml 无效或缺失`);
+    const snapshotSpec = readRunSpecSnapshot(this.deps.workspaceRoot, slug, runId);
+    const spec = snapshotSpec ?? (() => {
+      const loaded = loadTaskSpec(this.deps.workspaceRoot, slug);
+      if (!loaded?.spec || !loaded.valid) throw new Error(`无法恢复 "${slug}:${runId}"：task.yaml 无效或缺失`);
+      return loaded.spec;
+    })();
     const log = readRunLog(this.deps.workspaceRoot, slug, runId);
     if (log.length === 0) throw new Error(`无法恢复 "${slug}:${runId}"：没有运行日志`);
     const started = log.find((e) => e.kind === 'run-started');
     const orchestratorSessionId = started && started.kind === 'run-started' ? started.orchestratorSessionId : undefined;
     const run = new ActiveRun(
-      loaded.spec, slug, runId,
-      { orchestratorSessionId, params: resolveParams(loaded.spec), verifyOnComplete: true },
+      spec, slug, runId,
+      { orchestratorSessionId, params: resolveParams(spec), verifyOnComplete: true },
       this.deps,
     );
     run.hydrate(log, (nodeId) => readNodeOutput(this.deps.workspaceRoot, slug, runId, nodeId));

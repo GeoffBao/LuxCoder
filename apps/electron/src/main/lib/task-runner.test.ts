@@ -2,8 +2,8 @@ import { afterEach, describe, expect, test } from 'bun:test'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { TaskSpec } from '../../../../../packages/shared/src/tasks/schema.ts'
-import { saveTaskSpec } from '../../../../../packages/shared/src/tasks/storage.ts'
+import type { TaskSpec } from '@luxagents/shared/tasks/schema'
+import { saveTaskSpec } from '@luxagents/shared/tasks/storage'
 import {
   TaskRunner,
   type ConductorSessionHost,
@@ -313,5 +313,42 @@ describe('TaskRunner', () => {
         nodes: [expect.objectContaining({ id: 'draft', state: 'running', sessionId: 'session-1', attempt: 1 })],
       }),
     )
+  })
+
+  test('rehydrate 优先使用运行快照而不是已被编辑的 live task.yaml', async () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    saveTaskSpec(workspaceRoot, buildSpec({
+      nodes: [
+        { id: 'draft', kind: 'session', prompt: 'draft the task' },
+        { id: 'review', kind: 'session', prompt: 'review ${nodes.draft.output}', depends_on: ['draft'] },
+      ],
+    }))
+
+    const firstHost = new FakeConductorSessionHost()
+    const firstRunner = createRunner(workspaceRoot, firstHost)
+    firstRunner.run('demo-task', { verifyOnComplete: false })
+    await flushAsyncWork()
+
+    saveTaskSpec(workspaceRoot, buildSpec({
+      nodes: [
+        { id: 'draft', kind: 'session', prompt: 'draft the task (mutated)' },
+        { id: 'review', kind: 'session', prompt: 'MUTATED ${nodes.draft.output}', depends_on: ['draft'] },
+      ],
+    }))
+
+    const rehydratedHost = new FakeConductorSessionHost()
+    const rehydratedRunner = createRunner(workspaceRoot, rehydratedHost)
+
+    rehydratedRunner.resume('demo-task', 'run-1')
+    await flushAsyncWork()
+
+    rehydratedHost.completeSession('session-1', { workspaceId: 'ws-1', finalText: 'draft output' })
+    await flushAsyncWork()
+
+    expect(rehydratedHost.createdSessions.map((session) => session.options.taskNodeId)).toEqual(['review'])
+    const reviewSessionId = rehydratedHost.createdSessions[0]?.id
+    expect(reviewSessionId).toBeDefined()
+    expect(rehydratedHost.sentMessages.get(reviewSessionId ?? '')?.[0]).toContain('review draft output')
+    expect(rehydratedHost.sentMessages.get(reviewSessionId ?? '')?.[0]).not.toContain('MUTATED')
   })
 })
