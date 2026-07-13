@@ -48,6 +48,14 @@ export interface ConductorSessionHostDependencies {
   getOrchestrator: () => ConductorOrchestrator
 }
 
+interface ConductorSessionMeta extends AgentSessionMeta {
+  workingDirectory?: string
+}
+
+type ConductorSessionMetaUpdates = AgentSessionMetaUpdates & {
+  workingDirectory?: string
+}
+
 interface CompletionState {
   dispatched: boolean
   sawError: boolean
@@ -60,6 +68,7 @@ export class LuxAgentsConductorSessionHost implements ConductorSessionHost {
   constructor(private readonly deps: ConductorSessionHostDependencies) {}
 
   async createSession(workspaceId: string, options: CreateSessionOptions): Promise<{ id: string }> {
+    const permissionMode = mapPermissionMode(options.permissionMode)
     const session = this.deps.createAgentSession(
       options.name,
       options.llmConnection,
@@ -67,9 +76,9 @@ export class LuxAgentsConductorSessionHost implements ConductorSessionHost {
       options.model,
     )
 
-    const updates: AgentSessionMetaUpdates = {}
-    const permissionMode = mapPermissionMode(options.permissionMode)
+    const updates: ConductorSessionMetaUpdates = {}
     if (permissionMode !== undefined) updates.permissionMode = permissionMode
+    if (options.workingDirectory !== undefined) updates.workingDirectory = options.workingDirectory
     if (options.sessionStatus !== undefined) updates.sessionStatus = options.sessionStatus
     if (options.parentSessionId !== undefined) updates.parentSessionId = options.parentSessionId
     if (options.projectId !== undefined) updates.projectId = options.projectId
@@ -85,7 +94,7 @@ export class LuxAgentsConductorSessionHost implements ConductorSessionHost {
   }
 
   async sendMessage(sessionId: string, message: string): Promise<void> {
-    const meta = this.deps.getAgentSessionMeta(sessionId)
+    const meta = asConductorSessionMeta(this.deps.getAgentSessionMeta(sessionId))
     if (!meta) throw new Error(`Agent 会话不存在: ${sessionId}`)
     if (!meta.channelId) throw new Error(`Agent 会话缺少 channelId: ${sessionId}`)
 
@@ -98,24 +107,30 @@ export class LuxAgentsConductorSessionHost implements ConductorSessionHost {
     ): void => {
       if (state.dispatched) return
       state.dispatched = true
+      const persistedMessages = this.deps.getAgentSessionMessages(sessionId)
       const finalText = getFinalText(messages ?? [])
-        ?? getFinalText(this.deps.getAgentSessionMessages(sessionId))
+        ?? getFinalText(persistedMessages)
+      const resolvedTokenUsage = tokenUsage
+        ?? getTokenUsage(messages ?? [])
+        ?? getTokenUsage(persistedMessages)
       this.dispatchCompletion({
         sessionId,
         workspaceId: meta.workspaceId ?? '',
         reason,
         ...(finalText !== undefined ? { finalText } : {}),
-        ...(tokenUsage !== undefined ? { tokenUsage } : {}),
+        ...(resolvedTokenUsage !== undefined ? { tokenUsage: resolvedTokenUsage } : {}),
       })
     }
 
     try {
+      const workingDirectory = meta.workingDirectory
       const input: AgentSendInput = {
         sessionId,
         userMessage: message,
         channelId: meta.channelId,
         ...(meta.modelId !== undefined ? { modelId: meta.modelId } : {}),
         ...(meta.workspaceId !== undefined ? { workspaceId: meta.workspaceId } : {}),
+        ...(workingDirectory !== undefined ? { additionalDirectories: [workingDirectory] } : {}),
         triggeredBy: 'work',
         ...(meta.permissionMode !== undefined ? { permissionModeOverride: meta.permissionMode } : {}),
       }
@@ -124,6 +139,7 @@ export class LuxAgentsConductorSessionHost implements ConductorSessionHost {
           state.sawError = true
         },
         onComplete: (messages, options) => {
+          if (options?.backgroundTasksPending) return
           const reason = state.sawError || isErrorCompletion(options)
             ? 'error'
             : options?.stoppedByUser
@@ -174,7 +190,8 @@ export class LuxAgentsConductorSessionHost implements ConductorSessionHost {
   }
 
   getSessionWorkingDirectory(sessionId: string): string | undefined {
-    const meta = this.deps.getAgentSessionMeta(sessionId)
+    const meta = asConductorSessionMeta(this.deps.getAgentSessionMeta(sessionId))
+    if (meta?.workingDirectory !== undefined) return meta.workingDirectory
     if (!meta?.workspaceId) return undefined
     const workspace = this.deps.getAgentWorkspace(meta.workspaceId)
     return workspace
@@ -215,6 +232,8 @@ export async function createLuxAgentsConductorSessionHost(): Promise<LuxAgentsCo
 export const createConductorSessionHost = createLuxAgentsConductorSessionHost
 
 function mapPermissionMode(mode: string | undefined): LuxAgentsPermissionMode | undefined {
+  if (mode === undefined) return undefined
+
   switch (mode) {
     case 'allow-all':
     case 'bypassPermissions':
@@ -226,7 +245,7 @@ function mapPermissionMode(mode: string | undefined): LuxAgentsPermissionMode | 
     case 'plan':
       return 'plan'
     default:
-      return undefined
+      throw new Error(`不支持的权限模式: ${mode}`)
   }
 }
 
@@ -260,6 +279,40 @@ function getAssistantText(message: AgentMessage | undefined): string | undefined
     .filter(Boolean)
     .join('\n')
   return text || undefined
+}
+
+function getTokenUsage(messages: AgentMessage[]): SessionCompletionEvent['tokenUsage'] | undefined {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const raw = asRecord(messages[index])
+    const directUsage = toTokenUsage(raw?.usage)
+    if (directUsage) return directUsage
+
+    const nestedUsage = toTokenUsage(asRecord(raw?.message)?.usage)
+    if (nestedUsage) return nestedUsage
+  }
+  return undefined
+}
+
+function toTokenUsage(value: unknown): SessionCompletionEvent['tokenUsage'] | undefined {
+  const record = asRecord(value)
+  if (!record) return undefined
+
+  const inputTokens = getFiniteNumber(record.inputTokens) ?? getFiniteNumber(record.input_tokens)
+  const outputTokens = getFiniteNumber(record.outputTokens) ?? getFiniteNumber(record.output_tokens)
+  if (inputTokens === undefined && outputTokens === undefined) return undefined
+
+  return {
+    ...(inputTokens !== undefined ? { inputTokens } : {}),
+    ...(outputTokens !== undefined ? { outputTokens } : {}),
+  }
+}
+
+function getFiniteNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+function asConductorSessionMeta(meta: AgentSessionMeta | undefined): ConductorSessionMeta | undefined {
+  return meta as ConductorSessionMeta | undefined
 }
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {

@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import type {
   AgentMessage,
   AgentSessionMeta,
+  AgentSendInput,
   AgentWorkspace,
 } from '@luxagents/shared'
 import {
@@ -24,18 +25,39 @@ function createMeta(overrides: Partial<AgentSessionMeta> = {}): AgentSessionMeta
 
 function createDependencies(): {
   deps: ConductorSessionHostDependencies
-  sentInputs: Array<{ sessionId: string; userMessage: string }>
-  callbacks: { onError: (error: string) => void; onComplete: (messages?: AgentMessage[], opts?: { stoppedByUser?: boolean }) => void }
+  sentInputs: AgentSendInput[]
+  callbacks: {
+    onError: (error: string) => void
+    onComplete: (
+      messages?: AgentMessage[],
+      opts?: {
+        stoppedByUser?: boolean
+        resultSubtype?: string
+        resultErrors?: string[]
+        backgroundTasksPending?: boolean
+      },
+    ) => void
+  }
   updates: Array<Record<string, unknown>>
   stopped: string[]
+  created: string[]
 } {
-  const sentInputs: Array<{ sessionId: string; userMessage: string }> = []
+  const sentInputs: AgentSendInput[] = []
   const updates: Array<Record<string, unknown>> = []
   const stopped: string[] = []
+  const created: string[] = []
   const persistedMessages: AgentMessage[] = []
   let callbacks: {
     onError: (error: string) => void
-    onComplete: (messages?: AgentMessage[], opts?: { stoppedByUser?: boolean }) => void
+    onComplete: (
+      messages?: AgentMessage[],
+      opts?: {
+        stoppedByUser?: boolean
+        resultSubtype?: string
+        resultErrors?: string[]
+        backgroundTasksPending?: boolean
+      },
+    ) => void
     onTitleUpdated: (title: string) => void
   } | undefined
   const workspace: AgentWorkspace = {
@@ -48,7 +70,10 @@ function createDependencies(): {
   const session = createMeta()
 
   const deps: ConductorSessionHostDependencies = {
-    createAgentSession: () => session,
+    createAgentSession: () => {
+      created.push(session.id)
+      return session
+    },
     getAgentSessionMeta: () => session,
     updateAgentSessionMeta: (_id, patch) => {
       updates.push(patch)
@@ -60,7 +85,7 @@ function createDependencies(): {
     getAgentSessionWorkspacePath: (slug, sessionId) => `/workspaces/${slug}/${sessionId}`,
     getOrchestrator: () => ({
       sendMessage: async (input, nextCallbacks) => {
-        sentInputs.push({ sessionId: input.sessionId, userMessage: input.userMessage })
+        sentInputs.push(input)
         callbacks = {
           onError: nextCallbacks.onError,
           onComplete: nextCallbacks.onComplete,
@@ -82,6 +107,7 @@ function createDependencies(): {
     },
     updates,
     stopped,
+    created,
   }
 }
 
@@ -116,6 +142,16 @@ describe('LuxAgentsConductorSessionHost', () => {
     }])
   })
 
+  test('未知权限模式显式失败且不创建 session', async () => {
+    const { deps, created } = createDependencies()
+    const host = new LuxAgentsConductorSessionHost(deps)
+
+    await expect(host.createSession('workspace-1', {
+      permissionMode: 'unsupported-mode',
+    })).rejects.toThrow('不支持的权限模式: unsupported-mode')
+    expect(created).toEqual([])
+  })
+
   test('发送消息时映射 AgentSendInput，并将错误与完成回调合并为一次完成事件', async () => {
     const testDeps = createDependencies()
     const { deps, sentInputs } = testDeps
@@ -127,7 +163,10 @@ describe('LuxAgentsConductorSessionHost', () => {
 
     const sending = host.sendMessage('session-1', '执行节点')
     await sending
-    expect(sentInputs).toEqual([{ sessionId: 'session-1', userMessage: '执行节点' }])
+    expect(sentInputs).toEqual([expect.objectContaining({
+      sessionId: 'session-1',
+      userMessage: '执行节点',
+    })])
 
     testDeps.callbacks.onError('执行失败')
     testDeps.callbacks.onComplete([
@@ -138,6 +177,47 @@ describe('LuxAgentsConductorSessionHost', () => {
     ])
 
     expect(events).toEqual([{ reason: 'error', finalText: '最终结果' }])
+  })
+
+  test('后台任务未完成时不派发终态，最终完成时映射 token usage', async () => {
+    const testDeps = createDependencies()
+    const host = new LuxAgentsConductorSessionHost(testDeps.deps)
+    const events: SessionCompletionEvent[] = []
+    host.onSessionComplete((event) => events.push(event))
+
+    await host.sendMessage('session-1', '执行后台节点')
+    const sdkResult = {
+      type: 'result',
+      subtype: 'success',
+      usage: { input_tokens: 12, output_tokens: 7 },
+    } as unknown as AgentMessage
+
+    testDeps.callbacks.onComplete([sdkResult], { backgroundTasksPending: true })
+    expect(events).toEqual([])
+
+    testDeps.callbacks.onComplete([sdkResult])
+    expect(events).toEqual([{
+      sessionId: 'session-1',
+      workspaceId: 'workspace-1',
+      reason: 'complete',
+      tokenUsage: { inputTokens: 12, outputTokens: 7 },
+    }])
+  })
+
+  test('创建时保存工作目录，并在后续 AgentSendInput 中传递该目录', async () => {
+    const testDeps = createDependencies()
+    const host = new LuxAgentsConductorSessionHost(testDeps.deps)
+
+    await host.createSession('workspace-1', {
+      workingDirectory: '/repo/project',
+    })
+    expect(testDeps.updates).toEqual([{ workingDirectory: '/repo/project' }])
+    expect(host.getSessionWorkingDirectory('session-1')).toBe('/repo/project')
+
+    await host.sendMessage('session-1', '继续执行')
+    expect(testDeps.sentInputs[0]).toEqual(expect.objectContaining({
+      additionalDirectories: ['/repo/project'],
+    }))
   })
 
   test('metadata helpers 使用专用字段，工作目录来自 workspace 元数据，取消调用 stop', async () => {
