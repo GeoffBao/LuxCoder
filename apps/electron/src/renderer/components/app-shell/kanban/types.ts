@@ -5,6 +5,15 @@ export const INBOX_COLUMN_ID = 'inbox'
 
 export type KanbanBoardMode = 'board' | 'list'
 export type KanbanNodeState = 'pending' | 'running' | 'done' | 'failed' | 'cancelled' | 'skipped'
+export type SubtaskRunState = 'done' | 'running' | 'pending' | 'failed'
+
+export interface KanbanSubtask {
+  id: string
+  sessionId?: string
+  title: string
+  runState: SubtaskRunState
+  model: string
+}
 
 /** 渲染进程使用的项目摘要，不包含本地文件路径。 */
 export interface KanbanProject {
