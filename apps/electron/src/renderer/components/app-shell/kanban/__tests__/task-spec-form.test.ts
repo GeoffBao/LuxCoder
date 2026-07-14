@@ -1,12 +1,17 @@
 import { describe, it, expect } from 'bun:test'
 import {
+  MAX_REPAIR_ATTEMPTS_CAP,
+  PERMISSION_MODES,
+  TaskSpecSchema,
+} from '@luxagents/shared/tasks/schema'
+import type { PermissionMode } from '@luxagents/shared/tasks/schema'
+import {
   buildSpec,
   specToSubtasks,
   canDependOn,
   quickAddNodeId,
   quickAddSessionId,
   quickAddChildToSubtask,
-  MAX_REPAIR_ATTEMPTS_CAP,
   type EditorSubtask,
   type SpecNode,
 } from '../task-spec-form'
@@ -14,6 +19,36 @@ import {
 const noConn = new Map<string, string>()
 
 describe('task-spec-form round-trip', () => {
+  it('生成的合法 v1 spec 可通过 Shared Task schema 解析', () => {
+    const spec = buildSpec(
+      {
+        title: '合法任务',
+        goal: '验证共享 schema',
+        projectId: '',
+        orchModel: '',
+        permissionMode: PERMISSION_MODES[1] as PermissionMode,
+        subtasks: [{ uid: 'node-a', title: '节点 A', prompt: '执行验证', dependsOn: [] }],
+      },
+      noConn,
+    )
+
+    expect(TaskSpecSchema.parse(spec)).toEqual(spec)
+  })
+
+  it('拒绝没有 subtask 的 spec', () => {
+    expect(() => buildSpec({ title: '空任务', goal: '验证空节点', projectId: '', orchModel: '', subtasks: [] }, noConn)).toThrow()
+  })
+
+  it('拒绝 session 节点的空 prompt', () => {
+    expect(() => buildSpec({
+      title: '空提示词任务',
+      goal: '验证 session prompt',
+      projectId: '',
+      orchModel: '',
+      subtasks: [{ uid: 'node-a', title: '节点 A', prompt: '   ', dependsOn: [] }],
+    }, noConn)).toThrow()
+  })
+
   it('preserves generated node ids so ${nodes.<id>.output} references survive generate → edit → create', () => {
     // A generated spec where one node references another by its (non-title-slug) id.
     const generated: SpecNode[] = [

@@ -1,6 +1,6 @@
 {
   "name": "@luxagents/shared",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "license": "AGPL-3.0-only",
   "description": "Shared types, configs and utilities for LuxAgents",
   "type": "module",
@@ -12,7 +12,8 @@
     "./types": "./src/types/index.ts",
     "./config": "./src/config/index.ts",
     "./utils": "./src/utils/index.ts",
-    "./projects": "./src/projects/index.ts"
+    "./projects": "./src/projects/index.ts",
+    "./tasks/schema": "./src/tasks/schema.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

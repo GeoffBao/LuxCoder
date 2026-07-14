@@ -1,32 +1,29 @@
 /**
- * Merge a spec-backed task's DAG nodes with its live child sessions into the tile's
- * subtask rows.
+ * 将有 spec 支撑的任务 DAG nodes 与实时 child sessions 合并为卡片的 subtask rows。
  *
- * The tile and the editor historically showed disjoint data: the tile only child
- * SESSIONS (so authored-but-never-run nodes were invisible), the editor only spec
- * NODES (so quick-add children were invisible). This merge makes the tile show the
- * union — one row per DAG node, resolved as:
+ * 卡片和编辑器此前展示的是互斥数据：卡片只展示 child SESSIONS，因此已编写但未运行的节点不可见；
+ * 编辑器只展示 spec NODES，因此 quick-add children 不可见。合并后，卡片按每个 DAG node 展示一行，
+ * 解析优先级如下：
  *
- *   latest run child (`taskNodeId` match; newest `createdAt` wins across re-runs)
- *   → else the adopted quick-add session (node id `qa-<sessionId>`)
- *   → else a synthetic pending row (authored, not yet run — no session to open).
+ *   最新 run child（`taskNodeId` 匹配；重跑时 `createdAt` 最新者胜出）
+ *   → 否则为已接纳的 quick-add session（node ID 为 `qa-<sessionId>`）
+ *   → 否则为合成的 pending 行（已编写但尚未运行，没有可打开的 session）。
  *
- * Children that don't represent a spec node (unadopted quick-adds, children of
- * since-removed nodes) append after the node rows in creation order. Earlier-run
- * children of a merged node are superseded — collapsed into the node row instead of
- * duplicating it. Without a spec the rows are simply the children (legacy tiles).
+ * 不代表 spec node 的 children（未接纳的 quick-add、已移除 node 的 children）按创建时间追加在
+ * node 行之后。已合并 node 的早期运行会被最新结果取代，折叠进同一 node 行而不重复展示。没有 spec
+ * 时，行仅按 children 展示（兼容旧卡片）。
  */
 import type { KanbanSubtask, SubtaskRunState } from './types'
 import { quickAddSessionId } from './task-spec-form'
 
-/** A spec node reduced to what a tile row needs (model pre-defaulted from the spec). */
+/** 卡片行所需的最小 spec node 信息（model 已从 spec 计算默认值）。 */
 export interface SpecNodeSummary {
   id: string
   title: string
   model?: string
 }
 
-/** A child session reduced to what the merge needs (run state pre-derived by the caller). */
+/** 合并所需的最小 child session 信息（run state 由调用方预先计算）。 */
 export interface SubtaskChildRow {
   id: string
   title: string
@@ -52,7 +49,7 @@ export function mergeSubtaskRows(
   const ordered = [...children].sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0))
   if (!specNodes?.length) return ordered.map(toRow)
 
-  // Ascending order → the last write per node is the newest child (re-runs supersede).
+  // 升序遍历时，node 的最后一次写入就是最新 child（重跑结果会取代早期结果）。
   const latestByNode = new Map<string, SubtaskChildRow>()
   for (const child of ordered) {
     if (child.taskNodeId) latestByNode.set(child.taskNodeId, child)
@@ -65,8 +62,8 @@ export function mergeSubtaskRows(
   for (const node of specNodes) {
     const adoptedId = quickAddSessionId(node.id)
     const adopted = adoptedId ? childById.get(adoptedId) : undefined
-    // The adopted quick-add session is this node's pre-run execution: once a Conductor
-    // run child exists it is superseded exactly like an earlier run attempt.
+    // 已接纳的 quick-add session 是该 node 的运行前执行；一旦出现 Conductor run child，
+    // 就和早期运行一样被取代。
     if (adopted) consumed.add(adopted.id)
     const child = latestByNode.get(node.id) ?? adopted
     if (child) {
@@ -78,7 +75,7 @@ export function mergeSubtaskRows(
   }
   for (const child of ordered) {
     if (consumed.has(child.id)) continue
-    // A run child of a merged node that lost latest-wins: superseded, not a separate row.
+    // 已合并 node 的非最新 run child 已被取代，不单独显示。
     if (child.taskNodeId && nodeIds.has(child.taskNodeId)) continue
     rows.push(toRow(child))
   }
