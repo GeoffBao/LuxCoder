@@ -6,7 +6,7 @@
  */
 
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import { PROJECT_IPC_CHANNELS, TASK_IPC_CHANNELS, SESSION_COMMAND_CHANNEL } from '@luxagents/shared/channels'
+import { PROJECT_IPC_CHANNELS, TASK_IPC_CHANNELS, SESSION_COMMAND_CHANNEL, TEAMBITION_IPC_CHANNELS } from '@luxagents/shared/channels'
 import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, MEMORY_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS } from '@luxagents/shared'
 import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, SCRATCH_PAD_IPC_CHANNELS, APP_ICON_IPC_CHANNELS, DOCK_BADGE_IPC_CHANNELS, STORAGE_IPC_CHANNELS } from '../types'
 import type {
@@ -115,6 +115,8 @@ import type {
   RunLogEntry,
   ProjectsChangedEventPayload,
   TaskGeneratedEventPayload,
+  ProjectConfig,
+  ValidationResult,
 } from '@luxagents/shared'
 import type { WorkTask, WorkApprovalRecord, WorkAuditLogEntry } from '@luxagents/shared'
 import { WORK_IPC_CHANNELS } from '@luxagents/shared/channels'
@@ -162,6 +164,65 @@ interface TaskResults {
   spec: TaskSpec | null
   log: RunLogEntry[]
   runId: string
+}
+
+/** 渲染进程项目 DTO：不泄露项目目录与工作目录。 */
+export type BrowserProject = Omit<ProjectConfig, 'workingDirectory'> & { workspaceId: string }
+export type BrowserProjectCreateInput = Omit<CreateProjectInput, 'workingDirectory'>
+export type BrowserProjectUpdateInput = Omit<UpdateProjectInput, 'workingDirectory'>
+export type BrowserProjectAsset = Omit<ProjectAsset, 'absolutePath'>
+export interface BrowserProjectAssetUploadInput {
+  filename: string
+  base64?: string
+  text?: string
+}
+
+export interface BrowserProjectChangedEvent {
+  kind: 'projects:changed'
+  workspaceId: string
+  projects: BrowserProject[]
+}
+
+export interface TaskValidationResult extends ValidationResult {
+  spec?: TaskSpec
+}
+
+export interface TaskCreateResult {
+  slug: string
+  orchestratorSessionId: string
+  valid: true
+}
+
+/** TaskRunner 的跨进程运行快照。 */
+export interface BrowserTaskRunSnapshot {
+  slug: string
+  runId: string
+  taskId: string
+  status: 'running' | 'paused' | 'verifying' | 'stopped' | 'completed' | 'failed'
+  orchestratorSessionId?: string
+  tokensUsed: number
+  nodes: Array<{
+    id: string
+    state: 'pending' | 'running' | 'done' | 'failed' | 'cancelled' | 'skipped'
+    sessionId?: string
+    attempt: number
+  }>
+}
+
+export type TeambitionTaskRecord = Record<string, unknown>
+
+function invokeTyped<TResult>(channel: string, ...args: unknown[]): Promise<TResult> {
+  return ipcRenderer.invoke(channel, ...args) as Promise<TResult>
+}
+
+function toBrowserProject(project: LoadedProject): BrowserProject {
+  const { workingDirectory: _workingDirectory, ...config } = project.config
+  return { ...config, workspaceId: project.workspaceId }
+}
+
+function toBrowserProjectAsset(asset: ProjectAsset): BrowserProjectAsset {
+  const { absolutePath: _absolutePath, ...browserAsset } = asset
+  return browserAsset
 }
 import { QUICK_TASK_IPC_CHANNELS, TRAY_IPC_CHANNELS, VOICE_DICTATION_IPC_CHANNELS } from '../types'
 
@@ -1067,6 +1128,42 @@ export interface ElectronAPI {
   runAutomationNow: (id: string) => Promise<void>
   /** 订阅任务列表变更事件 */
   onAutomationChanged: (callback: () => void) => () => void
+
+  // ===== Projects / Tasks Kanban（新版 typed bridge） =====
+  projects: {
+    get: (workspaceRoot: string) => Promise<BrowserProject[]>
+    /** get 的语义别名，方便新组件按集合语义调用。 */
+    list: (workspaceRoot: string) => Promise<BrowserProject[]>
+    getOne: (workspaceRoot: string, idOrSlug: string) => Promise<BrowserProject | null>
+    create: (workspaceRoot: string, input: BrowserProjectCreateInput) => Promise<BrowserProject>
+    update: (workspaceRoot: string, slug: string, patch: BrowserProjectUpdateInput) => Promise<BrowserProject>
+    delete: (workspaceRoot: string, slug: string) => Promise<void>
+    listAssets: (workspaceRoot: string, slug: string) => Promise<BrowserProjectAsset[]>
+    uploadAsset: (workspaceRoot: string, slug: string, input: BrowserProjectAssetUploadInput) => Promise<BrowserProjectAsset>
+    deleteAsset: (workspaceRoot: string, slug: string, filename: string) => Promise<void>
+    onChanged: (callback: (event: BrowserProjectChangedEvent) => void) => () => void
+  }
+  tasks: {
+    validate: (yaml: string) => Promise<TaskValidationResult>
+    create: (workspaceRoot: string, workspaceId: string, request: TaskCreateRequest) => Promise<TaskCreateResult>
+    generate: (workspaceRoot: string, workspaceId: string, request: TaskGenerateRequest) => Promise<{ orchestratorSessionId: string }>
+    onGenerated: (callback: (event: TaskGeneratedEventPayload) => void) => () => void
+    run: (workspaceRoot: string, workspaceId: string, slug: string, options?: TaskRunOptions) => Promise<BrowserTaskRunSnapshot>
+    pause: (workspaceRoot: string, workspaceId: string, slug: string, runId: string) => Promise<void>
+    resume: (workspaceRoot: string, workspaceId: string, slug: string, runId: string) => Promise<void>
+    stop: (workspaceRoot: string, workspaceId: string, slug: string, runId: string) => Promise<void>
+    get: (workspaceRoot: string, slug: string) => Promise<TaskValidationResult | null>
+    list: (workspaceRoot: string) => Promise<string[]>
+    getResults: (workspaceRoot: string, slug: string, runId?: string) => Promise<TaskResults | null>
+  }
+  sessions: {
+    move: (sessionId: string, columnId: string) => Promise<AgentSessionMeta>
+  }
+  teambition: {
+    listTasks: (projectId: string) => Promise<TeambitionTaskRecord[]>
+    getBinding: (taskId: string) => Promise<TeambitionTaskRecord>
+    updateStatus: (taskId: string, status: string) => Promise<void>
+  }
 
   // ===== Projects / Tasks Conductor =====
   getProjects: (workspaceRoot: string) => Promise<LoadedProject[]>
@@ -2439,6 +2536,94 @@ const electronAPI: ElectronAPI = {
     const listener = (): void => callback()
     ipcRenderer.on(AUTOMATION_IPC_CHANNELS.CHANGED, listener)
     return () => { ipcRenderer.removeListener(AUTOMATION_IPC_CHANNELS.CHANGED, listener) }
+  },
+
+  // ===== Projects / Tasks Kanban（新版 typed bridge） =====
+  projects: {
+    get: async (workspaceRoot: string): Promise<BrowserProject[]> => {
+      const projects = await invokeTyped<LoadedProject[]>(PROJECT_IPC_CHANNELS.GET, workspaceRoot)
+      return projects.map(toBrowserProject)
+    },
+    list: async (workspaceRoot: string): Promise<BrowserProject[]> => {
+      const projects = await invokeTyped<LoadedProject[]>(PROJECT_IPC_CHANNELS.GET, workspaceRoot)
+      return projects.map(toBrowserProject)
+    },
+    getOne: async (workspaceRoot: string, idOrSlug: string): Promise<BrowserProject | null> => {
+      const project = await invokeTyped<LoadedProject | null>(PROJECT_IPC_CHANNELS.GET_ONE, workspaceRoot, idOrSlug)
+      return project ? toBrowserProject(project) : null
+    },
+    create: async (workspaceRoot: string, input: BrowserProjectCreateInput): Promise<BrowserProject> => {
+      const project = await invokeTyped<LoadedProject>(PROJECT_IPC_CHANNELS.CREATE, workspaceRoot, input)
+      return toBrowserProject(project)
+    },
+    update: async (workspaceRoot: string, slug: string, patch: BrowserProjectUpdateInput): Promise<BrowserProject> => {
+      const project = await invokeTyped<LoadedProject>(PROJECT_IPC_CHANNELS.UPDATE, workspaceRoot, slug, patch)
+      return toBrowserProject(project)
+    },
+    delete: (workspaceRoot: string, slug: string): Promise<void> =>
+      invokeTyped<void>(PROJECT_IPC_CHANNELS.DELETE, workspaceRoot, slug),
+    listAssets: async (workspaceRoot: string, slug: string): Promise<BrowserProjectAsset[]> => {
+      const assets = await invokeTyped<ProjectAsset[]>(PROJECT_IPC_CHANNELS.LIST_ASSETS, workspaceRoot, slug)
+      return assets.map(toBrowserProjectAsset)
+    },
+    uploadAsset: async (
+      workspaceRoot: string,
+      slug: string,
+      input: BrowserProjectAssetUploadInput,
+    ): Promise<BrowserProjectAsset> => {
+      const asset = await invokeTyped<ProjectAsset>(PROJECT_IPC_CHANNELS.UPLOAD_ASSET, workspaceRoot, slug, input)
+      return toBrowserProjectAsset(asset)
+    },
+    deleteAsset: (workspaceRoot: string, slug: string, filename: string): Promise<void> =>
+      invokeTyped<void>(PROJECT_IPC_CHANNELS.DELETE_ASSET, workspaceRoot, slug, filename),
+    onChanged: (callback: (event: BrowserProjectChangedEvent) => void): (() => void) => {
+      const listener = (_event: unknown, payload: ProjectsChangedEventPayload): void => {
+        callback({
+          kind: payload.kind,
+          workspaceId: payload.workspaceId,
+          projects: payload.projects.map(toBrowserProject),
+        })
+      }
+      ipcRenderer.on(PROJECT_IPC_CHANNELS.CHANGED, listener)
+      return () => { ipcRenderer.removeListener(PROJECT_IPC_CHANNELS.CHANGED, listener) }
+    },
+  },
+  tasks: {
+    validate: (yaml: string): Promise<TaskValidationResult> => invokeTyped<TaskValidationResult>(TASK_IPC_CHANNELS.VALIDATE, yaml),
+    create: (workspaceRoot: string, workspaceId: string, request: TaskCreateRequest): Promise<TaskCreateResult> =>
+      invokeTyped<TaskCreateResult>(TASK_IPC_CHANNELS.CREATE, workspaceRoot, workspaceId, request),
+    generate: (workspaceRoot: string, workspaceId: string, request: TaskGenerateRequest): Promise<{ orchestratorSessionId: string }> =>
+      invokeTyped<{ orchestratorSessionId: string }>(TASK_IPC_CHANNELS.GENERATE, workspaceRoot, workspaceId, request),
+    onGenerated: (callback: (event: TaskGeneratedEventPayload) => void): (() => void) => {
+      const listener = (_event: unknown, payload: TaskGeneratedEventPayload): void => callback(payload)
+      ipcRenderer.on(TASK_IPC_CHANNELS.GENERATED, listener)
+      return () => { ipcRenderer.removeListener(TASK_IPC_CHANNELS.GENERATED, listener) }
+    },
+    run: (workspaceRoot: string, workspaceId: string, slug: string, options?: TaskRunOptions): Promise<BrowserTaskRunSnapshot> =>
+      invokeTyped<BrowserTaskRunSnapshot>(TASK_IPC_CHANNELS.RUN, workspaceRoot, workspaceId, slug, options),
+    pause: (workspaceRoot: string, workspaceId: string, slug: string, runId: string): Promise<void> =>
+      invokeTyped<void>(TASK_IPC_CHANNELS.PAUSE, workspaceRoot, workspaceId, slug, runId),
+    resume: (workspaceRoot: string, workspaceId: string, slug: string, runId: string): Promise<void> =>
+      invokeTyped<void>(TASK_IPC_CHANNELS.RESUME, workspaceRoot, workspaceId, slug, runId),
+    stop: (workspaceRoot: string, workspaceId: string, slug: string, runId: string): Promise<void> =>
+      invokeTyped<void>(TASK_IPC_CHANNELS.STOP, workspaceRoot, workspaceId, slug, runId),
+    get: (workspaceRoot: string, slug: string): Promise<TaskValidationResult | null> =>
+      invokeTyped<TaskValidationResult | null>(TASK_IPC_CHANNELS.GET, workspaceRoot, slug),
+    list: (workspaceRoot: string): Promise<string[]> => invokeTyped<string[]>(TASK_IPC_CHANNELS.LIST, workspaceRoot),
+    getResults: (workspaceRoot: string, slug: string, runId?: string): Promise<TaskResults | null> =>
+      invokeTyped<TaskResults | null>(TASK_IPC_CHANNELS.GET_RESULTS, workspaceRoot, slug, runId),
+  },
+  sessions: {
+    move: (sessionId: string, columnId: string): Promise<AgentSessionMeta> =>
+      invokeTyped<AgentSessionMeta>(SESSION_COMMAND_CHANNEL, sessionId, { kind: 'set_kanban_column', kanbanColumn: columnId }),
+  },
+  teambition: {
+    listTasks: (projectId: string): Promise<TeambitionTaskRecord[]> =>
+      invokeTyped<TeambitionTaskRecord[]>(TEAMBITION_IPC_CHANNELS.LIST_TASKS, projectId),
+    getBinding: (taskId: string): Promise<TeambitionTaskRecord> =>
+      invokeTyped<TeambitionTaskRecord>(TEAMBITION_IPC_CHANNELS.GET_BINDING, taskId),
+    updateStatus: (taskId: string, status: string): Promise<void> =>
+      invokeTyped<void>(TEAMBITION_IPC_CHANNELS.UPDATE_STATUS, taskId, status),
   },
 
   // ===== Projects / Tasks Conductor =====
