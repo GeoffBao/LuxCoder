@@ -118,8 +118,8 @@ import type {
 } from '@luxagents/shared'
 import type { WorkTask, WorkApprovalRecord, WorkAuditLogEntry } from '@luxagents/shared'
 import { WORK_IPC_CHANNELS } from '@luxagents/shared/channels'
-import type { ProjectConfig } from '@luxagents/shared/projects/types'
-import type { ValidationResult } from '@luxagents/shared/tasks/validate'
+import type { ProjectConfig } from '@luxagents/shared/projects'
+import type { ValidationResult } from '../../../../packages/shared/src/tasks/validate.ts'
 import type {
   UserProfile,
   AppSettings,

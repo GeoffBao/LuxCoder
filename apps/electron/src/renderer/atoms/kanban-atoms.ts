@@ -35,6 +35,7 @@ interface OptimisticKanbanColumn {
 
 export const optimisticKanbanColumnsAtom = atom<Map<string, OptimisticKanbanColumn>>(new Map())
 const kanbanMoveSequenceAtom = atom(0)
+const latestKanbanMoveSequenceAtom = atom<Map<string, number>>(new Map())
 
 export const boardModeAtom = atom<KanbanBoardMode>('board')
 
@@ -71,7 +72,7 @@ function toErrorMessage(cause: unknown): string {
 }
 
 /**
- * 先更新本地列，再通过 nested preload bridge 持久化。失败时仅回滚本次仍生效的覆盖。
+ * 先更新本地列，再通过 nested preload bridge 持久化。所有异步回写都必须属于该卡片的最新请求。
  */
 export const moveCardAtom = atom(
   null,
@@ -79,12 +80,18 @@ export const moveCardAtom = atom(
     const currentOptimisticColumns = get(optimisticKanbanColumnsAtom)
     const sequence = get(kanbanMoveSequenceAtom) + 1
     set(kanbanMoveSequenceAtom, sequence)
+    set(latestKanbanMoveSequenceAtom, (sequences) => {
+      const next = new Map(sequences)
+      next.set(input.sessionId, sequence)
+      return next
+    })
     const nextOptimisticColumns = new Map(currentOptimisticColumns)
     nextOptimisticColumns.set(input.sessionId, { columnId: input.columnId, sequence })
     set(optimisticKanbanColumnsAtom, nextOptimisticColumns)
 
     try {
       const updated = await window.electronAPI.sessions.move(input.sessionId, input.columnId)
+      if (get(latestKanbanMoveSequenceAtom).get(input.sessionId) !== sequence) return
       set(serverKanbanSessionsAtom, (sessions) =>
         sessions.map((item) => item.id === input.sessionId ? updated : item),
       )
@@ -95,6 +102,7 @@ export const moveCardAtom = atom(
         return next
       })
     } catch (cause) {
+      if (get(latestKanbanMoveSequenceAtom).get(input.sessionId) !== sequence) return
       set(optimisticKanbanColumnsAtom, (columns) => {
         if (columns.get(input.sessionId)?.sequence !== sequence) return columns
         const next = new Map(columns)
