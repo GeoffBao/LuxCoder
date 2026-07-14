@@ -61,3 +61,45 @@ test('移动失败后还原原列并只发出一条错误通知', async () => {
     Object.defineProperty(globalThis, 'window', { configurable: true, value: originalWindow })
   }
 })
+
+test('同一卡片连续移动均失败时回到最后确认的服务端列', async () => {
+  const first = createDeferred()
+  const second = createDeferred()
+  const originalWindow = globalThis.window
+  let calls = 0
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: {
+      electronAPI: {
+        sessions: {
+          move: (): Promise<void> => {
+            calls += 1
+            return calls === 1 ? first.promise : second.promise
+          },
+        },
+      },
+    },
+  })
+
+  try {
+    const store = createStore()
+    store.set(serverKanbanSessionsAtom, [createSession()])
+    store.set(optimisticKanbanColumnsAtom, new Map())
+    store.set(kanbanNotificationsAtom, [])
+
+    const moveA = store.set(moveCardAtom, { sessionId: 'session-1', columnId: 'in-progress' })
+    const moveB = store.set(moveCardAtom, { sessionId: 'session-1', columnId: 'done' })
+    expect(store.get(kanbanItemsAtom)[0]?.columnId).toBe('done')
+
+    first.reject(new Error('A 失败'))
+    await moveA
+    expect(store.get(kanbanItemsAtom)[0]?.columnId).toBe('done')
+
+    second.reject(new Error('B 失败'))
+    await moveB
+
+    expect(store.get(kanbanItemsAtom)[0]?.columnId).toBe('todo')
+  } finally {
+    Object.defineProperty(globalThis, 'window', { configurable: true, value: originalWindow })
+  }
+})

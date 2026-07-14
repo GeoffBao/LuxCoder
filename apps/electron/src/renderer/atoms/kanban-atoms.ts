@@ -2,7 +2,6 @@ import { atom } from 'jotai'
 import type { AgentSessionMeta } from '@luxagents/shared'
 import { buildKanbanViewModel } from '@/components/app-shell/kanban/kanban-view-model'
 import {
-  INBOX_COLUMN_ID,
   type KanbanBoardMode,
   type KanbanItem,
   type KanbanTaskRun,
@@ -29,7 +28,13 @@ export const serverKanbanRunsAtom = atom<KanbanTaskRun[]>([])
 export const serverTeambitionBindingsAtom = atom<TeambitionBinding[]>([])
 
 /** 仅保存尚未得到服务端确认的列覆盖，避免污染服务端快照。 */
-export const optimisticKanbanColumnsAtom = atom<Map<string, string>>(new Map())
+interface OptimisticKanbanColumn {
+  columnId: string
+  sequence: number
+}
+
+export const optimisticKanbanColumnsAtom = atom<Map<string, OptimisticKanbanColumn>>(new Map())
+const kanbanMoveSequenceAtom = atom(0)
 
 export const boardModeAtom = atom<KanbanBoardMode>('board')
 
@@ -44,8 +49,8 @@ export const kanbanNotificationsAtom = atom<KanbanNotification[]>([])
 export const kanbanItemsAtom = atom<KanbanItem[]>((get) => {
   const optimisticColumns = get(optimisticKanbanColumnsAtom)
   const sessions = get(serverKanbanSessionsAtom).map((session) => {
-    const columnId = optimisticColumns.get(session.id)
-    return columnId === undefined ? session : { ...session, kanbanColumn: columnId }
+    const optimisticColumn = optimisticColumns.get(session.id)
+    return optimisticColumn === undefined ? session : { ...session, kanbanColumn: optimisticColumn.columnId }
   })
   return buildKanbanViewModel({
     projects: get(serverKanbanProjectsAtom),
@@ -61,10 +66,6 @@ export interface MoveCardInput {
   columnId: string
 }
 
-function getCurrentColumn(session: AgentSessionMeta | undefined, optimisticColumn: string | undefined): string {
-  return optimisticColumn ?? session?.kanbanColumn ?? INBOX_COLUMN_ID
-}
-
 function toErrorMessage(cause: unknown): string {
   return cause instanceof Error ? cause.message : '移动看板卡片失败'
 }
@@ -75,12 +76,11 @@ function toErrorMessage(cause: unknown): string {
 export const moveCardAtom = atom(
   null,
   async (get, set, input: MoveCardInput): Promise<void> => {
-    const session = get(serverKanbanSessionsAtom).find((item) => item.id === input.sessionId)
     const currentOptimisticColumns = get(optimisticKanbanColumnsAtom)
-    const hadOptimisticColumn = currentOptimisticColumns.has(input.sessionId)
-    const previousColumn = getCurrentColumn(session, currentOptimisticColumns.get(input.sessionId))
+    const sequence = get(kanbanMoveSequenceAtom) + 1
+    set(kanbanMoveSequenceAtom, sequence)
     const nextOptimisticColumns = new Map(currentOptimisticColumns)
-    nextOptimisticColumns.set(input.sessionId, input.columnId)
+    nextOptimisticColumns.set(input.sessionId, { columnId: input.columnId, sequence })
     set(optimisticKanbanColumnsAtom, nextOptimisticColumns)
 
     try {
@@ -89,17 +89,16 @@ export const moveCardAtom = atom(
         sessions.map((item) => item.id === input.sessionId ? updated : item),
       )
       set(optimisticKanbanColumnsAtom, (columns) => {
-        if (columns.get(input.sessionId) !== input.columnId) return columns
+        if (columns.get(input.sessionId)?.sequence !== sequence) return columns
         const next = new Map(columns)
         next.delete(input.sessionId)
         return next
       })
     } catch (cause) {
       set(optimisticKanbanColumnsAtom, (columns) => {
-        if (columns.get(input.sessionId) !== input.columnId) return columns
+        if (columns.get(input.sessionId)?.sequence !== sequence) return columns
         const next = new Map(columns)
-        if (hadOptimisticColumn) next.set(input.sessionId, previousColumn)
-        else next.delete(input.sessionId)
+        next.delete(input.sessionId)
         return next
       })
       set(kanbanNotificationsAtom, (notifications) => [

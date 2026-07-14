@@ -115,11 +115,11 @@ import type {
   RunLogEntry,
   ProjectsChangedEventPayload,
   TaskGeneratedEventPayload,
-  ProjectConfig,
-  ValidationResult,
 } from '@luxagents/shared'
 import type { WorkTask, WorkApprovalRecord, WorkAuditLogEntry } from '@luxagents/shared'
 import { WORK_IPC_CHANNELS } from '@luxagents/shared/channels'
+import type { ProjectConfig } from '@luxagents/shared/projects/types'
+import type { ValidationResult } from '@luxagents/shared/tasks/validate'
 import type {
   UserProfile,
   AppSettings,

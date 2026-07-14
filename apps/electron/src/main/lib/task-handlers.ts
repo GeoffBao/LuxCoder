@@ -13,6 +13,7 @@ import {
 } from '@luxagents/shared/channels'
 import type {
   CreateProjectInput,
+  AgentSessionMeta,
   ProjectsChangedEventPayload,
   SessionKanbanCommand,
   TaskContractIssue,
@@ -131,6 +132,30 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+type AgentSessionMetaUpdater = (
+  sessionId: string,
+  updates: Pick<AgentSessionMeta, 'kanbanColumn'>,
+) => AgentSessionMeta
+
+/** 将看板列持久化，并把更新后的会话返回给渲染进程。 */
+export function setSessionKanbanColumn(
+  sessionId: string,
+  column: string | null,
+  updateSession: AgentSessionMetaUpdater = updateAgentSessionMeta,
+): AgentSessionMeta {
+  return updateSession(sessionId, { kanbanColumn: column ?? undefined })
+}
+
+/** 保持 validate 与 tasks.get 使用相同的完整验证结果形状。 */
+export function buildTaskValidationPayload(result: ReturnType<typeof parseTaskYaml>): ReturnType<typeof parseTaskYaml> {
+  return {
+    valid: result.valid,
+    errors: result.errors ?? [],
+    warnings: result.warnings ?? [],
+    ...(result.spec ? { spec: result.spec } : {}),
+  }
+}
+
 /** 通过 Host 的完成事件等待一轮生成，避免悬挂监听器和未等待的 Agent 请求。 */
 async function sendGenerationPrompt(
   host: LuxAgentsConductorSessionHost,
@@ -237,8 +262,7 @@ export function registerTaskHandlers(window: BrowserWindow): void {
   })
 
   ipcMain.handle(TASK_IPC_CHANNELS.VALIDATE, (_event, yaml: string) => {
-    const result = parseTaskYaml(yaml)
-    return { valid: result.valid, errors: result.errors ?? [], spec: result.spec }
+    return buildTaskValidationPayload(parseTaskYaml(yaml))
   })
 
   ipcMain.handle(TASK_IPC_CHANNELS.CREATE, async (_event, workspaceRoot: string, workspaceId: string, request: {
@@ -329,7 +353,7 @@ export function registerTaskHandlers(window: BrowserWindow): void {
       case 'set_project_id':
         return updateAgentSessionMeta(sessionId, { projectId: command.projectId })
       case 'set_kanban_column':
-        return host.setKanbanColumn(sessionId, command.kanbanColumn)
+        return setSessionKanbanColumn(sessionId, command.kanbanColumn)
       case 'set_session_status':
         return host.setSessionStatus(sessionId, command.status)
       case 'set_task_node_count':

@@ -22,6 +22,7 @@ const {
   pauseTaskRun,
   stopTaskRun,
 }: typeof import('./task-handlers') = await import('./task-handlers')
+const taskHandlers = await import('./task-handlers')
 type TaskRunnerController = import('./task-handlers').TaskRunnerController
 
 function createController(): {
@@ -78,5 +79,34 @@ describe('task handler runner hydration', () => {
 
     expect(resolved).toBe(true)
     expect(stopped).toEqual([{ slug: 'demo-task', runId: 'run-1' }])
+  })
+})
+
+describe('task handler Kanban payloads', () => {
+  test('set_kanban_column 返回更新后的 AgentSessionMeta', () => {
+    const setKanbanColumn = Reflect.get(taskHandlers, 'setSessionKanbanColumn')
+    expect(setKanbanColumn).toBeInstanceOf(Function)
+    if (typeof setKanbanColumn !== 'function') return
+
+    const result = setKanbanColumn('session-1', 'done', (sessionId: string, updates: { kanbanColumn?: string }) => ({
+      id: sessionId,
+      title: '任务会话',
+      createdAt: 1,
+      updatedAt: 2,
+      ...updates,
+    }))
+
+    expect(result).toEqual(expect.objectContaining({ id: 'session-1', kanbanColumn: 'done' }))
+  })
+
+  test('validate payload 保留 warnings', () => {
+    const buildPayload = Reflect.get(taskHandlers, 'buildTaskValidationPayload')
+    expect(buildPayload).toBeInstanceOf(Function)
+    if (typeof buildPayload !== 'function') return
+
+    const warnings = [{ file: 'task.yaml', path: 'nodes.a', message: '依赖建议', severity: 'warning' as const }]
+    const result = buildPayload({ valid: true, errors: [], warnings })
+
+    expect(result).toEqual(expect.objectContaining({ valid: true, errors: [], warnings }))
   })
 })
