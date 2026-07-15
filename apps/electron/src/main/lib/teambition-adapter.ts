@@ -4,7 +4,7 @@
  * 见 docs/plans/2026-07-07-work-mode-design.md §6。
  *
  * 两个实现：
- * - McpTeambitionAdapter：程序化调用 TW user-mcp（不走 LLM，WorkEngine 直接
+ * - McpTeambitionAdapter：程序化调用 TW user-mcp（不走 LLM，由 TeambitionService
  *   用 @modelcontextprotocol/sdk client 调工具）。复用现有 McpServerEntry
  *   配置形状（type:'http' + url + headers 带 token），workspace mcp.json
  *   机制零改造。
@@ -15,8 +15,8 @@
  * 这里刻意不猜测/硬编码工具名——McpTeambitionAdapter 要求调用方显式传入
  * toolNames 映射，第一步必须先跑 listTools() 探测真实工具列表再填值
  * （对应方案文档 §6 的"首个任务：枚举 user-mcp 工具列表"）。fetchTasks /
- * fetchTaskDetail 返回未加工的原始负载（TeambitionTaskRaw），TW→WorkTask
- * 的字段映射留给 Phase 5 拿到真实数据后再写，不在这里假装已知 schema。
+ * fetchTaskDetail 返回未加工的原始负载（TeambitionTaskRaw），远端任务到本地绑定的
+ * 字段映射留给拿到真实数据后再写，不在这里假装已知 schema。
  */
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'

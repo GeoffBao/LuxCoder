@@ -116,8 +116,6 @@ import type {
   ProjectsChangedEventPayload,
   TaskGeneratedEventPayload,
 } from '@luxagents/shared'
-import type { WorkTask, WorkApprovalRecord, WorkAuditLogEntry } from '@luxagents/shared'
-import { WORK_IPC_CHANNELS } from '@luxagents/shared/channels'
 import type { ProjectConfig } from '@luxagents/shared/projects'
 import type { ValidationResult } from '../../../../packages/shared/src/tasks/validate.ts'
 import type {
@@ -1232,27 +1230,6 @@ export interface ElectronAPI {
   onProjectsChanged: (callback: (payload: ProjectsChangedEventPayload) => void) => () => void
   onTaskGenerated: (callback: (payload: TaskGeneratedEventPayload) => void) => () => void
 
-  // ===== Work 模式 =====
-  /** 获取全部 Work 任务 */
-  listWorkTasks: () => Promise<WorkTask[]>
-  /** 获取单个 Work 任务 */
-  getWorkTask: (taskId: string) => Promise<WorkTask | undefined>
-  /** 获取任务迁移审计日志 */
-  getWorkTaskAuditLog: (taskId: string) => Promise<WorkAuditLogEntry[]>
-  /** 手动创建本地任务（本地通道，不计入 KPI） */
-  createWorkTask: (
-    input: Pick<WorkTask, 'title' | 'description' | 'type' | 'priority' | 'workspaceId' | 'assigneeName'>,
-  ) => Promise<WorkTask>
-  /** 从 TW 拉取任务 */
-  pullWorkTasksFromTw: (projectId: string) => Promise<WorkTask[]>
-  /** 提交审批（批准/驳回） */
-  submitWorkApproval: (taskId: string, approval: WorkApprovalRecord) => Promise<WorkTask>
-  /** 取消任务 */
-  cancelWorkTask: (taskId: string) => Promise<WorkTask>
-  /** 订阅单任务变更事件 */
-  onWorkTaskUpdated: (callback: (task: WorkTask) => void) => () => void
-  /** 订阅任务列表变更事件 */
-  onWorkTasksChanged: (callback: () => void) => () => void
 }
 
 interface MigrationExportResult {
@@ -2717,27 +2694,6 @@ const electronAPI: ElectronAPI = {
     return () => { ipcRenderer.removeListener(TASK_IPC_CHANNELS.GENERATED, listener) }
   },
 
-  // ===== Work 模式 =====
-  listWorkTasks: () => ipcRenderer.invoke(WORK_IPC_CHANNELS.LIST_TASKS),
-  getWorkTask: (taskId: string) => ipcRenderer.invoke(WORK_IPC_CHANNELS.GET_TASK, taskId),
-  getWorkTaskAuditLog: (taskId: string) => ipcRenderer.invoke(WORK_IPC_CHANNELS.GET_TASK_AUDIT_LOG, taskId),
-  createWorkTask: (
-    input: Pick<WorkTask, 'title' | 'description' | 'type' | 'priority' | 'workspaceId' | 'assigneeName'>,
-  ) => ipcRenderer.invoke(WORK_IPC_CHANNELS.CREATE_TASK, input),
-  pullWorkTasksFromTw: (projectId: string) => ipcRenderer.invoke(WORK_IPC_CHANNELS.PULL_FROM_TW, projectId),
-  submitWorkApproval: (taskId: string, approval: WorkApprovalRecord) =>
-    ipcRenderer.invoke(WORK_IPC_CHANNELS.SUBMIT_APPROVAL, taskId, approval),
-  cancelWorkTask: (taskId: string) => ipcRenderer.invoke(WORK_IPC_CHANNELS.CANCEL_TASK, taskId),
-  onWorkTaskUpdated: (callback: (task: WorkTask) => void) => {
-    const listener = (_: unknown, task: WorkTask): void => callback(task)
-    ipcRenderer.on(WORK_IPC_CHANNELS.TASK_UPDATED, listener)
-    return () => { ipcRenderer.removeListener(WORK_IPC_CHANNELS.TASK_UPDATED, listener) }
-  },
-  onWorkTasksChanged: (callback: () => void) => {
-    const listener = (): void => callback()
-    ipcRenderer.on(WORK_IPC_CHANNELS.TASKS_CHANGED, listener)
-    return () => { ipcRenderer.removeListener(WORK_IPC_CHANNELS.TASKS_CHANGED, listener) }
-  },
 }
 
 // 将 API 暴露到渲染进程的 window 对象上

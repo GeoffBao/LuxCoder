@@ -8,19 +8,6 @@ import {
   type TeambitionBinding,
 } from '@/components/app-shell/kanban/types'
 import { selectedProjectIdAtom, serverKanbanProjectsAtom } from './project-atoms'
-import type { LoadedProject } from '@luxagents/shared/projects/types'
-
-/** 旧 WorkBoardView 的兼容类型；Task 10 清理 flat API 后一并移除。 */
-export type KanbanColumnId = 'todo' | 'in-progress' | 'done'
-
-/** 旧 WorkBoardView 的兼容卡片；新看板使用 kanbanItemsAtom。 */
-export interface KanbanTaskCard {
-  slug: string
-  title: string
-  goal: string
-  column: KanbanColumnId
-  runId?: string
-}
 
 /** 服务端会话快照，始终保持原始 AgentSessionMeta。 */
 export const serverKanbanSessionsAtom = atom<AgentSessionMeta[]>([])
@@ -116,10 +103,3 @@ export const moveCardAtom = atom(
     }
   },
 )
-
-// ===== 旧 WorkBoardView 兼容状态 =====
-
-export const kanbanTasksAtom = atom<KanbanTaskCard[]>([])
-export const kanbanProjectsAtom = atom<LoadedProject[]>([])
-export const kanbanLoadingAtom = atom(false)
-export const kanbanErrorAtom = atom<string | null>(null)
