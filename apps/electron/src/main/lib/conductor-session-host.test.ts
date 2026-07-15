@@ -212,6 +212,40 @@ describe('LuxAgentsConductorSessionHost', () => {
     expect(events).toEqual([{ reason: 'error', finalText: '最终结果' }])
   })
 
+  test('优先走 runAgent（headless+WC），确保 Code 对话能收到流式事件', async () => {
+    const testDeps = createDependencies()
+    const runAgentInputs: AgentSendInput[] = []
+    let runAgentSource: string | undefined
+    const deps: ConductorSessionHostDependencies = {
+      ...testDeps.deps,
+      runAgent: async (input, callbacks) => {
+        runAgentInputs.push(input)
+        runAgentSource = callbacks.source
+        callbacks.onComplete([
+          { id: 'assistant-1', role: 'assistant', content: '子任务完成', createdAt: 2 },
+        ])
+      },
+    }
+    const host = new LuxAgentsConductorSessionHost(deps)
+    const events: SessionCompletionEvent[] = []
+    host.onSessionComplete((event) => events.push(event))
+
+    await host.sendMessage('session-1', '执行节点')
+
+    expect(runAgentInputs).toEqual([expect.objectContaining({
+      sessionId: 'session-1',
+      userMessage: '执行节点',
+      triggeredBy: 'work',
+    })])
+    expect(runAgentSource).toBe('work')
+    expect(testDeps.sentInputs).toEqual([])
+    expect(events).toEqual([expect.objectContaining({
+      sessionId: 'session-1',
+      reason: 'complete',
+      finalText: '子任务完成',
+    })])
+  })
+
   test('后台任务未完成时不派发终态，最终完成时映射 token usage', async () => {
     const testDeps = createDependencies()
     const host = new LuxAgentsConductorSessionHost(testDeps.deps)

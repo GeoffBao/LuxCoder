@@ -7,10 +7,12 @@ import {
   agentStreamingStatesAtom,
   agentWorkspacesAtom,
   currentAgentWorkspaceIdAtom,
+  type ToolActivity,
 } from '@/atoms/agent-atoms'
 import { kanbanSpecNodesAtom } from '@/atoms/kanban-atoms'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { getToolDisplayName } from './tool-utils'
 import { mergeSubtaskRows, type SpecNodeSummary } from '../app-shell/kanban/subtask-merge'
 import { SubtaskRow } from '../app-shell/kanban/SubtaskRow'
 import { deriveSubtaskRunState } from '../app-shell/kanban/kanban-view-model'
@@ -21,7 +23,23 @@ interface AgentTaskPanelProps {
   sessionId: string
 }
 
-/** Code/Agent 会话内的任务编排条：展示子任务 DAG 状态，对齐 craft TaskChatPreview。 */
+function summarizeLiveActivity(activities: ToolActivity[], content: string): string | null {
+  const active = [...activities].reverse().find((item) => !item.done)
+  if (active) {
+    const label = active.displayName || active.intent || getToolDisplayName(active.toolName)
+    return label
+  }
+  const done = activities.filter((item) => item.done)
+  if (done.length > 0) {
+    const last = done[done.length - 1]!
+    return `${getToolDisplayName(last.toolName)} · ${done.length} 次工具`
+  }
+  const snippet = content.trim().replace(/\s+/g, ' ')
+  if (!snippet) return null
+  return snippet.length > 72 ? `${snippet.slice(0, 72)}…` : snippet
+}
+
+/** Code/Agent 会话内的任务编排条：展示子任务 DAG 状态 + 实时执行摘要，对齐 craft TaskChatPreview。 */
 export function AgentTaskPanel({ sessionId }: AgentTaskPanelProps): React.ReactElement | null {
   const sessions = useAtomValue(agentSessionsAtom)
   const streamStates = useAtomValue(agentStreamingStatesAtom)
@@ -34,8 +52,15 @@ export function AgentTaskPanel({ sessionId }: AgentTaskPanelProps): React.ReactE
   const [localNodes, setLocalNodes] = React.useState<SpecNodeSummary[] | null>(null)
 
   const session = sessions.find((candidate) => candidate.id === sessionId)
-  const taskSlug = session?.taskSlug
-  const workspace = workspaces.find((candidate) => candidate.id === (session?.workspaceId ?? currentWorkspaceId))
+  const orchestratorSession = React.useMemo(() => {
+    if (!session) return undefined
+    if (!session.parentSessionId) return session
+    return sessions.find((candidate) => candidate.id === session.parentSessionId) ?? session
+  }, [session, sessions])
+
+  const orchestratorSessionId = orchestratorSession?.id
+  const taskSlug = orchestratorSession?.taskSlug ?? session?.taskSlug
+  const workspace = workspaces.find((candidate) => candidate.id === (orchestratorSession?.workspaceId ?? session?.workspaceId ?? currentWorkspaceId))
   const [workspaceRoot, setWorkspaceRoot] = React.useState<string | null>(null)
 
   React.useEffect(() => {
@@ -65,37 +90,39 @@ export function AgentTaskPanel({ sessionId }: AgentTaskPanelProps): React.ReactE
   }, [specNodesBySlug, taskSlug, workspaceRoot])
 
   const subtasks = React.useMemo((): KanbanSubtask[] => {
-    if (!session || !taskSlug) return []
+    if (!orchestratorSession || !orchestratorSessionId || !taskSlug) return []
     const children = sessions
-      .filter((candidate) => candidate.parentSessionId === sessionId && !candidate.archived && !candidate.taskDraft)
+      .filter((candidate) => candidate.parentSessionId === orchestratorSessionId && !candidate.archived && !candidate.taskDraft)
       .map((child) => ({
         id: child.id,
         title: child.title,
         runState: streamStates.get(child.id)?.running ? 'running' as const : deriveSubtaskRunState(child),
-        model: child.modelId ?? session.modelId ?? '',
+        model: child.modelId ?? orchestratorSession.modelId ?? '',
         ...(child.taskNodeId ? { taskNodeId: child.taskNodeId } : {}),
         createdAt: child.createdAt,
       }))
     const nodes = specNodesBySlug.get(taskSlug) ?? localNodes ?? undefined
-    return mergeSubtaskRows(nodes, children, session.modelId ?? '').map((row) => {
+    return mergeSubtaskRows(nodes, children, orchestratorSession.modelId ?? '').map((row) => {
       if (!row.sessionId || !streamStates.get(row.sessionId)?.running) return row
       return { ...row, runState: 'running' as const }
     })
-  }, [localNodes, session, sessionId, sessions, specNodesBySlug, streamStates, taskSlug])
+  }, [localNodes, orchestratorSession, orchestratorSessionId, sessions, specNodesBySlug, streamStates, taskSlug])
 
-  if (!session || !taskSlug || session.parentSessionId) return null
+  if (!session || !taskSlug || !orchestratorSession || !orchestratorSessionId) return null
 
-  const live = Boolean(streamStates.get(sessionId)?.running)
+  const viewingChild = Boolean(session.parentSessionId)
+  const live = Boolean(streamStates.get(orchestratorSessionId)?.running)
     || subtasks.some((subtask) => subtask.runState === 'running')
+    || Boolean(streamStates.get(sessionId)?.running)
   const done = subtasks.filter((subtask) => subtask.runState === 'done').length
-  const total = Math.max(subtasks.length, session.taskNodeCount ?? 0)
+  const total = Math.max(subtasks.length, orchestratorSession.taskNodeCount ?? 0)
 
   const runTask = async (): Promise<void> => {
     if (!workspaceRoot || !workspace || !taskSlug) return
     setRunning(true)
     try {
       await window.electronAPI.tasks.run(workspaceRoot, workspace.id, taskSlug, {
-        orchestratorSessionId: sessionId,
+        orchestratorSessionId,
       })
       toast.success('任务已开始运行')
     } catch (cause) {
@@ -129,17 +156,19 @@ export function AgentTaskPanel({ sessionId }: AgentTaskPanelProps): React.ReactE
             )}
           </div>
         </div>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="h-7 px-2"
-          disabled={running || live || subtasks.length === 0}
-          onClick={() => void runTask()}
-        >
-          {running ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-          运行
-        </Button>
+        {!viewingChild && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 px-2"
+            disabled={running || live || subtasks.length === 0}
+            onClick={() => void runTask()}
+          >
+            {running ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+            运行
+          </Button>
+        )}
         <button
           type="button"
           aria-label={expanded ? '收起子任务' : '展开子任务'}
@@ -151,18 +180,36 @@ export function AgentTaskPanel({ sessionId }: AgentTaskPanelProps): React.ReactE
       </div>
       {expanded && subtasks.length > 0 && (
         <div className="mt-2 space-y-0.5 rounded-lg bg-muted/40 p-1.5">
-          {subtasks.map((subtask) => (
-            <SubtaskRow
-              key={subtask.id}
-              subtask={subtask}
-              onClick={subtask.sessionId
-                ? () => {
-                    const child = sessions.find((candidate) => candidate.id === subtask.sessionId)
-                    if (child) openSession('agent', child.id, child.title)
-                  }
-                : undefined}
-            />
-          ))}
+          {subtasks.map((subtask) => {
+            const childStream = subtask.sessionId ? streamStates.get(subtask.sessionId) : undefined
+            const activity = childStream?.running
+              ? summarizeLiveActivity(childStream.toolActivities, childStream.content)
+              : null
+            const isCurrent = subtask.sessionId === sessionId
+            return (
+              <div key={subtask.id} className="space-y-0.5">
+                <SubtaskRow
+                  subtask={subtask}
+                  onClick={subtask.sessionId
+                    ? () => {
+                        const child = sessions.find((candidate) => candidate.id === subtask.sessionId)
+                        if (child) openSession('agent', child.id, child.title)
+                      }
+                    : undefined}
+                />
+                {activity && (
+                  <div className={cn(
+                    'ml-6 truncate pb-1 text-[11px] text-muted-foreground',
+                    isCurrent && 'text-amber-600 dark:text-amber-400',
+                  )}
+                  >
+                    <LoaderCircle className="mr-1 inline h-3 w-3 animate-spin" />
+                    {activity}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
       {expanded && subtasks.length === 0 && (

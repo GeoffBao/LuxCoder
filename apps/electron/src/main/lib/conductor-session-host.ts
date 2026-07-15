@@ -33,6 +33,12 @@ export interface ConductorOrchestrator {
   stop(sessionId: string): void
 }
 
+/** Work/Kanban 任务触发的 Agent 运行：必须走 headless+WC 注册，否则 Code 对话看不到执行过程。 */
+export type ConductorAgentRunner = (
+  input: AgentSendInput,
+  callbacks: ConductorSessionCallbacks & { source?: 'work' },
+) => Promise<void>
+
 export interface ConductorSessionHostDependencies {
   createAgentSession: (
     title?: string,
@@ -47,6 +53,8 @@ export interface ConductorSessionHostDependencies {
   getAgentSessionWorkspacePath: (workspaceSlug: string, sessionId: string) => string
   getDefaultAgentChannelId?: () => string | undefined
   getOrchestrator: () => ConductorOrchestrator
+  /** 优先使用：注册主窗口 webContents，把 STREAM_EVENT 推到 Code 对话 */
+  runAgent?: ConductorAgentRunner
 }
 
 type ConductorSessionMeta = AgentSessionMeta
@@ -135,7 +143,7 @@ export class LuxAgentsConductorSessionHost implements ConductorSessionHost {
         triggeredBy: 'work',
         ...(meta.permissionMode !== undefined ? { permissionModeOverride: meta.permissionMode } : {}),
       }
-      await this.deps.getOrchestrator().sendMessage(input, {
+      const sessionCallbacks: ConductorSessionCallbacks = {
         onError: () => {
           state.sawError = true
         },
@@ -149,7 +157,14 @@ export class LuxAgentsConductorSessionHost implements ConductorSessionHost {
           dispatch(reason, messages)
         },
         onTitleUpdated: () => { /* Conductor 不消费标题事件 */ },
-      })
+      }
+      // 必须走 runAgent（headless+WC），不能直接 orchestrator.sendMessage：
+      // 否则 sessionWebContents 未注册，Code 对话收不到 STREAM_EVENT，执行过程空白。
+      if (this.deps.runAgent) {
+        await this.deps.runAgent(input, { ...sessionCallbacks, source: 'work' })
+      } else {
+        await this.deps.getOrchestrator().sendMessage(input, sessionCallbacks)
+      }
     } catch (error) {
       dispatch('error')
       throw error
@@ -229,6 +244,12 @@ export async function createLuxAgentsConductorSessionHost(): Promise<LuxAgentsCo
     getAgentSessionWorkspacePath: configPaths.getAgentSessionWorkspacePath,
     getDefaultAgentChannelId: () => settingsService.getSettings().agentChannelId,
     getOrchestrator: agentService.getOrchestrator,
+    runAgent: (input, callbacks) => agentService.runAgentHeadless(input, {
+      onError: callbacks.onError,
+      onComplete: callbacks.onComplete,
+      onTitleUpdated: callbacks.onTitleUpdated,
+      source: callbacks.source ?? 'work',
+    }),
   })
 }
 
