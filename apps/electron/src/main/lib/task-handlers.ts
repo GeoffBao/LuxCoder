@@ -30,8 +30,10 @@ import {
   loadProject,
   loadProjectById,
   loadWorkspaceProjects,
+  readProjectMemory,
   updateProject,
   uploadProjectAsset,
+  writeProjectMemory,
 } from '@luxagents/shared/projects/storage'
 import {
   buildGeneratorPrompt,
@@ -105,6 +107,12 @@ async function getRunnerFor(workspaceRoot: string, workspaceId: string): Promise
 
 function workspaceIdFor(workspaceRoot: string): string {
   return basename(workspaceRoot)
+}
+
+function loadProjectOrThrow(workspaceRoot: string, slug: string): NonNullable<ReturnType<typeof loadProject>> {
+  const project = loadProject(workspaceRoot, slug)
+  if (!project) throw new Error(`项目创建或更新后无法重新加载: ${slug}`)
+  return project
 }
 
 function sendToMainWindow(channel: string, payload: unknown): void {
@@ -247,15 +255,15 @@ export function registerTaskHandlers(window: BrowserWindow): void {
   })
 
   ipcMain.handle(PROJECT_IPC_CHANNELS.CREATE, (_event, workspaceRoot: string, input: CreateProjectInput) => {
-    const project = createProject(workspaceRoot, input)
+    const config = createProject(workspaceRoot, input)
     broadcastProjectsChanged(workspaceRoot, workspaceIdFor(workspaceRoot))
-    return project
+    return loadProjectOrThrow(workspaceRoot, config.slug)
   })
 
   ipcMain.handle(PROJECT_IPC_CHANNELS.UPDATE, (_event, workspaceRoot: string, slug: string, patch: UpdateProjectInput) => {
-    const project = updateProject(workspaceRoot, slug, patch)
+    const config = updateProject(workspaceRoot, slug, patch)
     broadcastProjectsChanged(workspaceRoot, workspaceIdFor(workspaceRoot))
-    return project
+    return loadProjectOrThrow(workspaceRoot, config.slug)
   })
 
   ipcMain.handle(PROJECT_IPC_CHANNELS.DELETE, (_event, workspaceRoot: string, slug: string) => {
@@ -275,6 +283,15 @@ export function registerTaskHandlers(window: BrowserWindow): void {
 
   ipcMain.handle(PROJECT_IPC_CHANNELS.DELETE_ASSET, (_event, workspaceRoot: string, slug: string, filename: string) => {
     deleteProjectAsset(workspaceRoot, slug, filename)
+    broadcastProjectsChanged(workspaceRoot, workspaceIdFor(workspaceRoot))
+  })
+
+  ipcMain.handle(PROJECT_IPC_CHANNELS.READ_MEMORY, (_event, workspaceRoot: string, slug: string) => {
+    return readProjectMemory(workspaceRoot, slug)
+  })
+
+  ipcMain.handle(PROJECT_IPC_CHANNELS.WRITE_MEMORY, (_event, workspaceRoot: string, slug: string, content: string) => {
+    writeProjectMemory(workspaceRoot, slug, content)
     broadcastProjectsChanged(workspaceRoot, workspaceIdFor(workspaceRoot))
   })
 

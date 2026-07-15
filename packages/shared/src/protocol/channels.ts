@@ -14,6 +14,8 @@ export const PROJECT_IPC_CHANNELS = {
   LIST_ASSETS: 'projects:listAssets',
   UPLOAD_ASSET: 'projects:uploadAsset',
   DELETE_ASSET: 'projects:deleteAsset',
+  READ_MEMORY: 'projects:readMemory',
+  WRITE_MEMORY: 'projects:writeMemory',
   CHANGED:     'projects:changed',
 } as const;
 

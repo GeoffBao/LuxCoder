@@ -335,6 +335,14 @@ export function readProjectMemory(workspaceRootPath: string, projectSlug: string
   }
 }
 
+/** 原子覆盖项目 MEMORY.md；项目不存在时拒绝创建游离目录。 */
+export function writeProjectMemory(workspaceRootPath: string, projectSlug: string, content: string): void {
+  if (!projectExists(workspaceRootPath, projectSlug)) {
+    throw new Error(`项目不存在: ${projectSlug}`);
+  }
+  atomicWriteFileSync(getProjectMemoryPath(workspaceRootPath, projectSlug), content);
+}
+
 /** 列出项目所有资产（按上传时间降序） */
 export function listProjectAssets(workspaceRootPath: string, projectSlug: string): ProjectAsset[] {
   ensureProjectAssetsDir(workspaceRootPath, projectSlug);

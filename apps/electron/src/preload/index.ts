@@ -1141,6 +1141,8 @@ export interface ElectronAPI {
     listAssets: (workspaceRoot: string, slug: string) => Promise<BrowserProjectAsset[]>
     uploadAsset: (workspaceRoot: string, slug: string, input: BrowserProjectAssetUploadInput) => Promise<BrowserProjectAsset>
     deleteAsset: (workspaceRoot: string, slug: string, filename: string) => Promise<void>
+    readMemory: (workspaceRoot: string, slug: string) => Promise<string>
+    writeMemory: (workspaceRoot: string, slug: string, content: string) => Promise<void>
     onChanged: (callback: (event: BrowserProjectChangedEvent) => void) => () => void
   }
   tasks: {
@@ -2576,6 +2578,10 @@ const electronAPI: ElectronAPI = {
     },
     deleteAsset: (workspaceRoot: string, slug: string, filename: string): Promise<void> =>
       invokeTyped<void>(PROJECT_IPC_CHANNELS.DELETE_ASSET, workspaceRoot, slug, filename),
+    readMemory: (workspaceRoot: string, slug: string): Promise<string> =>
+      invokeTyped<string>(PROJECT_IPC_CHANNELS.READ_MEMORY, workspaceRoot, slug),
+    writeMemory: (workspaceRoot: string, slug: string, content: string): Promise<void> =>
+      invokeTyped<void>(PROJECT_IPC_CHANNELS.WRITE_MEMORY, workspaceRoot, slug, content),
     onChanged: (callback: (event: BrowserProjectChangedEvent) => void): (() => void) => {
       const listener = (_event: unknown, payload: ProjectsChangedEventPayload): void => {
         callback({

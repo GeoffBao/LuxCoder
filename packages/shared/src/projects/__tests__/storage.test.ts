@@ -84,6 +84,7 @@ describe('projects package contracts', () => {
       'saveProjectConfig',
       'updateProject',
       'uploadProjectAsset',
+      'writeProjectMemory',
     ]);
   });
 });
@@ -229,5 +230,17 @@ describe('workspace project storage', () => {
     writeFileSync(memoryPath, '# MEMORY\n- item 1', 'utf-8');
 
     expect(projectStorage.readProjectMemory(workspaceRoot, project.slug)).toBe('# MEMORY\n- item 1');
+  });
+
+  test('writeProjectMemory 原子写入并可覆盖已有内容', () => {
+    const workspaceRoot = createTempWorkspaceRoot();
+    const project = projectStorage.createProject(workspaceRoot, { name: 'Memory Writer' });
+
+    projectStorage.writeProjectMemory(workspaceRoot, project.slug, '# 项目记忆\n第一次');
+    expect(projectStorage.readProjectMemory(workspaceRoot, project.slug)).toBe('# 项目记忆\n第一次');
+
+    projectStorage.writeProjectMemory(workspaceRoot, project.slug, '# 项目记忆\n第二次');
+    expect(projectStorage.readProjectMemory(workspaceRoot, project.slug)).toBe('# 项目记忆\n第二次');
+    expect(existsSync(`${projectStorage.getProjectMemoryPath(workspaceRoot, project.slug)}.tmp`)).toBe(false);
   });
 });

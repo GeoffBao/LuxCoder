@@ -118,6 +118,8 @@ export interface UpdateProjectInput {
   details?: string;
   colorTheme?: string;
   color?: string;
+  /** 项目级 Kanban 列；undefined 恢复默认列。 */
+  kanbanColumns?: KanbanColumnDef[];
   /** 设置值为 undefined 以取消归档 */
   archivedAt?: number;
 }

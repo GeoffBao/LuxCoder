@@ -23,8 +23,14 @@ export interface KanbanSubtask {
 /** 渲染进程使用的项目摘要，不包含本地文件路径。 */
 export interface KanbanProject {
   id: string
+  slug?: string
   name: string
-  kanbanColumns?: Array<{ id: string; name: string; color?: string }>
+  description?: string
+  details?: string
+  color?: string
+  archivedAt?: number
+  workspaceId?: string
+  kanbanColumns?: Array<{ id: string; name: string; color?: string; dropStatusId?: string }>
 }
 
 /** 从任务运行快照归一化后的最小节点状态。 */
