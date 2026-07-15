@@ -42,6 +42,7 @@ export interface KanbanTaskRun {
 
 /** 可安全展示的 Teambition 绑定字段。 */
 export interface TeambitionBinding {
+  bindingId?: string
   sessionId: string
   taskId: string
   title?: string
@@ -60,6 +61,7 @@ export interface KanbanNodeProgress {
 }
 
 export interface KanbanTeambitionFields {
+  bindingId?: string
   taskId: string
   title?: string
   status?: string

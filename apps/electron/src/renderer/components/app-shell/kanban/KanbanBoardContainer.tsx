@@ -1,7 +1,8 @@
 import * as React from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
-import { Plus } from 'lucide-react'
+import { CloudDownload, Plus } from 'lucide-react'
 import { toast } from 'sonner'
+import type { AgentSessionMeta } from '@luxagents/shared'
 import { agentWorkspacesAtom, currentAgentWorkspaceIdAtom } from '@/atoms/agent-atoms'
 import {
   boardModeAtom,
@@ -23,13 +24,15 @@ import { TaskEditor } from './TaskEditor'
 import { resolveKanbanItemOpen } from './task-editor-model'
 import { Button } from '@/components/ui/button'
 import type { KanbanItem, TaskEditorTarget } from './types'
+import { TeambitionPicker } from '@/components/work/TeambitionPicker'
 
 interface KanbanBoardContainerProps {
   onOpenItem?: (item: KanbanItem) => void
   onTaskCreated?: () => void | Promise<void>
+  onSessionCreated?: (session: AgentSessionMeta) => void
 }
 
-export function KanbanBoardContainer({ onOpenItem, onTaskCreated }: KanbanBoardContainerProps): React.ReactElement {
+export function KanbanBoardContainer({ onOpenItem, onTaskCreated, onSessionCreated }: KanbanBoardContainerProps): React.ReactElement {
   const items = useAtomValue(kanbanItemsAtom)
   const projects = useAtomValue(serverKanbanProjectsAtom)
   const selectedProject = useAtomValue(selectedKanbanProjectAtom)
@@ -42,6 +45,7 @@ export function KanbanBoardContainer({ onOpenItem, onTaskCreated }: KanbanBoardC
   const workspace = workspaces.find((candidate) => candidate.id === currentWorkspaceId) ?? null
   const [workspaceRoot, setWorkspaceRoot] = React.useState<string | null>(null)
   const [editorTarget, setEditorTarget] = React.useState<TaskEditorTarget | null>(null)
+  const [teambitionPickerOpen, setTeambitionPickerOpen] = React.useState(false)
 
   React.useEffect(() => {
     if (!workspace) { setWorkspaceRoot(null); return }
@@ -105,6 +109,14 @@ export function KanbanBoardContainer({ onOpenItem, onTaskCreated }: KanbanBoardC
           >
             <Plus className="h-4 w-4" />完整任务
           </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!workspaceRoot || !workspace}
+            onClick={() => setTeambitionPickerOpen(true)}
+          >
+            <CloudDownload className="h-4 w-4" />从 Teambition 认领
+          </Button>
         </div>
       </header>
       <KanbanBoard
@@ -113,8 +125,32 @@ export function KanbanBoardContainer({ onOpenItem, onTaskCreated }: KanbanBoardC
         columns={selectedProject?.kanbanColumns}
         onMove={(sessionId, columnId) => { void moveCard({ sessionId, columnId }) }}
         onOpenItem={openItem}
+        onRetryTeambition={(item) => {
+          const bindingId = item.teambition?.bindingId
+          if (!workspaceRoot || !bindingId) return
+          void window.electronAPI.teambition.retrySync(workspaceRoot, bindingId)
+            .then(() => onTaskCreated?.())
+            .catch((cause: unknown) => {
+              toast.error('重试 Teambition 同步失败', {
+                description: cause instanceof Error ? cause.message : String(cause),
+              })
+            })
+        }}
         composer={composer}
       />
+      {workspaceRoot && workspace && (
+        <TeambitionPicker
+          open={teambitionPickerOpen}
+          onOpenChange={setTeambitionPickerOpen}
+          workspaceRoot={workspaceRoot}
+          workspaceId={workspace.id}
+          localProjectId={selectedProjectId ?? undefined}
+          onClaimed={(session) => {
+            onSessionCreated?.(session)
+            void onTaskCreated?.()
+          }}
+        />
+      )}
     </div>
   )
 }

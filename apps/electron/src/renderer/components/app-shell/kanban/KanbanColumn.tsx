@@ -8,10 +8,11 @@ import type { KanbanItem } from './types'
 interface KanbanColumnProps {
   column: KanbanBoardColumn
   onOpenItem?: (item: KanbanItem) => void
+  onRetryTeambition?: (item: KanbanItem) => void
   children?: React.ReactNode
 }
 
-export function KanbanColumn({ column, onOpenItem, children }: KanbanColumnProps): React.ReactElement {
+export function KanbanColumn({ column, onOpenItem, onRetryTeambition, children }: KanbanColumnProps): React.ReactElement {
   const drop = useDroppable({ id: `column:${column.id}`, data: { columnId: column.id } })
   const color = resolveKanbanColumnColor(column.id, column.color)
   return (
@@ -26,7 +27,7 @@ export function KanbanColumn({ column, onOpenItem, children }: KanbanColumnProps
       </header>
       {children}
       <div className="space-y-3">
-        {column.items.map((item) => <TaskTile key={item.id} item={item} accent={color} onOpen={onOpenItem} />)}
+        {column.items.map((item) => <TaskTile key={item.id} item={item} accent={color} onOpen={onOpenItem} onRetryTeambition={onRetryTeambition} />)}
         {column.items.length === 0 && <div className="rounded-xl border border-dashed border-border/60 px-3 py-8 text-center text-xs text-muted-foreground">拖动卡片到这里</div>}
       </div>
     </section>

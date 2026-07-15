@@ -56,6 +56,7 @@ function buildItem(
     ...(binding
       ? {
           teambition: {
+            ...(binding.bindingId ? { bindingId: binding.bindingId } : {}),
             taskId: binding.taskId,
             ...(binding.title ? { title: binding.title } : {}),
             ...(binding.status ? { status: binding.status } : {}),

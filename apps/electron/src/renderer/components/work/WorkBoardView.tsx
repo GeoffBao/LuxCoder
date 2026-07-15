@@ -32,7 +32,7 @@ export function WorkBoardView(): React.ReactElement {
   const workspaces = useAtomValue(agentWorkspacesAtom)
   const currentWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
   const workspace = workspaces.find((candidate) => candidate.id === currentWorkspaceId) ?? workspaces[0] ?? null
-  const agentSessions = useAtomValue(agentSessionsAtom)
+  const [agentSessions, setAgentSessions] = useAtom(agentSessionsAtom)
   const [projects, setProjects] = useAtom(serverKanbanProjectsAtom)
   const [selectedProjectId, setSelectedProjectId] = useAtom(selectedProjectIdAtom)
   const selectedProject = useAtomValue(selectedKanbanProjectAtom)
@@ -110,6 +110,7 @@ export function WorkBoardView(): React.ReactElement {
     if (!workspaceRoot) return
     const bindings = await window.electronAPI.teambition.listBindings(workspaceRoot)
     setBindings(bindings.map((binding) => ({
+      bindingId: binding.id,
       sessionId: binding.sessionId,
       taskId: binding.remoteTaskId,
       title: binding.remoteTitle,
@@ -255,6 +256,9 @@ export function WorkBoardView(): React.ReactElement {
             ) : (
               <KanbanBoardContainer
                 onOpenItem={handleOpenItem}
+                onSessionCreated={(session) => {
+                  setAgentSessions((current) => [session, ...current.filter((candidate) => candidate.id !== session.id)])
+                }}
                 onTaskCreated={async () => {
                   await Promise.all([refreshProjects(), refreshRuns(), refreshBindings()])
                 }}

@@ -5,12 +5,14 @@ import { ModelChip } from './ModelChip'
 import { StatusBadge } from './StatusBadge'
 import { SubtaskProgress } from './SubtaskProgress'
 import type { KanbanItem, KanbanSubtask } from './types'
+import { resolveTeambitionSyncBadge } from '@/components/work/teambition-view'
 
 interface TaskTileProps {
   item: KanbanItem
   accent?: string
   draggable?: boolean
   onOpen?: (item: KanbanItem) => void
+  onRetryTeambition?: (item: KanbanItem) => void
   className?: string
 }
 
@@ -25,8 +27,11 @@ function progressSubtasks(item: KanbanItem): KanbanSubtask[] {
   }))
 }
 
-export function TaskTile({ item, accent, draggable = true, onOpen, className }: TaskTileProps): React.ReactElement {
+export function TaskTile({ item, accent, draggable = true, onOpen, onRetryTeambition, className }: TaskTileProps): React.ReactElement {
   const drag = useDraggable({ id: item.id, disabled: !draggable, data: { kind: 'kanban-item' } })
+  const teambitionBadge = item.teambition?.syncState
+    ? resolveTeambitionSyncBadge(item.teambition.syncState)
+    : null
   const transform = drag.transform
     ? `translate3d(${drag.transform.x}px, ${drag.transform.y}px, 0)`
     : undefined
@@ -56,7 +61,31 @@ export function TaskTile({ item, accent, draggable = true, onOpen, className }: 
         {item.session.taskSlug && <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"><GitBranch className="h-3 w-3" />{item.session.taskSlug}</span>}
       </div>
       {item.taskRun && <SubtaskProgress subtasks={progressSubtasks(item)} total={item.taskRun.totalNodes} accent={accent} className="mt-3" />}
-      {item.teambition && <div className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground"><Link2 className="h-3 w-3" /><span className="truncate">{item.teambition.title ?? item.teambition.taskId}</span>{item.teambition.status && <span>· {item.teambition.status}</span>}</div>}
+      {item.teambition && (
+        <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground" title={item.teambition.error}>
+          <Link2 className="h-3 w-3" />
+          <span className="truncate">{item.teambition.title ?? item.teambition.taskId}</span>
+          {item.teambition.status && <span>· {item.teambition.status}</span>}
+          {teambitionBadge && (
+            <span className={`rounded-full px-1.5 py-0.5 ${teambitionBadge.className}`}>
+              {teambitionBadge.label}
+            </span>
+          )}
+          {item.teambition.bindingId && (item.teambition.syncState === 'pending' || item.teambition.syncState === 'conflict') && (
+            <button
+              type="button"
+              className="rounded-full px-1.5 py-0.5 text-primary hover:bg-primary/10"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation()
+                onRetryTeambition?.(item)
+              }}
+            >
+              重试
+            </button>
+          )}
+        </div>
+      )}
     </article>
   )
 }

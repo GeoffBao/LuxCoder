@@ -80,7 +80,14 @@ describe('buildKanbanViewModel', () => {
 
   test('列表与看板使用相同的卡片顺序和派生的 Teambition 字段', () => {
     const bindings: TeambitionBinding[] = [
-      { sessionId: 'bound-session', taskId: 'TW-1', title: '同步状态', status: 'coding' },
+      {
+        bindingId: 'binding-1',
+        sessionId: 'bound-session',
+        taskId: 'TW-1',
+        title: '同步状态',
+        status: 'coding',
+        syncState: 'pending',
+      },
     ]
     const model = buildKanbanViewModel({
       projects,
@@ -95,7 +102,13 @@ describe('buildKanbanViewModel', () => {
     })
 
     expect(model.boardItems.map((item) => item.id)).toEqual(model.listItems.map((item) => item.id))
-    expect(model.listItems[0]?.teambition).toEqual({ taskId: 'TW-1', title: '同步状态', status: 'coding' })
+    expect(model.listItems[0]?.teambition).toEqual({
+      bindingId: 'binding-1',
+      taskId: 'TW-1',
+      title: '同步状态',
+      status: 'coding',
+      syncState: 'pending',
+    })
   })
 
   test('顶层看板排除归档、生成草稿和子会话', () => {
