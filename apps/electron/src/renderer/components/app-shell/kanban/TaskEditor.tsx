@@ -402,7 +402,7 @@ export function TaskEditor({
     <div className="flex h-full min-h-0 flex-col gap-3 bg-background p-3">
       <header className="flex flex-wrap items-center gap-2 rounded-xl bg-card px-3 py-2.5 shadow-sm">
         <Button variant="ghost" size="sm" onClick={onClose}><ArrowLeft className="h-4 w-4" />返回看板</Button>
-        <span className="text-sm font-semibold">{target.mode === 'edit' ? '编辑任务' : '新建完整任务'}</span>
+        <span className="text-sm font-semibold">{target.mode === 'edit' ? '编辑任务' : '新增任务'}</span>
         {target.mode === 'edit' && (
           <div className="ml-2 inline-flex rounded-lg bg-muted p-1">
             {(['definition', 'results'] as EditorTab[]).map((value) => (

@@ -61,6 +61,40 @@ describe('buildKanbanViewModel', () => {
     })
 
     expect(model.listItems[0]?.taskRun).toEqual({ completedNodes: 1, totalNodes: 3 })
+    expect(model.listItems[0]?.subtasks.map((row) => row.title)).toEqual(['build', 'verify', 'publish'])
+    expect(model.listItems[0]?.subtasks.map((row) => row.runState)).toEqual(['done', 'running', 'pending'])
+  })
+
+  test('合并 child session 与 spec nodes 为子任务行', () => {
+    const model = buildKanbanViewModel({
+      projects,
+      sessions: [
+        createSession({ id: 'parent', title: '主任务', taskSlug: 'release', updatedAt: 40 }),
+        createSession({
+          id: 'child-1',
+          title: '构建',
+          parentSessionId: 'parent',
+          taskNodeId: 'build',
+          sessionStatus: 'done',
+          modelId: 'm1',
+          updatedAt: 39,
+        }),
+      ],
+      runs: [],
+      bindings: [],
+      filter: { projectId: null },
+      specNodesBySlug: new Map([
+        ['release', [
+          { id: 'build', title: '构建' },
+          { id: 'verify', title: '验证' },
+        ]],
+      ]),
+    })
+
+    expect(model.listItems[0]?.subtasks).toEqual([
+      expect.objectContaining({ id: 'child-1', title: '构建', runState: 'done', sessionId: 'child-1' }),
+      expect.objectContaining({ id: 'node:verify', title: '验证', runState: 'pending' }),
+    ])
   })
 
   test('按项目筛选时排除其他项目的会话', () => {

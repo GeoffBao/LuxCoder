@@ -8,7 +8,7 @@ import {
   agentWorkspacesAtom,
   currentAgentWorkspaceIdAtom,
 } from '@/atoms/agent-atoms'
-import { channelsAtom } from '@/atoms/chat-atoms'
+import { channelsAtom, channelsLoadedAtom } from '@/atoms/chat-atoms'
 import {
   boardModeAtom,
   kanbanItemsAtom,
@@ -34,11 +34,17 @@ import { TeambitionPicker } from '@/components/work/TeambitionPicker'
 
 interface KanbanBoardContainerProps {
   onOpenItem?: (item: KanbanItem) => void
+  onOpenSubtask?: (sessionId: string) => void
   onTaskCreated?: () => void | Promise<void>
   onSessionCreated?: (session: AgentSessionMeta) => void
 }
 
-export function KanbanBoardContainer({ onOpenItem, onTaskCreated, onSessionCreated }: KanbanBoardContainerProps): React.ReactElement {
+export function KanbanBoardContainer({
+  onOpenItem,
+  onOpenSubtask,
+  onTaskCreated,
+  onSessionCreated,
+}: KanbanBoardContainerProps): React.ReactElement {
   const items = useAtomValue(kanbanItemsAtom)
   const projects = useAtomValue(serverKanbanProjectsAtom)
   const selectedProject = useAtomValue(selectedKanbanProjectAtom)
@@ -50,16 +56,29 @@ export function KanbanBoardContainer({ onOpenItem, onTaskCreated, onSessionCreat
   const currentWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
   const workspace = workspaces.find((candidate) => candidate.id === currentWorkspaceId) ?? null
   const channels = useAtomValue(channelsAtom)
+  const channelsLoaded = useAtomValue(channelsLoadedAtom)
+  const setChannels = useSetAtom(channelsAtom)
+  const setChannelsLoaded = useSetAtom(channelsLoadedAtom)
   const agentModelId = useAtomValue(agentModelIdAtom)
   const [workspaceRoot, setWorkspaceRoot] = React.useState<string | null>(null)
   const [editorTarget, setEditorTarget] = React.useState<TaskEditorTarget | null>(null)
   const [teambitionPickerOpen, setTeambitionPickerOpen] = React.useState(false)
 
   const { groups: modelGroups, modelToConnection } = React.useMemo(
-    // 看板与 craft 一致：列出全部启用渠道的模型，不按 agentChannelIds 白名单裁剪
     () => buildKanbanModelCatalog(channels),
     [channels],
   )
+
+  React.useEffect(() => {
+    if (channelsLoaded && channels.length > 0) return
+    let cancelled = false
+    void window.electronAPI.listChannels().then((next) => {
+      if (cancelled) return
+      setChannels(next)
+      setChannelsLoaded(true)
+    }).catch(console.error)
+    return () => { cancelled = true }
+  }, [channels.length, channelsLoaded, setChannels, setChannelsLoaded])
 
   React.useEffect(() => {
     if (!workspace) { setWorkspaceRoot(null); return }
@@ -112,6 +131,7 @@ export function KanbanBoardContainer({ onOpenItem, onTaskCreated, onSessionCreat
           const item = items.find((candidate) => candidate.id === sessionId)
           if (item) onOpenItem?.(item)
         }}
+        onOpenChildSession={onOpenSubtask}
       />
     )
   }
@@ -119,7 +139,10 @@ export function KanbanBoardContainer({ onOpenItem, onTaskCreated, onSessionCreat
   return (
     <div className="flex h-full min-h-0 flex-col bg-background p-4">
       <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div><h1 className="text-lg font-semibold">Projects & Kanban</h1><p className="text-xs text-muted-foreground">{items.length} 个会话任务</p></div>
+        <div>
+          <h1 className="text-lg font-semibold">Projects & Kanban</h1>
+          <p className="text-xs text-muted-foreground">{items.length} 个会话任务</p>
+        </div>
         <div className="flex items-center gap-2">
           <KanbanProjectFilter projects={projects} value={selectedProjectId} onChange={setSelectedProjectId} />
           <BoardListToggle value={mode} onChange={setMode} />
@@ -128,7 +151,7 @@ export function KanbanBoardContainer({ onOpenItem, onTaskCreated, onSessionCreat
             disabled={!workspaceRoot || !workspace}
             onClick={() => setEditorTarget({ mode: 'create', ...(selectedProjectId ? { initialProjectId: selectedProjectId } : {}) })}
           >
-            <Plus className="h-4 w-4" />完整任务
+            <Plus className="h-4 w-4" />新增任务
           </Button>
           <Button
             size="sm"
@@ -146,6 +169,7 @@ export function KanbanBoardContainer({ onOpenItem, onTaskCreated, onSessionCreat
         columns={selectedProject?.kanbanColumns}
         onMove={(sessionId, columnId) => { void moveCard({ sessionId, columnId }) }}
         onOpenItem={openItem}
+        onOpenSubtask={onOpenSubtask}
         onRetryTeambition={(item) => {
           const bindingId = item.teambition?.bindingId
           if (!workspaceRoot || !bindingId) return

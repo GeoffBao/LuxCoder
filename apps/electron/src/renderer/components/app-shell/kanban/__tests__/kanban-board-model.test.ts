@@ -20,6 +20,7 @@ function createItem(id: string, columnId: string): KanbanItem {
     columnId,
     session,
     project: null,
+    subtasks: [],
   }
 }
 

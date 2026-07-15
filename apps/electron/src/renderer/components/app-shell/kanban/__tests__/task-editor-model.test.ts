@@ -17,6 +17,7 @@ function createItem(session: AgentSessionMeta): KanbanItem {
     columnId: session.kanbanColumn ?? 'inbox',
     session,
     project: null,
+    subtasks: [],
   }
 }
 

@@ -63,9 +63,27 @@ export function ProjectsListPanel({
   }
 
   return (
-    <aside className={cn('flex min-h-0 w-72 shrink-0 flex-col rounded-2xl bg-card shadow-sm', className)}>
+    <aside className={cn('relative z-20 flex min-h-0 w-72 shrink-0 flex-col rounded-2xl bg-card shadow-sm', className)}>
       <header className="space-y-3 p-3">
-        <div className="flex items-center justify-between"><div><h2 className="text-sm font-semibold">Projects</h2><p className="text-[11px] text-muted-foreground">{projects.length} 个项目</p></div><Button size="icon-sm" onClick={() => setCreating((value) => !value)} aria-label="新建项目"><Plus className="h-4 w-4" /></Button></div>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold">Projects</h2>
+            <p className="text-[11px] text-muted-foreground">{projects.length} 个项目</p>
+          </div>
+          <Button
+            type="button"
+            size="icon-sm"
+            className="relative z-30"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation()
+              setCreating((value) => !value)
+            }}
+            aria-label="新建项目"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
         <label className="relative block"><Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索项目" className="h-8 pl-8 text-xs" /></label>
         <label className="flex items-center gap-2 text-xs text-muted-foreground"><input type="checkbox" checked={showArchived} onChange={(event) => setShowArchived(event.target.checked)} />显示已归档</label>
       </header>

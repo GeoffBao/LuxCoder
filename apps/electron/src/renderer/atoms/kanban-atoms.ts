@@ -1,18 +1,22 @@
 import { atom } from 'jotai'
 import type { AgentSessionMeta } from '@luxagents/shared'
 import { buildKanbanViewModel } from '@/components/app-shell/kanban/kanban-view-model'
+import type { SpecNodeSummary } from '@/components/app-shell/kanban/subtask-merge'
 import {
   type KanbanBoardMode,
   type KanbanItem,
   type KanbanTaskRun,
   type TeambitionBinding,
 } from '@/components/app-shell/kanban/types'
+import { agentModelIdAtom } from './agent-atoms'
 import { selectedProjectIdAtom, serverKanbanProjectsAtom } from './project-atoms'
 
 /** 服务端会话快照，始终保持原始 AgentSessionMeta。 */
 export const serverKanbanSessionsAtom = atom<AgentSessionMeta[]>([])
 export const serverKanbanRunsAtom = atom<KanbanTaskRun[]>([])
 export const serverTeambitionBindingsAtom = atom<TeambitionBinding[]>([])
+/** taskSlug → DAG nodes，供卡片合并子任务行 */
+export const kanbanSpecNodesAtom = atom<Map<string, SpecNodeSummary[]>>(new Map())
 
 /** 仅保存尚未得到服务端确认的列覆盖，避免污染服务端快照。 */
 interface OptimisticKanbanColumn {
@@ -46,6 +50,8 @@ export const kanbanItemsAtom = atom<KanbanItem[]>((get) => {
     runs: get(serverKanbanRunsAtom),
     bindings: get(serverTeambitionBindingsAtom),
     filter: { projectId: get(selectedProjectIdAtom) },
+    specNodesBySlug: get(kanbanSpecNodesAtom),
+    fallbackModel: get(agentModelIdAtom) ?? '',
   }).listItems
 })
 

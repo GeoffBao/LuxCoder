@@ -76,6 +76,10 @@ export interface KanbanItem {
   columnId: string
   session: AgentSessionMeta
   project: KanbanProject | null
+  /** craft 对齐：卡片上展开的子任务行（spec nodes ∪ child sessions） */
+  subtasks: KanbanSubtask[]
+  /** Conductor 总节点数；进度分母在 subtasks 尚未填满时保持稳定 */
+  subtaskTotal?: number
   taskRun?: KanbanNodeProgress
   teambition?: KanbanTeambitionFields
 }
