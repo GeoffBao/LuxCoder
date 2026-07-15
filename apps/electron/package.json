@@ -1,6 +1,6 @@
 {
   "name": "@luxagents/electron",
-  "version": "0.1.76",
+  "version": "0.1.77",
   "description": "LuxAgents next gen ai software with general agents - Electron App",
   "main": "dist/main.cjs",
   "author": {
