@@ -597,7 +597,7 @@ async function testXiaomiMessages(
   }
   if (provider === 'xiaomi-token-plan') {
     headers.Authorization = `Bearer ${apiKey}`
-    headers['User-Agent'] = getPromaUserAgent(pkg.version)
+    headers['User-Agent'] = getAppUserAgent(pkg.version)
   } else {
     headers['api-key'] = apiKey
   }

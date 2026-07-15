@@ -111,8 +111,8 @@ import { AgentSessionProvider } from '@/contexts/session-context'
 import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
 import { sendWithCmdEnterAtom } from '@/atoms/shortcut-atoms'
 import { useOpenPreview } from '@/components/diff/preview-opener'
-import type { AgentSendInput, AgentPendingFile, FileDialogLargeFile, ModelOption, SDKMessage, SDKUserMessage } from '@luxagents/shared'
-import { inferContextWindow, MAX_ATTACHMENT_SIZE } from '@luxagents/shared'
+import type { AgentSendInput, AgentPendingFile, FileDialogLargeFile, ModelOption, SDKMessage, SDKUserMessage, ProviderType } from '@luxagents/shared'
+import { inferAgentSdkContextWindow, inferContextWindow, MAX_ATTACHMENT_SIZE } from '@luxagents/shared'
 import { fileToBase64, formatFileNames, getFileParentPath } from '@/lib/file-utils'
 import { buildQuotedSelectionBlock } from '@/lib/quoted-selection'
 import { createClipboardPendingFile, createClipboardTextDraft, makeUniqueAttachmentName } from '@/lib/clipboard-text-attachment'
@@ -154,8 +154,14 @@ function createUserSDKMessage(text: string, uuid?: string, createdAt = Date.now(
   return message
 }
 
-function resolveRunContextWindow(modelId: string | undefined, previous: number | undefined): number | undefined {
-  return inferContextWindow(modelId) ?? previous
+function resolveRunContextWindow(
+  modelId: string | undefined,
+  provider: ProviderType | undefined,
+  previous: number | undefined,
+): number | undefined {
+  return provider
+    ? inferAgentSdkContextWindow(modelId, provider) ?? previous
+    : inferContextWindow(modelId) ?? previous
 }
 
 interface SDKMessageRecord {
@@ -536,6 +542,10 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
 
   // 渠道已选但模型未选时，自动选择第一个可用模型
   const globalChannels = useAtomValue(channelsAtom)
+  const agentChannelProvider = React.useMemo(
+    () => globalChannels.find((c) => c.id === agentChannelId)?.provider,
+    [globalChannels, agentChannelId],
+  )
 
   // 检查 Agent 渠道列表中是否存在可用的模型（渠道 enabled + 模型 enabled）
   const hasAvailableModel = React.useMemo(() => {
@@ -1036,7 +1046,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
           model: snapshot.modelId,
           startedAt: streamStartedAt,
           inputTokens: existing?.inputTokens,
-          contextWindow: resolveRunContextWindow(snapshot.modelId, existing?.contextWindow),
+          contextWindow: resolveRunContextWindow(snapshot.modelId, agentChannelProvider, existing?.contextWindow),
         })
         return map
       })
@@ -1076,7 +1086,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         })
       })
     })
-  }, [messagesLoaded, pendingPrompt, sessionId, agentChannelId, agentModelId, currentWorkspaceId, streaming, setPendingPrompt, setStreamingStates, permissionMode, attachedDirs, attachedFileDirectories])
+  }, [messagesLoaded, pendingPrompt, sessionId, agentChannelId, agentModelId, agentChannelProvider, currentWorkspaceId, streaming, setPendingPrompt, setStreamingStates, permissionMode, attachedDirs, attachedFileDirectories])
   // ===== 附件处理 =====
 
   /** 为文件生成唯一文件名（避免粘贴多张图片时文件名重复导致覆盖） */
@@ -1814,7 +1824,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         model: agentModelId || undefined,
         startedAt: streamStartedAt,
         inputTokens: existing?.inputTokens,
-        contextWindow: resolveRunContextWindow(agentModelId || undefined, existing?.contextWindow),
+        contextWindow: resolveRunContextWindow(agentModelId || undefined, agentChannelProvider, existing?.contextWindow),
       })
       return map
     })
@@ -1862,7 +1872,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         return map
       })
     })
-  }, [inputContent, createBaseAdditionalDirectories, preparePendingFilesForSend, restoreQueuedAttachmentsToPending, sessionId, agentChannelId, agentModelId, currentWorkspaceId, streaming, backgroundWaiting, suggestion, hasAvailableModel, store, consumeQuotedSelection, setStreamingStates, setAgentStreamErrors, setPromptSuggestions, setInputContent, setLiveMessagesMap, permissionMode, messagesLoaded, setQueuedMessages, setQuotedSelectionMap, sendPlainTextAgentMessage])
+  }, [inputContent, createBaseAdditionalDirectories, preparePendingFilesForSend, restoreQueuedAttachmentsToPending, sessionId, agentChannelId, agentModelId, agentChannelProvider, currentWorkspaceId, streaming, backgroundWaiting, suggestion, hasAvailableModel, store, consumeQuotedSelection, setStreamingStates, setAgentStreamErrors, setPromptSuggestions, setInputContent, setLiveMessagesMap, permissionMode, messagesLoaded, setQueuedMessages, setQuotedSelectionMap, sendPlainTextAgentMessage])
 
   /** 停止生成 */
   const handleStop = React.useCallback((): void => {
@@ -1999,7 +2009,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         model: agentModelId || undefined,
         startedAt: streamStartedAt,
         inputTokens: existing?.inputTokens,
-        contextWindow: resolveRunContextWindow(agentModelId || undefined, existing?.contextWindow),
+        contextWindow: resolveRunContextWindow(agentModelId || undefined, agentChannelProvider, existing?.contextWindow),
       })
       return map
     })
@@ -2013,7 +2023,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
       startedAt: streamStartedAt,
       permissionModeOverride: permissionMode,
     }).catch(console.error)
-  }, [persistedSDKMessages, sessionId, agentChannelId, agentModelId, currentWorkspaceId, streaming, setAgentStreamErrors, setStreamingStates, permissionMode])
+  }, [persistedSDKMessages, sessionId, agentChannelId, agentModelId, agentChannelProvider, currentWorkspaceId, streaming, setAgentStreamErrors, setStreamingStates, permissionMode])
 
   /** 在新对话继续：创建新会话 + 切换 tab + 使用 &session 引用旧会话 */
   const handleRetryInNewSession = React.useCallback(async (): Promise<void> => {
