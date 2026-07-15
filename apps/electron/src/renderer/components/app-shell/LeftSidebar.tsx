@@ -1175,6 +1175,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         undefined,
         agentChannelId || undefined,
         targetWorkspaceId,
+        agentModelId || undefined,
       )
       if (targetWorkspaceId) {
         setCollapsedWorkspaceIds((prev) => deleteSetEntry(prev, targetWorkspaceId))
