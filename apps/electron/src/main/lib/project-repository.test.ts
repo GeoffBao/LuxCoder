@@ -124,4 +124,24 @@ describe('ProjectRepository', () => {
     repository.deleteProject('ws-alpha', created.slug)
     expect(repository.getProject('ws-alpha', created.slug)).toBeNull()
   })
+
+  test('AtRoot API 解析 workingDirectory 与 dropStatusId', () => {
+    const root = createTempWorkspaceRoot()
+    const repository = createRepository({ 'ws-alpha': root })
+    const created = repository.createProjectAtRoot(root, {
+      name: 'Kanban Proj',
+      workingDirectory: '/repo/app',
+    })
+    repository.updateProjectAtRoot(root, created.config.slug, {
+      kanbanColumns: [
+        { id: 'todo', name: '待办' },
+        { id: 'doing', name: '进行中', dropStatusId: 'coding' },
+      ],
+    })
+
+    expect(repository.resolveWorkingDirectory(root, created.config.id)).toBe('/repo/app')
+    expect(repository.resolveDropStatusId(root, created.config.id, 'doing')).toBe('coding')
+    expect(repository.resolveDropStatusId(root, created.config.id, 'todo')).toBeUndefined()
+    expect(repository.buildPromptContext(root, created.config.id)?.name).toBe('Kanban Proj')
+  })
 })

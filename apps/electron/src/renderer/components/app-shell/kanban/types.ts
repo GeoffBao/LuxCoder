@@ -85,3 +85,21 @@ export interface KanbanViewModel {
   boardItems: KanbanItem[]
   listItems: KanbanItem[]
 }
+
+/** 看板模型选择器中的单个模型项。 */
+export interface KanbanModelOption {
+  id: string
+  name: string
+  /** 提供该模型的渠道 ID（写入 spec.llmConnection） */
+  channelId: string
+}
+
+/**
+ * 按渠道分组的可选模型（对应 craft 的 provider groups；
+ * LuxAgents 用 Channel 充当 connection，llmConnection = channelId）。
+ */
+export interface KanbanModelProviderGroup {
+  provider: string
+  label: string
+  models: KanbanModelOption[]
+}

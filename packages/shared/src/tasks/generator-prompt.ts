@@ -6,6 +6,13 @@
  * 参照 OSS: packages/shared/src/tasks/generator-prompt.ts
  */
 
+/** 从 LLM 回复中抽出 YAML 正文（容忍 ```yaml 围栏或前后散文） */
+export function extractYaml(text: string): string {
+  const fenced = text.match(/```(?:ya?ml)?\s*\n?([\s\S]*?)```/i)
+  const body = fenced?.[1]
+  return (body ?? text).trim()
+}
+
 export function buildGeneratorPrompt(goal: string, title?: string): string {
   return [
     'You are authoring a `task.yaml` that decomposes a goal into a small DAG of subtasks.',

@@ -149,6 +149,7 @@ interface TaskGenerateRequest {
   goal: string
   title?: string
   projectId?: string
+  cwd?: string
 }
 
 interface TaskRunOptions {

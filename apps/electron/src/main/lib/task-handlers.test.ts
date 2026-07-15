@@ -171,6 +171,31 @@ describe('task handler Kanban payloads', () => {
     expect(result).toEqual(expect.objectContaining({ valid: true, errors: [], warnings }))
   })
 
+  test('set_kanban_column 可同步 dropStatusId 到 sessionStatus', () => {
+    const setKanbanColumn = Reflect.get(taskHandlers, 'setSessionKanbanColumn')
+    expect(setKanbanColumn).toBeInstanceOf(Function)
+    if (typeof setKanbanColumn !== 'function') return
+
+    const result = setKanbanColumn(
+      'session-1',
+      'in-progress',
+      (sessionId: string, updates: { kanbanColumn?: string; sessionStatus?: string }) => ({
+        id: sessionId,
+        title: '任务会话',
+        createdAt: 1,
+        updatedAt: 2,
+        ...updates,
+      }),
+      { sessionStatus: 'coding' },
+    )
+
+    expect(result).toEqual(expect.objectContaining({
+      id: 'session-1',
+      kanbanColumn: 'in-progress',
+      sessionStatus: 'coding',
+    }))
+  })
+
   test('采用生成草稿时清除 taskDraft 并恢复待办状态', () => {
     const buildPatch = Reflect.get(taskHandlers, 'buildAdoptedTaskSessionPatch')
     expect(buildPatch).toBeInstanceOf(Function)
@@ -179,6 +204,25 @@ describe('task handler Kanban payloads', () => {
     expect(buildPatch({ id: 'release-task', project: 'project-a' })).toEqual({
       taskSlug: 'release-task',
       projectId: 'project-a',
+      taskDraft: undefined,
+      sessionStatus: 'todo',
+    })
+
+    expect(buildPatch(
+      {
+        id: 'release-task',
+        project: 'project-a',
+        cwd: '/Users/me/repo',
+        defaults: { model: 'claude-sonnet', llmConnection: 'channel-1', permissionMode: 'allow-all' },
+      },
+      '/workspace',
+    )).toEqual({
+      taskSlug: 'release-task',
+      projectId: 'project-a',
+      workingDirectory: '/Users/me/repo',
+      modelId: 'claude-sonnet',
+      channelId: 'channel-1',
+      permissionMode: 'bypassPermissions',
       taskDraft: undefined,
       sessionStatus: 'todo',
     })

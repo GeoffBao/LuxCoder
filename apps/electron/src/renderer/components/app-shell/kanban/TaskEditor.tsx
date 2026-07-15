@@ -10,11 +10,14 @@ import {
   Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import type { TaskGeneratedEventPayload } from '@luxagents/shared'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { TaskEditorGenerationPanel } from './TaskEditorGenerationPanel'
+import { TaskModelSelect } from './TaskModelSelect'
+import { WorkingDirectoryField } from './WorkingDirectoryField'
 import {
   buildTaskEditorSubmission,
   createTaskEditorDraft,
@@ -29,7 +32,7 @@ import {
   type TaskExpertId,
 } from './task-editor-ui-model'
 import { canDependOn, uid, type EditorSubtask } from './task-spec-form'
-import type { KanbanProject, TaskEditorTarget } from './types'
+import type { KanbanModelProviderGroup, KanbanProject, TaskEditorTarget } from './types'
 
 const GENERATE_TIMEOUT_MS = 200_000
 
@@ -43,6 +46,7 @@ export interface TaskEditorProps {
   projects: KanbanProject[]
   target?: TaskEditorTarget
   defaultModel?: string
+  modelGroups?: KanbanModelProviderGroup[]
   modelToConnection?: Map<string, string>
   onClose: () => void
   onCreated?: (created: { sessionId: string; slug: string; projectId?: string }) => void | Promise<void>
@@ -54,6 +58,8 @@ interface SubtaskCardProps {
   index: number
   subtask: EditorSubtask
   allSubtasks: EditorSubtask[]
+  groups: KanbanModelProviderGroup[]
+  fallbackModel: string
   onChange: (patch: Partial<EditorSubtask>) => void
   onRemove: () => void
 }
@@ -62,6 +68,8 @@ function SubtaskCard({
   index,
   subtask,
   allSubtasks,
+  groups,
+  fallbackModel,
   onChange,
   onRemove,
 }: SubtaskCardProps): React.ReactElement {
@@ -87,12 +95,17 @@ function SubtaskCard({
             rows={3}
             className="bg-background"
           />
-          <div className="grid gap-2 sm:grid-cols-2">
-            <Input
-              value={subtask.model ?? ''}
-              onChange={(event) => onChange({ model: event.target.value || undefined, llmConnection: undefined })}
-              placeholder="模型（留空则继承）"
-              className="h-8 bg-background text-xs"
+          <div className="flex flex-wrap items-center gap-1.5">
+            <TaskModelSelect
+              value={subtask.model ?? fallbackModel}
+              channelId={subtask.llmConnection}
+              onChange={(selection) => onChange({
+                model: selection.modelId,
+                llmConnection: selection.channelId,
+              })}
+              groups={groups}
+              width={148}
+              size="sm"
             />
             <select
               aria-label="添加依赖"
@@ -100,7 +113,7 @@ function SubtaskCard({
               onChange={(event) => {
                 if (event.target.value) onChange({ dependsOn: [...subtask.dependsOn, event.target.value] })
               }}
-              className="h-8 rounded-md border border-border/60 bg-background px-2 text-xs"
+              className="h-7 rounded-md border border-border/60 bg-background px-2 text-[11.5px]"
             >
               <option value="">添加依赖…</option>
               {candidates.map((candidate) => <option key={candidate.uid} value={candidate.uid}>{candidate.title || '未命名子任务'}</option>)}
@@ -179,6 +192,7 @@ export function TaskEditor({
   projects,
   target = { mode: 'create' },
   defaultModel = '',
+  modelGroups = [],
   modelToConnection = new Map(),
   onClose,
   onCreated,
@@ -195,6 +209,7 @@ export function TaskEditor({
   const [results, setResults] = React.useState<TaskResults>(null)
   const generatedDraftRef = React.useRef<string | null>(null)
   const pendingGenerationRef = React.useRef<string | null>(null)
+  const earlyGeneratedEventRef = React.useRef<TaskGeneratedEventPayload | null>(null)
   const generationTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const expert = getTaskExpertOption(expertId)
 
@@ -228,12 +243,13 @@ export function TaskEditor({
 
   const finishGeneration = React.useCallback((): void => {
     pendingGenerationRef.current = null
+    earlyGeneratedEventRef.current = null
     if (generationTimerRef.current) clearTimeout(generationTimerRef.current)
     generationTimerRef.current = null
     setGenerating(false)
   }, [])
 
-  React.useEffect(() => window.electronAPI.tasks.onGenerated((event) => {
+  const consumeGeneratedEvent = React.useCallback((event: TaskGeneratedEventPayload): void => {
     const action = resolveGeneratedTaskEvent(event, workspaceId, pendingGenerationRef.current)
     if (action.kind === 'ignore') return
     finishGeneration()
@@ -246,7 +262,17 @@ export function TaskEditor({
     void applySpec(action.slug).catch((cause: unknown) => {
       toast.error('读取生成结果失败', { description: cause instanceof Error ? cause.message : String(cause) })
     })
-  }), [applySpec, finishGeneration, workspaceId])
+  }, [applySpec, finishGeneration, workspaceId])
+
+  React.useEffect(() => window.electronAPI.tasks.onGenerated((event) => {
+    if (event.workspaceId !== workspaceId) return
+    // ack 尚未写入 pending 时先缓存，避免 GENERATED 早到被丢弃
+    if (!pendingGenerationRef.current) {
+      earlyGeneratedEventRef.current = event
+      return
+    }
+    consumeGeneratedEvent(event)
+  }), [consumeGeneratedEvent, workspaceId])
 
   React.useEffect(() => () => {
     if (generationTimerRef.current) clearTimeout(generationTimerRef.current)
@@ -292,12 +318,21 @@ export function TaskEditor({
     }
     setGenerating(true)
     try {
+      earlyGeneratedEventRef.current = null
       const ack = await window.electronAPI.tasks.generate(workspaceRoot, workspaceId, {
         goal,
         ...(draft.title.trim() ? { title: draft.title.trim() } : {}),
         ...(draft.projectId ? { projectId: draft.projectId } : {}),
+        ...(draft.cwd?.trim() ? { cwd: draft.cwd.trim() } : {}),
       })
       pendingGenerationRef.current = ack.orchestratorSessionId
+      // await 之后 ref 可能已被 onGenerated 写入；显式断言避开 TS 对 .current = null 的收窄
+      const earlyEvent = earlyGeneratedEventRef.current as TaskGeneratedEventPayload | null
+      earlyGeneratedEventRef.current = null
+      if (earlyEvent !== null && earlyEvent.orchestratorSessionId === ack.orchestratorSessionId) {
+        consumeGeneratedEvent(earlyEvent)
+        return
+      }
       generationTimerRef.current = setTimeout(() => {
         if (pendingGenerationRef.current !== ack.orchestratorSessionId) return
         finishGeneration()
@@ -424,6 +459,20 @@ export function TaskEditor({
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="space-y-1.5 text-xs font-medium">项目<select value={draft.projectId} onChange={(event) => patchDraft({ projectId: event.target.value })} className="h-9 w-full rounded-md border border-border/60 bg-background px-2 text-sm"><option value="">无项目</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>
               <label className="space-y-1.5 text-xs font-medium">权限<select value={draft.permissionMode ?? 'allow-all'} onChange={(event) => patchDraft({ permissionMode: event.target.value as 'safe' | 'ask' | 'allow-all' })} className="h-9 w-full rounded-md border border-border/60 bg-background px-2 text-sm"><option value="allow-all">自动执行</option><option value="ask">需要确认</option><option value="safe">安全模式</option></select></label>
+              <div className="space-y-1.5 text-xs font-medium">
+                <span>编排模型</span>
+                <TaskModelSelect
+                  value={draft.orchModel || defaultModel}
+                  channelId={draft.orchConnection}
+                  onChange={(selection) => patchDraft({
+                    orchModel: selection.modelId,
+                    orchConnection: selection.channelId,
+                  })}
+                  groups={modelGroups}
+                  className="w-full"
+                />
+                <span className="block text-[11px] font-normal leading-4 text-muted-foreground">主任务默认模型；子任务可单独覆盖</span>
+              </div>
               <label className="space-y-1.5 text-xs font-medium">
                 Agent 专家
                 <select
@@ -437,7 +486,14 @@ export function TaskEditor({
               </label>
               <label className="space-y-1.5 text-xs font-medium">最大修复次数<Input type="number" min={0} max={10} value={draft.maxRepairs ?? ''} onChange={(event) => patchDraft({ maxRepairs: event.target.value === '' ? undefined : Number(event.target.value) })} placeholder="默认 3" /></label>
             </div>
-            <label className="block space-y-1.5 text-xs font-medium">工作目录<Input value={draft.cwd ?? ''} onChange={(event) => patchDraft({ cwd: event.target.value })} placeholder="可选：绝对路径" /></label>
+            <div className="space-y-1.5 text-xs font-medium">
+              <span>工作目录</span>
+              <WorkingDirectoryField
+                value={draft.cwd ?? ''}
+                onChange={(path) => patchDraft({ cwd: path || undefined })}
+              />
+              <span className="block text-[11px] font-normal leading-4 text-muted-foreground">可选：选择本地文件夹；留空则用项目默认目录</span>
+            </div>
           </section>
 
           {mode === 'generate' ? (
@@ -454,6 +510,8 @@ export function TaskEditor({
                     index={index}
                     subtask={subtask}
                     allSubtasks={draft.subtasks}
+                    groups={modelGroups}
+                    fallbackModel={draft.orchModel || defaultModel}
                     onChange={(patch) => updateSubtask(subtask.uid, patch)}
                     onRemove={() => removeSubtask(subtask.uid)}
                   />

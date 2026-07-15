@@ -372,7 +372,7 @@ function convertLegacyMessage(legacy: AgentMessage): SDKMessage {
 /**
  * 更新会话元数据
  */
-export type AgentSessionMetaUpdates = Partial<Pick<AgentSessionMeta, 'title' | 'channelId' | 'modelId' | 'sdkSessionId' | 'workspaceId' | 'pinned' | 'archived' | 'attachedDirectories' | 'attachedFiles' | 'forkSourceDir' | 'forkSourceSdkSessionId' | 'resumeAtMessageUuid' | 'stoppedByUser' | 'sessionStatus' | 'permissionMode' | 'completedButUnconfirmed' | 'sourceAutomationId' | 'automationGraduated' | 'parentSessionId' | 'rootSessionId' | 'sourceDelegationId' | 'delegationRole' | 'delegationStatus' | 'delegationDepth' | 'delegationGoal' | 'projectId' | 'kanbanColumn' | 'taskSlug' | 'taskRunId' | 'taskNodeId' | 'taskNodeCount' | 'taskDraft'>>
+export type AgentSessionMetaUpdates = Partial<Pick<AgentSessionMeta, 'title' | 'channelId' | 'modelId' | 'sdkSessionId' | 'workspaceId' | 'pinned' | 'archived' | 'attachedDirectories' | 'attachedFiles' | 'forkSourceDir' | 'forkSourceSdkSessionId' | 'resumeAtMessageUuid' | 'stoppedByUser' | 'sessionStatus' | 'permissionMode' | 'completedButUnconfirmed' | 'sourceAutomationId' | 'automationGraduated' | 'parentSessionId' | 'rootSessionId' | 'sourceDelegationId' | 'delegationRole' | 'delegationStatus' | 'delegationDepth' | 'delegationGoal' | 'projectId' | 'workingDirectory' | 'kanbanColumn' | 'taskSlug' | 'taskRunId' | 'taskNodeId' | 'taskNodeCount' | 'taskDraft'>>
 
 export function updateAgentSessionMeta(
   id: string,

@@ -44,6 +44,11 @@ const orchestrator = new AgentOrchestrator(adapter, eventBus)
 /** 导出 EventBus 供飞书 Bridge 等外部服务订阅事件 */
 export { eventBus as agentEventBus }
 
+/** 获取 AgentOrchestrator 单例（供 oss-kanban task-handlers 使用） */
+export function getOrchestrator(): AgentOrchestrator {
+  return orchestrator
+}
+
 // 注册协作子会话 EventBus 阻塞事件监听
 import('./agent-collaboration-tools').then(({ registerCollaborationEventBus }) => {
   registerCollaborationEventBus(eventBus)

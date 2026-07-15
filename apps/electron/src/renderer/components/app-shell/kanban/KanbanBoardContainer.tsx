@@ -3,7 +3,12 @@ import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { CloudDownload, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import type { AgentSessionMeta } from '@luxagents/shared'
-import { agentWorkspacesAtom, currentAgentWorkspaceIdAtom } from '@/atoms/agent-atoms'
+import {
+  agentModelIdAtom,
+  agentWorkspacesAtom,
+  currentAgentWorkspaceIdAtom,
+} from '@/atoms/agent-atoms'
+import { channelsAtom } from '@/atoms/chat-atoms'
 import {
   boardModeAtom,
   kanbanItemsAtom,
@@ -17,6 +22,7 @@ import {
 } from '@/atoms/project-atoms'
 import { BoardListToggle } from './BoardListToggle'
 import { consumeFirstNotification } from './board-model'
+import { buildKanbanModelCatalog } from './kanban-model-catalog'
 import { KanbanBoard } from './KanbanBoard'
 import { KanbanProjectFilter } from './KanbanProjectFilter'
 import { NewTaskComposer } from './NewTaskComposer'
@@ -43,9 +49,17 @@ export function KanbanBoardContainer({ onOpenItem, onTaskCreated, onSessionCreat
   const workspaces = useAtomValue(agentWorkspacesAtom)
   const currentWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
   const workspace = workspaces.find((candidate) => candidate.id === currentWorkspaceId) ?? null
+  const channels = useAtomValue(channelsAtom)
+  const agentModelId = useAtomValue(agentModelIdAtom)
   const [workspaceRoot, setWorkspaceRoot] = React.useState<string | null>(null)
   const [editorTarget, setEditorTarget] = React.useState<TaskEditorTarget | null>(null)
   const [teambitionPickerOpen, setTeambitionPickerOpen] = React.useState(false)
+
+  const { groups: modelGroups, modelToConnection } = React.useMemo(
+    // 看板与 craft 一致：列出全部启用渠道的模型，不按 agentChannelIds 白名单裁剪
+    () => buildKanbanModelCatalog(channels),
+    [channels],
+  )
 
   React.useEffect(() => {
     if (!workspace) { setWorkspaceRoot(null); return }
@@ -76,15 +90,22 @@ export function KanbanBoardContainer({ onOpenItem, onTaskCreated, onSessionCreat
   }
 
   if (editorTarget && workspaceRoot && workspace) {
+    const editSession = editorTarget.mode === 'edit'
+      ? items.find((item) => item.id === editorTarget.sessionId)?.session
+      : undefined
+    const defaultModel = editSession?.modelId
+      ?? agentModelId
+      ?? modelGroups[0]?.models[0]?.id
+      ?? ''
     return (
       <TaskEditor
         workspaceRoot={workspaceRoot}
         workspaceId={workspace.id}
         projects={projects}
         target={editorTarget}
-        defaultModel={editorTarget.mode === 'edit'
-          ? items.find((item) => item.id === editorTarget.sessionId)?.session.modelId
-          : undefined}
+        defaultModel={defaultModel}
+        modelGroups={modelGroups}
+        modelToConnection={modelToConnection}
         onClose={() => setEditorTarget(null)}
         onCreated={onTaskCreated ? async () => { await onTaskCreated() } : undefined}
         onOpenSession={(sessionId) => {

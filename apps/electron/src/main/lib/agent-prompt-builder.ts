@@ -10,6 +10,8 @@
  */
 
 import type { LuxAgentsPermissionMode } from '@luxagents/shared'
+import type { ProjectPromptContext } from '@luxagents/shared/projects'
+import { formatProjectContextForPrompt } from '@luxagents/shared/projects'
 import { getUserProfile } from './user-profile-service'
 import { getWorkspaceMcpConfig } from './agent-workspace-manager'
 import { getConfigDirName } from './config-paths'
@@ -304,6 +306,8 @@ interface DynamicContext {
   workspaceName?: string
   workspaceSlug?: string
   agentCwd?: string
+  /** 会话绑定项目的提示词上下文（每次实时构建） */
+  projectContext?: ProjectPromptContext
 }
 
 /**
@@ -361,6 +365,10 @@ export function buildDynamicContext(ctx: DynamicContext): string {
   // 工作目录
   if (ctx.agentCwd) {
     sections.push(`<working_directory>${ctx.agentCwd}</working_directory>`)
+  }
+
+  if (ctx.projectContext) {
+    sections.push(formatProjectContextForPrompt(ctx.projectContext))
   }
 
   return sections.join('\n\n')

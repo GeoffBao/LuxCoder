@@ -292,6 +292,40 @@ export function listRunIds(workspaceRoot: string, slug: string): string[] {
     .sort();
 }
 
+/** 运行日志是否仍可 resume（已 started 且尚未 completed/failed/stopped） */
+export function isRunResumable(log: RunLogEntry[]): boolean {
+  let started = false;
+  let terminal = false;
+  for (const entry of log) {
+    if (entry.kind === 'run-started') {
+      started = true;
+      terminal = false;
+      continue;
+    }
+    if (
+      entry.kind === 'run-completed'
+      || entry.kind === 'run-failed'
+      || entry.kind === 'run-stopped'
+    ) {
+      terminal = true;
+    }
+  }
+  return started && !terminal;
+}
+
+/** 扫描 workspace 下所有尚未结束、可冷启动恢复的 run */
+export function listResumableRuns(workspaceRoot: string): Array<{ slug: string; runId: string }> {
+  const result: Array<{ slug: string; runId: string }> = [];
+  for (const slug of listTaskSlugs(workspaceRoot)) {
+    for (const runId of listRunIds(workspaceRoot, slug)) {
+      if (isRunResumable(readRunLog(workspaceRoot, slug, runId))) {
+        result.push({ slug, runId });
+      }
+    }
+  }
+  return result;
+}
+
 // ---------------------------------------------------------------------------
 // 运行 spec 快照
 // ---------------------------------------------------------------------------

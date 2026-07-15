@@ -30,7 +30,7 @@ interface AutomationAgentToolContext {
   channelId: string
   modelId?: string
   workspaceId?: string
-  triggeredBy?: 'user' | 'automation' | 'delegation'
+  triggeredBy?: 'user' | 'automation' | 'delegation' | 'work'
 }
 
 interface AutomationToolResult extends Record<string, unknown> {

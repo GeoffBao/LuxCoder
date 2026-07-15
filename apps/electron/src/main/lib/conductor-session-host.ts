@@ -49,13 +49,8 @@ export interface ConductorSessionHostDependencies {
   getOrchestrator: () => ConductorOrchestrator
 }
 
-interface ConductorSessionMeta extends AgentSessionMeta {
-  workingDirectory?: string
-}
-
-type ConductorSessionMetaUpdates = AgentSessionMetaUpdates & {
-  workingDirectory?: string
-}
+type ConductorSessionMeta = AgentSessionMeta
+type ConductorSessionMetaUpdates = AgentSessionMetaUpdates
 
 interface CompletionState {
   dispatched: boolean

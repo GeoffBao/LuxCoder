@@ -6,6 +6,8 @@ import type { TaskSpec } from '../schema.ts';
 import type { RunLogEntry } from '../storage.ts';
 import {
   appendRunLog,
+  isRunResumable,
+  listResumableRuns,
   loadTaskSpec,
   readNodeOutput,
   readRunLog,
@@ -374,4 +376,44 @@ describe('task storage', () => {
     expect(lines.every((line) => line.startsWith('{') && line.endsWith('}'))).toBe(true);
     expect(existsSync(join(runDir(workspaceRoot, slug, runId), 'run-log.jsonl'))).toBe(true);
   });
+
+  test('isRunResumable 在 completed/failed/stopped 后不可恢复，paused 仍可恢复', () => {
+    expect(isRunResumable([])).toBe(false)
+    expect(isRunResumable([
+      { t: 't0', kind: 'run-started', taskId: 'demo', runId: 'run-1' },
+      { t: 't1', kind: 'run-paused' },
+    ])).toBe(true)
+    expect(isRunResumable([
+      { t: 't0', kind: 'run-started', taskId: 'demo', runId: 'run-1' },
+      { t: 't1', kind: 'run-completed' },
+    ])).toBe(false)
+    expect(isRunResumable([
+      { t: 't0', kind: 'run-started', taskId: 'demo', runId: 'run-1' },
+      { t: 't1', kind: 'run-failed' },
+    ])).toBe(false)
+  })
+
+  test('listResumableRuns 只返回未结束的 run', () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    saveTaskSpec(workspaceRoot, buildSpec())
+
+    appendRunLog(workspaceRoot, 'demo-task', 'run-active', {
+      t: '2026-07-13T00:00:00.000Z',
+      kind: 'run-started',
+      taskId: 'demo-task',
+      runId: 'run-active',
+    })
+    appendRunLog(workspaceRoot, 'demo-task', 'run-done', {
+      t: '2026-07-13T00:00:00.000Z',
+      kind: 'run-started',
+      taskId: 'demo-task',
+      runId: 'run-done',
+    })
+    appendRunLog(workspaceRoot, 'demo-task', 'run-done', {
+      t: '2026-07-13T00:00:01.000Z',
+      kind: 'run-completed',
+    })
+
+    expect(listResumableRuns(workspaceRoot)).toEqual([{ slug: 'demo-task', runId: 'run-active' }])
+  })
 });

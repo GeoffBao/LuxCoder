@@ -687,6 +687,8 @@ export interface AgentSessionMeta {
   delegationGoal?: string
   /** 绑定的项目 ID（project.config.id），看板过滤用 */
   projectId?: string
+  /** 项目继承的工作目录绝对路径（Conductor / additionalDirectories） */
+  workingDirectory?: string
   /** 看板列 ID（'todo' | 'in-progress' | 'done'），与 sessionStatus 独立 */
   kanbanColumn?: string
   /** Tasks Conductor: 所属 task spec slug */

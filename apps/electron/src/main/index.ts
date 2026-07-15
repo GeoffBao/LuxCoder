@@ -83,7 +83,7 @@ for (const key of Object.keys(process.env)) {
 
 import { createApplicationMenu } from './menu'
 import { registerIpcHandlers } from './ipc'
-import { registerTaskHandlers } from './lib/task-handlers'
+import { registerTaskHandlers, rehydrateIncompleteTaskRuns } from './lib/task-handlers'
 import { createTray, destroyTray, getTray } from './tray'
 import { initializeRuntime } from './lib/runtime-init'
 import { seedDefaultSkills } from './lib/config-paths'
@@ -358,10 +358,14 @@ function createWindow(): void {
       preload: join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: false,
     },
     ...titleBarOptions,
   })
   registerTaskHandlers(mainWindow)
+  void rehydrateIncompleteTaskRuns().catch((error: unknown) => {
+    console.warn('[TaskRunner] 冷启动恢复失败:', error instanceof Error ? error.message : error)
+  })
   installWindowsZoomInFallback(mainWindow)
 
   // Load the renderer
