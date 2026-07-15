@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
+import { TaskEditorGenerationPanel } from './TaskEditorGenerationPanel'
 import {
   buildTaskEditorSubmission,
   createTaskEditorDraft,
@@ -21,6 +22,12 @@ import {
   taskSpecToEditorDraft,
   type TaskEditorDraft,
 } from './task-editor-model'
+import {
+  getTaskExpertOption,
+  TASK_EXPERT_OPTIONS,
+  type TaskEditorMode,
+  type TaskExpertId,
+} from './task-editor-ui-model'
 import { canDependOn, uid, type EditorSubtask } from './task-spec-form'
 import type { KanbanProject, TaskEditorTarget } from './types'
 
@@ -180,6 +187,8 @@ export function TaskEditor({
 }: TaskEditorProps): React.ReactElement {
   const [draft, setDraft] = React.useState<TaskEditorDraft>(() => createTaskEditorDraft(target, defaultModel))
   const [tab, setTab] = React.useState<EditorTab>('definition')
+  const [mode, setMode] = React.useState<TaskEditorMode>('manual')
+  const [expertId, setExpertId] = React.useState<TaskExpertId>('general')
   const [loading, setLoading] = React.useState(target.mode === 'edit')
   const [busy, setBusy] = React.useState(false)
   const [generating, setGenerating] = React.useState(false)
@@ -187,6 +196,7 @@ export function TaskEditor({
   const generatedDraftRef = React.useRef<string | null>(null)
   const pendingGenerationRef = React.useRef<string | null>(null)
   const generationTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const expert = getTaskExpertOption(expertId)
 
   const patchDraft = (patch: Partial<TaskEditorDraft>): void => {
     setDraft((current) => ({ ...current, ...patch }))
@@ -197,6 +207,7 @@ export function TaskEditor({
     if (!validation?.valid || !validation.spec) throw new Error('任务定义不存在或未通过校验')
     const nextDraft = taskSpecToEditorDraft(validation.spec, target, defaultModel)
     setDraft(target.mode === 'create' ? { ...nextDraft, fixedId: slug } : nextDraft)
+    setMode('manual')
   }, [defaultModel, target, workspaceRoot])
 
   React.useEffect(() => {
@@ -387,39 +398,70 @@ export function TaskEditor({
       ) : (
         <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[minmax(320px,0.9fr)_minmax(420px,1.4fr)]">
           <section className="space-y-4 overflow-y-auto rounded-2xl bg-card p-4 shadow-sm">
-            <div><h2 className="font-semibold">任务定义</h2><p className="text-xs text-muted-foreground">描述目标，并选择项目与执行策略。</p></div>
+            <div className="space-y-3">
+              <div><h2 className="font-semibold">任务定义</h2><p className="text-xs text-muted-foreground">描述目标，并选择项目与执行策略。</p></div>
+              <div className="inline-flex w-fit rounded-lg bg-muted/70 p-1">
+                {(['manual', 'generate'] as TaskEditorMode[]).map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    disabled={generating}
+                    onClick={() => setMode(value)}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50',
+                      mode === value && 'bg-card text-foreground shadow-sm',
+                    )}
+                  >
+                    {value === 'generate' && <Sparkles className="h-3.5 w-3.5" />}
+                    {value === 'manual' ? '手动' : '生成'}
+                  </button>
+                ))}
+              </div>
+            </div>
             <label className="block space-y-1.5 text-xs font-medium">标题<Input value={draft.title} onChange={(event) => patchDraft({ title: event.target.value })} placeholder="例如：完成桌面端发布" /></label>
             <label className="block space-y-1.5 text-xs font-medium">目标<Textarea value={draft.goal} onChange={(event) => patchDraft({ goal: event.target.value })} placeholder="说明最终希望达成的结果" rows={4} /></label>
             <label className="block space-y-1.5 text-xs font-medium">验收标准<Textarea value={draft.acceptanceCriteria ?? ''} onChange={(event) => patchDraft({ acceptanceCriteria: event.target.value })} placeholder="可选：如何判断任务完成" rows={3} /></label>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="space-y-1.5 text-xs font-medium">项目<select value={draft.projectId} onChange={(event) => patchDraft({ projectId: event.target.value })} className="h-9 w-full rounded-md border border-border/60 bg-background px-2 text-sm"><option value="">无项目</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>
               <label className="space-y-1.5 text-xs font-medium">权限<select value={draft.permissionMode ?? 'allow-all'} onChange={(event) => patchDraft({ permissionMode: event.target.value as 'safe' | 'ask' | 'allow-all' })} className="h-9 w-full rounded-md border border-border/60 bg-background px-2 text-sm"><option value="allow-all">自动执行</option><option value="ask">需要确认</option><option value="safe">安全模式</option></select></label>
-              <label className="space-y-1.5 text-xs font-medium">Orchestrator 模型<Input value={draft.orchModel} onChange={(event) => patchDraft({ orchModel: event.target.value, orchConnection: undefined })} placeholder="留空则使用工作区默认" /></label>
+              <label className="space-y-1.5 text-xs font-medium">
+                Agent 专家
+                <select
+                  value={expertId}
+                  onChange={(event) => setExpertId(event.target.value as TaskExpertId)}
+                  className="h-9 w-full rounded-md border border-border/60 bg-background px-2 text-sm"
+                >
+                  {TASK_EXPERT_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+                </select>
+                <span className="block text-[11px] font-normal leading-4 text-muted-foreground">{expert.description}</span>
+              </label>
               <label className="space-y-1.5 text-xs font-medium">最大修复次数<Input type="number" min={0} max={10} value={draft.maxRepairs ?? ''} onChange={(event) => patchDraft({ maxRepairs: event.target.value === '' ? undefined : Number(event.target.value) })} placeholder="默认 3" /></label>
             </div>
             <label className="block space-y-1.5 text-xs font-medium">工作目录<Input value={draft.cwd ?? ''} onChange={(event) => patchDraft({ cwd: event.target.value })} placeholder="可选：绝对路径" /></label>
-            <Button variant="outline" className="w-full" disabled={generating} onClick={() => void generate()}>
-              {generating ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {generating ? 'Agent 正在生成 DAG…' : '让 Agent 生成任务计划'}
-            </Button>
           </section>
 
-          <section className="flex min-h-0 flex-col rounded-2xl bg-card shadow-sm">
-            <header className="flex items-center gap-2 px-4 py-3"><div><h2 className="font-semibold">子任务 DAG</h2><p className="text-xs text-muted-foreground">依赖关系决定执行顺序。</p></div><span className="ml-1 rounded-full bg-muted px-2 py-0.5 text-xs">{draft.subtasks.length}</span><Button variant="outline" size="sm" className="ml-auto" onClick={addSubtask}><Plus className="h-4 w-4" />添加节点</Button></header>
-            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-4">
-              {draft.subtasks.map((subtask, index) => (
-                <SubtaskCard
-                  key={subtask.uid}
-                  index={index}
-                  subtask={subtask}
-                  allSubtasks={draft.subtasks}
-                  onChange={(patch) => updateSubtask(subtask.uid, patch)}
-                  onRemove={() => removeSubtask(subtask.uid)}
-                />
-              ))}
-              {draft.subtasks.length === 0 && <button type="button" onClick={addSubtask} className="w-full rounded-xl border border-dashed border-border/70 py-12 text-sm text-muted-foreground hover:bg-muted/40"><Plus className="mx-auto mb-2 h-5 w-5" />添加第一个子任务</button>}
-            </div>
-          </section>
+          {mode === 'generate' ? (
+            <section className="min-h-0 overflow-y-auto rounded-2xl bg-card shadow-sm">
+              <TaskEditorGenerationPanel generating={generating} onGenerate={() => void generate()} />
+            </section>
+          ) : (
+            <section className="flex min-h-0 flex-col rounded-2xl bg-card shadow-sm">
+              <header className="flex items-center gap-2 px-4 py-3"><div><h2 className="font-semibold">子任务 DAG</h2><p className="text-xs text-muted-foreground">依赖关系决定执行顺序。</p></div><span className="ml-1 rounded-full bg-muted px-2 py-0.5 text-xs">{draft.subtasks.length}</span><Button variant="outline" size="sm" className="ml-auto" onClick={addSubtask}><Plus className="h-4 w-4" />添加节点</Button></header>
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-4">
+                {draft.subtasks.map((subtask, index) => (
+                  <SubtaskCard
+                    key={subtask.uid}
+                    index={index}
+                    subtask={subtask}
+                    allSubtasks={draft.subtasks}
+                    onChange={(patch) => updateSubtask(subtask.uid, patch)}
+                    onRemove={() => removeSubtask(subtask.uid)}
+                  />
+                ))}
+                {draft.subtasks.length === 0 && <button type="button" onClick={addSubtask} className="w-full rounded-xl border border-dashed border-border/70 py-12 text-sm text-muted-foreground hover:bg-muted/40"><Plus className="mx-auto mb-2 h-5 w-5" />添加第一个子任务</button>}
+              </div>
+            </section>
+          )}
         </div>
       )}
     </div>
