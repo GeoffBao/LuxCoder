@@ -9,11 +9,12 @@ interface KanbanColumnProps {
   column: KanbanBoardColumn
   onOpenItem?: (item: KanbanItem) => void
   onOpenSubtask?: (sessionId: string) => void
+  onRunTask?: (item: KanbanItem) => void
   onRetryTeambition?: (item: KanbanItem) => void
   children?: React.ReactNode
 }
 
-export function KanbanColumn({ column, onOpenItem, onOpenSubtask, onRetryTeambition, children }: KanbanColumnProps): React.ReactElement {
+export function KanbanColumn({ column, onOpenItem, onOpenSubtask, onRunTask, onRetryTeambition, children }: KanbanColumnProps): React.ReactElement {
   const drop = useDroppable({ id: `column:${column.id}`, data: { columnId: column.id } })
   const color = resolveKanbanColumnColor(column.id, column.color)
   return (
@@ -35,6 +36,7 @@ export function KanbanColumn({ column, onOpenItem, onOpenSubtask, onRetryTeambit
             accent={color}
             onOpen={onOpenItem}
             onOpenSubtask={onOpenSubtask}
+            onRunTask={onRunTask}
             onRetryTeambition={onRetryTeambition}
           />
         ))}

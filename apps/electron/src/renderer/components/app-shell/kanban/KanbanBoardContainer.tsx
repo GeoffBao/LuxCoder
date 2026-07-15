@@ -170,6 +170,21 @@ export function KanbanBoardContainer({
         onMove={(sessionId, columnId) => { void moveCard({ sessionId, columnId }) }}
         onOpenItem={openItem}
         onOpenSubtask={onOpenSubtask}
+        onRunTask={(item) => {
+          if (!workspaceRoot || !workspace || !item.session.taskSlug) return
+          void window.electronAPI.tasks.run(workspaceRoot, workspace.id, item.session.taskSlug, {
+            orchestratorSessionId: item.id,
+          })
+            .then(() => {
+              toast.success('任务已开始运行')
+              void onTaskCreated?.()
+            })
+            .catch((cause: unknown) => {
+              toast.error('启动任务失败', {
+                description: cause instanceof Error ? cause.message : String(cause),
+              })
+            })
+        }}
         onRetryTeambition={(item) => {
           const bindingId = item.teambition?.bindingId
           if (!workspaceRoot || !bindingId) return

@@ -1,0 +1,173 @@
+import * as React from 'react'
+import { useAtomValue } from 'jotai'
+import { ChevronDown, GitBranch, LoaderCircle, Play, Workflow } from 'lucide-react'
+import { toast } from 'sonner'
+import {
+  agentSessionsAtom,
+  agentStreamingStatesAtom,
+  agentWorkspacesAtom,
+  currentAgentWorkspaceIdAtom,
+} from '@/atoms/agent-atoms'
+import { kanbanSpecNodesAtom } from '@/atoms/kanban-atoms'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
+import { mergeSubtaskRows, type SpecNodeSummary } from '../app-shell/kanban/subtask-merge'
+import { SubtaskRow } from '../app-shell/kanban/SubtaskRow'
+import { deriveSubtaskRunState } from '../app-shell/kanban/kanban-view-model'
+import type { KanbanSubtask } from '../app-shell/kanban/types'
+import { useOpenSession } from '@/hooks/useOpenSession'
+
+interface AgentTaskPanelProps {
+  sessionId: string
+}
+
+/** Code/Agent 会话内的任务编排条：展示子任务 DAG 状态，对齐 craft TaskChatPreview。 */
+export function AgentTaskPanel({ sessionId }: AgentTaskPanelProps): React.ReactElement | null {
+  const sessions = useAtomValue(agentSessionsAtom)
+  const streamStates = useAtomValue(agentStreamingStatesAtom)
+  const specNodesBySlug = useAtomValue(kanbanSpecNodesAtom)
+  const workspaces = useAtomValue(agentWorkspacesAtom)
+  const currentWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
+  const openSession = useOpenSession()
+  const [expanded, setExpanded] = React.useState(true)
+  const [running, setRunning] = React.useState(false)
+  const [localNodes, setLocalNodes] = React.useState<SpecNodeSummary[] | null>(null)
+
+  const session = sessions.find((candidate) => candidate.id === sessionId)
+  const taskSlug = session?.taskSlug
+  const workspace = workspaces.find((candidate) => candidate.id === (session?.workspaceId ?? currentWorkspaceId))
+  const [workspaceRoot, setWorkspaceRoot] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    if (!workspace) { setWorkspaceRoot(null); return }
+    let cancelled = false
+    void window.electronAPI.getWorkspaceRootPath(workspace.slug).then((root) => {
+      if (!cancelled) setWorkspaceRoot(root)
+    }).catch(() => {
+      if (!cancelled) setWorkspaceRoot(null)
+    })
+    return () => { cancelled = true }
+  }, [workspace])
+
+  React.useEffect(() => {
+    if (!workspaceRoot || !taskSlug) { setLocalNodes(null); return }
+    if (specNodesBySlug.has(taskSlug)) { setLocalNodes(null); return }
+    let cancelled = false
+    void window.electronAPI.tasks.get(workspaceRoot, taskSlug).then((validation) => {
+      if (cancelled || !validation?.valid || !validation.spec?.nodes) return
+      setLocalNodes(validation.spec.nodes.map((node) => ({
+        id: node.id,
+        title: node.title ?? node.id,
+        ...(node.model ? { model: node.model } : {}),
+      })))
+    }).catch(() => undefined)
+    return () => { cancelled = true }
+  }, [specNodesBySlug, taskSlug, workspaceRoot])
+
+  const subtasks = React.useMemo((): KanbanSubtask[] => {
+    if (!session || !taskSlug) return []
+    const children = sessions
+      .filter((candidate) => candidate.parentSessionId === sessionId && !candidate.archived && !candidate.taskDraft)
+      .map((child) => ({
+        id: child.id,
+        title: child.title,
+        runState: streamStates.get(child.id)?.running ? 'running' as const : deriveSubtaskRunState(child),
+        model: child.modelId ?? session.modelId ?? '',
+        ...(child.taskNodeId ? { taskNodeId: child.taskNodeId } : {}),
+        createdAt: child.createdAt,
+      }))
+    const nodes = specNodesBySlug.get(taskSlug) ?? localNodes ?? undefined
+    return mergeSubtaskRows(nodes, children, session.modelId ?? '').map((row) => {
+      if (!row.sessionId || !streamStates.get(row.sessionId)?.running) return row
+      return { ...row, runState: 'running' as const }
+    })
+  }, [localNodes, session, sessionId, sessions, specNodesBySlug, streamStates, taskSlug])
+
+  if (!session || !taskSlug || session.parentSessionId) return null
+
+  const live = Boolean(streamStates.get(sessionId)?.running)
+    || subtasks.some((subtask) => subtask.runState === 'running')
+  const done = subtasks.filter((subtask) => subtask.runState === 'done').length
+  const total = Math.max(subtasks.length, session.taskNodeCount ?? 0)
+
+  const runTask = async (): Promise<void> => {
+    if (!workspaceRoot || !workspace || !taskSlug) return
+    setRunning(true)
+    try {
+      await window.electronAPI.tasks.run(workspaceRoot, workspace.id, taskSlug, {
+        orchestratorSessionId: sessionId,
+      })
+      toast.success('任务已开始运行')
+    } catch (cause) {
+      toast.error('启动任务失败', { description: cause instanceof Error ? cause.message : String(cause) })
+    } finally {
+      setRunning(false)
+    }
+  }
+
+  return (
+    <section className={cn(
+      'mx-2.5 mb-2 rounded-xl border border-border/60 bg-card/90 px-3 py-2 shadow-sm backdrop-blur-sm md:mx-[18px]',
+      live && 'border-amber-500/40 shadow-[0_0_0_1px_rgba(245,158,11,0.2)]',
+    )}
+    >
+      <div className="flex items-center gap-2">
+        <Workflow className={cn('h-4 w-4 shrink-0 text-primary', live && 'animate-pulse')} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 text-xs font-medium">
+            <span>任务编排</span>
+            <span className="inline-flex items-center gap-1 text-muted-foreground">
+              <GitBranch className="h-3 w-3" />{taskSlug}
+            </span>
+            {total > 0 && (
+              <span className="tabular-nums text-muted-foreground">{done}/{total}</span>
+            )}
+            {live && (
+              <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                <LoaderCircle className="h-3 w-3 animate-spin" />运行中
+              </span>
+            )}
+          </div>
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-7 px-2"
+          disabled={running || live || subtasks.length === 0}
+          onClick={() => void runTask()}
+        >
+          {running ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+          运行
+        </Button>
+        <button
+          type="button"
+          aria-label={expanded ? '收起子任务' : '展开子任务'}
+          className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-muted"
+          onClick={() => setExpanded((value) => !value)}
+        >
+          <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', expanded && 'rotate-180')} />
+        </button>
+      </div>
+      {expanded && subtasks.length > 0 && (
+        <div className="mt-2 space-y-0.5 rounded-lg bg-muted/40 p-1.5">
+          {subtasks.map((subtask) => (
+            <SubtaskRow
+              key={subtask.id}
+              subtask={subtask}
+              onClick={subtask.sessionId
+                ? () => {
+                    const child = sessions.find((candidate) => candidate.id === subtask.sessionId)
+                    if (child) openSession('agent', child.id, child.title)
+                  }
+                : undefined}
+            />
+          ))}
+        </div>
+      )}
+      {expanded && subtasks.length === 0 && (
+        <p className="mt-2 text-[11px] text-muted-foreground">尚未生成子任务节点；可在看板编辑任务定义。</p>
+      )}
+    </section>
+  )
+}

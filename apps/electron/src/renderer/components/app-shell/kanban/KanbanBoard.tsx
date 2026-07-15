@@ -11,6 +11,7 @@ interface KanbanBoardProps {
   onMove: (sessionId: string, columnId: string) => void
   onOpenItem?: (item: KanbanItem) => void
   onOpenSubtask?: (sessionId: string) => void
+  onRunTask?: (item: KanbanItem) => void
   onRetryTeambition?: (item: KanbanItem) => void
   composer?: React.ReactNode
 }
@@ -20,7 +21,7 @@ function dropColumnId(event: DragEndEvent): string | null {
   return typeof value === 'string' ? value : null
 }
 
-export function KanbanBoard({ items, mode, columns, onMove, onOpenItem, onOpenSubtask, onRetryTeambition, composer }: KanbanBoardProps): React.ReactElement {
+export function KanbanBoard({ items, mode, columns, onMove, onOpenItem, onOpenSubtask, onRunTask, onRetryTeambition, composer }: KanbanBoardProps): React.ReactElement {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor),
@@ -47,6 +48,7 @@ export function KanbanBoard({ items, mode, columns, onMove, onOpenItem, onOpenSu
             draggable={false}
             onOpen={onOpenItem}
             onOpenSubtask={onOpenSubtask}
+            onRunTask={onRunTask}
             onRetryTeambition={onRetryTeambition}
           />
         ))}
@@ -59,7 +61,7 @@ export function KanbanBoard({ items, mode, columns, onMove, onOpenItem, onOpenSu
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
       <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto pb-3">
         {model.columns.map((column) => (
-          <KanbanColumn key={column.id} column={column} onOpenItem={onOpenItem} onOpenSubtask={onOpenSubtask} onRetryTeambition={onRetryTeambition}>
+          <KanbanColumn key={column.id} column={column} onOpenItem={onOpenItem} onOpenSubtask={onOpenSubtask} onRunTask={onRunTask} onRetryTeambition={onRetryTeambition}>
             {column.id === composerColumnId ? composer : undefined}
           </KanbanColumn>
         ))}

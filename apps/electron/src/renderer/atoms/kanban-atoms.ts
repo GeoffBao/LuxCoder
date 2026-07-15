@@ -8,7 +8,7 @@ import {
   type KanbanTaskRun,
   type TeambitionBinding,
 } from '@/components/app-shell/kanban/types'
-import { agentModelIdAtom } from './agent-atoms'
+import { agentModelIdAtom, agentStreamingStatesAtom } from './agent-atoms'
 import { selectedProjectIdAtom, serverKanbanProjectsAtom } from './project-atoms'
 
 /** 服务端会话快照，始终保持原始 AgentSessionMeta。 */
@@ -40,11 +40,12 @@ export const kanbanNotificationsAtom = atom<KanbanNotification[]>([])
 
 export const kanbanItemsAtom = atom<KanbanItem[]>((get) => {
   const optimisticColumns = get(optimisticKanbanColumnsAtom)
+  const streamStates = get(agentStreamingStatesAtom)
   const sessions = get(serverKanbanSessionsAtom).map((session) => {
     const optimisticColumn = optimisticColumns.get(session.id)
     return optimisticColumn === undefined ? session : { ...session, kanbanColumn: optimisticColumn.columnId }
   })
-  return buildKanbanViewModel({
+  const items = buildKanbanViewModel({
     projects: get(serverKanbanProjectsAtom),
     sessions,
     runs: get(serverKanbanRunsAtom),
@@ -53,6 +54,25 @@ export const kanbanItemsAtom = atom<KanbanItem[]>((get) => {
     specNodesBySlug: get(kanbanSpecNodesAtom),
     fallbackModel: get(agentModelIdAtom) ?? '',
   }).listItems
+
+  // 流式 running 覆盖到卡片：编排器自身或任一子任务 session 在跑都算 live
+  return items.map((item) => {
+    const childIds = item.subtasks
+      .map((subtask) => subtask.sessionId)
+      .filter((id): id is string => Boolean(id))
+    const isProcessing = Boolean(streamStates.get(item.id)?.running)
+      || childIds.some((id) => streamStates.get(id)?.running)
+      || item.subtasks.some((subtask) => subtask.runState === 'running')
+    if (!isProcessing) return item
+    return {
+      ...item,
+      isProcessing: true,
+      subtasks: item.subtasks.map((subtask) => {
+        if (!subtask.sessionId || !streamStates.get(subtask.sessionId)?.running) return subtask
+        return { ...subtask, runState: 'running' as const }
+      }),
+    }
+  })
 })
 
 export interface MoveCardInput {

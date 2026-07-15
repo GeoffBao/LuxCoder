@@ -80,6 +80,8 @@ export interface KanbanItem {
   subtasks: KanbanSubtask[]
   /** Conductor 总节点数；进度分母在 subtasks 尚未填满时保持稳定 */
   subtaskTotal?: number
+  /** 编排器或任一子任务正在流式执行 */
+  isProcessing?: boolean
   taskRun?: KanbanNodeProgress
   teambition?: KanbanTeambitionFields
 }

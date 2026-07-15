@@ -1,8 +1,14 @@
 import * as React from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { FolderKanban, Info, LayoutDashboard, RefreshCw } from 'lucide-react'
-import { agentSessionsAtom, agentWorkspacesAtom, currentAgentWorkspaceIdAtom } from '@/atoms/agent-atoms'
 import {
+  agentSessionsAtom,
+  agentStreamingStatesAtom,
+  agentWorkspacesAtom,
+  currentAgentWorkspaceIdAtom,
+} from '@/atoms/agent-atoms'
+import {
+  kanbanItemsAtom,
   kanbanSpecNodesAtom,
   serverKanbanRunsAtom,
   serverKanbanSessionsAtom,
@@ -46,6 +52,8 @@ export function WorkBoardView(): React.ReactElement {
   const setRuns = useSetAtom(serverKanbanRunsAtom)
   const setBindings = useSetAtom(serverTeambitionBindingsAtom)
   const setSpecNodes = useSetAtom(kanbanSpecNodesAtom)
+  const kanbanItems = useAtomValue(kanbanItemsAtom)
+  const streamStates = useAtomValue(agentStreamingStatesAtom)
   const openSession = useOpenSession()
   const [workspaceRoot, setWorkspaceRoot] = React.useState<string | null>(null)
   const [view, setView] = React.useState<WorkView>('board')
@@ -157,6 +165,17 @@ export function WorkBoardView(): React.ReactElement {
     await refreshSessions()
     await Promise.all([refreshProjects(), refreshRuns(), refreshBindings(), refreshSpecNodes()])
   }, [refreshBindings, refreshProjects, refreshRuns, refreshSessions, refreshSpecNodes])
+
+  // Conductor 派生子会话时主进程不会主动推列表；运行中短轮询保持卡片/进度实时
+  const needsLivePoll = kanbanItems.some((item) => item.isProcessing)
+    || [...streamStates.values()].some((state) => state.running)
+  React.useEffect(() => {
+    if (!workspaceRoot || !needsLivePoll) return
+    const timer = window.setInterval(() => {
+      void refreshSessions().then(() => Promise.all([refreshRuns(), refreshSpecNodes()]))
+    }, 2000)
+    return () => window.clearInterval(timer)
+  }, [needsLivePoll, refreshRuns, refreshSessions, refreshSpecNodes, workspaceRoot])
 
   React.useEffect(() => {
     if (!workspaceRoot) return

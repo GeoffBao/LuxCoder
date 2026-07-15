@@ -1,5 +1,5 @@
 import { useDraggable } from '@dnd-kit/core'
-import { ChevronDown, ExternalLink, GitBranch, Link2 } from 'lucide-react'
+import { ChevronDown, ExternalLink, GitBranch, Link2, Play } from 'lucide-react'
 import * as React from 'react'
 import { cn } from '@/lib/utils'
 import { ModelChip } from './ModelChip'
@@ -15,6 +15,7 @@ interface TaskTileProps {
   draggable?: boolean
   onOpen?: (item: KanbanItem) => void
   onOpenSubtask?: (sessionId: string) => void
+  onRunTask?: (item: KanbanItem) => void
   onRetryTeambition?: (item: KanbanItem) => void
   className?: string
 }
@@ -29,6 +30,7 @@ export function TaskTile({
   draggable = true,
   onOpen,
   onOpenSubtask,
+  onRunTask,
   onRetryTeambition,
   className,
 }: TaskTileProps): React.ReactElement {
@@ -42,20 +44,30 @@ export function TaskTile({
   const transform = drag.transform
     ? `translate3d(${drag.transform.x}px, ${drag.transform.y}px, 0)`
     : undefined
-  const hasRunning = item.subtasks.some((subtask) => subtask.runState === 'running')
-  const live = isLiveStatus(item.session.sessionStatus) || hasRunning
+  const hasRunning = item.isProcessing || item.subtasks.some((subtask) => subtask.runState === 'running')
+  const live = hasRunning || isLiveStatus(item.session.sessionStatus)
   const progressTotal = item.subtaskTotal ?? item.taskRun?.totalNodes ?? item.subtasks.length
+  const canRun = Boolean(onRunTask)
+    && Boolean(item.session.taskSlug)
+    && !hasRunning
+    && item.subtasks.some((subtask) => subtask.runState === 'pending')
 
   return (
     <article
       ref={drag.setNodeRef}
-      style={{ transform, opacity: drag.isDragging ? 0.55 : 1 }}
+      style={{
+        transform,
+        opacity: drag.isDragging ? 0.55 : 1,
+        ...(live && accent
+          ? { boxShadow: `0 0 0 1px ${accent}, 0 4px 16px -4px color-mix(in srgb, ${accent} 40%, transparent)` }
+          : undefined),
+      }}
       {...drag.attributes}
       {...drag.listeners}
       onClick={() => onOpen?.(item)}
       className={cn(
         'group cursor-pointer rounded-xl bg-card p-3 shadow-sm ring-1 ring-border/30 transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        live && 'ring-amber-500/40 shadow-[0_0_0_1px_rgba(245,158,11,0.25)]',
+        live && 'ring-amber-500/40',
         draggable && 'touch-none',
         className,
       )}
@@ -65,6 +77,22 @@ export function TaskTile({
           <h3 className="line-clamp-2 text-sm font-medium leading-5">{item.title}</h3>
           {item.project && <p className="mt-1 truncate text-[11px] text-muted-foreground">{item.project.name}</p>}
         </div>
+        {canRun && (
+          <button
+            type="button"
+            title="运行任务"
+            aria-label="运行任务"
+            data-no-dnd
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation()
+              onRunTask?.(item)
+            }}
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100"
+          >
+            <Play className="h-3.5 w-3.5 fill-current" />
+          </button>
+        )}
         <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-1.5">

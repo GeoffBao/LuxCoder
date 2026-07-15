@@ -20,6 +20,7 @@ import { toast } from 'sonner'
 import { Bot, CornerDownLeft, Square, Settings, Paperclip, FolderPlus, X, Copy, Check, Brain, Sparkles, Eye } from 'lucide-react'
 import { AgentMessages } from './AgentMessages'
 import { AgentHeader } from './AgentHeader'
+import { AgentTaskPanel } from './AgentTaskPanel'
 import { ContextUsageBadge } from './ContextUsageBadge'
 import { PermissionBanner } from './PermissionBanner'
 import { PermissionModeSelector } from './PermissionModeSelector'
@@ -2051,6 +2052,9 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
       <div className="flex flex-col h-full flex-1 min-w-0 max-w-[min(72rem,100%)] mx-auto">
         {/* Agent Header */}
         <AgentHeader sessionId={sessionId} />
+
+        {/* 任务编排状态条（有 taskSlug 的 orchestrator 会话） */}
+        <AgentTaskPanel sessionId={sessionId} />
 
         {/* 消息区域 */}
         <AgentMessages
