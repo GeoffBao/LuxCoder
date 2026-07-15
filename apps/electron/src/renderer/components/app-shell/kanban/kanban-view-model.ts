@@ -71,9 +71,12 @@ function buildItem(
 export function buildKanbanViewModel(input: BuildKanbanViewModelInput): KanbanViewModel {
   const projectsById = new Map(input.projects.map((project) => [project.id, project]))
   const bindingsBySessionId = new Map(input.bindings.map((binding) => [binding.sessionId, binding]))
+  const topLevelSessions = input.sessions.filter((session) =>
+    !session.archived && !session.taskDraft && !session.parentSessionId,
+  )
   const sessions = input.filter.projectId === null
-    ? input.sessions
-    : input.sessions.filter((session) => session.projectId === input.filter.projectId)
+    ? topLevelSessions
+    : topLevelSessions.filter((session) => session.projectId === input.filter.projectId)
   const items = sessions
     .map((session) => buildItem(session, projectsById, input.runs, bindingsBySessionId))
     .sort((left, right) => right.session.updatedAt - left.session.updatedAt || left.id.localeCompare(right.id))

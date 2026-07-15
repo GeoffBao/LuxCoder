@@ -109,4 +109,17 @@ describe('task handler Kanban payloads', () => {
 
     expect(result).toEqual(expect.objectContaining({ valid: true, errors: [], warnings }))
   })
+
+  test('采用生成草稿时清除 taskDraft 并恢复待办状态', () => {
+    const buildPatch = Reflect.get(taskHandlers, 'buildAdoptedTaskSessionPatch')
+    expect(buildPatch).toBeInstanceOf(Function)
+    if (typeof buildPatch !== 'function') return
+
+    expect(buildPatch({ id: 'release-task', project: 'project-a' })).toEqual({
+      taskSlug: 'release-task',
+      projectId: 'project-a',
+      taskDraft: undefined,
+      sessionStatus: 'todo',
+    })
+  })
 })

@@ -132,6 +132,23 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+interface AdoptableTaskSpec {
+  id: string
+  project?: string
+}
+
+/** 生成草稿转正时清除隐藏标记，并把尚未运行的任务放回待办状态。 */
+export function buildAdoptedTaskSessionPatch(
+  spec: AdoptableTaskSpec,
+): Pick<AgentSessionMeta, 'taskSlug' | 'projectId' | 'taskDraft' | 'sessionStatus'> {
+  return {
+    taskSlug: spec.id,
+    ...(spec.project ? { projectId: spec.project } : {}),
+    taskDraft: undefined,
+    sessionStatus: 'todo',
+  }
+}
+
 type AgentSessionMetaUpdater = (
   sessionId: string,
   updates: Pick<AgentSessionMeta, 'kanbanColumn'>,
@@ -279,10 +296,15 @@ export function registerTaskHandlers(window: BrowserWindow): void {
     const sessionId = request.attachToExistingSessionId ?? request.orchestratorSessionId
     if (sessionId) {
       if (!getAgentSessionMeta(sessionId)) throw new Error(`Agent 会话不存在: ${sessionId}`)
-      await updateAgentSessionMeta(sessionId, {
-        taskSlug: parsed.spec.id,
-        ...(parsed.spec.project ? { projectId: parsed.spec.project } : {}),
-      })
+      await updateAgentSessionMeta(
+        sessionId,
+        request.orchestratorSessionId
+          ? buildAdoptedTaskSessionPatch(parsed.spec)
+          : {
+              taskSlug: parsed.spec.id,
+              ...(parsed.spec.project ? { projectId: parsed.spec.project } : {}),
+            },
+      )
     } else {
       const session = await (await getSessionHost()).createSession(workspaceId, {
         name: parsed.spec.title,

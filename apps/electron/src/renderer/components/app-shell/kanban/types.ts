@@ -7,6 +7,11 @@ export type KanbanBoardMode = 'board' | 'list'
 export type KanbanNodeState = 'pending' | 'running' | 'done' | 'failed' | 'cancelled' | 'skipped'
 export type SubtaskRunState = 'done' | 'running' | 'pending' | 'failed'
 
+/** TaskEditor 的创建目标或已绑定会话目标。 */
+export type TaskEditorTarget =
+  | { mode: 'create'; initialProjectId?: string }
+  | { mode: 'edit'; sessionId: string; taskSlug: string }
+
 export interface KanbanSubtask {
   id: string
   sessionId?: string

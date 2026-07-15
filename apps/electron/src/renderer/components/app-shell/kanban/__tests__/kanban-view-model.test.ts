@@ -97,4 +97,21 @@ describe('buildKanbanViewModel', () => {
     expect(model.boardItems.map((item) => item.id)).toEqual(model.listItems.map((item) => item.id))
     expect(model.listItems[0]?.teambition).toEqual({ taskId: 'TW-1', title: '同步状态', status: 'coding' })
   })
+
+  test('顶层看板排除归档、生成草稿和子会话', () => {
+    const model = buildKanbanViewModel({
+      projects,
+      sessions: [
+        createSession({ id: 'visible-session', updatedAt: 50 }),
+        createSession({ id: 'archived-session', archived: true, updatedAt: 40 }),
+        createSession({ id: 'draft-session', taskDraft: true, updatedAt: 30 }),
+        createSession({ id: 'child-session', parentSessionId: 'visible-session', updatedAt: 20 }),
+      ],
+      runs: [],
+      bindings: [],
+      filter: { projectId: null },
+    })
+
+    expect(model.listItems.map((item) => item.id)).toEqual(['visible-session'])
+  })
 })

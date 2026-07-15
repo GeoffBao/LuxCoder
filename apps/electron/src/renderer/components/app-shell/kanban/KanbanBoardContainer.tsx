@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
+import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { agentWorkspacesAtom, currentAgentWorkspaceIdAtom } from '@/atoms/agent-atoms'
 import {
@@ -18,7 +19,10 @@ import { consumeFirstNotification } from './board-model'
 import { KanbanBoard } from './KanbanBoard'
 import { KanbanProjectFilter } from './KanbanProjectFilter'
 import { NewTaskComposer } from './NewTaskComposer'
-import type { KanbanItem } from './types'
+import { TaskEditor } from './TaskEditor'
+import { resolveKanbanItemOpen } from './task-editor-model'
+import { Button } from '@/components/ui/button'
+import type { KanbanItem, TaskEditorTarget } from './types'
 
 interface KanbanBoardContainerProps {
   onOpenItem?: (item: KanbanItem) => void
@@ -37,6 +41,7 @@ export function KanbanBoardContainer({ onOpenItem, onTaskCreated }: KanbanBoardC
   const currentWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
   const workspace = workspaces.find((candidate) => candidate.id === currentWorkspaceId) ?? null
   const [workspaceRoot, setWorkspaceRoot] = React.useState<string | null>(null)
+  const [editorTarget, setEditorTarget] = React.useState<TaskEditorTarget | null>(null)
 
   React.useEffect(() => {
     if (!workspace) { setWorkspaceRoot(null); return }
@@ -60,6 +65,32 @@ export function KanbanBoardContainer({ onOpenItem, onTaskCreated }: KanbanBoardC
     ? <NewTaskComposer workspaceRoot={workspaceRoot} workspaceId={workspace.id} onCreated={onTaskCreated} />
     : undefined
 
+  const openItem = (item: KanbanItem): void => {
+    const action = resolveKanbanItemOpen(item)
+    if (action.kind === 'editor') setEditorTarget(action.target)
+    else onOpenItem?.(item)
+  }
+
+  if (editorTarget && workspaceRoot && workspace) {
+    return (
+      <TaskEditor
+        workspaceRoot={workspaceRoot}
+        workspaceId={workspace.id}
+        projects={projects}
+        target={editorTarget}
+        defaultModel={editorTarget.mode === 'edit'
+          ? items.find((item) => item.id === editorTarget.sessionId)?.session.modelId
+          : undefined}
+        onClose={() => setEditorTarget(null)}
+        onCreated={onTaskCreated ? async () => { await onTaskCreated() } : undefined}
+        onOpenSession={(sessionId) => {
+          const item = items.find((candidate) => candidate.id === sessionId)
+          if (item) onOpenItem?.(item)
+        }}
+      />
+    )
+  }
+
   return (
     <div className="flex h-full min-h-0 flex-col bg-background p-4">
       <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -67,6 +98,13 @@ export function KanbanBoardContainer({ onOpenItem, onTaskCreated }: KanbanBoardC
         <div className="flex items-center gap-2">
           <KanbanProjectFilter projects={projects} value={selectedProjectId} onChange={setSelectedProjectId} />
           <BoardListToggle value={mode} onChange={setMode} />
+          <Button
+            size="sm"
+            disabled={!workspaceRoot || !workspace}
+            onClick={() => setEditorTarget({ mode: 'create', ...(selectedProjectId ? { initialProjectId: selectedProjectId } : {}) })}
+          >
+            <Plus className="h-4 w-4" />完整任务
+          </Button>
         </div>
       </header>
       <KanbanBoard
@@ -74,7 +112,7 @@ export function KanbanBoardContainer({ onOpenItem, onTaskCreated }: KanbanBoardC
         mode={mode}
         columns={selectedProject?.kanbanColumns}
         onMove={(sessionId, columnId) => { void moveCard({ sessionId, columnId }) }}
-        onOpenItem={onOpenItem}
+        onOpenItem={openItem}
         composer={composer}
       />
     </div>
