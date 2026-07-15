@@ -96,6 +96,8 @@ describe('kanban protocol contracts', () => {
       SYNC_PROGRESS: 'teambition:syncProgress',
       UPDATE_STATUS: 'teambition:updateStatus',
       BIND_PROJECT: 'teambition:bindProject',
+      LIST_BINDINGS: 'teambition:listBindings',
+      RETRY_SYNC: 'teambition:retrySync',
     });
   });
 

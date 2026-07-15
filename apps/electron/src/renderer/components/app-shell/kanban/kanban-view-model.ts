@@ -59,6 +59,8 @@ function buildItem(
             taskId: binding.taskId,
             ...(binding.title ? { title: binding.title } : {}),
             ...(binding.status ? { status: binding.status } : {}),
+            ...(binding.syncState ? { syncState: binding.syncState } : {}),
+            ...(binding.error ? { error: binding.error } : {}),
           },
         }
       : {}),

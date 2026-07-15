@@ -4,7 +4,7 @@
  * 这里是 Electron 主进程与本地文件存储、TaskRunner、Agent 编排器之间的薄桥接层。
  */
 import { BrowserWindow, ipcMain } from 'electron'
-import { basename } from 'node:path'
+import { basename, join } from 'node:path'
 import {
   PROJECT_IPC_CHANNELS,
   SESSION_COMMAND_CHANNEL,
@@ -20,7 +20,6 @@ import type {
   TaskGeneratedEventPayload,
   UpdateProjectInput,
   UploadProjectAssetInput,
-  WorkPhase,
 } from '@luxagents/shared'
 import {
   createProject,
@@ -51,6 +50,7 @@ import {
 import { createLuxAgentsConductorSessionHost, type LuxAgentsConductorSessionHost } from './conductor-session-host'
 import { getAgentSessionMeta, updateAgentSessionMeta } from './agent-session-manager'
 import { TaskRunner, type RunOptions } from './task-runner'
+import { TeambitionService, type ClaimTeambitionTaskInput, type TeambitionRemoteTask } from './teambition-service'
 
 const GENERATE_TIMEOUT_MS = 180_000
 
@@ -220,23 +220,6 @@ async function sendGenerationPrompt(
   })
 }
 
-const WORK_PHASES: ReadonlySet<WorkPhase> = new Set<WorkPhase>([
-  'pending',
-  'designing',
-  'tb-reviewing',
-  'coding',
-  'gerrit-reviewing',
-  'pending-writeup',
-  'completed',
-  'cancelled',
-  'on-hold',
-])
-
-function parseWorkPhase(value: string): WorkPhase {
-  if (WORK_PHASES.has(value as WorkPhase)) return value as WorkPhase
-  throw new Error(`未知 Teambition 状态: ${value}`)
-}
-
 /**
  * 注册所有 Projects、Tasks、Session 与 Teambition IPC handlers。
  * 重建窗口时只更新推送目标，不重复调用 ipcMain.handle。
@@ -400,16 +383,40 @@ export function registerTaskHandlers(window: BrowserWindow): void {
     }
   })
 
-  ipcMain.handle(TEAMBITION_IPC_CHANNELS.LIST_TASKS, async (_event, projectId: string) => {
-    return (await getTeambitionAdapter()).fetchTasks(projectId)
+  ipcMain.handle(TEAMBITION_IPC_CHANNELS.CAPABILITIES, async (_event, workspaceRoot: string) => {
+    return (await getTeambitionService(workspaceRoot)).probeCapabilities()
   })
 
-  ipcMain.handle(TEAMBITION_IPC_CHANNELS.GET_BINDING, async (_event, taskId: string) => {
-    return (await getTeambitionAdapter()).fetchTaskDetail(taskId)
+  ipcMain.handle(TEAMBITION_IPC_CHANNELS.LIST_TASKS, async (_event, workspaceRoot: string, projectId: string) => {
+    return (await getTeambitionService(workspaceRoot)).listClaimableTasks(projectId)
   })
 
-  ipcMain.handle(TEAMBITION_IPC_CHANNELS.UPDATE_STATUS, async (_event, taskId: string, status: string) => {
-    await (await getTeambitionAdapter()).updateStatus(taskId, parseWorkPhase(status))
+  ipcMain.handle(TEAMBITION_IPC_CHANNELS.CLAIM_TASK, async (_event, workspaceRoot: string, input: ClaimTeambitionTaskInput) => {
+    return (await getTeambitionService(workspaceRoot)).claimTask(input)
+  })
+
+  ipcMain.handle(TEAMBITION_IPC_CHANNELS.BIND_PROJECT, async (_event, workspaceRoot: string, sessionId: string, task: TeambitionRemoteTask) => {
+    return (await getTeambitionService(workspaceRoot)).bindTask(sessionId, task)
+  })
+
+  ipcMain.handle(TEAMBITION_IPC_CHANNELS.GET_BINDING, async (_event, workspaceRoot: string, sessionId: string) => {
+    return (await getTeambitionService(workspaceRoot)).getBinding(sessionId)
+  })
+
+  ipcMain.handle(TEAMBITION_IPC_CHANNELS.LIST_BINDINGS, async (_event, workspaceRoot: string) => {
+    return (await getTeambitionService(workspaceRoot)).listBindings()
+  })
+
+  ipcMain.handle(TEAMBITION_IPC_CHANNELS.UPDATE_STATUS, async (_event, workspaceRoot: string, bindingId: string, status: string) => {
+    return (await getTeambitionService(workspaceRoot)).syncStatus(bindingId, status)
+  })
+
+  ipcMain.handle(TEAMBITION_IPC_CHANNELS.SYNC_PROGRESS, async (_event, workspaceRoot: string, bindingId: string, progress: number) => {
+    return (await getTeambitionService(workspaceRoot)).syncProgress(bindingId, progress)
+  })
+
+  ipcMain.handle(TEAMBITION_IPC_CHANNELS.RETRY_SYNC, async (_event, workspaceRoot: string, bindingId: string) => {
+    return (await getTeambitionService(workspaceRoot)).retryPendingSync(bindingId)
   })
 }
 
@@ -466,6 +473,18 @@ async function generateTaskForSession(
 }
 
 let teambitionAdapter: import('./teambition-adapter').TeambitionAdapter | undefined
+const teambitionServices = new Map<string, TeambitionService>()
+
+async function getTeambitionService(workspaceRoot: string): Promise<TeambitionService> {
+  const existing = teambitionServices.get(workspaceRoot)
+  if (existing) return existing
+  const service = new TeambitionService({
+    storagePath: join(workspaceRoot, 'teambition-bindings.json'),
+    gateway: await getTeambitionAdapter(),
+  })
+  teambitionServices.set(workspaceRoot, service)
+  return service
+}
 
 async function getTeambitionAdapter(): Promise<import('./teambition-adapter').TeambitionAdapter> {
   if (teambitionAdapter) return teambitionAdapter

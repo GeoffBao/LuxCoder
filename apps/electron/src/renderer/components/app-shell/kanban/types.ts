@@ -46,6 +46,8 @@ export interface TeambitionBinding {
   taskId: string
   title?: string
   status?: string
+  syncState?: 'synced' | 'pending' | 'conflict' | 'stale' | 'needs-reauth'
+  error?: string
 }
 
 export interface KanbanFilter {
@@ -61,6 +63,8 @@ export interface KanbanTeambitionFields {
   taskId: string
   title?: string
   status?: string
+  syncState?: 'synced' | 'pending' | 'conflict' | 'stale' | 'needs-reauth'
+  error?: string
 }
 
 /** 仅用于渲染的卡片；不会回写到 AgentSessionMeta。 */

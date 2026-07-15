@@ -46,6 +46,8 @@ export const TEAMBITION_IPC_CHANNELS = {
   SYNC_PROGRESS: 'teambition:syncProgress',
   UPDATE_STATUS: 'teambition:updateStatus',
   BIND_PROJECT:  'teambition:bindProject',
+  LIST_BINDINGS: 'teambition:listBindings',
+  RETRY_SYNC:    'teambition:retrySync',
 } as const;
 
 export const SESSION_COMMAND_CHANNEL = SESSION_KANBAN_IPC_CHANNELS.COMMAND;

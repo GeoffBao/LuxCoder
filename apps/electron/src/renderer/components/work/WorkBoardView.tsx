@@ -2,7 +2,7 @@ import * as React from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { FolderKanban, Info, LayoutDashboard, RefreshCw } from 'lucide-react'
 import { agentSessionsAtom, agentWorkspacesAtom, currentAgentWorkspaceIdAtom } from '@/atoms/agent-atoms'
-import { serverKanbanRunsAtom, serverKanbanSessionsAtom } from '@/atoms/kanban-atoms'
+import { serverKanbanRunsAtom, serverKanbanSessionsAtom, serverTeambitionBindingsAtom } from '@/atoms/kanban-atoms'
 import {
   selectedKanbanProjectAtom,
   selectedProjectIdAtom,
@@ -38,6 +38,7 @@ export function WorkBoardView(): React.ReactElement {
   const selectedProject = useAtomValue(selectedKanbanProjectAtom)
   const setSessions = useSetAtom(serverKanbanSessionsAtom)
   const setRuns = useSetAtom(serverKanbanRunsAtom)
+  const setBindings = useSetAtom(serverTeambitionBindingsAtom)
   const openSession = useOpenSession()
   const [workspaceRoot, setWorkspaceRoot] = React.useState<string | null>(null)
   const [view, setView] = React.useState<WorkView>('board')
@@ -53,6 +54,7 @@ export function WorkBoardView(): React.ReactElement {
     setSelectedProjectId(null)
     setProjects([])
     setRuns([])
+    setBindings([])
     setWorkspaceRoot(null)
     setView('board')
     setError(null)
@@ -71,7 +73,7 @@ export function WorkBoardView(): React.ReactElement {
       })
 
     return () => { cancelled = true }
-  }, [setProjects, setRuns, setSelectedProjectId, workspace])
+  }, [setBindings, setProjects, setRuns, setSelectedProjectId, workspace])
 
   const refreshProjects = React.useCallback(async (): Promise<void> => {
     if (!workspaceRoot) return
@@ -104,6 +106,19 @@ export function WorkBoardView(): React.ReactElement {
     setRuns(runs.filter((run): run is KanbanTaskRun => run !== null))
   }, [agentSessions, setRuns, workspaceRoot])
 
+  const refreshBindings = React.useCallback(async (): Promise<void> => {
+    if (!workspaceRoot) return
+    const bindings = await window.electronAPI.teambition.listBindings(workspaceRoot)
+    setBindings(bindings.map((binding) => ({
+      sessionId: binding.sessionId,
+      taskId: binding.remoteTaskId,
+      title: binding.remoteTitle,
+      ...(binding.remoteStatus ? { status: binding.remoteStatus } : {}),
+      syncState: binding.syncState,
+      ...(binding.error ? { error: binding.error } : {}),
+    })))
+  }, [setBindings, workspaceRoot])
+
   React.useEffect(() => {
     if (!workspaceRoot) return
     void refreshProjects().catch((cause: unknown) => {
@@ -117,6 +132,13 @@ export function WorkBoardView(): React.ReactElement {
       setError(`加载任务进度失败：${errorMessage(cause)}`)
     })
   }, [refreshRuns, workspaceRoot])
+
+  React.useEffect(() => {
+    if (!workspaceRoot) return
+    void refreshBindings().catch((cause: unknown) => {
+      setError(`加载 Teambition 绑定失败：${errorMessage(cause)}`)
+    })
+  }, [refreshBindings, workspaceRoot])
 
   React.useEffect(() => {
     if (!workspace) return
@@ -155,7 +177,7 @@ export function WorkBoardView(): React.ReactElement {
     setError(null)
     setLoading(true)
     try {
-      await Promise.all([refreshProjects(), refreshRuns()])
+      await Promise.all([refreshProjects(), refreshRuns(), refreshBindings()])
     } catch (cause) {
       setError(`刷新 Work 数据失败：${errorMessage(cause)}`)
     } finally {
@@ -234,7 +256,7 @@ export function WorkBoardView(): React.ReactElement {
               <KanbanBoardContainer
                 onOpenItem={handleOpenItem}
                 onTaskCreated={async () => {
-                  await Promise.all([refreshProjects(), refreshRuns()])
+                  await Promise.all([refreshProjects(), refreshRuns(), refreshBindings()])
                 }}
               />
             )}
