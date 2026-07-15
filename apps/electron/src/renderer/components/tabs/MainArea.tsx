@@ -22,6 +22,8 @@ import { AgentSkillsView } from '@/components/agent-skills/AgentSkillsView'
 import { automationFormAtom } from '@/atoms/automation-atoms'
 import { activeViewAtom } from '@/atoms/active-view'
 import { interfaceVariantAtom } from '@/atoms/theme'
+import { appModeAtom } from '@/atoms/app-mode'
+import { WorkBoardView } from '@/components/work/WorkBoardView'
 import { cn } from '@/lib/utils'
 
 export function MainArea(): React.ReactElement {
@@ -34,6 +36,7 @@ export function MainArea(): React.ReactElement {
   const activeTab = useAtomValue(activeTabAtom)
   const automationFormOpen = useAtomValue(automationFormAtom).open
   const activeView = useAtomValue(activeViewAtom)
+  const appMode = useAtomValue(appModeAtom)
   const interfaceVariant = useAtomValue(interfaceVariantAtom)
   const isClassic = interfaceVariant === 'classic'
 
@@ -157,7 +160,11 @@ export function MainArea(): React.ReactElement {
             className="flex flex-col min-w-0 h-full relative"
             style={leftFlexStyle}
           >
-            {activeView === 'automations' ? (
+            {appMode === 'cowork' ? (
+              // Work 模式：全屏取代 TabBar + TabContent，与 automations/agent-skills 同一模式，
+              // 但优先级更高——appMode 是顶层模式（对齐 Chat/Code），不是 Agent 模式内的子视图。
+              <WorkBoardView />
+            ) : activeView === 'automations' ? (
               automationFormOpen ? (
                 // 定时任务设置页：与列表同层级替换中间区，不经过 TabBar，避免切换时闪出会话 Tab。
                 <AutomationFormView />

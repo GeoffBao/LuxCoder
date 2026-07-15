@@ -182,7 +182,7 @@ export function ProjectInfoPage({
   ]
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col rounded-2xl bg-card shadow-sm">
+    <section className="flex h-full min-h-0 flex-1 flex-col rounded-2xl bg-card shadow-sm">
       <header className="flex items-center gap-3 border-b border-border/50 p-4">
         <span className="h-3 w-3 rounded-full" style={{ backgroundColor: project.color ?? 'var(--muted-foreground)' }} />
         <div className="min-w-0"><h2 className="truncate font-semibold">{project.name}</h2><p className="truncate text-xs text-muted-foreground">{project.description || '项目工作区、资产与长期记忆'}</p></div>
