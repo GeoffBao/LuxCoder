@@ -1,0 +1,122 @@
+import * as React from 'react'
+import { ChevronRight, Info, Plus } from 'lucide-react'
+import type { SessionIndicatorStatus } from '@/atoms/agent-atoms'
+import { cn } from '@/lib/utils'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { AgentSessionItem, getSessionLeftAccent } from './LeftSidebar'
+import type { SidebarProjectGroup } from './sidebar-project-groups'
+
+export interface SidebarProjectSubgroupProps {
+  group: SidebarProjectGroup
+  activeSessionId: string | null
+  relativeTimeNow: number
+  /** 会话行状态徽标映射（与 AgentProjectGroupItem 同源） */
+  agentIndicatorMap: Map<string, SessionIndicatorStatus>
+  onNewSessionInProject: (projectId: string) => Promise<void>
+  onOpenProjectDetail: (projectId: string) => void
+  /** 以下透传给 AgentSessionItem，与工作区组内会话行为完全一致 */
+  onSelectSession: (id: string, title: string) => void
+  onRequestDelete: (id: string) => void
+  onRequestMove: (id: string) => void
+  onRename: (id: string, newTitle: string) => Promise<void>
+  onTogglePin: (id: string) => Promise<void>
+  onToggleArchive: (id: string) => Promise<void>
+}
+
+/**
+ * 侧边栏项目子分组：分组头（色点 + 名称 + 会话数 + hover「+」/详情）+ 组内会话列表。
+ * 独立成文件：LeftSidebar.tsx 是 Proma 移植冲突热点，只留挂载点。
+ */
+export function SidebarProjectSubgroup({
+  group,
+  activeSessionId,
+  relativeTimeNow,
+  agentIndicatorMap,
+  onNewSessionInProject,
+  onOpenProjectDetail,
+  onSelectSession,
+  onRequestDelete,
+  onRequestMove,
+  onRename,
+  onTogglePin,
+  onToggleArchive,
+}: SidebarProjectSubgroupProps): React.ReactElement {
+  const [collapsed, setCollapsed] = React.useState(false)
+  // CSS 变量存的是 HSL 三元组，需要 hsl() 包裹才能作为颜色值
+  const color = group.project.color ?? 'hsl(var(--muted-foreground))'
+
+  return (
+    <div className="flex flex-col">
+      <div className="group/subproject relative flex items-center">
+        <button
+          type="button"
+          aria-expanded={!collapsed}
+          onClick={() => setCollapsed((value) => !value)}
+          className="flex-1 min-w-0 flex items-center gap-1.5 px-1 py-0.5 rounded-md text-left text-foreground/55 hover:text-foreground/85 hover:bg-foreground/[0.025] titlebar-no-drag group-hover/subproject:pr-11"
+        >
+          <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: color }} />
+          <span className="flex-1 min-w-0 truncate text-xs font-medium leading-[18px]">{group.project.name}</span>
+          <span className="flex-shrink-0 text-[10px] text-foreground/30">{group.sessions.length}</span>
+          <ChevronRight
+            size={11}
+            className={cn(
+              'flex-shrink-0 text-foreground/30 transition-transform',
+              collapsed ? '-rotate-90' : 'rotate-90',
+            )}
+          />
+        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              aria-label={`在「${group.project.name}」中新建会话`}
+              onClick={() => void onNewSessionInProject(group.project.id)}
+              className="absolute right-5 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-md text-foreground/30 opacity-0 transition-colors hover:bg-foreground/[0.055] hover:text-foreground/65 group-hover/subproject:opacity-100 titlebar-no-drag"
+            >
+              <Plus size={12} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top">在此项目中新建会话</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              aria-label={`「${group.project.name}」项目详情`}
+              onClick={() => onOpenProjectDetail(group.project.id)}
+              className="absolute right-0 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-md text-foreground/30 opacity-0 transition-colors hover:bg-foreground/[0.055] hover:text-foreground/65 group-hover/subproject:opacity-100 titlebar-no-drag"
+            >
+              <Info size={12} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top">项目详情</TooltipContent>
+        </Tooltip>
+      </div>
+      {!collapsed && group.sessions.length > 0 && (
+        <div className="ml-3 flex flex-col gap-0.5">
+          {group.sessions.map((session) => {
+            const rowStatus = agentIndicatorMap.get(session.id) ?? 'idle'
+            return (
+              <AgentSessionItem
+                key={session.id}
+                session={session}
+                active={session.id === activeSessionId}
+                indicatorStatus={rowStatus}
+                showPinIcon={!!session.pinned}
+                leftAccent={getSessionLeftAccent(rowStatus)}
+                projectColor={group.project.color}
+                relativeTimeNow={relativeTimeNow}
+                onSelect={onSelectSession}
+                onRequestDelete={onRequestDelete}
+                onRequestMove={onRequestMove}
+                onRename={onRename}
+                onTogglePin={onTogglePin}
+                onToggleArchive={onToggleArchive}
+              />
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}

@@ -2955,7 +2955,7 @@ const DELEGATION_STATUS_ICON_CLASS: Record<SessionIndicatorStatus, string> = {
   completed: 'text-green-500',
 }
 
-function getSessionLeftAccent(status: SessionIndicatorStatus): SessionLeftAccent | undefined {
+export function getSessionLeftAccent(status: SessionIndicatorStatus): SessionLeftAccent | undefined {
   if (status === 'blocked') return 'orange'
   if (status === 'running') return 'blue'
   if (status === 'completed') return 'green'
@@ -2979,6 +2979,8 @@ interface AgentSessionItemProps {
   disableMiniMap?: boolean
   /** 项目名称 Badge（跨项目列表时显示） */
   workspaceName?: string
+  /** 所属项目主题色；渲染左缘 2px 色条 */
+  projectColor?: string
   /** 用同一个时间戳刷新相对时间，避免每行独立计时 */
   relativeTimeNow: number
   onSelect: (id: string, title: string) => void
@@ -2989,7 +2991,7 @@ interface AgentSessionItemProps {
   onToggleArchive: (id: string) => Promise<void>
 }
 
-const AgentSessionItem = React.memo(function AgentSessionItem({
+export const AgentSessionItem = React.memo(function AgentSessionItem({
   session,
   active,
   indicatorStatus,
@@ -2998,6 +3000,7 @@ const AgentSessionItem = React.memo(function AgentSessionItem({
   leftAccent,
   disableMiniMap,
   workspaceName,
+  projectColor,
   relativeTimeNow,
   onSelect,
   onRequestDelete,
@@ -3107,6 +3110,13 @@ const AgentSessionItem = React.memo(function AgentSessionItem({
                 'absolute inset-y-0 left-0 w-[3px] rounded-l-md pointer-events-none',
                 leftAccent ? SESSION_ACCENT_INDICATOR_CLASS[leftAccent] : 'bg-primary',
               )}
+            />
+          )}
+          {projectColor && (
+            <span
+              aria-hidden="true"
+              className="absolute left-0 top-1 bottom-1 w-0.5 rounded-full pointer-events-none"
+              style={{ backgroundColor: projectColor }}
             />
           )}
           <div className="flex-1 min-w-0">
