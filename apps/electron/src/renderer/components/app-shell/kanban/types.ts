@@ -29,6 +29,8 @@ export interface KanbanProject {
   details?: string
   color?: string
   archivedAt?: number
+  /** 项目最近更新时间（侧边栏子分组排序用；preload 透传 ProjectConfig.updatedAt） */
+  updatedAt?: number
   workspaceId?: string
   kanbanColumns?: Array<{ id: string; name: string; color?: string; dropStatusId?: string }>
 }
