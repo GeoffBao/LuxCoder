@@ -198,21 +198,16 @@ export function WorkBoardView(): React.ReactElement {
     })
   }, [refreshBindings, workspaceRoot])
 
+  // projects.onChanged 广播由全局 ProjectsInitializer 统一写入项目 atom，这里只处理任务生成事件
   React.useEffect(() => {
     if (!workspace) return
-    const offProjects = window.electronAPI.projects.onChanged((event) => {
-      if (event.workspaceId === workspace.slug) setProjects(event.projects)
-    })
     const offGenerated = window.electronAPI.tasks.onGenerated((event) => {
       if (event.workspaceId === workspace.id) {
         void refreshSessions().then(() => Promise.all([refreshRuns(), refreshSpecNodes()]))
       }
     })
-    return () => {
-      offProjects()
-      offGenerated()
-    }
-  }, [refreshRuns, refreshSessions, refreshSpecNodes, setProjects, workspace])
+    return offGenerated
+  }, [refreshRuns, refreshSessions, refreshSpecNodes, workspace])
 
   const handleOpenItem = React.useCallback((item: KanbanItem): void => {
     openSession('agent', item.session.id, item.session.title)

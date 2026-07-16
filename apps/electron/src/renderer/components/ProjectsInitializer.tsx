@@ -18,28 +18,33 @@ export function ProjectsInitializer(): null {
 
   useEffect(() => {
     let cancelled = false
-    if (!currentSlug) {
-      setProjects([])
-      return () => { cancelled = true }
-    }
-    window.electronAPI.getWorkspaceRootPath(currentSlug)
-      .then((root) => window.electronAPI.projects.list(root))
-      .then((projects) => { if (!cancelled) setProjects(projects) })
-      .catch((error: unknown) => {
-        console.error('[ProjectsInitializer] 加载项目列表失败:', error)
-        if (!cancelled) setProjects([])
-      })
-    return () => { cancelled = true }
-  }, [currentSlug, setProjects])
-
-  useEffect(() => {
+    // 切换工作区先清空，避免其他消费方短暂渲染上一个工作区的项目
+    setProjects([])
     if (!currentSlug) return
-    // 广播里的 workspaceId 是 workspace slug（主进程 basename(workspaceRoot)）
+
+    // 广播比初始加载新：若订阅期间已收到本工作区广播，丢弃较慢的初始快照
+    let broadcastArrived = false
     const off = window.electronAPI.projects.onChanged((event) => {
+      // 广播里的 workspaceId 是 workspace slug（主进程 basename(workspaceRoot)）
       if (event.workspaceId !== currentSlug) return
+      broadcastArrived = true
       setProjects(event.projects)
     })
-    return off
+
+    window.electronAPI.getWorkspaceRootPath(currentSlug)
+      .then((root) => window.electronAPI.projects.list(root))
+      .then((projects) => {
+        if (!cancelled && !broadcastArrived) setProjects(projects)
+      })
+      .catch((error: unknown) => {
+        console.error('[ProjectsInitializer] 加载项目列表失败:', error)
+        if (!cancelled && !broadcastArrived) setProjects([])
+      })
+
+    return () => {
+      cancelled = true
+      off()
+    }
   }, [currentSlug, setProjects])
 
   return null
