@@ -111,8 +111,9 @@ export function AgentTaskPanel({ sessionId }: AgentTaskPanelProps): React.ReactE
   if (!session || !taskSlug || !orchestratorSession || !orchestratorSessionId) return null
 
   const viewingChild = Boolean(session.parentSessionId)
+  // 「运行中」只认真实流式，避免 sessionStatus 陈旧导致编排条挂十几小时
   const live = Boolean(streamStates.get(orchestratorSessionId)?.running)
-    || subtasks.some((subtask) => subtask.runState === 'running')
+    || subtasks.some((subtask) => Boolean(subtask.sessionId && streamStates.get(subtask.sessionId)?.running))
     || Boolean(streamStates.get(sessionId)?.running)
   const done = subtasks.filter((subtask) => subtask.runState === 'done').length
   const total = Math.max(subtasks.length, orchestratorSession.taskNodeCount ?? 0)

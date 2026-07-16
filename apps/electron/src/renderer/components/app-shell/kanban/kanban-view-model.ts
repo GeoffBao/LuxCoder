@@ -38,8 +38,9 @@ function findTaskRun(session: AgentSessionMeta, runs: KanbanTaskRun[]): KanbanTa
   )
 }
 
-/** 对齐 craft：closed → done；needs-review → failed；running → running；有消息视为已跑完。 */
+/** 对齐 craft：closed → done；needs-review → failed；running → running；用户中断不算运行中。 */
 export function deriveSubtaskRunState(child: AgentSessionMeta): SubtaskRunState {
+  if (child.stoppedByUser) return 'failed'
   const status = child.sessionStatus
   if (status === 'done' || status === 'completed') return 'done'
   if (status === 'needs-review' || status === 'failed') return 'failed'

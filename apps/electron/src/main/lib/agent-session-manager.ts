@@ -1442,6 +1442,38 @@ export function markRunningDelegationsAsInterrupted(): number {
 }
 
 /**
+ * 启动时收敛卡住的 Task/Kanban 会话
+ *
+ * TaskRunner 子会话会把 sessionStatus 写成 in-progress；若进程退出或用户中断后
+ * 未收到 completion，状态会永久显示「运行中」。启动时将无活跃 Agent 的
+ * in-progress 任务会话降为 todo。
+ */
+export function markStaleTaskSessionsIdle(
+  isSessionActive: (sessionId: string) => boolean = () => false,
+): number {
+  const index = readIndex()
+  let count = 0
+  const staleStatuses = new Set(['in-progress', 'running', 'queued'])
+
+  for (const session of index.sessions) {
+    const isTaskSession = Boolean(session.taskSlug || session.taskNodeId || session.parentSessionId)
+    if (!isTaskSession) continue
+    if (!session.sessionStatus || !staleStatuses.has(session.sessionStatus)) continue
+    if (isSessionActive(session.id)) continue
+    session.sessionStatus = 'todo'
+    session.updatedAt = Date.now()
+    count++
+  }
+
+  if (count > 0) {
+    writeIndex(index)
+    console.log(`[Agent 会话] 启动收敛 ${count} 个卡住的 Task 会话为 todo`)
+  }
+
+  return count
+}
+
+/**
  * 清理所有会话中不存在的附加目录和附加文件
  * @returns 清理的条目总数
  */

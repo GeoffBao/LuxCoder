@@ -55,14 +55,13 @@ export const kanbanItemsAtom = atom<KanbanItem[]>((get) => {
     fallbackModel: get(agentModelIdAtom) ?? '',
   }).listItems
 
-  // 流式 running 覆盖到卡片：编排器自身或任一子任务 session 在跑都算 live
+  // 流式 running 覆盖到卡片：只认真实 stream，避免陈旧 sessionStatus 假 live
   return items.map((item) => {
     const childIds = item.subtasks
       .map((subtask) => subtask.sessionId)
       .filter((id): id is string => Boolean(id))
     const isProcessing = Boolean(streamStates.get(item.id)?.running)
       || childIds.some((id) => streamStates.get(id)?.running)
-      || item.subtasks.some((subtask) => subtask.runState === 'running')
     if (!isProcessing) return item
     return {
       ...item,

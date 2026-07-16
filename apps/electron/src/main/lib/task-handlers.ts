@@ -38,6 +38,7 @@ import {
 } from '@luxagents/shared/tasks/storage'
 import { createLuxAgentsConductorSessionHost, type LuxAgentsConductorSessionHost } from './conductor-session-host'
 import { getAgentSessionMeta, updateAgentSessionMeta } from './agent-session-manager'
+import { isAgentSessionActive } from './agent-service'
 import { getAgentWorkspace, listAgentWorkspaces } from './agent-workspace-manager'
 import { getAgentWorkspacePath } from './config-paths'
 import { projectRepository } from './project-repository'
@@ -92,6 +93,7 @@ async function getRunnerFor(workspaceRoot: string, workspaceId: string): Promise
     host: await getSessionHost(),
     workspaceId,
     workspaceRoot,
+    isSessionActive: isAgentSessionActive,
   })
   runners.set(workspaceId, runner)
   return runner
@@ -238,8 +240,18 @@ export async function rehydrateIncompleteTaskRuns(): Promise<number> {
         console.warn(`[TaskRunner] 冷启动恢复失败 ${workspace.slug}/${slug}:${runId}: ${errorMessage(error)}`)
       }
     }
+    runner.healAllOrphaned()
   }
   return restored
+}
+
+/** 收敛内存中卡住的 TaskRun（Agent 已不活跃但仍标 running） */
+export async function healOrphanedTaskRuns(): Promise<number> {
+  let total = 0
+  for (const runner of runners.values()) {
+    total += runner.healAllOrphaned()
+  }
+  return total
 }
 
 /** 保持 validate 与 tasks.get 使用相同的完整验证结果形状。 */
@@ -442,7 +454,8 @@ export function registerTaskHandlers(window: BrowserWindow): void {
     for (const { slug, runId } of resumable) {
       runner.resume(slug, runId)
     }
-    return { restored: resumable.length, runs: resumable }
+    const healed = runner.healAllOrphaned()
+    return { restored: resumable.length, healed, runs: resumable }
   })
 
   ipcMain.handle(TASK_IPC_CHANNELS.GET, (_event, workspaceRoot: string, slug: string) => {

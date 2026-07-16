@@ -83,13 +83,13 @@ for (const key of Object.keys(process.env)) {
 
 import { createApplicationMenu } from './menu'
 import { registerIpcHandlers } from './ipc'
-import { registerTaskHandlers, rehydrateIncompleteTaskRuns } from './lib/task-handlers'
+import { registerTaskHandlers, rehydrateIncompleteTaskRuns, healOrphanedTaskRuns } from './lib/task-handlers'
 import { createTray, destroyTray, getTray } from './tray'
 import { initializeRuntime } from './lib/runtime-init'
 import { seedDefaultSkills } from './lib/config-paths'
 import { upgradeDefaultSkillsInWorkspaces } from './lib/agent-workspace-manager'
-import { stopAllAgents, killOrphanedClaudeSubprocesses } from './lib/agent-service'
-import { markRunningDelegationsAsInterrupted } from './lib/agent-session-manager'
+import { stopAllAgents, killOrphanedClaudeSubprocesses, isAgentSessionActive } from './lib/agent-service'
+import { markRunningDelegationsAsInterrupted, markStaleTaskSessionsIdle } from './lib/agent-session-manager'
 import { stopAllGenerations } from './lib/chat-service'
 import { initAutoUpdater, cleanupUpdater } from './lib/updater/auto-updater'
 import { startWorkspaceWatcher, stopWorkspaceWatcher } from './lib/workspace-watcher'
@@ -363,9 +363,11 @@ function createWindow(): void {
     ...titleBarOptions,
   })
   registerTaskHandlers(mainWindow)
-  void rehydrateIncompleteTaskRuns().catch((error: unknown) => {
-    console.warn('[TaskRunner] 冷启动恢复失败:', error instanceof Error ? error.message : error)
-  })
+  void rehydrateIncompleteTaskRuns()
+    .then(() => healOrphanedTaskRuns())
+    .catch((error: unknown) => {
+      console.warn('[TaskRunner] 冷启动恢复失败:', error instanceof Error ? error.message : error)
+    })
   installWindowsZoomInFallback(mainWindow)
 
   // Load the renderer
@@ -511,6 +513,8 @@ async function bootstrap(): Promise<void> {
 
   // 收敛上次退出时遗留的运行中委派子会话（内存态丢失，无法续跑）
   safeRun('markRunningDelegationsAsInterrupted', markRunningDelegationsAsInterrupted)
+  // 收敛卡住的 Task/Kanban in-progress 会话（避免编排条永久「运行中」）
+  safeRun('markStaleTaskSessionsIdle', () => markStaleTaskSessionsIdle(isAgentSessionActive))
 
   // Set dock icon on macOS
   // 确保 Dock 图标可见（dev 模式下通过 spawn 启动时可能不会自动显示）

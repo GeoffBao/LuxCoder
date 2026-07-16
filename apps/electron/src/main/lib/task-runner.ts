@@ -84,6 +84,8 @@ export interface TaskRunnerDeps {
   defaultMaxParallel?: number;
   now?: () => string;
   genRunId?: () => string;
+  /** 冷启动/恢复时判断子会话 Agent 是否仍在跑；缺省视为未在跑 */
+  isSessionActive?: (sessionId: string) => boolean;
 }
 
 export interface RunOptions {
@@ -121,6 +123,8 @@ const AUTONOMOUS_DEFAULT_MODE = 'allow-all' as const;
 const RUNNING_STATUS = 'in-progress';
 const DONE_STATUS = 'done';
 const FAILED_STATUS = 'needs-review';
+/** 中断/孤儿节点回退到 todo，避免 UI 永久显示「运行中」 */
+const IDLE_STATUS = 'todo';
 const MAX_UNPARSED_REASKS = 2;
 const INPUTS_REF_RE = /\$\{\s*inputs\.([a-zA-Z_][a-zA-Z0-9_]*)\s*\}/g;
 
@@ -233,9 +237,19 @@ class ActiveRun {
         const out = loadOutput(nodeId);
         if (out) this.outputs[nodeId] = out;
         else st.state = 'pending';
-      } else if (st.state === 'cancelled') {
-        st.state = 'pending';
+      } else if (st.state === 'running') {
+        // 仅在显式提供 isSessionActive 时收敛：测试/无回调路径保持等待 completion
+        if (this.deps.isSessionActive && st.sessionId && !this.deps.isSessionActive(st.sessionId)) {
+          st.state = 'cancelled';
+          this.log({ kind: 'node-finished', nodeId, sessionId: st.sessionId, state: 'cancelled', reason: 'orphaned-on-rehydrate' });
+          void this.deps.host.setSessionStatus(st.sessionId, IDLE_STATUS);
+          void this.deps.host.setKanbanColumn(st.sessionId, 'todo');
+        }
       }
+    }
+    // resume 语义：cancelled（含孤儿收敛）→ pending，以便继续调度未完成节点
+    for (const [, st] of this.state) {
+      if (st.state === 'cancelled') st.state = 'pending';
     }
     this.inFlight = [...this.state.values()].filter((st) => st.state === 'running').length;
   }
@@ -245,7 +259,33 @@ class ActiveRun {
     this.runStatus = 'running';
     this.unsubscribe = this.deps.host.onSessionComplete((evt) => this.onSessionComplete(evt));
     this.log({ kind: 'run-resumed' });
+    this.healOrphanedRunningNodes();
     this.scheduleReady();
+  }
+
+  /** 运行中节点若 Agent 已不活跃，降级并解除永久卡死的 inFlight（不自动重派，由 maybeFinish 收尾） */
+  healOrphanedRunningNodes(): number {
+    if (this.isTerminal() || !this.deps.isSessionActive) return 0;
+    let healed = 0;
+    for (const [nodeId, st] of this.state) {
+      if (st.state !== 'running' || !st.sessionId) continue;
+      if (this.deps.isSessionActive(st.sessionId)) continue;
+      st.state = 'cancelled';
+      this.inFlight = Math.max(0, this.inFlight - 1);
+      this.log({ kind: 'node-finished', nodeId, sessionId: st.sessionId, state: 'cancelled', reason: 'orphaned' });
+      void this.deps.host.setSessionStatus(st.sessionId, IDLE_STATUS);
+      void this.deps.host.setKanbanColumn(st.sessionId, 'todo');
+      healed += 1;
+    }
+    if (healed > 0) {
+      console.log(`[TaskRunner] 收敛 ${healed} 个孤儿 running 节点 ${this.slug}:${this.runId}`);
+    }
+    return healed;
+  }
+
+  /** 治愈孤儿节点后继续调度 */
+  continueAfterHeal(): void {
+    if (this.runStatus === 'running') this.scheduleReady();
   }
 
   async stop(): Promise<void> {
@@ -256,10 +296,16 @@ class ActiveRun {
       if (st.state === 'running') {
         st.state = 'cancelled';
         this.log({ kind: 'node-finished', nodeId, sessionId: st.sessionId ?? '', state: 'cancelled', reason: 'stopped' });
-        if (st.sessionId) { void this.deps.host.cancelProcessing(st.sessionId, true); void this.deps.host.setKanbanColumn(st.sessionId, 'todo'); }
+        if (st.sessionId) {
+          void this.deps.host.cancelProcessing(st.sessionId, true);
+          void this.deps.host.setSessionStatus(st.sessionId, IDLE_STATUS);
+          void this.deps.host.setKanbanColumn(st.sessionId, 'todo');
+        }
       }
     }
     this.inFlight = 0;
+    const orchestrator = this.opts.orchestratorSessionId;
+    if (orchestrator) void this.deps.host.setSessionStatus(orchestrator, IDLE_STATUS);
     this.finalize();
   }
 
@@ -284,6 +330,7 @@ class ActiveRun {
 
   private scheduleReady(): void {
     if (this.runStatus !== 'running') return;
+    this.healOrphanedRunningNodes();
     for (const node of this.spec.nodes) {
       if (this.inFlight >= this.maxParallel) break;
       if (!this.isReady(node)) continue;
@@ -392,6 +439,7 @@ class ActiveRun {
       st.state = 'cancelled';
       this.inFlight = Math.max(0, this.inFlight - 1);
       this.log({ kind: 'node-finished', nodeId, sessionId: evt.sessionId, state: 'cancelled', reason: 'interrupted' });
+      void this.deps.host.setSessionStatus(evt.sessionId, IDLE_STATUS);
       void this.deps.host.setKanbanColumn(evt.sessionId, 'todo');
       this.scheduleReady();
     } else {
@@ -702,7 +750,22 @@ export class TaskRunner {
   }
 
   async stop(slug: string, runId: string): Promise<void> { await this.runs.get(this.key(slug, runId))?.stop(); }
-  getRunState(slug: string, runId: string): RunSnapshot | null { return this.runs.get(this.key(slug, runId))?.snapshot() ?? null; }
+  getRunState(slug: string, runId: string): RunSnapshot | null {
+    return this.runs.get(this.key(slug, runId))?.snapshot() ?? null
+  }
+
+  /** 扫描活跃运行并收敛孤儿节点；返回治愈数量 */
+  healAllOrphaned(): number {
+    let total = 0;
+    for (const run of this.runs.values()) {
+      const healed = run.healOrphanedRunningNodes();
+      if (healed > 0) {
+        total += healed;
+        run.continueAfterHeal();
+      }
+    }
+    return total;
+  }
 
   waitUntilSettled(slug: string, runId: string): Promise<RunSnapshot> {
     const run = this.runs.get(this.key(slug, runId));
