@@ -17,7 +17,7 @@ export interface SidebarProjectSubgroupProps {
   projects: KanbanProject[]
   onNewSessionInProject: (projectId: string) => Promise<void>
   onOpenProjectDetail: (projectId: string) => void
-  onMoveToProject: (sessionId: string, projectId?: string) => void
+  onMoveToProject: (sessionId: string, projectId?: string) => void | Promise<void>
   /** 以下透传给 AgentSessionItem，与工作区组内会话行为完全一致 */
   onSelectSession: (id: string, title: string) => void
   onRequestDelete: (id: string) => void

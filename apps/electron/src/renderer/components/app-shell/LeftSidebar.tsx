@@ -130,7 +130,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import type { ConversationMeta, AgentSessionMeta, AgentWorkspace, WorkspaceCapabilities } from '@luxagents/shared'
 import type { KanbanProject } from './kanban/types'
-import { buildSidebarProjectGroups } from './sidebar-project-groups'
+import { buildProjectColorMap, buildSidebarProjectGroups } from './sidebar-project-groups'
 import { SidebarProjectSubgroup } from './SidebarProjectSubgroup'
 
 function formatAutomationCount(count: number): string {
@@ -242,6 +242,8 @@ const AUTOMATION_GROUP_ID = '__automations__'
 /** 供合成组复用 AgentProjectGroupItem 时填充无意义的 workspace 专属回调 */
 const noopVoid = (): void => {}
 const noopAsync = async (): Promise<void> => {}
+/** 非当前工作区组的空项目列表；模块级常量保证引用稳定，不破坏 React.memo */
+const EMPTY_PROJECTS: KanbanProject[] = []
 
 const PROJECT_SESSION_PREVIEW_LIMIT = 5
 const PROJECT_SESSION_RECENT_WINDOW_MS = 3 * 86_400_000
@@ -726,13 +728,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
   }, [workspaces])
 
   /** craft Project ID → 主题色映射（置顶区跨工作区色条用；其他工作区的项目不在当前列表则不渲染） */
-  const kanbanProjectColorMap = React.useMemo(() => {
-    const map = new Map<string, string>()
-    for (const project of kanbanProjects) {
-      if (project.color) map.set(project.id, project.color)
-    }
-    return map
-  }, [kanbanProjects])
+  const kanbanProjectColorMap = React.useMemo(() => buildProjectColorMap(kanbanProjects), [kanbanProjects])
 
   const pendingDeleteWorkspace = React.useMemo(
     () => workspaces.find((workspace) => workspace.id === pendingDeleteWorkspaceId) ?? null,
@@ -1075,36 +1071,47 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
 
   /** 在指定项目中新建会话：建会话 → set_project_id（主进程自动继承项目 workingDirectory） */
   const createAgentSessionInProject = React.useCallback(async (projectId: string): Promise<void> => {
+    // 两阶段失败处理：创建失败 → 整体失败直接返回；
+    // 创建成功但绑定项目失败 → 会话已落盘，仍入列并打开（避免产生列表外的孤儿会话），仅提示绑定失败。
+    let session: AgentSessionMeta
     try {
-      const meta = await window.electronAPI.createAgentSession(
+      session = await window.electronAPI.createAgentSession(
         undefined,
         agentChannelId || undefined,
         currentWorkspaceId ?? undefined,
       )
-      const updated = await window.electronAPI.sendSessionCommand(meta.id, { kind: 'set_project_id', projectId })
-      setAgentSessions((prev) => [updated, ...prev.filter((s) => s.id !== updated.id)])
-      // 从全局默认值初始化 per-session 渠道/模型配置（与 createAgentSessionInWorkspace 一致）
-      if (agentChannelId) {
-        setSessionChannelMap((prev) => {
-          const map = new Map(prev)
-          map.set(updated.id, agentChannelId)
-          return map
-        })
-      }
-      if (agentModelId) {
-        setSessionModelMap((prev) => {
-          const map = new Map(prev)
-          map.set(updated.id, agentModelId)
-          return map
-        })
-      }
-      // 打开新会话（复用 createAgentSessionInWorkspace 的打开逻辑）
-      openSession('agent', updated.id, updated.title)
-      setActiveView('conversations')
     } catch (error) {
       console.error('[侧边栏] 在项目中新建会话失败:', error)
       toast.error('新建会话失败')
+      return
     }
+
+    try {
+      session = await window.electronAPI.sendSessionCommand(session.id, { kind: 'set_project_id', projectId })
+    } catch (error) {
+      console.error('[侧边栏] 新会话绑定项目失败:', error)
+      toast.error('已创建会话，但绑定项目失败')
+    }
+
+    setAgentSessions((prev) => [session, ...prev.filter((s) => s.id !== session.id)])
+    // 从全局默认值初始化 per-session 渠道/模型配置（与 createAgentSessionInWorkspace 一致）
+    if (agentChannelId) {
+      setSessionChannelMap((prev) => {
+        const map = new Map(prev)
+        map.set(session.id, agentChannelId)
+        return map
+      })
+    }
+    if (agentModelId) {
+      setSessionModelMap((prev) => {
+        const map = new Map(prev)
+        map.set(session.id, agentModelId)
+        return map
+      })
+    }
+    // 打开新会话（复用 createAgentSessionInWorkspace 的打开逻辑）
+    openSession('agent', session.id, session.title)
+    setActiveView('conversations')
   }, [agentChannelId, agentModelId, currentWorkspaceId, openSession, setActiveView, setAgentSessions, setSessionChannelMap, setSessionModelMap])
 
   /** 迁移会话进/出项目 */
@@ -2443,10 +2450,10 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
                     onRenameWorkspace={isAuto ? noopAsync : handleWorkspaceRename}
                     onRequestDeleteWorkspace={isAuto ? noopVoid : handleRequestDeleteWorkspace}
                     canDeleteWorkspace={isAuto ? false : canDeleteWorkspace(group.workspace)}
-                    projects={!isAuto && group.workspace.id === currentWorkspaceId ? kanbanProjects : []}
+                    projects={!isAuto && group.workspace.id === currentWorkspaceId ? kanbanProjects : EMPTY_PROJECTS}
                     onNewSessionInProject={createAgentSessionInProject}
                     onOpenProjectDetail={handleOpenProjectDetail}
-                    onMoveToProject={(sessionId, projectId) => void handleMoveToProject(sessionId, projectId)}
+                    onMoveToProject={handleMoveToProject}
                     onSelectSession={handleSelectAgentSession}
                     onRequestDelete={handleRequestDelete}
                     onRequestMove={handleRequestMove}
@@ -3067,7 +3074,7 @@ interface AgentSessionItemProps {
   projectColor?: string
   /** 当前工作区项目列表；空数组时不渲染「移动到项目」入口 */
   projects?: KanbanProject[]
-  onMoveToProject?: (sessionId: string, projectId?: string) => void
+  onMoveToProject?: (sessionId: string, projectId?: string) => void | Promise<void>
   /** 用同一个时间戳刷新相对时间，避免每行独立计时 */
   relativeTimeNow: number
   onSelect: (id: string, title: string) => void
@@ -3368,7 +3375,7 @@ interface DelegatedChildSessionItemProps {
   workspaceName?: string
   /** 当前工作区项目列表 + 移动回调；透传给会话行的「移动到项目」子菜单 */
   projects?: KanbanProject[]
-  onMoveToProject?: (sessionId: string, projectId?: string) => void
+  onMoveToProject?: (sessionId: string, projectId?: string) => void | Promise<void>
   onSelect: (id: string, title: string) => void
   onRequestDelete: (id: string) => void
   onRequestMove: (id: string) => void
@@ -3450,7 +3457,7 @@ interface AgentProjectGroupItemProps {
   projects: KanbanProject[]
   onNewSessionInProject: (projectId: string) => Promise<void>
   onOpenProjectDetail: (projectId: string) => void
-  onMoveToProject: (sessionId: string, projectId?: string) => void
+  onMoveToProject: (sessionId: string, projectId?: string) => void | Promise<void>
   onSelectSession: (id: string, title: string) => void
   onRequestDelete: (id: string) => void
   onRequestMove: (id: string) => void
@@ -3549,16 +3556,13 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
   // 用户点击"显示更多"会在折叠基线之上每次再额外展开 PROJECT_SESSION_EXPAND_STEP 条。
   // craft Project 子分组：绑定项目的会话进入各自子分组（始终全量展示），
   // 未绑定会话沿用原有树形 + 折叠预览逻辑。
-  const { projectGroups, unboundSessions } = buildSidebarProjectGroups(group.sessions, projects)
+  const { projectGroups, unboundSessions } = React.useMemo(
+    () => buildSidebarProjectGroups(group.sessions, projects),
+    [group.sessions, projects],
+  )
   const treeItems = buildAgentSessionTrees(unboundSessions)
-  /** 项目 ID → 主题色映射（未绑定会话理论上无 projectId，查不到即不渲染色条） */
-  const projectColorMap = React.useMemo(() => {
-    const map = new Map<string, string>()
-    for (const project of projects) {
-      if (project.color) map.set(project.id, project.color)
-    }
-    return map
-  }, [projects])
+  /** 项目 ID → 主题色映射（归档项目的会话回退到未绑定列表，但 projectId 仍在，继续显示其项目色） */
+  const projectColorMap = React.useMemo(() => buildProjectColorMap(projects), [projects])
   const activeSessions = treeItems
     .filter((item) => ACTIVE_SESSION_STATUSES.has(getSessionTreeStatus(item, agentIndicatorMap)))
     .slice()
