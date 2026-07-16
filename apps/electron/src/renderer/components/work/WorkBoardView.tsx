@@ -18,6 +18,7 @@ import {
   selectedKanbanProjectAtom,
   selectedProjectIdAtom,
   serverKanbanProjectsAtom,
+  workViewAtom,
 } from '@/atoms/project-atoms'
 import { Button } from '@/components/ui/button'
 import { KanbanBoardContainer } from '@/components/app-shell/kanban/KanbanBoardContainer'
@@ -27,8 +28,6 @@ import { useOpenSession } from '@/hooks/useOpenSession'
 import { ProjectInfoPage } from './ProjectInfoPage'
 import { ProjectsListPanel } from './ProjectsListPanel'
 import { buildKanbanTaskRun } from './work-board-model'
-
-type WorkView = 'board' | 'project'
 
 function errorMessage(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause)
@@ -56,7 +55,7 @@ export function WorkBoardView(): React.ReactElement {
   const streamStates = useAtomValue(agentStreamingStatesAtom)
   const openSession = useOpenSession()
   const [workspaceRoot, setWorkspaceRoot] = React.useState<string | null>(null)
-  const [view, setView] = React.useState<WorkView>('board')
+  const [view, setView] = useAtom(workViewAtom)
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 
@@ -66,13 +65,13 @@ export function WorkBoardView(): React.ReactElement {
 
   React.useEffect(() => {
     let cancelled = false
-    setSelectedProjectId(null)
     // 项目 atom 的生命周期由全局 ProjectsInitializer 管理（工作区切换时按 slug 重载），WorkBoardView 不再清空
+    // 挂载/工作区切换时不再重置 view 与 selectedProjectId：跨模式跳转（Code 侧边栏「项目详情」）
+    // 需要保留这两个 atom 状态；无效 selectedProjectId 由下方效果收敛（清空选择并回到看板）。
     setRuns([])
     setBindings([])
     setSpecNodes(new Map())
     setWorkspaceRoot(null)
-    setView('board')
     setError(null)
     if (!workspace) return () => { cancelled = true }
 
@@ -89,7 +88,7 @@ export function WorkBoardView(): React.ReactElement {
       })
 
     return () => { cancelled = true }
-  }, [setBindings, setRuns, setSelectedProjectId, setSpecNodes, workspace])
+  }, [setBindings, setRuns, setSpecNodes, workspace])
 
   const refreshSessions = React.useCallback(async (): Promise<void> => {
     const sessions = await window.electronAPI.listAgentSessions()

@@ -12,3 +12,6 @@ export const selectedKanbanProjectAtom = atom((get) => {
   if (!selectedProjectId) return null
   return get(serverKanbanProjectsAtom).find((project) => project.id === selectedProjectId) ?? null
 })
+
+/** Work 主区视图：看板或项目详情。提升为 atom 以支持 Code 侧边栏「项目详情」跨模式跳转。 */
+export const workViewAtom = atom<'board' | 'project'>('board')
