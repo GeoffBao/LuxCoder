@@ -105,7 +105,7 @@ export function WorkBoardView(): React.ReactElement {
     if (!selectedProjectId || projects.some((project) => project.id === selectedProjectId)) return
     setSelectedProjectId(null)
     setView('board')
-  }, [projects, selectedProjectId, setSelectedProjectId])
+  }, [projects, selectedProjectId, setSelectedProjectId, setView])
 
   const refreshRuns = React.useCallback(async (): Promise<void> => {
     if (!workspaceRoot) return
@@ -225,7 +225,7 @@ export function WorkBoardView(): React.ReactElement {
     setProjects((current) => current.filter((project) => project.id !== projectId))
     if (selectedProjectId === projectId) setSelectedProjectId(null)
     setView('board')
-  }, [selectedProjectId, setProjects, setSelectedProjectId])
+  }, [selectedProjectId, setProjects, setSelectedProjectId, setView])
 
   const handleOpenSession = React.useCallback((sessionId: string): void => {
     const session = agentSessions.find((candidate) => candidate.id === sessionId)
