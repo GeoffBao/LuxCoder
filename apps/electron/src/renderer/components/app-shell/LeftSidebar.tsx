@@ -11,7 +11,7 @@
 import * as React from 'react'
 import { useAtom, useSetAtom, useAtomValue, useStore } from 'jotai'
 import { toast } from 'sonner'
-import { Pin, PinOff, Settings, Plus, Trash2, Pencil, PanelLeftClose, PanelLeftOpen, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MessageSquare, MoreHorizontal, FolderOpen, GripVertical, Clock, AlarmClock, ChevronRight, Blocks, GitBranch } from 'lucide-react'
+import { Pin, PinOff, Settings, Plus, Trash2, Pencil, PanelLeftClose, PanelLeftOpen, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MessageSquare, MoreHorizontal, FolderOpen, FolderInput, GripVertical, Clock, AlarmClock, ChevronRight, Blocks, GitBranch } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { ModeSwitcher } from './ModeSwitcher'
@@ -75,6 +75,7 @@ import {
   sessionViewStateMapAtom,
 } from '@/atoms/tab-atoms'
 import { userProfileAtom } from '@/atoms/user-profile'
+import { selectedProjectIdAtom, serverKanbanProjectsAtom, workViewAtom } from '@/atoms/project-atoms'
 import { sidebarViewModeAtom } from '@/atoms/sidebar-atoms'
 import { searchDialogOpenAtom } from '@/atoms/search-atoms'
 import { hasUpdateAtom } from '@/atoms/updater'
@@ -113,6 +114,9 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubTrigger,
+  ContextMenuSubContent,
 } from '@/components/ui/context-menu'
 import {
   DropdownMenu,
@@ -120,8 +124,14 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu'
 import type { ConversationMeta, AgentSessionMeta, AgentWorkspace, WorkspaceCapabilities } from '@luxagents/shared'
+import type { KanbanProject } from './kanban/types'
+import { buildSidebarProjectGroups } from './sidebar-project-groups'
+import { SidebarProjectSubgroup } from './SidebarProjectSubgroup'
 
 function formatAutomationCount(count: number): string {
   return count > 99 ? '99+' : String(count)
@@ -227,7 +237,7 @@ interface AgentSessionTreeItem {
   childSessions: AgentSessionMeta[]
 }
 
-/** 合成「自动任务」虚拟项目组的工作区 ID（不对应真实 workspace，仅用于聚合自动任务会话） */
+/** 合成「自动任务」虚拟工作区组的 ID（不对应真实 workspace，仅用于聚合自动任务会话） */
 const AUTOMATION_GROUP_ID = '__automations__'
 /** 供合成组复用 AgentProjectGroupItem 时填充无意义的 workspace 专属回调 */
 const noopVoid = (): void => {}
@@ -271,7 +281,7 @@ function formatRelativeUpdatedAt(updatedAt: number, now: number): string {
   return `${Math.floor(diff / year)} 年`
 }
 
-/** 按 updatedAt 将项目分为 今天 / 昨天 / 更早 三组 */
+/** 按 updatedAt 将条目分为 今天 / 昨天 / 更早 三组 */
 function groupByDate<T extends { updatedAt: number }>(items: T[]): Array<{ label: DateGroup; items: T[] }> {
   const now = new Date()
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
@@ -317,9 +327,9 @@ function getRailInitial(title: string): string {
 }
 
 /**
- * 是否为「应从项目会话列表隐藏」的自动任务会话：
+ * 是否为「应从工作区会话列表隐藏」的自动任务会话：
  * 来自定时任务（sourceAutomationId）且未被置顶。
- * 这类会话的"家"是「自动任务」视图，始终不出现在普通项目列表。
+ * 这类会话的"家"是「自动任务」视图，始终不出现在普通工作区列表。
  */
 function isHiddenAutomationSession(session: AgentSessionMeta): boolean {
   return !!session.sourceAutomationId && !session.pinned
@@ -545,12 +555,12 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
 
   /** 待删除对话 ID，非空时显示确认弹窗 */
   const [pendingDeleteId, setPendingDeleteId] = React.useState<string | null>(null)
-  /** 待删除项目 ID，非空时显示项目删除确认弹窗 */
+  /** 待删除工作区 ID，非空时显示工作区删除确认弹窗 */
   const [pendingDeleteWorkspaceId, setPendingDeleteWorkspaceId] = React.useState<string | null>(null)
   const [deletingWorkspaceId, setDeletingWorkspaceId] = React.useState<string | null>(null)
   /** 待迁移会话 ID，非空时显示迁移对话框 */
   const [moveTargetId, setMoveTargetId] = React.useState<string | null>(null)
-  /** 每个项目额外展开显示的会话数量（每次点击"显示更多" +10），未点击则为 0 或无值 */
+  /** 每个工作区额外展开显示的会话数量（每次点击"显示更多" +10），未点击则为 0 或无值 */
   const [expandedExtraCountMap, setExpandedExtraCountMap] = React.useState<Map<string, number>>(new Map())
   /** 记录被用户手动折叠的工作区 ID（点击当前工作区标题时折叠/展开）。刻意不持久化：折叠被视为临时查看行为，刷新/重启后恢复默认展开 */
   const [collapsedWorkspaceIds, setCollapsedWorkspaceIds] = React.useState<Set<string>>(new Set())
@@ -558,11 +568,11 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
   const [expandedDelegationParentIds, setExpandedDelegationParentIds] = React.useState<Set<string>>(new Set())
   /** 记录用户手动收起的委派母会话；用于覆盖“当前子会话自动展开”的兜底可见性 */
   const [collapsedDelegationParentIds, setCollapsedDelegationParentIds] = React.useState<Set<string>>(new Set())
-  /** 项目拖拽排序状态 */
+  /** 工作区拖拽排序状态 */
   const [dragProjectId, setDragProjectId] = React.useState<string | null>(null)
   const [projectDropIndicator, setProjectDropIndicator] = React.useState<{ id: string; position: 'before' | 'after' } | null>(null)
   const [automationGroupOrder, setAutomationGroupOrder] = useAtom(automationGroupOrderAtom)
-  /** 新建项目输入状态 */
+  /** 新建工作区输入状态 */
   const [creatingProject, setCreatingProject] = React.useState(false)
   const [newProjectName, setNewProjectName] = React.useState('')
   const newProjectInputRef = React.useRef<HTMLInputElement>(null)
@@ -594,7 +604,12 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
   const [workspaces, setWorkspaces] = useAtom(agentWorkspacesAtom)
   const setMode = useSetAtom(appModeAtom)
 
-  // 当前项目能力（MCP + Skill 计数）
+  // craft Project 状态（Work 看板同源）：侧边栏项目子分组 / 色条 / 详情跳转用
+  const kanbanProjects = useAtomValue(serverKanbanProjectsAtom)
+  const setSelectedProjectId = useSetAtom(selectedProjectIdAtom)
+  const setWorkView = useSetAtom(workViewAtom)
+
+  // 当前工作区能力（MCP + Skill 计数）
   const [capabilities, setCapabilities] = React.useState<WorkspaceCapabilities | null>(null)
   const capabilitiesVersion = useAtomValue(workspaceCapabilitiesVersionAtom)
 
@@ -710,6 +725,15 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
     return map
   }, [workspaces])
 
+  /** craft Project ID → 主题色映射（置顶区跨工作区色条用；其他工作区的项目不在当前列表则不渲染） */
+  const kanbanProjectColorMap = React.useMemo(() => {
+    const map = new Map<string, string>()
+    for (const project of kanbanProjects) {
+      if (project.color) map.set(project.id, project.color)
+    }
+    return map
+  }, [kanbanProjects])
+
   const pendingDeleteWorkspace = React.useMemo(
     () => workspaces.find((workspace) => workspace.id === pendingDeleteWorkspaceId) ?? null,
     [pendingDeleteWorkspaceId, workspaces],
@@ -732,7 +756,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
     [conversations, viewMode, draftSessionIds]
   )
 
-  /** 置顶 Agent 会话列表（仅活跃模式显示，跨项目展示，排除 draft） */
+  /** 置顶 Agent 会话列表（仅活跃模式显示，跨工作区展示，排除 draft） */
   const pinnedAgentSessions = React.useMemo(
     () => {
       if (viewMode !== 'active') return []
@@ -775,7 +799,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
     [conversations]
   )
 
-  /** 已归档 Agent 会话数量（跨项目） */
+  /** 已归档 Agent 会话数量（跨工作区） */
   const archivedAgentSessionCount = React.useMemo(
     () => agentSessions.filter((s) => s.archived && !draftSessionIds.has(s.id)).length,
     [agentSessions, draftSessionIds]
@@ -1005,7 +1029,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
     }
   }
 
-  /** 在指定项目中创建 Agent 会话；未指定时使用当前项目 */
+  /** 在指定工作区中创建 Agent 会话；未指定时使用当前工作区 */
   const createAgentSessionInWorkspace = React.useCallback(async (workspaceId?: string): Promise<void> => {
     try {
       const targetWorkspaceId = workspaceId ?? currentWorkspaceId ?? undefined
@@ -1049,7 +1073,59 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
     await createAgentSessionInWorkspace()
   }, [createAgentSessionInWorkspace, setActiveView])
 
-  /** 切换当前项目；点击当前已选中工作区标题时则折叠/展开其会话列表 */
+  /** 在指定项目中新建会话：建会话 → set_project_id（主进程自动继承项目 workingDirectory） */
+  const createAgentSessionInProject = React.useCallback(async (projectId: string): Promise<void> => {
+    try {
+      const meta = await window.electronAPI.createAgentSession(
+        undefined,
+        agentChannelId || undefined,
+        currentWorkspaceId ?? undefined,
+      )
+      const updated = await window.electronAPI.sendSessionCommand(meta.id, { kind: 'set_project_id', projectId })
+      setAgentSessions((prev) => [updated, ...prev.filter((s) => s.id !== updated.id)])
+      // 从全局默认值初始化 per-session 渠道/模型配置（与 createAgentSessionInWorkspace 一致）
+      if (agentChannelId) {
+        setSessionChannelMap((prev) => {
+          const map = new Map(prev)
+          map.set(updated.id, agentChannelId)
+          return map
+        })
+      }
+      if (agentModelId) {
+        setSessionModelMap((prev) => {
+          const map = new Map(prev)
+          map.set(updated.id, agentModelId)
+          return map
+        })
+      }
+      // 打开新会话（复用 createAgentSessionInWorkspace 的打开逻辑）
+      openSession('agent', updated.id, updated.title)
+      setActiveView('conversations')
+    } catch (error) {
+      console.error('[侧边栏] 在项目中新建会话失败:', error)
+      toast.error('新建会话失败')
+    }
+  }, [agentChannelId, agentModelId, currentWorkspaceId, openSession, setActiveView, setAgentSessions, setSessionChannelMap, setSessionModelMap])
+
+  /** 迁移会话进/出项目 */
+  const handleMoveToProject = React.useCallback(async (sessionId: string, projectId?: string): Promise<void> => {
+    try {
+      const updated = await window.electronAPI.sendSessionCommand(sessionId, { kind: 'set_project_id', projectId })
+      setAgentSessions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
+    } catch (error) {
+      console.error('[侧边栏] 移动到项目失败:', error)
+      toast.error('移动到项目失败')
+    }
+  }, [setAgentSessions])
+
+  /** Code 侧边栏打开项目详情：跳 Work 模式的 ProjectInfoPage */
+  const handleOpenProjectDetail = React.useCallback((projectId: string): void => {
+    setSelectedProjectId(projectId)
+    setWorkView('project')
+    setMode('cowork')
+  }, [setMode, setSelectedProjectId, setWorkView])
+
+  /** 切换当前工作区；点击当前已选中工作区标题时则折叠/展开其会话列表 */
   const handleSelectProject = React.useCallback((workspaceId: string): void => {
     if (workspaceId === currentWorkspaceId) {
       // 点击当前工作区 → 折叠/展开会话列表
@@ -1063,7 +1139,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
     window.electronAPI.updateSettings({ agentWorkspaceId: workspaceId }).catch(console.error)
   }, [currentWorkspaceId, setCurrentWorkspaceId, setActiveView])
 
-  /** 合成「自动任务」组头部点击：仅折叠/展开，绝不切换当前项目（它不是真实工作区） */
+  /** 合成「自动任务」组头部点击：仅折叠/展开，绝不切换当前工作区（它不是真实工作区） */
   const handleToggleGroupCollapse = React.useCallback((groupId: string): void => {
     setCollapsedWorkspaceIds((prev) => toggleSetEntry(prev, groupId))
   }, [])
@@ -1094,19 +1170,19 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
     [workspaces.length],
   )
 
-  /** 请求删除项目（弹出二次确认框） */
+  /** 请求删除工作区（弹出二次确认框） */
   const handleRequestDeleteWorkspace = React.useCallback((workspaceId: string): void => {
     setPendingDeleteWorkspaceId(workspaceId)
   }, [])
 
-  /** 确认删除项目及其绑定资源 */
+  /** 确认删除工作区及其绑定资源 */
   const handleConfirmDeleteWorkspace = React.useCallback(async (): Promise<void> => {
     const workspaceId = pendingDeleteWorkspaceId
     const workspace = workspaces.find((item) => item.id === workspaceId)
     if (!workspaceId || !workspace) return
 
     if (!canDeleteWorkspace(workspace)) {
-      toast.error(workspace.slug === 'default' ? '默认项目不能删除' : '至少需要保留一个项目')
+      toast.error(workspace.slug === 'default' ? '默认工作区不能删除' : '至少需要保留一个工作区')
       setPendingDeleteWorkspaceId(null)
       return
     }
@@ -1191,12 +1267,12 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
         }
       }
 
-      toast.success('项目已删除', {
+      toast.success('工作区已删除', {
         description: `已删除「${workspace.name}」及其绑定资源`,
       })
     } catch (error) {
-      console.error('[侧边栏] 删除项目失败:', error)
-      const msg = error instanceof Error ? error.message : '删除项目失败'
+      console.error('[侧边栏] 删除工作区失败:', error)
+      const msg = error instanceof Error ? error.message : '删除工作区失败'
       toast.error(msg)
     } finally {
       setDeletingWorkspaceId(null)
@@ -1221,7 +1297,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
     setCurrentWorkspaceId,
   ])
 
-  /** 展开某个项目时每次额外显示的会话数量 */
+  /** 展开某个工作区时每次额外显示的会话数量 */
   const handleShowMoreSessions = React.useCallback((workspaceId: string): void => {
     setExpandedExtraCountMap((prev) => {
       const next = new Map(prev)
@@ -1230,7 +1306,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
     })
   }, [])
 
-  /** 收起某个项目额外展开的会话 */
+  /** 收起某个工作区额外展开的会话 */
   const handleCollapseExtraSessions = React.useCallback((workspaceId: string): void => {
     setExpandedExtraCountMap((prev) => {
       if (!prev.has(workspaceId)) return prev
@@ -1240,14 +1316,14 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
     })
   }, [])
 
-  /** 开始拖拽项目排序 */
+  /** 开始拖拽工作区排序 */
   const handleProjectDragStart = React.useCallback((e: React.DragEvent, workspaceId: string): void => {
     setDragProjectId(workspaceId)
     e.dataTransfer.effectAllowed = 'move'
     e.dataTransfer.setData('text/plain', workspaceId)
   }, [])
 
-  /** 根据鼠标位置计算项目插入点 */
+  /** 根据鼠标位置计算工作区插入点 */
   const handleProjectDragOver = React.useCallback((e: React.DragEvent, workspaceId: string): void => {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
@@ -1273,7 +1349,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
   }, [])
 
   /**
-   * 合成「自动任务」项目组：聚合所有自动任务会话（跨工作区），
+   * 合成「自动任务」工作区组：聚合所有自动任务会话（跨工作区），
    * 作为这些会话在侧栏的统一归属地。会话为空时返回 null（不渲染空组）。
    */
   const automationGroup = React.useMemo<AgentProjectGroup | null>(
@@ -1295,7 +1371,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
     [agentSessions, draftSessionIds],
   )
 
-  /** 完成项目排序并持久化（合成「自动任务」组与真实项目一起排序，二者分别持久化） */
+  /** 完成工作区排序并持久化（合成「自动任务」组与真实工作区一起排序，二者分别持久化） */
   const handleProjectDrop = React.useCallback((e: React.DragEvent, targetWorkspaceId: string): void => {
     e.preventDefault()
     const indicator = projectDropIndicator
@@ -1305,7 +1381,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
       return
     }
 
-    // 构造当前显示顺序的 id 列表（真实项目 + 按当前索引插入的合成组）
+    // 构造当前显示顺序的 id 列表（真实工作区 + 按当前索引插入的合成组）
     const baseIds = workspaces.map((workspace) => workspace.id)
     const oldAutoIndex = automationGroup
       ? Math.min(Math.max(automationGroupOrder, 0), baseIds.length)
@@ -1335,7 +1411,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
     setDragProjectId(null)
     setProjectDropIndicator(null)
 
-    // 拆分：合成组的新索引 → settings；真实项目的新顺序 → 后端
+    // 拆分：合成组的新索引 → settings；真实工作区的新顺序 → 后端
     const newAutoIndex = reordered.indexOf(AUTOMATION_GROUP_ID)
     const newWorkspaceIds = reordered.filter((id) => id !== AUTOMATION_GROUP_ID)
 
@@ -1354,9 +1430,9 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
         .reorderAgentWorkspaces(newWorkspaceIds)
         .then(setWorkspaces)
         .catch((error) => {
-          console.error('[侧边栏] 项目排序失败:', error)
+          console.error('[侧边栏] 工作区排序失败:', error)
           setWorkspaces(workspaces)
-          toast.error('项目排序失败')
+          toast.error('工作区排序失败')
         })
     }
   }, [dragProjectId, projectDropIndicator, automationGroup, automationGroupOrder, setWorkspaces, workspaces])
@@ -1366,7 +1442,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
     setProjectDropIndicator(null)
   }, [])
 
-  /** 开始创建新项目 */
+  /** 开始创建新工作区 */
   const handleStartCreateProject = React.useCallback((): void => {
     setCreatingProject(true)
     setNewProjectName('')
@@ -1375,7 +1451,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
     })
   }, [])
 
-  /** 创建新项目，并设为当前项目 */
+  /** 创建新工作区，并设为当前工作区 */
   const handleCreateProject = React.useCallback(async (): Promise<void> => {
     const trimmed = newProjectName.trim()
     if (!trimmed) {
@@ -1391,7 +1467,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
       setCreatingProject(false)
       setNewProjectName('')
     } catch (error) {
-      const msg = error instanceof Error ? error.message : '创建项目失败'
+      const msg = error instanceof Error ? error.message : '创建工作区失败'
       toast.error(msg)
     }
   }, [newProjectName, setCurrentWorkspaceId, setWorkspaces])
@@ -1421,7 +1497,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
     })
   }, [openSession, setActiveView, setUnviewedCompleted])
 
-  /** 重命名工作区（项目）名称 */
+  /** 重命名工作区名称 */
   const handleWorkspaceRename = React.useCallback(async (workspaceId: string, newName: string): Promise<void> => {
     try {
       const updated = await window.electronAPI.updateAgentWorkspace(workspaceId, { name: newName })
@@ -1569,12 +1645,12 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
     }
   }, [closeArchivedAgentTabs, draftSessionIds, store, setAgentSessions])
 
-  /** 请求迁移会话到其他项目（弹出迁移对话框） */
+  /** 请求迁移会话到其他工作区（弹出迁移对话框） */
   const handleRequestMove = React.useCallback((id: string): void => {
     setMoveTargetId(id)
   }, [])
 
-  /** 迁移会话到另一个项目后的回调 */
+  /** 迁移会话到另一个工作区后的回调 */
   const handleSessionMoved = (updatedSession: AgentSessionMeta, targetWorkspaceName: string): void => {
     setAgentSessions((prev) => replaceAgentSessionInFreshnessOrder(prev, updatedSession))
     // 如果迁移的是当前选中的会话，取消选中并关闭标签页
@@ -1586,11 +1662,11 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
     }
     setMoveTargetId(null)
     toast.success('会话已迁移', {
-      description: `已迁移到「${targetWorkspaceName}」，请切换项目查看`,
+      description: `已迁移到「${targetWorkspaceName}」，请切换工作区查看`,
     })
   }
 
-  /** Agent 普通历史按项目分组（排除置顶 / 归档 / draft） */
+  /** Agent 普通历史按工作区分组（排除置顶 / 归档 / draft） */
   const agentProjectGroups = React.useMemo<AgentProjectGroup[]>(
     () => {
       const sessionsByWorkspaceId = new Map<string, AgentSessionMeta[]>()
@@ -1603,9 +1679,9 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
           !session.archived
           && !session.pinned
           && !draftSessionIds.has(session.id)
-          // 自动任务会话不进入项目列表，统一归到「自动任务」视图
+          // 自动任务会话不进入工作区列表，统一归到「自动任务」视图
           && !isHiddenAutomationSession(session)
-          // 已被置顶母会话收纳的子会话留在置顶区的母会话下面，避免重复显示为项目根会话
+          // 已被置顶母会话收纳的子会话留在置顶区的母会话下面，避免重复显示为工作区根会话
           && !hasPinnedVisibleParent(session, agentSessions)
         )
       )
@@ -1628,8 +1704,8 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
   )
 
   /**
-   * 项目组的最终显示顺序：把合成「自动任务」组按持久化的索引插入真实项目组中
-   * （默认索引 0 = 最靠前）。合成组与真实项目一起参与拖拽排序。
+   * 工作区组的最终显示顺序：把合成「自动任务」组按持久化的索引插入真实工作区组中
+   * （默认索引 0 = 最靠前）。合成组与真实工作区一起参与拖拽排序。
    */
   const displayProjectGroups = React.useMemo<AgentProjectGroup[]>(
     () => {
@@ -1642,7 +1718,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
     [agentProjectGroups, automationGroup, automationGroupOrder],
   )
 
-  /** Agent 归档会话按日期分组（跨项目） */
+  /** Agent 归档会话按日期分组（跨工作区） */
   const agentSessionGroups = React.useMemo(
     () => groupByDate(sortAgentSessionsByUpdatedAtDesc(
       agentSessions.filter((session) => session.archived && !draftSessionIds.has(session.id))
@@ -1806,7 +1882,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
     </AlertDialog>
   )
 
-  // 项目删除确认弹窗（会同时删除项目下的会话与工作区资源）
+  // 工作区删除确认弹窗（会同时删除工作区下的会话与绑定资源）
   const projectDeleteDialog = (
     <AlertDialog
       open={pendingDeleteWorkspaceId !== null}
@@ -1824,9 +1900,9 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
         }}
       >
         <AlertDialogHeader>
-          <AlertDialogTitle>确认删除项目</AlertDialogTitle>
+          <AlertDialogTitle>确认删除工作区</AlertDialogTitle>
           <AlertDialogDescription>
-            将删除「{pendingDeleteWorkspace?.name ?? '该项目'}」及其绑定的所有会话、自动任务、MCP、Skills、工作区文件和本地项目目录。附加目录和附加文件只会移除引用，不会删除原始文件。删除后无法恢复。
+            将删除「{pendingDeleteWorkspace?.name ?? '该工作区'}」及其绑定的所有会话、自动任务、MCP、Skills、工作区文件和本地工作区目录。附加目录和附加文件只会移除引用，不会删除原始文件。删除后无法恢复。
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -1836,7 +1912,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
             onClick={handleConfirmDeleteWorkspace}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {deletingWorkspaceId ? '删除中...' : '删除项目'}
+            {deletingWorkspaceId ? '删除中...' : '删除工作区'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -1898,7 +1974,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
           <CollapsedWorkspacePopover>
             <button
               type="button"
-              aria-label="切换到 Agent 模式（悬停查看项目）"
+              aria-label="切换到 Agent 模式（悬停查看工作区）"
               onClick={() => handleRailModeSwitch('agent')}
               className={cn(
                 'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag',
@@ -2253,6 +2329,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
                               : undefined}
                             leftAccent={getSessionLeftAccent(rowStatus)}
                             workspaceName={item.session.workspaceId ? workspaceNameMap.get(item.session.workspaceId) : undefined}
+                            projectColor={item.session.projectId ? kanbanProjectColorMap.get(item.session.projectId) : undefined}
                             relativeTimeNow={relativeTimeNow}
                             onSelect={handleSelectAgentSession}
                             onRequestDelete={handleRequestDelete}
@@ -2291,25 +2368,25 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
             </div>
           )}
 
-          {/* 下区标题：项目历史 */}
+          {/* 下区标题：工作区历史 */}
           <div className="px-2 pt-2 pb-1 flex items-center justify-between flex-shrink-0">
-            <span className="px-1.5 text-[11px] font-medium text-foreground/40 select-none">项目</span>
+            <span className="px-1.5 text-[11px] font-medium text-foreground/40 select-none">工作区</span>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   type="button"
                   onClick={handleStartCreateProject}
                   className="size-6 flex items-center justify-center rounded-md text-foreground/35 hover:bg-foreground/[0.06] hover:text-foreground/60 transition-colors titlebar-no-drag"
-                  aria-label="新建项目"
+                  aria-label="新建工作区"
                 >
                   <Plus size={13} />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="top">新建项目</TooltipContent>
+              <TooltipContent side="top">新建工作区</TooltipContent>
             </Tooltip>
           </div>
 
-          {/* 下区：项目分组历史 */}
+          {/* 下区：工作区分组历史 */}
           <div className="flex-1 overflow-y-auto px-2 pb-3 scrollbar-thin min-h-0 titlebar-no-drag">
             {creatingProject && (
               <div className="flex items-center gap-2 px-2 py-1.5 mb-1 rounded-md bg-foreground/[0.04]">
@@ -2323,7 +2400,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
                     setCreatingProject(false)
                     setNewProjectName('')
                   }}
-                  placeholder="项目名称..."
+                  placeholder="工作区名称..."
                   className="flex-1 min-w-0 bg-transparent text-[13px] text-foreground border-b border-primary/50 outline-none px-0.5"
                   maxLength={50}
                 />
@@ -2366,6 +2443,10 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
                     onRenameWorkspace={isAuto ? noopAsync : handleWorkspaceRename}
                     onRequestDeleteWorkspace={isAuto ? noopVoid : handleRequestDeleteWorkspace}
                     canDeleteWorkspace={isAuto ? false : canDeleteWorkspace(group.workspace)}
+                    projects={!isAuto && group.workspace.id === currentWorkspaceId ? kanbanProjects : []}
+                    onNewSessionInProject={createAgentSessionInProject}
+                    onOpenProjectDetail={handleOpenProjectDetail}
+                    onMoveToProject={(sessionId, projectId) => void handleMoveToProject(sessionId, projectId)}
                     onSelectSession={handleSelectAgentSession}
                     onRequestDelete={handleRequestDelete}
                     onRequestMove={handleRequestMove}
@@ -2523,6 +2604,9 @@ interface SessionItemActionsProps {
   menuItems: (
     MenuItem: typeof DropdownMenuItem,
     MenuSeparator: typeof DropdownMenuSeparator,
+    MenuSub: typeof DropdownMenuSub,
+    MenuSubTrigger: typeof DropdownMenuSubTrigger,
+    MenuSubContent: typeof DropdownMenuSubContent,
   ) => React.ReactNode
   onMenuOpenChange?: (open: boolean) => void
 }
@@ -2731,7 +2815,7 @@ function SessionItemActions({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-40 z-[9999] min-w-0 p-0.5">
-            {menuItems(DropdownMenuItem, DropdownMenuSeparator)}
+            {menuItems(DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent)}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -2977,10 +3061,13 @@ interface AgentSessionItemProps {
   leftAccent?: SessionLeftAccent
   /** 是否禁用悬浮 Mini 地图 */
   disableMiniMap?: boolean
-  /** 项目名称 Badge（跨项目列表时显示） */
+  /** 工作区名称 Badge（跨工作区列表时显示） */
   workspaceName?: string
   /** 所属项目主题色；渲染左缘 2px 色条 */
   projectColor?: string
+  /** 当前工作区项目列表；空数组时不渲染「移动到项目」入口 */
+  projects?: KanbanProject[]
+  onMoveToProject?: (sessionId: string, projectId?: string) => void
   /** 用同一个时间戳刷新相对时间，避免每行独立计时 */
   relativeTimeNow: number
   onSelect: (id: string, title: string) => void
@@ -3001,6 +3088,8 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
   disableMiniMap,
   workspaceName,
   projectColor,
+  projects,
+  onMoveToProject,
   relativeTimeNow,
   onSelect,
   onRequestDelete,
@@ -3052,9 +3141,14 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
 
   const canMove = indicatorStatus === 'idle' || indicatorStatus === 'completed'
 
+  // 同一份菜单在 DropdownMenu（三点按钮）和 ContextMenu（右键）里渲染，
+  // Sub 组件必须与所在菜单同源，因此由调用方注入对应实现。
   const menuItems = (
     MenuItem: typeof ContextMenuItem | typeof DropdownMenuItem,
     MenuSeparator: typeof ContextMenuSeparator | typeof DropdownMenuSeparator,
+    MenuSub: typeof ContextMenuSub | typeof DropdownMenuSub,
+    MenuSubTrigger: typeof ContextMenuSubTrigger | typeof DropdownMenuSubTrigger,
+    MenuSubContent: typeof ContextMenuSubContent | typeof DropdownMenuSubContent,
   ) => (
     <>
       <MenuItem className="text-xs py-1 [&>svg]:size-3.5" onSelect={() => onTogglePin(session.id)}>
@@ -3064,8 +3158,37 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
       {canMove && (
         <MenuItem className="text-xs py-1 [&>svg]:size-3.5" onSelect={() => onRequestMove(session.id)}>
           <ArrowRightLeft size={14} />
-          迁移到其他项目
+          迁移到其他工作区
         </MenuItem>
+      )}
+      {projects && projects.length > 0 && onMoveToProject && (
+        <MenuSub>
+          <MenuSubTrigger className="text-xs py-1 [&>svg]:size-3.5">
+            <FolderInput size={14} />
+            移动到项目
+          </MenuSubTrigger>
+          <MenuSubContent className="w-44 z-[9999] min-w-0 p-0.5">
+            {projects.map((project) => (
+              <MenuItem
+                key={project.id}
+                disabled={project.id === session.projectId}
+                className="text-xs py-1"
+                onSelect={() => onMoveToProject(session.id, project.id)}
+              >
+                <span className="mr-1.5 size-2 rounded-full" style={{ backgroundColor: project.color ?? 'hsl(var(--muted-foreground))' }} />
+                {project.name}
+              </MenuItem>
+            ))}
+            {session.projectId && (
+              <>
+                <MenuSeparator className="my-0.5" />
+                <MenuItem className="text-xs py-1" onSelect={() => onMoveToProject(session.id, undefined)}>
+                  移出项目
+                </MenuItem>
+              </>
+            )}
+          </MenuSubContent>
+        </MenuSub>
       )}
       <MenuItem className="text-xs py-1 [&>svg]:size-3.5" onSelect={() => startEdit()}>
         <Pencil size={14} />
@@ -3112,7 +3235,8 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
               )}
             />
           )}
-          {projectColor && (
+          {/* 状态色优先于项目装饰色：状态条或经典激活指示条渲染时不再叠加项目色条 */}
+          {projectColor && !leftAccent && !(isClassic && active) && (
             <span
               aria-hidden="true"
               className="absolute left-0 top-1 bottom-1 w-0.5 rounded-full pointer-events-none"
@@ -3215,7 +3339,7 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-40 z-[9999] min-w-0 p-0.5">
-        {menuItems(ContextMenuItem, ContextMenuSeparator)}
+        {menuItems(ContextMenuItem, ContextMenuSeparator, ContextMenuSub, ContextMenuSubTrigger, ContextMenuSubContent)}
       </ContextMenuContent>
       {!disableMiniMap && (
         <SessionMiniMapPopover
@@ -3242,6 +3366,9 @@ interface DelegatedChildSessionItemProps {
   agentIndicatorMap: Map<string, SessionIndicatorStatus>
   relativeTimeNow: number
   workspaceName?: string
+  /** 当前工作区项目列表 + 移动回调；透传给会话行的「移动到项目」子菜单 */
+  projects?: KanbanProject[]
+  onMoveToProject?: (sessionId: string, projectId?: string) => void
   onSelect: (id: string, title: string) => void
   onRequestDelete: (id: string) => void
   onRequestMove: (id: string) => void
@@ -3256,6 +3383,8 @@ const DelegatedChildSessionItem = React.memo(function DelegatedChildSessionItem(
   agentIndicatorMap,
   relativeTimeNow,
   workspaceName,
+  projects,
+  onMoveToProject,
   onSelect,
   onRequestDelete,
   onRequestMove,
@@ -3272,6 +3401,8 @@ const DelegatedChildSessionItem = React.memo(function DelegatedChildSessionItem(
       indicatorStatus={status}
       relativeTimeNow={relativeTimeNow}
       workspaceName={workspaceName}
+      projects={projects}
+      onMoveToProject={onMoveToProject}
       onSelect={onSelect}
       onRequestDelete={onRequestDelete}
       onRequestMove={onRequestMove}
@@ -3282,12 +3413,12 @@ const DelegatedChildSessionItem = React.memo(function DelegatedChildSessionItem(
   )
 })
 
-// ===== 项目分组历史 =====
+// ===== 工作区分组历史 =====
 
 interface AgentProjectGroupItemProps {
   group: AgentProjectGroup
   currentWorkspaceId: string | null
-  /** 合成「自动任务」只读组：隐藏拖拽 / 新建会话 / 项目菜单等 workspace 专属操作，会话显示来源工作区角标 */
+  /** 合成「自动任务」只读组：隐藏拖拽 / 新建会话 / 工作区菜单等 workspace 专属操作，会话显示来源工作区角标 */
   isAutomationGroup?: boolean
   /** 工作区 ID → 名称映射，仅合成组用来给跨工作区会话渲染角标 */
   workspaceNameMap?: Map<string, string>
@@ -3315,6 +3446,11 @@ interface AgentProjectGroupItemProps {
   onRenameWorkspace: (workspaceId: string, newName: string) => Promise<void>
   onRequestDeleteWorkspace: (workspaceId: string) => void
   canDeleteWorkspace: boolean
+  /** 当前工作区的 craft Project 列表；非当前工作区组传 [] */
+  projects: KanbanProject[]
+  onNewSessionInProject: (projectId: string) => Promise<void>
+  onOpenProjectDetail: (projectId: string) => void
+  onMoveToProject: (sessionId: string, projectId?: string) => void
   onSelectSession: (id: string, title: string) => void
   onRequestDelete: (id: string) => void
   onRequestMove: (id: string) => void
@@ -3352,6 +3488,10 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
   onRenameWorkspace,
   onRequestDeleteWorkspace,
   canDeleteWorkspace,
+  projects,
+  onNewSessionInProject,
+  onOpenProjectDetail,
+  onMoveToProject,
   onSelectSession,
   onRequestDelete,
   onRequestMove,
@@ -3407,7 +3547,18 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
   // 状态如何，确保从搜索结果打开旧会话时左侧栏立即可见，不必等待 agent 完成。
   // 非活跃部分仍保留原"最近 3 天 + 至多 5 条"预览策略，作为额外补充展示。
   // 用户点击"显示更多"会在折叠基线之上每次再额外展开 PROJECT_SESSION_EXPAND_STEP 条。
-  const treeItems = buildAgentSessionTrees(group.sessions)
+  // craft Project 子分组：绑定项目的会话进入各自子分组（始终全量展示），
+  // 未绑定会话沿用原有树形 + 折叠预览逻辑。
+  const { projectGroups, unboundSessions } = buildSidebarProjectGroups(group.sessions, projects)
+  const treeItems = buildAgentSessionTrees(unboundSessions)
+  /** 项目 ID → 主题色映射（未绑定会话理论上无 projectId，查不到即不渲染色条） */
+  const projectColorMap = React.useMemo(() => {
+    const map = new Map<string, string>()
+    for (const project of projects) {
+      if (project.color) map.set(project.id, project.color)
+    }
+    return map
+  }, [projects])
   const activeSessions = treeItems
     .filter((item) => ACTIVE_SESSION_STATUSES.has(getSessionTreeStatus(item, agentIndicatorMap)))
     .slice()
@@ -3535,7 +3686,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
               <Plus size={13} />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="top">在此项目中新建会话</TooltipContent>
+          <TooltipContent side="top">在此工作区中新建会话</TooltipContent>
         </Tooltip>
         )}
 
@@ -3544,7 +3695,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              aria-label="项目菜单"
+              aria-label="工作区菜单"
               className="absolute right-0 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-md text-foreground/30 opacity-0 transition-colors hover:bg-foreground/[0.055] hover:text-foreground/60 group-hover/project:opacity-100 data-[state=open]:opacity-100 titlebar-no-drag"
             >
               <MoreHorizontal size={13} />
@@ -3556,7 +3707,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
               onSelect={() => onSelectProject(group.workspace.id)}
             >
               <FolderOpen size={14} />
-              设为当前项目
+              设为当前工作区
             </DropdownMenuItem>
             <DropdownMenuItem
               className="text-xs py-1 [&>svg]:size-3.5"
@@ -3582,7 +3733,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
               onSelect={() => onRequestDeleteWorkspace(group.workspace.id)}
             >
               <Trash2 size={14} />
-              删除项目
+              删除工作区
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -3591,8 +3742,28 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
 
       <div id={`project-sessions-${group.workspace.id}`} className="ml-4 mt-px">
         {!collapsed ? (
-          treeItems.length > 0 ? (
+          treeItems.length > 0 || projectGroups.length > 0 ? (
             <div className="flex flex-col gap-0.5">
+              {projectGroups.map((projectGroup) => (
+                <SidebarProjectSubgroup
+                  key={projectGroup.project.id}
+                  group={projectGroup}
+                  activeSessionId={activeSessionId}
+                  relativeTimeNow={relativeTimeNow}
+                  agentIndicatorMap={agentIndicatorMap}
+                  projects={projects}
+                  onNewSessionInProject={onNewSessionInProject}
+                  onOpenProjectDetail={onOpenProjectDetail}
+                  onMoveToProject={onMoveToProject}
+                  onSelectSession={onSelectSession}
+                  onRequestDelete={onRequestDelete}
+                  onRequestMove={onRequestMove}
+                  onRename={onRename}
+                  onTogglePin={onTogglePin}
+                  onToggleArchive={onToggleArchive}
+                />
+              ))}
+
               {sessions.map((item) => {
                 const childCount = item.childSessions.length
                 const rowStatus = getSessionTreeStatus(item, agentIndicatorMap)
@@ -3619,6 +3790,9 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
                       leftAccent={getSessionLeftAccent(rowStatus)}
                       relativeTimeNow={relativeTimeNow}
                       workspaceName={isAutomationGroup && item.session.workspaceId ? workspaceNameMap?.get(item.session.workspaceId) : undefined}
+                      projectColor={item.session.projectId ? projectColorMap.get(item.session.projectId) : undefined}
+                      projects={projects}
+                      onMoveToProject={onMoveToProject}
                       onSelect={onSelectSession}
                       onRequestDelete={onRequestDelete}
                       onRequestMove={onRequestMove}
@@ -3637,6 +3811,8 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
                             agentIndicatorMap={agentIndicatorMap}
                             relativeTimeNow={relativeTimeNow}
                             workspaceName={isAutomationGroup && childSession.workspaceId ? workspaceNameMap?.get(childSession.workspaceId) : undefined}
+                            projects={projects}
+                            onMoveToProject={onMoveToProject}
                             onSelect={onSelectSession}
                             onRequestDelete={onRequestDelete}
                             onRequestMove={onRequestMove}

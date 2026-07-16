@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { AgentSessionItem, getSessionLeftAccent } from './LeftSidebar'
 import type { SidebarProjectGroup } from './sidebar-project-groups'
+import type { KanbanProject } from './kanban/types'
 
 export interface SidebarProjectSubgroupProps {
   group: SidebarProjectGroup
@@ -12,8 +13,11 @@ export interface SidebarProjectSubgroupProps {
   relativeTimeNow: number
   /** 会话行状态徽标映射（与 AgentProjectGroupItem 同源） */
   agentIndicatorMap: Map<string, SessionIndicatorStatus>
+  /** 当前工作区项目列表；透传给会话行的「移动到项目」子菜单 */
+  projects: KanbanProject[]
   onNewSessionInProject: (projectId: string) => Promise<void>
   onOpenProjectDetail: (projectId: string) => void
+  onMoveToProject: (sessionId: string, projectId?: string) => void
   /** 以下透传给 AgentSessionItem，与工作区组内会话行为完全一致 */
   onSelectSession: (id: string, title: string) => void
   onRequestDelete: (id: string) => void
@@ -32,8 +36,10 @@ export function SidebarProjectSubgroup({
   activeSessionId,
   relativeTimeNow,
   agentIndicatorMap,
+  projects,
   onNewSessionInProject,
   onOpenProjectDetail,
+  onMoveToProject,
   onSelectSession,
   onRequestDelete,
   onRequestMove,
@@ -51,8 +57,9 @@ export function SidebarProjectSubgroup({
         <button
           type="button"
           aria-expanded={!collapsed}
+          aria-controls={`subproject-sessions-${group.project.id}`}
           onClick={() => setCollapsed((value) => !value)}
-          className="flex-1 min-w-0 flex items-center gap-1.5 px-1 py-0.5 rounded-md text-left text-foreground/55 hover:text-foreground/85 hover:bg-foreground/[0.025] titlebar-no-drag group-hover/subproject:pr-11"
+          className="flex-1 min-w-0 flex items-center gap-1.5 px-1 py-0.5 rounded-md text-left text-foreground/55 hover:text-foreground/85 hover:bg-foreground/[0.025] transition-[padding,color,background-color] titlebar-no-drag group-hover/subproject:pr-11"
         >
           <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: color }} />
           <span className="flex-1 min-w-0 truncate text-xs font-medium leading-[18px]">{group.project.name}</span>
@@ -71,7 +78,7 @@ export function SidebarProjectSubgroup({
               type="button"
               aria-label={`在「${group.project.name}」中新建会话`}
               onClick={() => void onNewSessionInProject(group.project.id)}
-              className="absolute right-5 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-md text-foreground/30 opacity-0 transition-colors hover:bg-foreground/[0.055] hover:text-foreground/65 group-hover/subproject:opacity-100 titlebar-no-drag"
+              className="absolute right-5 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-md text-foreground/30 opacity-0 transition-colors hover:bg-foreground/[0.055] hover:text-foreground/65 group-hover/subproject:opacity-100 focus-visible:opacity-100 titlebar-no-drag"
             >
               <Plus size={12} />
             </button>
@@ -84,7 +91,7 @@ export function SidebarProjectSubgroup({
               type="button"
               aria-label={`「${group.project.name}」项目详情`}
               onClick={() => onOpenProjectDetail(group.project.id)}
-              className="absolute right-0 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-md text-foreground/30 opacity-0 transition-colors hover:bg-foreground/[0.055] hover:text-foreground/65 group-hover/subproject:opacity-100 titlebar-no-drag"
+              className="absolute right-0 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-md text-foreground/30 opacity-0 transition-colors hover:bg-foreground/[0.055] hover:text-foreground/65 group-hover/subproject:opacity-100 focus-visible:opacity-100 titlebar-no-drag"
             >
               <Info size={12} />
             </button>
@@ -93,7 +100,7 @@ export function SidebarProjectSubgroup({
         </Tooltip>
       </div>
       {!collapsed && group.sessions.length > 0 && (
-        <div className="ml-3 flex flex-col gap-0.5">
+        <div id={`subproject-sessions-${group.project.id}`} className="ml-3 flex flex-col gap-0.5">
           {group.sessions.map((session) => {
             const rowStatus = agentIndicatorMap.get(session.id) ?? 'idle'
             return (
@@ -106,6 +113,8 @@ export function SidebarProjectSubgroup({
                 leftAccent={getSessionLeftAccent(rowStatus)}
                 projectColor={group.project.color}
                 relativeTimeNow={relativeTimeNow}
+                projects={projects}
+                onMoveToProject={onMoveToProject}
                 onSelect={onSelectSession}
                 onRequestDelete={onRequestDelete}
                 onRequestMove={onRequestMove}
