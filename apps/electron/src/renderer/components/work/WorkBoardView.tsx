@@ -67,7 +67,7 @@ export function WorkBoardView(): React.ReactElement {
   React.useEffect(() => {
     let cancelled = false
     setSelectedProjectId(null)
-    setProjects([])
+    // 项目 atom 的生命周期由全局 ProjectsInitializer 管理（工作区切换时按 slug 重载），WorkBoardView 不再清空
     setRuns([])
     setBindings([])
     setSpecNodes(new Map())
@@ -89,7 +89,7 @@ export function WorkBoardView(): React.ReactElement {
       })
 
     return () => { cancelled = true }
-  }, [setBindings, setProjects, setRuns, setSelectedProjectId, setSpecNodes, workspace])
+  }, [setBindings, setRuns, setSelectedProjectId, setSpecNodes, workspace])
 
   const refreshSessions = React.useCallback(async (): Promise<void> => {
     const sessions = await window.electronAPI.listAgentSessions()
