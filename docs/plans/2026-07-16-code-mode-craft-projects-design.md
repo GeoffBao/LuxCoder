@@ -30,6 +30,8 @@ LuxAgents 当前存在两套互不相干的「项目」概念撞名：
 - 方案 B（否决）：侧边栏独立拉取——与 Work 面板状态割裂，重复 fetch，与 craft 模式相悖。
 - 方案 C（否决）：主进程预分组——改 IPC 契约，UI 分组语义泄漏进主进程，过度设计。
 
+**对后续 Proma 功能移植的影响评估**：本设计纯渲染端 UI 层，主进程、IPC 契约、`@proma/shared` 类型、存储格式零改动；新增逻辑全部落在新文件或 LuxAgents 独有文件（`project-atoms.ts`、`WorkBoardView.tsx`）中，唯一共享热点 `LeftSidebar.tsx` 仅保留挂载点级 diff。
+
 ## 设计
 
 ### 1. 数据流
@@ -47,6 +49,8 @@ LuxAgents 当前存在两套互不相干的「项目」概念撞名：
   - 输入：某工作区的会话列表 + 该工作区项目列表
   - 输出：`{ project, sessions }[]`（含空项目）+ 未绑定会话列表
   - 分组逻辑不进已 1300+ 行的 `LeftSidebar.tsx`，配单测
+- 新文件 `renderer/components/app-shell/SidebarProjectSubgroup.tsx`：项目子分组渲染组件（分组头、色点、会话数、「+」、详情入口、子分组内会话列表）
+  - **隔离目的**：`LeftSidebar.tsx` 是未来从 Proma 移植功能时的冲突热点，本次只在其中留挂载点级别的 diff（import + 分组循环一个分支 + 右键菜单一项），项目相关渲染全部收进新组件
 - 工作区组内渲染顺序：项目子分组（色点 + 名称 + 会话数，按 `project.updatedAt` 降序）→ 未绑定会话维持现有日期分组（今天/昨天/更早）不动
 - 项目子分组内会话按 updatedAt 降序，不再嵌日期分组（避免三层嵌套）
 - 措辞修正：工作区组相关文案「项目」→「工作区」（新建、删除确认、排序失败等提示）
@@ -79,5 +83,6 @@ LuxAgents 当前存在两套互不相干的「项目」概念撞名：
 | `renderer/components/ProjectsInitializer.tsx`（新） | 全局项目加载 + `projects:changed` 订阅 |
 | `renderer/atoms/project-atoms.ts` | 新增 `workViewAtom`；`serverKanbanProjectsAtom` 复用 |
 | `renderer/components/app-shell/sidebar-project-groups.ts`（新） | 分组纯函数 view-model |
-| `renderer/components/app-shell/LeftSidebar.tsx` | 项目子分组渲染、「+」、右键「移动到项目…」、色条、措辞修正 |
+| `renderer/components/app-shell/SidebarProjectSubgroup.tsx`（新） | 项目子分组渲染组件（含「+」与详情入口） |
+| `renderer/components/app-shell/LeftSidebar.tsx` | 仅挂载点级 diff：子分组挂载、右键「移动到项目…」、色条、措辞修正 |
 | `renderer/components/work/WorkBoardView.tsx` | 移除初始项目拉取；`view` 提升为 `workViewAtom` |
