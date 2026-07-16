@@ -179,13 +179,6 @@ export function WorkBoardView(): React.ReactElement {
 
   React.useEffect(() => {
     if (!workspaceRoot) return
-    void refreshProjects().catch((cause: unknown) => {
-      setError(`加载项目失败：${errorMessage(cause)}`)
-    })
-  }, [refreshProjects, workspaceRoot])
-
-  React.useEffect(() => {
-    if (!workspaceRoot) return
     void refreshRuns().catch((cause: unknown) => {
       setError(`加载任务进度失败：${errorMessage(cause)}`)
     })

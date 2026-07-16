@@ -74,6 +74,7 @@ import { diffCapabilities } from '@luxagents/shared'
 import type { WorkspaceCapabilities } from '@luxagents/shared'
 import { showCapabilityChangeToasts } from './lib/capabilities-toast'
 import { UpdateDialog } from './components/settings/UpdateDialog'
+import { ProjectsInitializer } from './components/ProjectsInitializer'
 import { GlobalShortcuts } from './components/shortcuts/GlobalShortcuts'
 import { TabSwitcher } from './components/tabs/TabSwitcher'
 import { htmlToMarkdown, markdownToHtml } from './lib/markdown-rich-text'
@@ -916,6 +917,7 @@ if (isQuickTaskWindow) {
       <ChatToolInitializer />
       <UpdaterInitializer />
       <AutomationInitializer />
+      <ProjectsInitializer />
       <FeishuInitializer />
       <DingTalkInitializer />
       <TabStatePersistenceInitializer />
