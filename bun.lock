@@ -37,7 +37,7 @@
     },
     "apps/electron": {
       "name": "@luxagents/electron",
-      "version": "0.1.79",
+      "version": "0.1.80",
       "dependencies": {
         "@anthropic-ai/claude-agent-sdk": "0.3.201",
         "@anthropic-ai/sdk": "^0.93.0",
@@ -184,7 +184,7 @@
     },
     "packages/shared": {
       "name": "@luxagents/shared",
-      "version": "0.1.24",
+      "version": "0.1.25",
       "dependencies": {
         "yaml": "^2.7.0",
         "zod": "^3.23.0",
