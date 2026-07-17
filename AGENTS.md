@@ -534,7 +534,7 @@ React UI 更新
 - Prefer Code IA: Sessions remain the primary list; module order Auto Tasks → Agent Skills → Agent Experts → 项目中心 (last in module zone); top-bar is Chat|Code only (Work/`cowork` retired)
 - Prefer naming the Projects hub「项目中心」(not bare「项目」); Agent专家 are creatable domain-role shells (builtin label「通用软件专家」, slug `general`) empowered by skills; TaskEditor expert picker must use the expert module list; Kanban uses task/project `expertId`—not swarm or IM bot UI yet
 - Prefer 项目中心 hub card → filtered Board (card may shortcut 新建任务); 新建任务/Teambition stay on Board toolbar, not project settings or left-rail; project detail stays in Code with craft-aligned fields (cwd/color/description)
-- Prefer one-way Proma sync only; do not open reverse PRs or dual-contribute back to proma-ai/Proma
+- Prefer one-way Proma sync only (no reverse PRs / dual-contribute); cherry-pick upstream in chronological order ~10 commits/batch on a dedicated `sync/proma-*` branch—agent auto-applies clean picks and pauses on structural conflicts for discussion; include Proma CLI/`session-core` when upstream brings them (rename to `@luxagents`); do not merge the sync branch to `origin/main` until explicitly asked
 
 ## Learned Workspace Facts
 
@@ -549,4 +549,4 @@ React UI 更新
 - craft CreateProject is name-first; cwd/color/description thickness belongs on `ProjectInfoPage`, not a heavy create wizard
 - Agent专家 live under `~/.luxagents/experts/{slug}/` (dev: `~/.luxagents-dev/experts/`) with IDENTITY/SOUL/RULES + `expert.json`; builtins include 通用软件专家 + 驱动/应用/系统/通信软件专家、软件交付经理、软件SE、软件架构师、软件测试、代码审查; Kanban TaskRunner injects expert preamble via `task.defaults.expertId` → project `defaultExpertId` and merges `skillSlugs` (skip+warn if missing); no Code-session/`mcpIds`/Bot injection yet
 - `TaskModelSelect` / Radix dropdowns over AppShell need `z-[9999]` (AppShell chrome is `z-[60]`; default portal `z-50` gets clipped)
-- Proma upstream: `origin`=GeoffBao/LuxAgents, `upstream`=proma-ai/Proma; one-way only (no reverse PRs / dual contribution to Proma); strategy C (cherry-pick high-value first, later full merge); short-lived `sync/proma-YYYYMMDD` → main then delete; `feature/*` only from main; tag `synced/proma-<sha>`; gate with `bun run sync:check` / `sync:apply-renames` (`scripts/upstream-sync/`, `.cursor/commands/upstream-sync.md`)
+- Proma upstream: `origin`=GeoffBao/LuxAgents, `upstream`=proma-ai/Proma; short-lived `sync/proma-YYYYMMDD[-bNN]` (push for backup; merge→main only when asked, then delete); `feature/*` only from main; tag `synced/proma-<sha>`; gate with `bun run sync:check` / `sync:apply-renames` (`scripts/upstream-sync/`, `.cursor/commands/upstream-sync.md`); Lux-owned surfaces (Kanban/项目中心/专家/`AgentSessionItem`/`@luxagents`) win structure conflicts—take upstream for SDK/security/bugfix semantics; ported `@luxagents/session-core` + `apps/cli` (`luxagents` / `$LUXAGENTS_CLI`) stay in tree
