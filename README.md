@@ -216,6 +216,8 @@ bun run dist:fast      # 快速打包当前平台
 - TypeScript 不使用 `any`，对象结构优先使用 `interface`。
 - 新增 IPC 通道时同步修改 shared 类型、main handler、preload bridge 和 renderer 调用。
 - 影响包行为时递增对应 package 的 patch 版本。
+- 能用测试覆盖的行为尽量补上测试，尤其是共享逻辑、IPC 契约和持久化格式。
+
 
 ## 致谢
 
