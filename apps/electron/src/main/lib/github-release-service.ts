@@ -64,6 +64,11 @@ async function fetchFromGitHub<T>(endpoint: string): Promise<T> {
     throw new Error('GitHub API 请求过于频繁，请 15 分钟后重试')
   }
 
+  if (response.status === 404) {
+    // 未认证请求无法访问私有仓库，与"版本不存在"表现一致，统一提示
+    throw new Error('无法获取版本信息：仓库当前不可公开访问（可能是私有仓库或该版本不存在）')
+  }
+
   if (!response.ok) {
     throw new Error(
       `GitHub API 请求失败 (${response.status})，请检查网络连接后重试`
