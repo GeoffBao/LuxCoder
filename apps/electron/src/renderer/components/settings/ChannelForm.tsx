@@ -43,13 +43,8 @@ import type {
   ChannelTestResult,
   FetchModelsResult,
   ProviderType,
-<<<<<<< HEAD
-} from '@luxagents/shared'
-import { resolveAnthropicMessagesUrl, resolveOpenAIChatCompletionsUrl } from '@luxagents/core'
-=======
 } from '@luxagents/shared'
 import { resolveAnthropicMessagesUrl, resolveOpenAIChatCompletionsUrl, resolveOpenAIResponsesUrl } from '@luxagents/core'
->>>>>>> dd5cd4ce (feat: support OpenAI Responses channels (#1176))
 import { getProviderLogo } from '@/lib/model-logo'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
