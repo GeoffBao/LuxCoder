@@ -89,8 +89,14 @@ import { initializeRuntime } from './lib/runtime-init'
 import { seedDefaultSkills, getExpertsDir } from './lib/config-paths'
 import { seedBuiltinExperts } from './lib/expert-service'
 import { upgradeDefaultSkillsInWorkspaces } from './lib/agent-workspace-manager'
+<<<<<<< HEAD
 import { stopAllAgents, killOrphanedClaudeSubprocesses, isAgentSessionActive } from './lib/agent-service'
 import { markRunningDelegationsAsInterrupted, markStaleTaskSessionsIdle } from './lib/agent-session-manager'
+=======
+import { stopAllAgents, killOrphanedClaudeSubprocesses } from './lib/agent-service'
+import { disposePiMcpConnections } from './lib/adapters/pi-mcp-tools'
+import { markRunningDelegationsAsInterrupted } from './lib/agent-session-manager'
+>>>>>>> 3bc70e84 (feat(agent): bridge user MCP tools for Pi runtime (#1175))
 import { stopAllGenerations } from './lib/chat-service'
 import { initAutoUpdater, cleanupUpdater } from './lib/updater/auto-updater'
 import { startWorkspaceWatcher, stopWorkspaceWatcher } from './lib/workspace-watcher'
@@ -689,6 +695,8 @@ app.on('before-quit', () => {
   // 销毁快速任务窗口
   destroyQuickTaskWindow()
   destroyVoiceDictationWindow()
+  // 关闭 Pi MCP 桥接连接（释放 stdio 子进程）
+  disposePiMcpConnections().catch(() => {})
   // Clean up system tray before quitting
   destroyTray()
 })
