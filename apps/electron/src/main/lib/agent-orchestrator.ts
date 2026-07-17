@@ -48,6 +48,7 @@ import { getWorkspaceAttachedDirectories, getWorkspaceAttachedFiles } from './ag
 import { getRuntimeStatus } from './runtime-init'
 import { getSettings } from './settings-service'
 import { buildSystemPrompt, buildDynamicContext } from './agent-prompt-builder'
+import { projectRepository } from './project-repository'
 import { permissionService } from './agent-permission-service'
 import type { PermissionResult, CanUseToolOptions } from './agent-permission-service'
 import { askUserService } from './agent-ask-user-service'
@@ -858,7 +859,7 @@ export class AgentOrchestrator {
    * 通过 EventBus 分发 AgentEvent，通过 callbacks 发送控制信号。
    */
   async sendMessage(input: AgentSendInput, callbacks: SessionCallbacks): Promise<void> {
-    const { sessionId, userMessage, channelId, modelId, workspaceId, additionalDirectories, customMcpServers, permissionModeOverride, mentionedSkills, mentionedMcpServers, mentionedSessionIds, automationContext } = input
+    const { sessionId, userMessage, channelId, modelId, workspaceId, additionalDirectories, customMcpServers, permissionModeOverride, mentionedSkills, mentionedMcpServers, mentionedSessionIds, automationContext, workContext } = input
     const stderrChunks: string[] = []
 
     // 0. 并发保护
@@ -1188,10 +1189,14 @@ export class AgentOrchestrator {
       }
 
       // 11. 构建动态上下文和最终 prompt
+      const projectContext = sessionMeta?.projectId && workspaceSlug
+        ? projectRepository.buildPromptContext(getAgentWorkspacePath(workspaceSlug), sessionMeta.projectId)
+        : null
       const dynamicCtx = buildDynamicContext({
         workspaceName: workspace?.name,
         workspaceSlug,
         agentCwd,
+        ...(projectContext ? { projectContext } : {}),
       })
 
       // 11.5 注入 mention 引用指令（Skill/MCP/会话）— 仅影响 prompt，不影响持久化
@@ -1494,7 +1499,8 @@ export class AgentOrchestrator {
             claudeAvailable,
             deepSeekSubagentModel: modelRouting.subagentModel,
             collaborationAvailable,
-          }) + (automationContext ? `\n\n## 定时任务执行上下文\n\n${automationContext}` : ''),
+          }) + (automationContext ? `\n\n## 定时任务执行上下文\n\n${automationContext}` : '')
+            + (workContext ? `\n\n## Work 模式任务上下文\n\n${workContext}` : ''),
         },
         resumeSessionId: existingSdkSessionId,
         // 回退后 resume：从指定消息处继续（SDK 在同一 JSONL 内创建分支）

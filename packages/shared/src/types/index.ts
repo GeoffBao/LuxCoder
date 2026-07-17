@@ -53,3 +53,15 @@ export * from './wechat'
 
 // 定时任务（Automation）相关类型
 export * from './automation'
+
+// Projects 相关类型（仅类型，避免 renderer 引入 Node.js 文件存储实现）
+export type * from '../projects/types'
+
+// Tasks（Conductor）相关类型（仅类型，运行时实现从 @luxagents/shared/tasks 导入）
+export type * from '../tasks/schema'
+export type * from '../tasks/refs'
+export type * from '../tasks/validate'
+export type * from '../tasks/storage'
+
+// Protocol 通道常量
+export * from '../protocol/channels'

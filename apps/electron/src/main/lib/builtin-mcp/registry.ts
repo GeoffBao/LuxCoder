@@ -22,7 +22,7 @@ export interface BuiltinMcpInjectContext {
   workspaceSlug?: string
   agentCwd?: string
   permissionMode?: LuxAgentsPermissionMode
-  triggeredBy?: 'user' | 'automation' | 'delegation'
+  triggeredBy?: 'user' | 'automation' | 'delegation' | 'work'
   sessionMeta?: AgentSessionMeta
 }
 

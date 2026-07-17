@@ -44,6 +44,11 @@ const orchestrator = new AgentOrchestrator(adapter, eventBus)
 /** 导出 EventBus 供飞书 Bridge 等外部服务订阅事件 */
 export { eventBus as agentEventBus }
 
+/** 获取 AgentOrchestrator 单例（供 oss-kanban task-handlers 使用） */
+export function getOrchestrator(): AgentOrchestrator {
+  return orchestrator
+}
+
 // 注册协作子会话 EventBus 阻塞事件监听
 import('./agent-collaboration-tools').then(({ registerCollaborationEventBus }) => {
   registerCollaborationEventBus(eventBus)
@@ -103,7 +108,15 @@ function getMainRendererWebContents(): WebContents | null {
 // ===== EventBus IPC 转发中间件 =====
 
 eventBus.use((sessionId, payload, next) => {
-  const wc = sessionWebContents.get(sessionId)
+  // 兜底：未走 runAgent/runAgentHeadless 注册时（如旧 Conductor 直调），仍推到主窗口
+  let wc = sessionWebContents.get(sessionId)
+  if (!wc || wc.isDestroyed()) {
+    const main = getMainRendererWebContents()
+    if (main) {
+      registerWebContents(sessionId, main)
+      wc = main
+    }
+  }
   if (wc && !wc.isDestroyed()) {
     try {
       wc.send(AGENT_IPC_CHANNELS.STREAM_EVENT, { sessionId, payload } as AgentStreamEvent)
@@ -211,11 +224,19 @@ export async function runAgent(
  * 如果桌面窗口存在，同时注册 webContents 以便事件同步到桌面端 UI。
  * 事件同时通过 EventBus listeners 分发给飞书 Bridge。
  */
+export interface RunAgentHeadlessCompleteOptions {
+  stoppedByUser?: boolean
+  startedAt?: number
+  resultSubtype?: string
+  resultErrors?: string[]
+  backgroundTasksPending?: boolean
+}
+
 export async function runAgentHeadless(
   input: AgentSendInput,
   callbacks: {
     onError: (error: string) => void
-    onComplete: (messages?: AgentMessage[]) => void
+    onComplete: (messages?: AgentMessage[], options?: RunAgentHeadlessCompleteOptions) => void
     onTitleUpdated: (title: string) => void
     source?: AgentExternalRunSource
   },
@@ -241,7 +262,7 @@ export async function runAgentHeadless(
         }
       },
       onComplete: (messages, opts) => {
-        callbacks.onComplete(messages)
+        callbacks.onComplete(messages, opts)
         // 同步到渲染进程
         if (wc && !wc.isDestroyed()) {
           wc.send(AGENT_IPC_CHANNELS.STREAM_COMPLETE, {

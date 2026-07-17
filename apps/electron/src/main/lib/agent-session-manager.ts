@@ -372,9 +372,11 @@ function convertLegacyMessage(legacy: AgentMessage): SDKMessage {
 /**
  * 更新会话元数据
  */
+export type AgentSessionMetaUpdates = Partial<Pick<AgentSessionMeta, 'title' | 'channelId' | 'modelId' | 'sdkSessionId' | 'workspaceId' | 'pinned' | 'archived' | 'attachedDirectories' | 'attachedFiles' | 'forkSourceDir' | 'forkSourceSdkSessionId' | 'resumeAtMessageUuid' | 'stoppedByUser' | 'sessionStatus' | 'permissionMode' | 'completedButUnconfirmed' | 'sourceAutomationId' | 'automationGraduated' | 'parentSessionId' | 'rootSessionId' | 'sourceDelegationId' | 'delegationRole' | 'delegationStatus' | 'delegationDepth' | 'delegationGoal' | 'projectId' | 'workingDirectory' | 'kanbanColumn' | 'taskSlug' | 'taskRunId' | 'taskNodeId' | 'taskNodeCount' | 'taskDraft'>>
+
 export function updateAgentSessionMeta(
   id: string,
-  updates: Partial<Pick<AgentSessionMeta, 'title' | 'channelId' | 'modelId' | 'sdkSessionId' | 'workspaceId' | 'pinned' | 'archived' | 'attachedDirectories' | 'attachedFiles' | 'forkSourceDir' | 'forkSourceSdkSessionId' | 'resumeAtMessageUuid' | 'stoppedByUser' | 'permissionMode' | 'completedButUnconfirmed' | 'sourceAutomationId' | 'automationGraduated' | 'parentSessionId' | 'rootSessionId' | 'sourceDelegationId' | 'delegationRole' | 'delegationStatus' | 'delegationDepth' | 'delegationGoal'>>,
+  updates: AgentSessionMetaUpdates,
 ): AgentSessionMeta {
   const index = readIndex()
   const idx = index.sessions.findIndex((s) => s.id === id)
@@ -399,6 +401,26 @@ export function updateAgentSessionMeta(
 
   console.log(`[Agent 会话] 已更新会话: ${updated.title} (${updated.id})`)
   return updated
+}
+
+/** 更新 Conductor 运行状态，不修改会话标题。 */
+export function setSessionStatus(id: string, status: string): AgentSessionMeta {
+  return updateAgentSessionMeta(id, { sessionStatus: status })
+}
+
+/** 更新会话看板列；传入 null 时清除列值。 */
+export function setKanbanColumn(id: string, column: string | null): AgentSessionMeta {
+  return updateAgentSessionMeta(id, { kanbanColumn: column ?? undefined })
+}
+
+/** 更新 Conductor 节点总数。 */
+export function setTaskNodeCount(id: string, count: number): AgentSessionMeta {
+  return updateAgentSessionMeta(id, { taskNodeCount: count })
+}
+
+/** 更新会话所属项目 ID。 */
+export function setSessionProjectId(id: string, projectId: string): AgentSessionMeta {
+  return updateAgentSessionMeta(id, { projectId })
 }
 
 /**
@@ -1414,6 +1436,38 @@ export function markRunningDelegationsAsInterrupted(): number {
   if (count > 0) {
     writeIndex(index)
     console.log(`[Agent 会话] 启动收敛 ${count} 个遗留的运行中委派子会话为 interrupted`)
+  }
+
+  return count
+}
+
+/**
+ * 启动时收敛卡住的 Task/Kanban 会话
+ *
+ * TaskRunner 子会话会把 sessionStatus 写成 in-progress；若进程退出或用户中断后
+ * 未收到 completion，状态会永久显示「运行中」。启动时将无活跃 Agent 的
+ * in-progress 任务会话降为 todo。
+ */
+export function markStaleTaskSessionsIdle(
+  isSessionActive: (sessionId: string) => boolean = () => false,
+): number {
+  const index = readIndex()
+  let count = 0
+  const staleStatuses = new Set(['in-progress', 'running', 'queued'])
+
+  for (const session of index.sessions) {
+    const isTaskSession = Boolean(session.taskSlug || session.taskNodeId || session.parentSessionId)
+    if (!isTaskSession) continue
+    if (!session.sessionStatus || !staleStatuses.has(session.sessionStatus)) continue
+    if (isSessionActive(session.id)) continue
+    session.sessionStatus = 'todo'
+    session.updatedAt = Date.now()
+    count++
+  }
+
+  if (count > 0) {
+    writeIndex(index)
+    console.log(`[Agent 会话] 启动收敛 ${count} 个卡住的 Task 会话为 todo`)
   }
 
   return count

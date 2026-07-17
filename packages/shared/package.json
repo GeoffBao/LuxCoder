@@ -1,6 +1,6 @@
 {
   "name": "@luxagents/shared",
-  "version": "0.1.0",
+  "version": "0.1.10",
   "license": "AGPL-3.0-only",
   "description": "Shared types, configs and utilities for LuxAgents",
   "type": "module",
@@ -8,14 +8,28 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./protocol": "./src/protocol/channels.ts",
     "./types": "./src/types/index.ts",
     "./config": "./src/config/index.ts",
-    "./utils": "./src/utils/index.ts"
+    "./utils": "./src/utils/index.ts",
+    "./channels": "./src/channels.ts",
+    "./projects": "./src/projects/index.ts",
+    "./projects/storage": "./src/projects/storage.ts",
+    "./projects/types": "./src/projects/types.ts",
+    "./tasks": "./src/tasks/index.ts",
+    "./tasks/refs": "./src/tasks/refs.ts",
+    "./tasks/schema": "./src/tasks/schema.ts",
+    "./tasks/storage": "./src/tasks/storage.ts",
+    "./tasks/validate": "./src/tasks/validate.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "yaml": "^2.7.0",
+    "zod": "^3.23.0"
   }
 }

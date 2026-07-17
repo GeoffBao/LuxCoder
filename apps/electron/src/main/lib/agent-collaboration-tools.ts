@@ -43,7 +43,7 @@ interface CollaborationToolContext {
   modelId?: string
   workspaceId?: string
   permissionMode?: LuxAgentsPermissionMode
-  triggeredBy?: 'user' | 'automation' | 'delegation'
+  triggeredBy?: 'user' | 'automation' | 'delegation' | 'work'
 }
 
 interface CollaborationToolResult extends Record<string, unknown> {
