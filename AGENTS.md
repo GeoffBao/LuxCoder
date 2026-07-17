@@ -14,52 +14,52 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ## 项目概述
 
-Proma 是一个集成通用 AI Agent 的下一代人工智能软件，采用 Electron 桌面应用架构。
+LuxAgents 是基于 Proma 演化的企业级 AI R&D 工作台，采用 Electron 桌面应用架构。UI 顶层模式：Chat / Code（Agent） / Work（Kanban）。
 
 ## Monorepo 结构
 
 Bun workspace monorepo：
 
 ```
-proma-v2/
+luxagents/
 ├── packages/
-│   ├── shared/     # 共享类型、IPC 通道常量、配置、工具函数 (v0.1.20)
-│   ├── core/       # AI Provider 适配器、代码高亮服务 (v0.2.9)
-│   └── ui/         # 共享 UI 组件 (CodeBlock, MermaidBlock) (v0.1.6)
+│   ├── shared/     # 共享类型、IPC 通道常量、配置、工具函数、projects/tasks (v0.1.10)
+│   ├── core/       # AI Provider 适配器、代码高亮服务 (v0.1.0)
+│   └── ui/         # 共享 UI 组件 (CodeBlock, MermaidBlock) (v0.1.0)
 └── apps/
-    └── electron/   # Electron 桌面应用 (v0.10.7)
+    └── electron/   # Electron 桌面应用 (v0.1.21)
         └── src/
             ├── main/       # 主进程 + 服务层 (main/lib/)
             ├── preload/    # IPC 上下文桥接
             └── renderer/   # React UI (Vite + Tailwind + Radix UI)
 ```
 
-**包命名规范**：`@proma/*` 作用域（`@proma/core`、`@proma/shared`、`@proma/ui`、`@proma/electron`）
+**包命名规范**：`@luxagents/*` 作用域（`@luxagents/core`、`@luxagents/shared`、`@luxagents/ui`、`@luxagents/electron`）
 
 **依赖管理**：package.json 中使用 `workspace:*` 引用内部包
 
 ### 包职责详解
 
-#### @proma/shared (v0.1.20)
-- **导出模块**：`./types`、`./config`、`./utils`、`./constants/permission-rules`
-- **关键类型**：`AgentMessage`、`ChatMessage`、`Channel`、`PermissionRequest`、`FeishuConfig`
+#### @luxagents/shared (v0.1.10)
+- **导出模块**：`./types`、`./config`、`./utils`、`./constants/permission-rules`、`./projects`、`./tasks`
+- **关键类型**：`AgentMessage`、`ChatMessage`、`Channel`、`PermissionRequest`、`FeishuConfig`、`ProjectConfig`、`LoadedProject`
 - **依赖**：无运行时依赖（仅 TypeScript）
 
-#### @proma/core (v0.2.9)
+#### @luxagents/core (v0.1.0)
 - **导出模块**：`./providers`、`./highlight`、`./types`、`./utils`
 - **关键功能**：Provider 适配器注册表、代码高亮（Shiki）
-- **依赖**：`@proma/shared`、`shiki`
-- **Peer 依赖**：`@anthropic-ai/Codex-agent-sdk`、`@anthropic-ai/sdk`、`@modelcontextprotocol/sdk`
+- **依赖**：`@luxagents/shared`、`shiki`
+- **Peer 依赖**：`@anthropic-ai/claude-agent-sdk`、`@anthropic-ai/sdk`、`@modelcontextprotocol/sdk`
 
-#### @proma/ui (v0.1.6)
+#### @luxagents/ui (v0.1.0)
 - **关键组件**：共享 React UI 组件库
-- **依赖**：`@proma/core`、`beautiful-mermaid`、`mermaid`、`shiki`
+- **依赖**：`@luxagents/core`、`beautiful-mermaid`、`mermaid`、`shiki`
 - **Peer 依赖**：`react@^18.3.0`、`react-dom@^18.3.0`
 
-#### @proma/electron (v0.10.7)
+#### @luxagents/electron (v0.1.21)
 - **职责**：Electron 桌面应用主体，集成所有包
 - **关键依赖**：
-  - `@anthropic-ai/Codex-agent-sdk@0.2.120` - Agent SDK
+  - `@anthropic-ai/claude-agent-sdk` - Agent SDK
   - `@larksuiteoapi/node-sdk` - 飞书集成
   - Radix UI、TipTap、Tailwind CSS
   - 文件解析：`pdf-parse`、`officeparser`、`word-extractor`
@@ -144,7 +144,7 @@ bun run generate:icons    # 生成应用图标
 
 类型定义 → 主进程处理 → Preload 桥接 → 渲染进程调用：
 
-1. **类型 & 常量**：`@proma/shared` 定义 IPC 通道名称常量和请求/响应类型
+1. **类型 & 常量**：`@luxagents/shared` 定义 IPC 通道名称常量和请求/响应类型
 2. **主进程处理**：`main/ipc.ts`（57KB）注册 `ipcMain.handle()` 处理器，调用 `main/lib/` 服务
 3. **Preload 桥接**：`preload/index.ts` 通过 `contextBridge.exposeInMainWorld` 暴露类型安全的 API
 4. **渲染进程**：通过 `window.electronAPI.*` 调用，Jotai atoms 中封装调用逻辑
@@ -164,6 +164,9 @@ bun run generate:icons    # 生成应用图标
 - `CHAT_TOOL_IPC_CHANNELS` - Chat 工具
 - `FEISHU_IPC_CHANNELS` - 飞书集成
 - `GITHUB_RELEASE_IPC_CHANNELS` - GitHub 发布
+- `PROJECT_IPC_CHANNELS` - craft Project CRUD / assets / memory / `projects:changed` 广播
+- `TASK_IPC_CHANNELS` - Work/Kanban TaskRunner（run / pause / resume / stop / generated）
+- `SESSION_COMMAND_CHANNEL` - 会话命令（`set_project_id` / `set_kanban_column` / `move_to_workspace` 等）
 
 ### 主进程服务层（`main/lib/`）
 
@@ -181,6 +184,10 @@ bun run generate:icons    # 生成应用图标
 | `chat-service.ts` | Chat 流式调用编排（20KB）：Provider 适配器集成、消息持久化、AbortController |
 | `conversation-manager.ts` | 对话管理（13KB）：对话 CRUD、JSONL 消息存储、置顶、上下文分割 |
 | `channel-manager.ts` | 渠道管理（16KB）：渠道 CRUD、API Key AES-256-GCM 加密（safeStorage）、连接测试、模型获取 |
+| `project-repository.ts` | craft Project CRUD：工作区根目录下 `projects/{slug}/`，含 assets / MEMORY.md / prompt 上下文构建 |
+| `task-handlers.ts` | Work/Kanban IPC：Project/Task/Teambition 处理器、`session:command`（含 `set_project_id` 自动继承 workingDirectory）、`projects:changed` 广播 |
+| `task-runner.ts` | Task 编排：节点调度、孤儿 running 收敛、冷启动 rehydrate |
+| `conductor-session-host.ts` | TaskRunner → Agent 桥接：走 `runAgentHeadless` 注册 webContents，Work 触发的运行可在 Code 对话看到执行过程 |
 
 #### 集成服务
 
@@ -243,8 +250,10 @@ bun run generate:icons    # 生成应用图标
 |-----------|-----------|
 | `chat-atoms.ts` | 对话列表、当前消息、流式状态（Map 结构支持多对话并行）、模型选择、上下文设置、并排模式、思考模式、待上传附件 |
 | `agent-atoms.ts` | Agent 会话列表、当前会话、流式状态（`AgentStreamState`）、工作区选择、渠道选择、权限/AskUser 请求队列（按 sessionId Map） |
+| `project-atoms.ts` | craft Project 共享状态：`serverKanbanProjectsAtom`、`selectedProjectIdAtom`、`workViewAtom`（board / project） |
+| `kanban-atoms.ts` | Work 看板派生：会话/运行快照 + 流式覆盖 → Kanban 卡片视图模型 |
 | `active-view.ts` | 主面板视图切换（'conversations' / 'settings'） |
-| `app-mode.ts` | 应用模式（Chat / Agent） |
+| `app-mode.ts` | 应用模式（`chat` / `cowork` / `agent` / `scratch`）——UI 顶栏对应 Chat / Work / Code |
 | `settings-tab.ts` | 设置面板当前标签页 |
 | `theme.ts` | 主题模式（light / dark / system） |
 | `user-profile.ts` | 用户档案（姓名 + 头像） |
@@ -252,13 +261,16 @@ bun run generate:icons    # 生成应用图标
 
 ### 渲染进程组件架构（`renderer/components/`）
 
-- **`app-shell/`**：三面板布局（LeftSidebar | NavigatorPanel | MainContentPanel），侧边栏含模式切换、置顶对话、日期分组列表、流式指示器
+- **`app-shell/`**：三面板布局（LeftSidebar | NavigatorPanel | MainContentPanel）；Code 侧边栏按工作区分组，工作区组内嵌 craft Project 子分组（`SidebarProjectSubgroup` + `sidebar-project-groups.ts` view-model）；会话可在项目内新建 / 右键迁移，显示项目色条
+- **`work/`**：Work 模式 — WorkBoardView（Kanban 看板 + 项目详情）、ProjectsListPanel、ProjectInfoPage、TeambitionPicker；与 Code 共享 `serverKanbanProjectsAtom`
 - **`chat/`**：聊天核心 — ChatView（消息加载/流式订阅）、ChatHeader（模型选择/上下文设置）、ChatInput（Tiptap 富文本编辑器）、ChatMessages（消息列表/自动滚动）、ParallelChatMessages（并排模式）
-- **`agent/`**：Agent 模式 — AgentView（纯展示 + 交互，IPC 监听已提升到全局）、AgentHeader（渠道/模型选择）、AgentMessages（消息列表 + 工具活动）、ToolActivityItem（工具调用展示）、WorkspaceSelector（工作区切换）、PermissionBanner/AskUserBanner（权限/问答请求 UI）
+- **`agent/`**：Code/Agent 模式 — AgentView（纯展示 + 交互，IPC 监听已提升到全局）、AgentHeader（渠道/模型选择）、AgentMessages（消息列表 + 工具活动）、AgentTaskPanel（编排条/子任务进度）、ToolActivityItem（工具调用展示）、WorkspaceSelector（工作区切换）、PermissionBanner/AskUserBanner（权限/问答请求 UI）
 - **`settings/`**：设置面板 — GeneralSettings（用户档案）、AppearanceSettings（主题）、ChannelSettings（渠道管理）、ChannelForm（Provider 配置）、AgentSettings（Agent 渠道/工作区/MCP）、McpServerForm（MCP 服务器配置）、AboutSettings（版本/更新）、FeishuSettings（飞书集成）；含 `primitives/` 可复用表单组件
 - **`file-browser/`**：文件浏览器 — FileBrowser（工作区文件树浏览）
 - **`ai-elements/`**：AI 展示组件 — Markdown 渲染、代码块、Mermaid 图、推理折叠、上下文分割线、富文本输入
 - **`ui/`**：Radix UI 组件（现代化设计，CSS 变量主题）
+
+> **术语区分**：Code 侧边栏的「工作区」= `AgentWorkspace`（MCP/Skills/会话隔离单位）；Work 看板 / Code 子分组里的「项目」= craft `Project`（工作区内部的会话分组，含 workingDirectory / assets / MEMORY.md / kanbanColumns）。二者不要混用。
 
 ### 全局 Hooks（`renderer/hooks/`）
 
@@ -274,12 +286,13 @@ bun run generate:icons    # 生成应用图标
 | `ThemeInitializer` | 从主进程加载主题设置、监听系统主题变化、同步到 DOM |
 | `AgentSettingsInitializer` | 加载 Agent 渠道/模型/工作区设置、订阅 MCP/文件变化事件 |
 | `AgentListenersInitializer` | 挂载 `useGlobalAgentListeners`，全局 Agent IPC 监听 |
+| `ProjectsInitializer` | 按当前工作区加载 craft Project 列表进 `serverKanbanProjectsAtom`，订阅 `projects:changed`（按 workspace slug 匹配）；Code/Work 共享 |
 | `UpdaterInitializer` | 订阅主进程推送的自动更新状态变化事件 |
 
-### 本地文件存储（`~/.proma/`）
+### 本地文件存储（`~/.luxagents/`，开发模式 `~/.luxagents-dev/`）
 
 ```
-~/.proma/
+~/.luxagents/
 ├── channels.json           # 渠道配置（API Key 经 safeStorage 加密）
 ├── conversations.json      # 对话索引（元数据，轻量）
 ├── conversations/          # 消息存储
@@ -292,7 +305,12 @@ bun run generate:icons    # 生成应用图标
 │       ├── {session-id}/   # 会话工作目录
 │       ├── workspace-files/# 工作区持久文件
 │       ├── mcp.json        # MCP Server 配置
-│       └── skills/         # Skills 配置目录
+│       ├── skills/         # Skills 配置目录
+│       └── projects/       # craft Project（工作区内会话分组）
+│           └── {project-slug}/
+│               ├── config.json  # name / workingDirectory / color / kanbanColumns
+│               ├── assets/      # 项目参考文件
+│               └── MEMORY.md    # 项目记忆（注入 Agent prompt）
 ├── attachments/            # 附件文件
 │   └── {conversationId}/
 │       └── {uuid}.ext
@@ -305,7 +323,8 @@ bun run generate:icons    # 生成应用图标
 **关键设计**：
 - JSON 配置 + JSONL 追加日志，无本地数据库，文件可移植
 - Agent 工作区按 slug 隔离，每个会话独立目录
-- MCP 配置和 Skills 按工作区管理
+- MCP 配置、Skills、craft Project 按工作区管理
+- 会话通过 `projectId` 绑定 craft Project；`set_project_id` 命令会继承项目 `workingDirectory` 并注入 prompt 上下文
 
 ## 构建工具
 
@@ -485,7 +504,9 @@ React UI 更新
 ### 已实现功能
 
 - ✅ **多 Provider 支持**：Anthropic、OpenAI、DeepSeek、Kimi、智谱、MiniMax、豆包、通义千问、Google、自定义端点
-- ✅ **Agent SDK 集成**：基于 Codex Agent SDK 的完整 Agent 模式
+- ✅ **Agent SDK 集成**：基于 Claude Agent SDK 的完整 Agent / Code 模式
+- ✅ **Work / Kanban**：craft 风格看板、TaskRunner 编排、Teambition 认领、Code 对话可见执行过程
+- ✅ **craft Project**：工作区内项目分组（workingDirectory / assets / MEMORY.md）；Code 侧边栏子分组新建/迁移会话；项目详情跨模式跳转
 - ✅ **飞书集成**：消息同步、任务通知、OAuth 认证（68KB 核心服务）
 - ✅ **工作区管理**：多工作区隔离、MCP Server 配置、Skills 管理
 - ✅ **权限系统**：工具权限检查、用户确认流程
