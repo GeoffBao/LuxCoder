@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import type { ProviderType } from '@luxagents/shared'
 import { AnthropicAdapter } from './anthropic-adapter.ts'
-import { setPromaVersion } from './user-agent.ts'
+import { setAppVersion } from './user-agent.ts'
 
 function buildRequest(provider: ProviderType, apiKey = 'test-key') {
   const adapter = new AnthropicAdapter(provider)
@@ -31,7 +31,7 @@ describe('AnthropicAdapter headers', () => {
   })
 
   test('xiaomi token plan keeps bearer authentication with Proma User-Agent', () => {
-    setPromaVersion('9.9.9')
+    setAppVersion('9.9.9')
 
     const request = buildRequest('xiaomi-token-plan')
 
@@ -41,7 +41,7 @@ describe('AnthropicAdapter headers', () => {
   })
 
   test('zhipu team plan uses apiKey from JSON for model calls', () => {
-    setPromaVersion('9.9.9')
+    setAppVersion('9.9.9')
 
     const request = buildRequest(
       'zhipu-coding-team',

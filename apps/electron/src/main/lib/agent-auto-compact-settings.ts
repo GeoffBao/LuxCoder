@@ -1,4 +1,4 @@
-export function removePromaAutoCompactSettings(settings: Record<string, unknown>): boolean {
+export function removeLuxAgentsAutoCompactSettings(settings: Record<string, unknown>): boolean {
   let changed = false
 
   if ('autoCompactWindow' in settings) {
@@ -13,3 +13,6 @@ export function removePromaAutoCompactSettings(settings: Record<string, unknown>
 
   return changed
 }
+
+/** @deprecated 兼容旧测试名 */
+export const removePromaAutoCompactSettings = removeLuxAgentsAutoCompactSettings
