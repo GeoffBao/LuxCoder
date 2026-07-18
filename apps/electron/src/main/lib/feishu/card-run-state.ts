@@ -3,12 +3,8 @@ import type {
   SDKAssistantMessage,
   SDKResultMessage,
   SDKUserMessage,
-<<<<<<< HEAD
 } from '@luxagents/shared'
-=======
-} from '@proma/shared'
 import { isPartialSDKMessage } from '../bridge-agent-message-utils'
->>>>>>> da1a858c (fix(feishu): handle Pi partial stream frames (#1187))
 
 /**
  * 飞书流式卡片的运行时状态机。

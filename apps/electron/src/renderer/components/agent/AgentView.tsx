@@ -650,6 +650,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
   const planQuotaChannelId = stableChannel && supportsChannelPlanQuota(stableChannel)
     ? stableChannel.id
     : null
+  const planQuotaChannelUpdatedAt = planQuotaChannelId ? stableChannel?.updatedAt : undefined
   const agentChannelProvider = React.useMemo(
     () => globalChannels.find((c) => c.id === agentChannelId)?.provider,
     [globalChannels, agentChannelId],
@@ -2591,6 +2592,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
           isProcessing={streaming}
           sessionId={sessionId}
           channelId={planQuotaChannelId}
+          channelUpdatedAt={planQuotaChannelUpdatedAt}
           onCompact={handleCompact}
         />
       ),
@@ -2608,6 +2610,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     agentChannelIds,
     agentChannelId,
     planQuotaChannelId,
+    planQuotaChannelUpdatedAt,
     agentModelId,
     handleModelSelect,
     sessionAgentRuntime,
