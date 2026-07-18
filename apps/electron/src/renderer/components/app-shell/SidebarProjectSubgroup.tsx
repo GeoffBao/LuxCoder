@@ -3,7 +3,7 @@ import { ChevronRight, Info, Plus } from 'lucide-react'
 import type { SessionIndicatorStatus } from '@/atoms/agent-atoms'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { AgentSessionItem, getSessionLeftAccent } from './LeftSidebar'
+import { AgentSessionItem, getSessionLeftAccent } from './AgentSessionItem'
 import type { SidebarProjectGroup } from './sidebar-project-groups'
 import type { KanbanProject } from './kanban/types'
 

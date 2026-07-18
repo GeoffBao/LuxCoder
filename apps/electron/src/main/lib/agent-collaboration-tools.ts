@@ -639,6 +639,7 @@ function startDelegation(
 
   const child = createAgentSession(title, ctx.channelId, ctx.workspaceId, effectiveModelId)
   const rootSessionId = parent?.rootSessionId ?? parent?.id ?? ctx.sessionId
+  // 继承父会话的 craft Project，避免子会话掉出项目子分组、丢失项目 workingDirectory / prompt 上下文
   updateAgentSessionMeta(child.id, {
     parentSessionId: ctx.sessionId,
     rootSessionId,
@@ -649,6 +650,8 @@ function startDelegation(
     delegationDepth: (parent?.delegationDepth ?? 0) + 1,
     delegationGoal: goal,
     permissionMode,
+    ...(parent?.projectId ? { projectId: parent.projectId } : {}),
+    ...(parent?.workingDirectory ? { workingDirectory: parent.workingDirectory } : {}),
   })
 
   const record: DelegationRecord = {

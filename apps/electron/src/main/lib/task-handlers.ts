@@ -149,6 +149,21 @@ export function resolveTaskWorkingDirectory(
   return projectRepository.resolveWorkingDirectory(workspaceRoot, spec.project)
 }
 
+/**
+ * 构造 set_project_id 的会话更新补丁。
+ * 仅当目标项目解析出非空 workingDirectory 时才写入该字段；
+ * 解绑或项目无 cwd 时省略，保留会话已有工作目录（避免误清手动附加路径）。
+ */
+export function buildSetProjectIdUpdates(
+  projectId: string | undefined,
+  resolvedWorkingDirectory: string | undefined,
+): Pick<AgentSessionMeta, 'projectId'> & Partial<Pick<AgentSessionMeta, 'workingDirectory'>> {
+  return {
+    projectId,
+    ...(projectId && resolvedWorkingDirectory ? { workingDirectory: resolvedWorkingDirectory } : {}),
+  }
+}
+
 function mapTaskPermissionMode(mode: string | undefined): AgentSessionMeta['permissionMode'] | undefined {
   if (mode === undefined) return undefined
   if (mode === 'allow-all' || mode === 'bypassPermissions') return 'bypassPermissions'
@@ -484,13 +499,16 @@ export function registerTaskHandlers(window: BrowserWindow): void {
       case 'set_project_id': {
         const meta = getAgentSessionMeta(sessionId)
         const workspace = meta?.workspaceId ? getAgentWorkspace(meta.workspaceId) : undefined
-        const workingDirectory = workspace && command.projectId
-          ? projectRepository.resolveWorkingDirectory(getAgentWorkspacePath(workspace.slug), command.projectId)
+        const resolvedWorkingDirectory = command.projectId && workspace
+          ? projectRepository.resolveWorkingDirectory(
+              getAgentWorkspacePath(workspace.slug),
+              command.projectId,
+            )
           : undefined
-        return updateAgentSessionMeta(sessionId, {
-          projectId: command.projectId,
-          workingDirectory,
-        })
+        return updateAgentSessionMeta(
+          sessionId,
+          buildSetProjectIdUpdates(command.projectId, resolvedWorkingDirectory),
+        )
       }
       case 'set_kanban_column': {
         const sessionStatus = resolveSessionDropStatus(sessionId, command.kanbanColumn)
