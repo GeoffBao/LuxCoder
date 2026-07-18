@@ -37,6 +37,7 @@ import type {
   AgentMessageSearchResult,
   AgentSessionReferenceSearchInput,
   AgentSessionReferenceSearchResult,
+  AgentRuntime,
 } from '@luxagents/shared'
 import { migratePermissionMode } from '@luxagents/shared'
 import { getConversationMessages } from './conversation-manager'
@@ -190,6 +191,7 @@ export function createAgentSession(
   channelId?: string,
   workspaceId?: string,
   modelId?: string,
+  agentRuntime: AgentRuntime = 'claude',
 ): AgentSessionMeta {
   const index = readIndex()
   const now = Date.now()
@@ -200,6 +202,7 @@ export function createAgentSession(
     channelId,
     modelId,
     workspaceId,
+    agentRuntime,
     createdAt: now,
     updatedAt: now,
   }
@@ -834,6 +837,7 @@ export async function forkAgentSession(input: ForkSessionInput): Promise<AgentSe
     sourceMeta.channelId,
     sourceMeta.workspaceId,
     forkModelId,
+    'claude',
   )
 
   updateAgentSessionMeta(newMeta.id, {

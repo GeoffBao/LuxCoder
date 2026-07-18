@@ -637,7 +637,7 @@ function startDelegation(
 
   const { completion, resolveCompletion } = createDelegationCompletion()
 
-  const child = createAgentSession(title, ctx.channelId, ctx.workspaceId, effectiveModelId)
+  const child = createAgentSession(title, ctx.channelId, ctx.workspaceId, effectiveModelId, parent?.agentRuntime ?? 'claude')
   const rootSessionId = parent?.rootSessionId ?? parent?.id ?? ctx.sessionId
   // 继承父会话的 craft Project，避免子会话掉出项目子分组、丢失项目 workingDirectory / prompt 上下文
   updateAgentSessionMeta(child.id, {
