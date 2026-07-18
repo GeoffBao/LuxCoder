@@ -827,7 +827,7 @@ async function queryCodexPlanQuota(
   const headers: Record<string, string> = {
     Authorization: `Bearer ${accessToken}`,
     Accept: 'application/json',
-    'User-Agent': getPromaUserAgent(pkg.version),
+    'User-Agent': getAppUserAgent(pkg.version),
   }
   if (activeCredentials.accountId) {
     headers['ChatGPT-Account-Id'] = activeCredentials.accountId
