@@ -1645,6 +1645,9 @@ ${workContext}` : '')
         },
         onModelResolved: handleModelResolved,
         onContextWindow: handleContextWindow,
+        onRetry: (retry) => {
+          this.eventBus.emit(sessionId, { kind: 'proma_event', event: { type: 'retry', ...retry } })
+        },
       } : {
         agentRuntime: 'claude',
         sessionId,
@@ -1713,6 +1716,10 @@ ${workContext}` : '')
       let invisibleRecoveryAttempts = 0
       const canAutoRetry = (attempt: number): boolean =>
         attempt <= MAX_AUTO_RETRIES && retryDelayElapsedMs < MAX_AUTO_RETRY_WAIT_MS
+      // Pi runtime 使用其 session 内的 native retry（agent.continue），能保留已完成的
+      // tool_result；禁止外层以原 prompt 重开 query，但保留 session-not-found 等显式恢复。
+      const canReplayPromptForRetry = (attempt: number): boolean =>
+        agentRuntime !== 'pi' && canAutoRetry(attempt)
 
       const canTryThinkingSignatureRecovery = (attempt: number): boolean =>
         !thinkingSignatureRecoveryAttempted &&
@@ -1940,7 +1947,7 @@ ${workContext}` : '')
                 }
 
                 // 判断是否可自动重试
-                if (isAutoRetryableTypedError(typedError) && canAutoRetry(attempt)) {
+                if (isAutoRetryableTypedError(typedError) && canReplayPromptForRetry(attempt)) {
                   lastRetryableError = typedError.title
                     ? `${typedError.title}: ${typedError.message}`
                     : typedError.message
@@ -2088,7 +2095,7 @@ ${workContext}` : '')
                 capturedResultSubtype === 'error_during_execution' &&
                 capturedResultErrors?.length &&
                 isAutoRetryableCatchError(null, capturedResultErrors.join('\n')) &&
-                canAutoRetry(attempt)
+                canReplayPromptForRetry(attempt)
               ) {
                 lastRetryableError = capturedResultErrors[0]
                 console.log(`[Agent 编排] 可重试错误 (result error_during_execution, attempt ${attempt}/${MAX_AUTO_RETRIES}): ${lastRetryableError}`)
@@ -2266,7 +2273,7 @@ ${workContext}` : '')
           }
 
           // 判断是否可重试
-          if (isAutoRetryableCatchError(apiError, rawErrorMessage, stderrOutput) && canAutoRetry(attempt)) {
+          if (isAutoRetryableCatchError(apiError, rawErrorMessage, stderrOutput) && canReplayPromptForRetry(attempt)) {
             lastRetryableError = apiError
               ? `API Error ${apiError.statusCode}: ${apiError.message}`
               : (error instanceof Error ? error.message : '未知错误')
