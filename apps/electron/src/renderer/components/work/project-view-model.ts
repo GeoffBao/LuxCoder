@@ -18,7 +18,8 @@ export interface ProjectSettingsDraft {
   description: string
   details: string
   color: string
-  workingDirectory: string
+  /** 可选：未传时按空字符串处理（兼容尚未接线的调用方） */
+  workingDirectory?: string
   kanbanColumns?: ProjectColumnDraft[]
 }
 
@@ -84,7 +85,7 @@ export function buildProjectUpdate(draft: ProjectSettingsDraft): ProjectUpdatePa
     description: optionalText(draft.description),
     details: optionalText(draft.details),
     color: optionalText(draft.color),
-    workingDirectory: optionalText(draft.workingDirectory),
+    workingDirectory: optionalText(draft.workingDirectory ?? ''),
     kanbanColumns: draft.kanbanColumns && draft.kanbanColumns.length > 0
       ? draft.kanbanColumns
       : undefined,
