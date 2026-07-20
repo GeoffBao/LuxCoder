@@ -26,7 +26,6 @@ import type { SpecNodeSummary } from '@/components/app-shell/kanban/subtask-merg
 import type { KanbanItem, KanbanProject, KanbanTaskRun } from '@/components/app-shell/kanban/types'
 import { useOpenSession } from '@/hooks/useOpenSession'
 import { ProjectInfoPage } from './ProjectInfoPage'
-import { ProjectsListPanel } from './ProjectsListPanel'
 import { buildKanbanTaskRun } from './work-board-model'
 
 function errorMessage(cause: unknown): string {
@@ -265,67 +264,55 @@ export function WorkBoardView(): React.ReactElement {
   }
 
   return (
-    <div className="flex h-full min-h-0 gap-3 bg-background p-3">
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <div className="flex min-h-9 items-center justify-between rounded-xl bg-card px-2 shadow-sm">
-          <div className="flex items-center gap-1">
-            <Button size="sm" variant={view === 'board' ? 'secondary' : 'ghost'} onClick={() => setView('board')}>
-              <LayoutDashboard className="h-4 w-4" />看板
-            </Button>
-            <Button
-              size="sm"
-              variant={view === 'project' ? 'secondary' : 'ghost'}
-              disabled={!selectedProject}
-              onClick={() => setView('project')}
-            >
-              <Info className="h-4 w-4" />项目详情
-            </Button>
-          </div>
-          <Button size="sm" variant="ghost" disabled={loading} onClick={() => void handleRefresh()}>
-            <RefreshCw className={loading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />刷新
+    <div className="flex h-full min-h-0 flex-col gap-2 bg-background p-3">
+      <div className="flex min-h-9 items-center justify-between rounded-xl bg-card px-2 shadow-sm">
+        <div className="flex items-center gap-1">
+          <Button size="sm" variant={view === 'board' ? 'secondary' : 'ghost'} onClick={() => setView('board')}>
+            <LayoutDashboard className="h-4 w-4" />看板
+          </Button>
+          <Button
+            size="sm"
+            variant={view === 'project' ? 'secondary' : 'ghost'}
+            disabled={!selectedProject}
+            onClick={() => setView('project')}
+          >
+            <Info className="h-4 w-4" />项目详情
           </Button>
         </div>
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          {error && (
-            <div className="mb-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {error}
-            </div>
-          )}
-          <div className="min-h-0 flex-1 overflow-hidden">
-            {view === 'project' && selectedProject ? (
-              <ProjectInfoPage
-                workspaceRoot={workspaceRoot}
-                project={selectedProject}
-                sessions={agentSessions}
-                onProjectChanged={handleProjectChanged}
-                onDeleted={handleProjectDeleted}
-                onOpenSession={handleOpenSession}
-              />
-            ) : (
-              <KanbanBoardContainer
-                onOpenItem={handleOpenItem}
-                onOpenSubtask={handleOpenSubtask}
-                onSessionCreated={(session) => {
-                  setAgentSessions((current) => [session, ...current.filter((candidate) => candidate.id !== session.id)])
-                }}
-                onTaskCreated={async () => {
-                  await refreshAll()
-                }}
-              />
-            )}
+        <Button size="sm" variant="ghost" disabled={loading} onClick={() => void handleRefresh()}>
+          <RefreshCw className={loading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />刷新
+        </Button>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        {error && (
+          <div className="mb-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {error}
           </div>
+        )}
+        <div className="min-h-0 flex-1 overflow-hidden">
+          {view === 'project' && selectedProject ? (
+            <ProjectInfoPage
+              workspaceRoot={workspaceRoot}
+              project={selectedProject}
+              sessions={agentSessions}
+              onProjectChanged={handleProjectChanged}
+              onDeleted={handleProjectDeleted}
+              onOpenSession={handleOpenSession}
+            />
+          ) : (
+            <KanbanBoardContainer
+              onOpenItem={handleOpenItem}
+              onOpenSubtask={handleOpenSubtask}
+              onSessionCreated={(session) => {
+                setAgentSessions((current) => [session, ...current.filter((candidate) => candidate.id !== session.id)])
+              }}
+              onTaskCreated={async () => {
+                await refreshAll()
+              }}
+            />
+          )}
         </div>
       </div>
-      <ProjectsListPanel
-        workspaceRoot={workspaceRoot}
-        projects={projects}
-        selectedProjectId={selectedProjectId}
-        onSelect={(projectId) => {
-          setSelectedProjectId(projectId)
-          setView('board')
-        }}
-        onProjectChanged={handleProjectChanged}
-      />
     </div>
   )
 }
