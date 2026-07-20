@@ -1,4 +1,4 @@
-import type { RetryAttempt } from '@proma/shared'
+import type { RetryAttempt } from '@luxagents/shared'
 
 export type PiRetryUpdate =
   | { status: 'starting'; attempt: number; maxAttempts: number; delaySeconds: number; reason: string }
