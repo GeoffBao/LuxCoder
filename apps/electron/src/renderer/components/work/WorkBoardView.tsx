@@ -218,7 +218,12 @@ export function WorkBoardView(): React.ReactElement {
 
   const handleProjectChanged = React.useCallback((project: KanbanProject): void => {
     setProjects((current) => upsertProject(current, project))
-  }, [setProjects])
+    // 归档后列表默认隐藏该项；若仍保持选中会导致看板过滤到「看不见的项目」
+    if (project.archivedAt && selectedProjectId === project.id) {
+      setSelectedProjectId(null)
+      setView('board')
+    }
+  }, [selectedProjectId, setProjects, setSelectedProjectId, setView])
 
   const handleProjectDeleted = React.useCallback((projectId: string): void => {
     setProjects((current) => current.filter((project) => project.id !== projectId))
