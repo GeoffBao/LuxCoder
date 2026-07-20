@@ -37,14 +37,9 @@ import { buildLiveGroupSet } from './live-group-set'
 import { ContentBlock } from './ContentBlock'
 import { parseThinkTagsFromText } from './thinking-tag-parser'
 import { AgentHistorySelectionLayer } from './AgentHistorySelectionLayer'
-<<<<<<< HEAD
-import type { AgentEventUsage, RetryAttempt, SDKMessage, SDKSystemMessage } from '@luxagents/shared'
-import { getSDKCompactStatus } from '@luxagents/shared'
-=======
 import { TaskProgressOverlay } from './TaskProgressOverlay'
 import type { AgentEventUsage, RetryAttempt, SDKMessage, SDKSystemMessage } from '@luxagents/shared'
 import { getSDKCompactStatus } from '@luxagents/shared'
->>>>>>> 5057d0e9 (feat(agent): add live task progress overlay (#1205))
 import type { AgentStreamState } from '@/atoms/agent-atoms'
 
 function stableStringify(value: unknown): string {
