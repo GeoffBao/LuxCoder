@@ -165,7 +165,7 @@ interface TaskResults {
   runId: string
 }
 
-/** 渲染进程项目 DTO：不泄露项目目录与工作目录。 */
+/** 渲染进程项目 DTO：透传 ProjectConfig（含 workingDirectory）；不泄露 LoadedProject 运行时路径（folderPath 等）。 */
 export type BrowserProject = ProjectConfig & { workspaceId: string }
 export type BrowserProjectCreateInput = CreateProjectInput
 export type BrowserProjectUpdateInput = UpdateProjectInput
