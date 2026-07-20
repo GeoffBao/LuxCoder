@@ -31,6 +31,7 @@ export function getSettings(): AppSettings {
       builtinMcpDisabledIds: [],
       sidebarModuleCollapsed: {},
       agentRuntime: DEFAULT_AGENT_RUNTIME,
+      agentThinking: { type: 'adaptive' },
     }
   }
 
@@ -52,6 +53,7 @@ export function getSettings(): AppSettings {
       builtinMcpDisabledIds: settings.builtinMcpDisabledIds ?? [],
       sidebarModuleCollapsed: data.sidebarModuleCollapsed ?? {},
       agentRuntime: settings.agentRuntime ?? DEFAULT_AGENT_RUNTIME,
+      agentThinking: settings.agentThinking ?? { type: 'adaptive' },
     }
   } catch (error) {
     console.error('[设置] 读取失败:', error)
@@ -67,6 +69,7 @@ export function getSettings(): AppSettings {
       builtinMcpDisabledIds: [],
       sidebarModuleCollapsed: {},
       agentRuntime: DEFAULT_AGENT_RUNTIME,
+      agentThinking: { type: 'adaptive' },
     }
   }
 }
