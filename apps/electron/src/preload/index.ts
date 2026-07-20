@@ -39,6 +39,7 @@ import type {
   SDKMessage,
   AgentSendInput,
   AgentRuntime,
+  AgentThinkingLevel,
   AgentStreamEvent,
   AgentStreamCompletePayload,
   AgentWorkspace,
@@ -573,6 +574,9 @@ export interface ElectronAPI {
 
   /** 切换当前会话的 ChatGPT Codex Fast Mode */
   updateSessionCodexFastMode: (sessionId: string, enabled: boolean) => Promise<AgentSessionMeta>
+
+  /** 更新当前会话的 Codex 思考深度 */
+  updateSessionOpenAIThinkingLevel: (sessionId: string, thinkingLevel: AgentThinkingLevel) => Promise<AgentSessionMeta>
 
   /** 更新 Agent 会话模型选择 */
   updateAgentSessionModel: (id: string, channelId?: string, modelId?: string) => Promise<AgentSessionMeta>
@@ -1684,6 +1688,10 @@ const electronAPI: ElectronAPI = {
 
   updateSessionCodexFastMode: (sessionId: string, enabled: boolean) => {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.UPDATE_SESSION_CODEX_FAST_MODE, sessionId, enabled)
+  },
+
+  updateSessionOpenAIThinkingLevel: (sessionId: string, thinkingLevel: AgentThinkingLevel) => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.UPDATE_SESSION_OPENAI_REASONING, sessionId, thinkingLevel)
   },
 
   updateAgentSessionModel: (id: string, channelId?: string, modelId?: string) => {

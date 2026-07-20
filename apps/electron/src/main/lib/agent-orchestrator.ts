@@ -30,6 +30,7 @@ import {
   isPersistableSDKSystemMessage,
   normalizeMcpTransportType,
   inferAgentSdkContextWindow,
+  isOpenAIReasoningSupportedModel,
 } from '@luxagents/shared'
 import type { LuxAgentsPermissionMode, AskUserRequest, ExitPlanModeRequest, SDKSystemMessage } from '@luxagents/shared'
 import type { ClaudeAgentQueryOptions } from './adapters/claude-agent-adapter'
@@ -66,6 +67,7 @@ import type { AgentRuntimeEnv } from './agent-runtime-env'
 import { isVisibleRunMessage } from './agent-run-message-visibility'
 import { applyAgentSdkAuthEnv } from './agent-sdk-auth-env'
 import { getAgentSdkMaxOutputTokens } from './agent-sdk-output-limits'
+import { resolvePiThinkingLevel } from './agent-thinking-level'
 import { createFallbackTitle, sanitizeGeneratedTitle, TITLE_PROMPT } from './title-generation'
 
 // ===== 类型定义 =====
@@ -109,12 +111,6 @@ function buildPiRuntimeEnv(env: Record<string, string | undefined>): AgentRuntim
     if (value !== undefined) cleanEnv[key] = value
   }
   return { env: cleanEnv }
-}
-
-function resolvePiThinkingLevel(settings: ReturnType<typeof getSettings>): AgentThinkingLevel {
-  if (settings.agentThinking?.type === 'disabled') return 'off'
-  if (settings.agentEffort === 'max') return 'xhigh'
-  return settings.agentEffort ?? (settings.agentThinking ? 'high' : 'off')
 }
 
 const EMPTY_RESPONSE_RESULT_SUBTYPE = 'empty_response'
@@ -1596,7 +1592,11 @@ export class AgentOrchestrator {
         ...(mentionedSkills?.length ? { skillMentions: mentionedSkills } : {}),
         ...(isCompactCommand ? { compactRequest: true } : {}),
         ...(sessionMeta?.codexFastMode && channel.provider === 'openai-codex' ? { codexFastMode: true } : {}),
-        thinkingLevel: resolvePiThinkingLevel(appSettings),
+        ...((channel.provider === 'openai-codex' || channel.provider === 'openai-responses')
+          && isOpenAIReasoningSupportedModel(selectedModelId) && {
+            openAIThinkingLevel: resolvePiThinkingLevel(appSettings, sessionMeta, channel.provider),
+          }),
+        thinkingLevel: resolvePiThinkingLevel(appSettings, sessionMeta, channel.provider),
         ...(appSettings.agentMaxBudgetUsd != null && appSettings.agentMaxBudgetUsd > 0 && {
           maxBudgetUsd: appSettings.agentMaxBudgetUsd,
         }),
