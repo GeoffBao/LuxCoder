@@ -18,6 +18,7 @@ export interface ProjectSettingsDraft {
   description: string
   details: string
   color: string
+  workingDirectory: string
   kanbanColumns?: ProjectColumnDraft[]
 }
 
@@ -26,7 +27,15 @@ export interface ProjectUpdatePatch {
   description?: string
   details?: string
   color?: string
+  workingDirectory?: string
   kanbanColumns?: ProjectColumnDraft[]
+}
+
+export interface CreateProjectDraft {
+  name: string
+  description: string
+  workingDirectory: string
+  color: string
 }
 
 export function filterProjects(projects: KanbanProject[], filter: ProjectFilter): KanbanProject[] {
@@ -48,12 +57,34 @@ function optionalText(value: string): string | undefined {
   return value.trim() || undefined
 }
 
+export function buildCreateProjectInput(draft: CreateProjectDraft): {
+  name: string
+  description?: string
+  workingDirectory?: string
+  color?: string
+} {
+  const input: {
+    name: string
+    description?: string
+    workingDirectory?: string
+    color?: string
+  } = { name: draft.name.trim() }
+  const description = optionalText(draft.description)
+  const workingDirectory = optionalText(draft.workingDirectory)
+  const color = optionalText(draft.color)
+  if (description) input.description = description
+  if (workingDirectory) input.workingDirectory = workingDirectory
+  if (color) input.color = color
+  return input
+}
+
 export function buildProjectUpdate(draft: ProjectSettingsDraft): ProjectUpdatePatch {
   return {
     name: draft.name.trim(),
     description: optionalText(draft.description),
     details: optionalText(draft.details),
     color: optionalText(draft.color),
+    workingDirectory: optionalText(draft.workingDirectory),
     kanbanColumns: draft.kanbanColumns && draft.kanbanColumns.length > 0
       ? draft.kanbanColumns
       : undefined,
