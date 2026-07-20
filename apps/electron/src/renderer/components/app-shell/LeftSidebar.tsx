@@ -126,6 +126,7 @@ import type { ConversationMeta, AgentSessionMeta, AgentWorkspace, WorkspaceCapab
 import type { KanbanProject } from './kanban/types'
 import { buildProjectColorMap, buildSidebarProjectGroups } from './sidebar-project-groups'
 import { SidebarProjectSubgroup } from './SidebarProjectSubgroup'
+import { SidebarProjectsSection } from '@/components/work/SidebarProjectsSection'
 import { AgentSessionItem, getSessionLeftAccent, SessionItemActions } from './AgentSessionItem'
 
 function formatAutomationCount(count: number): string {
@@ -699,6 +700,21 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
     if (!currentWorkspaceId) return null
     return workspaces.find((w) => w.id === currentWorkspaceId)?.slug ?? null
   }, [currentWorkspaceId, workspaces])
+
+  const [workspaceRootForProjects, setWorkspaceRootForProjects] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    let cancelled = false
+    if (!currentWorkspaceSlug) {
+      setWorkspaceRootForProjects(null)
+      return () => { cancelled = true }
+    }
+    void window.electronAPI.getWorkspaceRootPath(currentWorkspaceSlug)
+      .then((root) => {
+        if (!cancelled) setWorkspaceRootForProjects(root)
+      })
+    return () => { cancelled = true }
+  }, [currentWorkspaceSlug])
 
   const workspaceNameMap = React.useMemo(() => {
     const map = new Map<string, string>()
@@ -2222,6 +2238,15 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
             updateCount={capabilities?.skills.filter((s) => s.hasUpdate).length ?? 0}
             active={activeView === 'agent-skills'}
             onClick={handleOpenSkills}
+          />
+        </div>
+      )}
+
+      {(mode === 'agent' || mode === 'cowork') && (
+        <div className="px-3 pb-1 titlebar-no-drag">
+          <SidebarProjectsSection
+            workspaceRoot={workspaceRootForProjects}
+            workspaceSlug={currentWorkspaceSlug}
           />
         </div>
       )}
