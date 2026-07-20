@@ -20,13 +20,15 @@ export interface KanbanSubtask {
   model: string
 }
 
-/** 渲染进程使用的项目摘要，不包含本地文件路径。 */
+/** 渲染进程使用的项目摘要；列表可含 workingDirectory，供详情编辑；路径仅桌面端本地使用。 */
 export interface KanbanProject {
   id: string
   slug?: string
   name: string
   description?: string
   details?: string
+  /** 项目绑定工作目录；新会话可继承（主进程 set_project_id） */
+  workingDirectory?: string
   color?: string
   archivedAt?: number
   /** 项目最近更新时间（侧边栏子分组排序用；preload 透传 ProjectConfig.updatedAt） */

@@ -166,9 +166,9 @@ interface TaskResults {
 }
 
 /** 渲染进程项目 DTO：不泄露项目目录与工作目录。 */
-export type BrowserProject = Omit<ProjectConfig, 'workingDirectory'> & { workspaceId: string }
-export type BrowserProjectCreateInput = Omit<CreateProjectInput, 'workingDirectory'>
-export type BrowserProjectUpdateInput = Omit<UpdateProjectInput, 'workingDirectory'>
+export type BrowserProject = ProjectConfig & { workspaceId: string }
+export type BrowserProjectCreateInput = CreateProjectInput
+export type BrowserProjectUpdateInput = UpdateProjectInput
 export type BrowserProjectAsset = Omit<ProjectAsset, 'absolutePath'>
 export interface BrowserProjectAssetUploadInput {
   filename: string
@@ -251,8 +251,7 @@ function invokeTyped<TResult>(channel: string, ...args: unknown[]): Promise<TRes
 }
 
 function toBrowserProject(project: LoadedProject): BrowserProject {
-  const { workingDirectory: _workingDirectory, ...config } = project.config
-  return { ...config, workspaceId: project.workspaceId }
+  return { ...project.config, workspaceId: project.workspaceId }
 }
 
 function toBrowserProjectAsset(asset: ProjectAsset): BrowserProjectAsset {
