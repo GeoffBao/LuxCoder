@@ -57,13 +57,20 @@ export function ProjectInfoPage({
     description: project.description ?? '',
     details: project.details ?? '',
     color: project.color ?? '',
+    workingDirectory: project.workingDirectory ?? '',
   })
   const [columns, setColumns] = React.useState<ProjectColumnDraft[]>(project.kanbanColumns ?? [])
   const projectSessions = getProjectSessions(sessions, project.id)
   const slug = project.slug
 
   React.useEffect(() => {
-    setSettingsDraft({ name: project.name, description: project.description ?? '', details: project.details ?? '', color: project.color ?? '' })
+    setSettingsDraft({
+      name: project.name,
+      description: project.description ?? '',
+      details: project.details ?? '',
+      color: project.color ?? '',
+      workingDirectory: project.workingDirectory ?? '',
+    })
     setColumns(project.kanbanColumns ?? [])
   }, [project])
 
@@ -208,6 +215,19 @@ export function ProjectInfoPage({
         {tab === 'settings' && (
           <div className="mx-auto max-w-2xl space-y-5">
             <div className="grid gap-3 sm:grid-cols-2"><label className="space-y-1.5 text-xs font-medium">项目名称<Input value={settingsDraft.name} onChange={(event) => setSettingsDraft((current) => ({ ...current, name: event.target.value }))} /></label><label className="space-y-1.5 text-xs font-medium">强调色<Input type="color" value={settingsDraft.color || '#6366f1'} onChange={(event) => setSettingsDraft((current) => ({ ...current, color: event.target.value }))} /></label></div>
+            <label className="block space-y-1.5 text-xs font-medium">
+              工作目录
+              <Input
+                value={settingsDraft.workingDirectory}
+                onChange={(event) =>
+                  setSettingsDraft((current) => ({
+                    ...current,
+                    workingDirectory: event.target.value,
+                  }))
+                }
+                placeholder="绝对路径；新会话可继承"
+              />
+            </label>
             <label className="block space-y-1.5 text-xs font-medium">描述<Input value={settingsDraft.description} onChange={(event) => setSettingsDraft((current) => ({ ...current, description: event.target.value }))} /></label>
             <label className="block space-y-1.5 text-xs font-medium">项目说明<Textarea value={settingsDraft.details} onChange={(event) => setSettingsDraft((current) => ({ ...current, details: event.target.value }))} rows={5} /></label>
             <div className="space-y-2"><div className="flex items-center justify-between"><div><h3 className="text-sm font-semibold">自定义 Kanban 列</h3><p className="text-xs text-muted-foreground">留空时使用默认列。</p></div><Button variant="outline" size="sm" onClick={() => setColumns((current) => [...current, { id: `column-${Date.now()}`, name: '新列' }])}><Plus className="h-4 w-4" />添加列</Button></div>{columns.map((column, index) => <div key={column.id} className="grid gap-2 rounded-xl bg-muted/35 p-3 sm:grid-cols-[1fr_120px_1fr_auto]"><Input value={column.name} onChange={(event) => setColumns((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item))} placeholder="列名" /><Input type="color" value={column.color ?? '#64748b'} onChange={(event) => setColumns((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, color: event.target.value } : item))} /><Input value={column.dropStatusId ?? ''} onChange={(event) => setColumns((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, dropStatusId: event.target.value || undefined } : item))} placeholder="拖入时状态（可选）" /><Button variant="ghost" size="icon" onClick={() => setColumns((current) => current.filter((_, itemIndex) => itemIndex !== index))}><Trash2 className="h-4 w-4" /></Button></div>)}</div>
