@@ -19,6 +19,7 @@ import { TabContent } from './TabContent'
 import { AutomationFormView } from '@/components/automation/AutomationFormView'
 import { AutomationsListView } from '@/components/automation/AutomationsListView'
 import { AgentSkillsView } from '@/components/agent-skills/AgentSkillsView'
+import { ProjectsHubView } from '@/components/work/ProjectsHubView'
 import { automationFormAtom } from '@/atoms/automation-atoms'
 import { activeViewAtom } from '@/atoms/active-view'
 import { interfaceVariantAtom } from '@/atoms/theme'
@@ -189,6 +190,13 @@ export function MainArea(): React.ReactElement {
             ) : activeView === 'agent-skills' ? (
               // Agent 技能视图：全屏取代 TabBar + TabContent
               <AgentSkillsView />
+            ) : activeView === 'projects' ? (
+              // 项目中心 Hub：全屏取代 TabBar + TabContent
+              <ProjectsHubView />
+            ) : activeView === 'agent-experts' ? (
+              <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+                Agent 专家加载中…
+              </div>
             ) : (
               <>
                 {/* Code 模式会话视图顶部常驻「会话 | 看板」切换条 */}
