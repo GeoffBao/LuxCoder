@@ -2,7 +2,7 @@ import type { ExpertDefinition } from './types.ts'
 
 /** 内置专家目录（P0 固定 10 个 slug，与 spec §5.3 一致） */
 export const BUILTIN_EXPERT_DEFINITIONS: readonly ExpertDefinition[] = [
-  { id: 'general', label: '通用专家', identitySummary: '跨领域通用协作与问题拆解' },
+  { id: 'general', label: '通用软件专家', identitySummary: '跨领域通用协作与问题拆解' },
   { id: 'driver', label: '驱动软件专家', identitySummary: '内核驱动、HAL 与底层软件栈' },
   { id: 'application', label: '应用软件专家', identitySummary: '应用层功能、交互与业务逻辑' },
   { id: 'system', label: '系统软件专家', identitySummary: '系统服务、框架与平台集成' },

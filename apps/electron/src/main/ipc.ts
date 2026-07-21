@@ -171,6 +171,7 @@ import {
 } from './lib/automation-manager'
 import { runAutomationNow, broadcastChanged as broadcastAutomationsChanged } from './lib/automation-scheduler'
 import {
+  createExpert,
   getExpert,
   listExperts,
   updateExpertFiles,
@@ -4372,6 +4373,23 @@ export function registerIpcHandlers(): void {
     async (_, id: string): Promise<ExpertPackage | null> => {
       if (!isNonEmptyString(id)) throw new Error('id 必填')
       return getExpert(getExpertsDir(), id)
+    },
+  )
+
+  ipcMain.handle(
+    EXPERT_IPC_CHANNELS.CREATE,
+    async (
+      _,
+      input: { id: string; label: string; identitySummary?: string },
+    ): Promise<ExpertPackage> => {
+      if (!input || typeof input !== 'object') throw new Error('input 必须是对象')
+      if (!isNonEmptyString(input.id)) throw new Error('id 必填')
+      if (!isNonEmptyString(input.label)) throw new Error('label 必填')
+      return createExpert(getExpertsDir(), {
+        id: input.id,
+        label: input.label,
+        identitySummary: typeof input.identitySummary === 'string' ? input.identitySummary : undefined,
+      })
     },
   )
 

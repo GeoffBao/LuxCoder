@@ -21,3 +21,14 @@ export type CodeMainView = 'session' | 'work'
 
 /** Code 模式主区视图（不持久化，启动默认会话视图；仅 agent 模式读取） */
 export const codeMainViewAtom = atom<CodeMainView>('session')
+
+/**
+ * 跨视图打开 TaskEditor（如项目中心卡片「新建任务」）。
+ * KanbanBoardContainer 消费后清空。
+ */
+export type PendingTaskEditorTarget = {
+  mode: 'create'
+  initialProjectId?: string
+}
+
+export const pendingTaskEditorTargetAtom = atom<PendingTaskEditorTarget | null>(null)

@@ -20,6 +20,7 @@ import {
 import { activeViewAtom } from '@/atoms/active-view'
 import {
   codeMainViewAtom,
+  pendingTaskEditorTargetAtom,
   selectedProjectIdAtom,
   serverKanbanProjectsAtom,
   workViewAtom,
@@ -47,6 +48,7 @@ export function ProjectsHubView(): React.ReactElement {
   const setWorkView = useSetAtom(workViewAtom)
   const setCodeMainView = useSetAtom(codeMainViewAtom)
   const setActiveView = useSetAtom(activeViewAtom)
+  const setPendingTaskEditorTarget = useSetAtom(pendingTaskEditorTargetAtom)
 
   const [query, setQuery] = React.useState('')
   const [showArchived, setShowArchived] = React.useState(false)
@@ -103,6 +105,14 @@ export function ProjectsHubView(): React.ReactElement {
     setWorkView('project')
     enterWorkMainView()
   }, [enterWorkMainView, setSelectedProjectId, setWorkView])
+
+  /** 进入看板并打开 TaskEditor 新建任务 */
+  const openCreateTask = React.useCallback((projectId: string): void => {
+    setSelectedProjectId(projectId)
+    setWorkView('board')
+    setPendingTaskEditorTarget({ mode: 'create', initialProjectId: projectId })
+    enterWorkMainView()
+  }, [enterWorkMainView, setPendingTaskEditorTarget, setSelectedProjectId, setWorkView])
 
   const handleCreateProject = async (
     input: Parameters<typeof window.electronAPI.projects.create>[1],
@@ -200,6 +210,7 @@ export function ProjectsHubView(): React.ReactElement {
                   expertOptions={expertOptions}
                   onOpenBoard={() => openBoard(project.id)}
                   onOpenDetail={() => openDetail(project.id)}
+                  onCreateTask={() => openCreateTask(project.id)}
                 />
               ))}
             </div>
@@ -222,9 +233,16 @@ interface ProjectHubCardProps {
   expertOptions: readonly ExpertOption[]
   onOpenBoard: () => void
   onOpenDetail: () => void
+  onCreateTask: () => void
 }
 
-function ProjectHubCard({ project, expertOptions, onOpenBoard, onOpenDetail }: ProjectHubCardProps): React.ReactElement {
+function ProjectHubCard({
+  project,
+  expertOptions,
+  onOpenBoard,
+  onOpenDetail,
+  onCreateTask,
+}: ProjectHubCardProps): React.ReactElement {
   const color = project.color ?? 'hsl(var(--muted-foreground))'
   const expertLabel = resolveExpertLabel(project.defaultExpertId, expertOptions)
 
@@ -258,21 +276,33 @@ function ProjectHubCard({ project, expertOptions, onOpenBoard, onOpenDetail }: P
         </Badge>
       </button>
 
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label={`「${project.name}」项目详情`}
-            onClick={onOpenDetail}
-            className="absolute right-2 top-2 text-foreground/30 opacity-0 transition-opacity hover:text-foreground/65 group-hover/project-card:opacity-100 focus-visible:opacity-100"
-          >
-            <Info size={14} />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="top">项目详情</TooltipContent>
-      </Tooltip>
+      <div className="mt-3 flex items-center justify-between gap-2 border-t border-border/40 pt-3">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 text-[12px] text-foreground/70 hover:text-foreground"
+          onClick={onCreateTask}
+        >
+          <Plus size={12} />
+          新建任务
+        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={`「${project.name}」项目详情`}
+              onClick={onOpenDetail}
+              className="text-foreground/40 hover:text-foreground/70"
+            >
+              <Info size={14} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="top">项目详情</TooltipContent>
+        </Tooltip>
+      </div>
     </div>
   )
 }

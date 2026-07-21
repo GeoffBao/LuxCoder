@@ -1168,6 +1168,7 @@ export interface ElectronAPI {
   experts: {
     list: () => Promise<ExpertPackage[]>
     get: (id: string) => Promise<ExpertPackage | null>
+    create: (input: { id: string; label: string; identitySummary?: string }) => Promise<ExpertPackage>
     updateManifest: (
       id: string,
       patch: Partial<Pick<ExpertManifest, 'skillSlugs' | 'mcpIds' | 'label'>>,
@@ -2580,6 +2581,8 @@ const electronAPI: ElectronAPI = {
       invokeTyped<ExpertPackage[]>(EXPERT_IPC_CHANNELS.LIST),
     get: (id: string): Promise<ExpertPackage | null> =>
       invokeTyped<ExpertPackage | null>(EXPERT_IPC_CHANNELS.GET, id),
+    create: (input: { id: string; label: string; identitySummary?: string }): Promise<ExpertPackage> =>
+      invokeTyped<ExpertPackage>(EXPERT_IPC_CHANNELS.CREATE, input),
     updateManifest: (
       id: string,
       patch: Partial<Pick<ExpertManifest, 'skillSlugs' | 'mcpIds' | 'label'>>,

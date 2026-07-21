@@ -75,6 +75,12 @@ export function seedBuiltinExperts(root: string): void {
     writeFileSync(join(expertDir, RULES_MD), buildSeedRulesMd(), 'utf-8')
     console.log(`[专家] 已种子内置专家: ${definition.id}`)
   }
+
+  // 文案升级：已存在的「通用专家」→「通用软件专家」（不覆盖用户其它改名）
+  const general = getExpert(root, 'general')
+  if (general?.label === '通用专家') {
+    updateExpertManifest(root, 'general', { label: '通用软件专家' })
+  }
 }
 
 /** 列出 root 下全部有效专家包，损坏包跳过 */
@@ -89,6 +95,49 @@ export function listExperts(root: string): ExpertPackage[] {
   }
 
   return experts.sort((left, right) => left.id.localeCompare(right.id))
+}
+
+const EXPERT_ID_RE = /^[a-z][a-z0-9-]*$/
+
+export interface CreateExpertInput {
+  id: string
+  label: string
+  identitySummary?: string
+}
+
+/** 新建自定义专家包（目录已存在则抛错） */
+export function createExpert(root: string, input: CreateExpertInput): ExpertPackage {
+  const id = input.id.trim().toLowerCase()
+  const label = input.label.trim()
+  if (!EXPERT_ID_RE.test(id)) {
+    throw new Error('专家 id 须为小写 slug（字母开头，仅 a-z / 0-9 / -）')
+  }
+  if (!label) {
+    throw new Error('专家名称不能为空')
+  }
+
+  if (!existsSync(root)) {
+    mkdirSync(root, { recursive: true })
+  }
+
+  const expertDir = join(root, id)
+  if (existsSync(expertDir)) {
+    throw new Error(`专家已存在: ${id}`)
+  }
+
+  mkdirSync(expertDir, { recursive: true })
+  const summary = input.identitySummary?.trim() || `${label} 专业协作角色`
+  const manifest = buildDefaultManifest({ id, label, identitySummary: summary })
+
+  writeFileSync(join(expertDir, EXPERT_JSON), `${JSON.stringify(manifest, null, 2)}\n`, 'utf-8')
+  writeFileSync(join(expertDir, IDENTITY_MD), `# ${label}\n\n${summary}\n`, 'utf-8')
+  writeFileSync(join(expertDir, SOUL_MD), buildSeedSoulMd(label), 'utf-8')
+  writeFileSync(join(expertDir, RULES_MD), buildSeedRulesMd(), 'utf-8')
+  console.log(`[专家] 已创建专家: ${id}`)
+
+  const created = getExpert(root, id)
+  if (!created) throw new Error(`专家创建后读取失败: ${id}`)
+  return created
 }
 
 /** 按 id 读取单个专家包 */

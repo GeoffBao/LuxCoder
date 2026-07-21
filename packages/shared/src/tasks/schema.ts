@@ -87,6 +87,8 @@ export const TaskDefaultsSchema = z.object({
   model: z.string().min(1).optional(),
   llmConnection: z.string().min(1).optional(),
   permissionMode: z.enum(PERMISSION_MODES).optional(),
+  /** Agent 专家 slug（对应 ~/.luxagents/experts/{id}）；本阶段仅持久化，runtime 注入后续接入 */
+  expertId: z.string().min(1).optional(),
 });
 
 // ---------------------------------------------------------------------------

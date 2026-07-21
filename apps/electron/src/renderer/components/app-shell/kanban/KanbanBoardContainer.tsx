@@ -16,6 +16,7 @@ import {
   moveCardAtom,
 } from '@/atoms/kanban-atoms'
 import {
+  pendingTaskEditorTargetAtom,
   selectedKanbanProjectAtom,
   selectedProjectIdAtom,
   serverKanbanProjectsAtom,
@@ -63,11 +64,25 @@ export function KanbanBoardContainer({
   const [workspaceRoot, setWorkspaceRoot] = React.useState<string | null>(null)
   const [editorTarget, setEditorTarget] = React.useState<TaskEditorTarget | null>(null)
   const [teambitionPickerOpen, setTeambitionPickerOpen] = React.useState(false)
+  const pendingEditorTarget = useAtomValue(pendingTaskEditorTargetAtom)
+  const setPendingEditorTarget = useSetAtom(pendingTaskEditorTargetAtom)
 
   const { groups: modelGroups, modelToConnection } = React.useMemo(
     () => buildKanbanModelCatalog(channels),
     [channels],
   )
+
+  // 消费项目中心等跨视图「新建任务」请求
+  React.useEffect(() => {
+    if (!pendingEditorTarget) return
+    setEditorTarget({
+      mode: 'create',
+      ...(pendingEditorTarget.initialProjectId
+        ? { initialProjectId: pendingEditorTarget.initialProjectId }
+        : {}),
+    })
+    setPendingEditorTarget(null)
+  }, [pendingEditorTarget, setPendingEditorTarget])
 
   React.useEffect(() => {
     if (channelsLoaded && channels.length > 0) return

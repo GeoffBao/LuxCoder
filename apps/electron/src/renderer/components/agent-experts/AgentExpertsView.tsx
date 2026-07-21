@@ -6,18 +6,22 @@
  */
 
 import * as React from 'react'
-import { Bot, Search } from 'lucide-react'
+import { Bot, Plus, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import type { ExpertPackage } from '@luxagents/shared/experts'
+import { Button } from '@/components/ui/button'
 import { ExpertCard } from './ExpertCard'
 import { ExpertDetailSheet } from './ExpertDetailSheet'
+import { CreateExpertDialog, type CreateExpertDraft } from './CreateExpertDialog'
 
 export function AgentExpertsView(): React.ReactElement {
   const [experts, setExperts] = React.useState<ExpertPackage[]>([])
   const [loading, setLoading] = React.useState(true)
   const [search, setSearch] = React.useState('')
   const [selectedExpertId, setSelectedExpertId] = React.useState<string | null>(null)
+  const [createOpen, setCreateOpen] = React.useState(false)
+  const [creating, setCreating] = React.useState(false)
 
   const loadExperts = React.useCallback(async (): Promise<void> => {
     setLoading(true)
@@ -56,6 +60,27 @@ export function AgentExpertsView(): React.ReactElement {
     )
   }
 
+  const handleCreate = async (draft: CreateExpertDraft): Promise<void> => {
+    setCreating(true)
+    try {
+      const created = await window.electronAPI.experts.create({
+        id: draft.id,
+        label: draft.label,
+        identitySummary: draft.identitySummary || undefined,
+      })
+      setExperts((current) => [...current, created].sort((a, b) => a.id.localeCompare(b.id)))
+      setCreateOpen(false)
+      setSelectedExpertId(created.id)
+      toast.success('专家已创建')
+    } catch (cause) {
+      toast.error('创建专家失败', {
+        description: cause instanceof Error ? cause.message : String(cause),
+      })
+    } finally {
+      setCreating(false)
+    }
+  }
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <div className="titlebar-no-drag mx-auto flex w-full max-w-6xl shrink-0 items-center justify-between px-8 pt-14 pb-4">
@@ -63,6 +88,10 @@ export function AgentExpertsView(): React.ReactElement {
           <Bot className="size-6 text-foreground/70" />
           <h1 className="text-2xl font-semibold text-foreground">Agent 专家</h1>
         </div>
+        <Button size="sm" onClick={() => setCreateOpen(true)}>
+          <Plus className="h-4 w-4" />
+          新建专家
+        </Button>
       </div>
 
       <div className="titlebar-no-drag mx-auto flex w-full max-w-6xl shrink-0 items-center gap-3 px-8 pb-4">
@@ -110,6 +139,13 @@ export function AgentExpertsView(): React.ReactElement {
           if (!open) setSelectedExpertId(null)
         }}
         onSaved={handleSaved}
+      />
+
+      <CreateExpertDialog
+        open={createOpen}
+        busy={creating}
+        onOpenChange={setCreateOpen}
+        onSubmit={(draft) => void handleCreate(draft)}
       />
     </div>
   )

@@ -7,7 +7,7 @@ export interface ExpertOption {
 
 /** 内置专家选项（Task 7 前 Hub / 详情页共用；后续可换 IPC 列表并回退此常量） */
 export const BUILTIN_EXPERT_OPTIONS: readonly ExpertOption[] = [
-  { id: 'general', label: '通用专家' },
+  { id: 'general', label: '通用软件专家' },
   { id: 'driver', label: '驱动软件专家' },
   { id: 'application', label: '应用软件专家' },
   { id: 'system', label: '系统软件专家' },
