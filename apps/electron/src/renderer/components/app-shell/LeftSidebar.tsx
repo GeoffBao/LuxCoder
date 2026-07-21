@@ -1995,6 +1995,16 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     }
   }, [draftSessionIds, store, setAgentSessions])
 
+  /** 切换 Agent 会话星标状态 */
+  const handleToggleStarAgent = React.useCallback(async (id: string): Promise<void> => {
+    try {
+      const updated = await window.electronAPI.toggleStarAgentSession(id)
+      setAgentSessions((prev) => replaceAgentSessionInFreshnessOrder(prev, updated))
+    } catch (error) {
+      console.error('[侧边栏] 切换 Agent 会话星标失败:', error)
+    }
+  }, [setAgentSessions])
+
   /** 切换 Agent 会话归档状态 */
   const handleToggleArchiveAgent = React.useCallback(async (id: string): Promise<void> => {
     const sessions = store.get(agentSessionsAtom)
@@ -2871,6 +2881,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                             onRequestMove={handleRequestMove}
                             onRename={handleAgentRename}
                             onTogglePin={handleTogglePinAgent}
+                            onToggleStar={handleToggleStarAgent}
                             onToggleArchive={handleToggleArchiveAgent}
                           />
 
@@ -2891,6 +2902,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                                   onRequestMove={handleRequestMove}
                                   onRename={handleAgentRename}
                                   onTogglePin={handleTogglePinAgent}
+                                  onToggleStar={handleToggleStarAgent}
                                   onToggleArchive={handleToggleArchiveAgent}
                                 />
                               ))}
@@ -2990,6 +3002,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                     onRequestMove={handleRequestMove}
                     onRename={handleAgentRename}
                     onTogglePin={handleTogglePinAgent}
+                    onToggleStar={handleToggleStarAgent}
                     onToggleArchive={handleToggleArchiveAgent}
                     onToggleDelegationParent={handleToggleDelegationParent}
                   />
@@ -3076,6 +3089,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                             onRequestMove={handleRequestMove}
                             onRename={handleAgentRename}
                             onTogglePin={handleTogglePinAgent}
+                            onToggleStar={handleToggleStarAgent}
                             onToggleArchive={handleToggleArchiveAgent}
                           />
 
@@ -3094,6 +3108,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                                   onRequestMove={handleRequestMove}
                                   onRename={handleAgentRename}
                                   onTogglePin={handleTogglePinAgent}
+                                  onToggleStar={handleToggleStarAgent}
                                   onToggleArchive={handleToggleArchiveAgent}
                                 />
                               ))}
@@ -3402,6 +3417,7 @@ interface DelegatedChildSessionItemProps {
   onRequestMove: (id: string) => void
   onRename: (id: string, newTitle: string) => Promise<void>
   onTogglePin: (id: string, cascade: boolean) => Promise<void>
+  onToggleStar: (id: string) => Promise<void>
   onToggleArchive: (id: string) => Promise<void>
 }
 
@@ -3418,6 +3434,7 @@ const DelegatedChildSessionItem = React.memo(function DelegatedChildSessionItem(
   onRequestMove,
   onRename,
   onTogglePin,
+  onToggleStar,
   onToggleArchive,
 }: DelegatedChildSessionItemProps): React.ReactElement {
   const status = getDelegatedChildStatus(session, agentIndicatorMap)
@@ -3436,6 +3453,7 @@ const DelegatedChildSessionItem = React.memo(function DelegatedChildSessionItem(
       onRequestMove={onRequestMove}
       onRename={onRename}
       onTogglePin={onTogglePin}
+      onToggleStar={onToggleStar}
       onToggleArchive={onToggleArchive}
     />
   )
@@ -3486,6 +3504,7 @@ interface AgentProjectGroupItemProps {
   onRequestMove: (id: string) => void
   onRename: (id: string, newTitle: string) => Promise<void>
   onTogglePin: (id: string, cascade: boolean) => Promise<void>
+  onToggleStar: (id: string) => Promise<void>
   onToggleArchive: (id: string) => Promise<void>
   onToggleDelegationParent: (id: string, expanded: boolean) => void
 }
@@ -3528,6 +3547,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
   onRequestMove,
   onRename,
   onTogglePin,
+  onToggleStar,
   onToggleArchive,
   onToggleDelegationParent,
 }: AgentProjectGroupItemProps): React.ReactElement {
@@ -3801,6 +3821,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
                   onRequestMove={onRequestMove}
                   onRename={onRename}
                   onTogglePin={onTogglePin}
+                  onToggleStar={onToggleStar}
                   onToggleArchive={onToggleArchive}
                 />
               ))}
@@ -3839,6 +3860,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
                       onRequestMove={onRequestMove}
                       onRename={onRename}
                       onTogglePin={onTogglePin}
+                      onToggleStar={onToggleStar}
                       onToggleArchive={onToggleArchive}
                     />
 
@@ -3859,6 +3881,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
                             onRequestMove={onRequestMove}
                             onRename={onRename}
                             onTogglePin={onTogglePin}
+                            onToggleStar={onToggleStar}
                             onToggleArchive={onToggleArchive}
                           />
                         ))}
