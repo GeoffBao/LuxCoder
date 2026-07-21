@@ -1,6 +1,6 @@
 {
   "name": "@luxagents/shared",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "license": "AGPL-3.0-only",
   "description": "Shared types, configs and utilities for LuxAgents",
   "type": "module",
@@ -20,7 +20,8 @@
     "./tasks/refs": "./src/tasks/refs.ts",
     "./tasks/schema": "./src/tasks/schema.ts",
     "./tasks/storage": "./src/tasks/storage.ts",
-    "./tasks/validate": "./src/tasks/validate.ts"
+    "./tasks/validate": "./src/tasks/validate.ts",
+    "./experts": "./src/experts/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
