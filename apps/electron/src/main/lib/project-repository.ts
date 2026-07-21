@@ -53,6 +53,7 @@ const UpdateProjectInputSchema = z.object({
   color: OptionalProjectStringSchema,
   kanbanColumns: z.array(KanbanColumnSchema).optional(),
   archivedAt: z.number().optional(),
+  defaultExpertId: OptionalProjectStringSchema,
 })
 
 export interface ProjectRepositoryOptions {

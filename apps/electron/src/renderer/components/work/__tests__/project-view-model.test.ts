@@ -85,6 +85,32 @@ describe('buildCreateProjectInput', () => {
   })
 })
 
+describe('buildProjectUpdate with defaultExpertId', () => {
+  test('buildProjectUpdate 写入 defaultExpertId', () => {
+    const patch = buildProjectUpdate({
+      name: 'Demo',
+      description: '',
+      details: '',
+      color: '',
+      workingDirectory: '',
+      defaultExpertId: 'architect',
+    })
+    expect(patch.defaultExpertId).toBe('architect')
+  })
+
+  test('buildProjectUpdate 空 defaultExpertId 清除为 undefined', () => {
+    const patch = buildProjectUpdate({
+      name: 'Demo',
+      description: '',
+      details: '',
+      color: '',
+      workingDirectory: '',
+      defaultExpertId: '',
+    })
+    expect(patch.defaultExpertId).toBeUndefined()
+  })
+})
+
 describe('buildProjectUpdate with workingDirectory', () => {
   test('可选 cwd trim 后写入或清空为 undefined', () => {
     expect(buildProjectUpdate({

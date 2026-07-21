@@ -50,6 +50,8 @@ export interface ProjectConfig {
   archivedAt?: number;
   /** 项目级 Kanban 列。缺失时看板使用默认 3 列。 */
   kanbanColumns?: KanbanColumnDef[];
+  /** 默认 Agent 专家 ID（仅存储展示，本阶段不注入编排器） */
+  defaultExpertId?: string;
 }
 
 /**
@@ -122,6 +124,8 @@ export interface UpdateProjectInput {
   kanbanColumns?: KanbanColumnDef[];
   /** 设置值为 undefined 以取消归档 */
   archivedAt?: number;
+  /** 默认 Agent 专家 ID（仅存储展示，本阶段不注入编排器） */
+  defaultExpertId?: string;
 }
 
 /**

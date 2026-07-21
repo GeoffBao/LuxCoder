@@ -33,6 +33,8 @@ export interface KanbanProject {
   archivedAt?: number
   /** 项目最近更新时间（侧边栏子分组排序用；preload 透传 ProjectConfig.updatedAt） */
   updatedAt?: number
+  /** 默认 Agent 专家 ID（仅存储展示，本阶段不注入编排器） */
+  defaultExpertId?: string
   workspaceId?: string
   kanbanColumns?: Array<{ id: string; name: string; color?: string; dropStatusId?: string }>
 }
