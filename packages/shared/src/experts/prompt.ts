@@ -53,6 +53,31 @@ function section(tag: 'identity' | 'soul' | 'rules', md: string): string | null 
   return `<${tag}>\n${body}\n</${tag}>`
 }
 
+const TRUNCATED_MARKER = '\n…(truncated)'
+const TRUNCATED_ONLY = '…(truncated)'
+
+function bodyCharTotal(parts: Array<{ tag: 'identity' | 'soul' | 'rules'; text: string }>): number {
+  return parts.reduce((sum, part) => sum + part.text.length, 0)
+}
+
+function stripTruncationMarker(text: string): string {
+  if (text.endsWith(TRUNCATED_MARKER)) {
+    return text.slice(0, -TRUNCATED_MARKER.length)
+  }
+  if (text === TRUNCATED_ONLY) return ''
+  return text
+}
+
+function truncateSectionBody(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text
+  const keep = Math.max(0, maxLength - TRUNCATED_MARKER.length)
+  const truncated = text.slice(0, keep).trimEnd()
+  if (truncated.length > 0) {
+    return `${truncated}${TRUNCATED_MARKER}`
+  }
+  return TRUNCATED_ONLY.length <= maxLength ? TRUNCATED_ONLY : TRUNCATED_ONLY.slice(0, maxLength)
+}
+
 /**
  * 将专家包格式化为 TaskRunner 用户消息 preamble。
  * 超限时按 RULES → SOUL → IDENTITY 裁剪正文尾部。
@@ -68,23 +93,21 @@ export function formatExpertPreamble(expert: ExpertPackage): string {
     if (body) parts.push({ tag, text: body })
   }
 
-  let budgets = parts.map((p) => p.text.length)
-  let total = budgets.reduce((a, b) => a + b, 0)
-  if (total > EXPERT_PREAMBLE_MAX_CHARS) {
+  if (bodyCharTotal(parts) > EXPERT_PREAMBLE_MAX_CHARS) {
     const order = ['rules', 'soul', 'identity'] as const
     for (const tag of order) {
-      if (total <= EXPERT_PREAMBLE_MAX_CHARS) break
-      const idx = parts.findIndex((p) => p.tag === tag)
-      if (idx < 0) continue
-      const overflow = total - EXPERT_PREAMBLE_MAX_CHARS
-      const keep = Math.max(0, budgets[idx]! - overflow)
-      const truncated = parts[idx]!.text.slice(0, keep).trimEnd()
-      parts[idx] = {
-        tag,
-        text: truncated.length > 0 ? `${truncated}\n…(truncated)` : '…(truncated)',
+      while (bodyCharTotal(parts) > EXPERT_PREAMBLE_MAX_CHARS) {
+        const idx = parts.findIndex((part) => part.tag === tag)
+        if (idx < 0) break
+        const overflow = bodyCharTotal(parts) - EXPERT_PREAMBLE_MAX_CHARS
+        const prevLen = parts[idx]!.text.length
+        const targetLen = Math.max(0, prevLen - overflow)
+        const raw = stripTruncationMarker(parts[idx]!.text)
+        const next = truncateSectionBody(raw, targetLen)
+        if (next.length >= prevLen) break
+        parts[idx] = { tag, text: next }
       }
-      budgets = parts.map((p) => p.text.length)
-      total = budgets.reduce((a, b) => a + b, 0)
+      if (bodyCharTotal(parts) <= EXPERT_PREAMBLE_MAX_CHARS) break
     }
   }
 

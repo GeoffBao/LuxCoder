@@ -21,6 +21,15 @@ function pkg(overrides: Partial<ExpertPackage> = {}): ExpertPackage {
   }
 }
 
+function preambleBodyCharTotal(text: string): number {
+  let total = 0
+  for (const tag of ['identity', 'soul', 'rules'] as const) {
+    const match = text.match(new RegExp(`<${tag}>\\n([\\s\\S]*?)\\n</${tag}>`))
+    if (match?.[1]) total += match[1].length
+  }
+  return total
+}
+
 describe('resolveExpertId', () => {
   test('任务 defaults 优先于项目 default', () => {
     expect(resolveExpertId('qa', 'architect')).toBe('qa')
@@ -63,7 +72,7 @@ describe('formatExpertPreamble', () => {
       soulMd: 'soul',
       rulesMd: huge,
     }))
-    expect(text.length).toBeLessThanOrEqual(EXPERT_PREAMBLE_MAX_CHARS + 200)
+    expect(preambleBodyCharTotal(text)).toBeLessThanOrEqual(EXPERT_PREAMBLE_MAX_CHARS)
     expect(text).toContain('…(truncated)')
   })
   test('转义属性与剥离伪造闭合标签', () => {
