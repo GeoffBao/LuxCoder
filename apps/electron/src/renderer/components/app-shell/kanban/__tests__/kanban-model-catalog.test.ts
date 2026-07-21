@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import type { Channel } from '@luxagents/shared'
 import {
   buildKanbanModelCatalog,
+  formatModelChipLabel,
   resolveKanbanModelName,
   resolveKanbanModelSelection,
 } from '../kanban-model-catalog'
@@ -99,5 +100,23 @@ describe('resolveKanbanModelName', () => {
     const groups = [{ provider: 'anthropic', label: 'A', models: [{ id: 'm1', name: 'Sonnet', channelId: 'c1' }] }]
     expect(resolveKanbanModelName(groups, 'm1')).toBe('Sonnet')
     expect(resolveKanbanModelName(groups, 'unknown')).toBe('unknown')
+  })
+})
+
+describe('formatModelChipLabel', () => {
+  test('优先渠道友好名', () => {
+    const groups = [{
+      provider: 'deepseek',
+      label: 'DeepSeek',
+      models: [{ id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash', channelId: 'c1' }],
+    }]
+    expect(formatModelChipLabel('deepseek-v4-flash', groups)).toBe('DeepSeek V4 Flash')
+  })
+
+  test('无目录时去掉日期后缀并截断过长 id', () => {
+    expect(formatModelChipLabel('claude-sonnet-4-20250514')).toBe('claude-sonnet-4')
+    const long = 'provider/vendor/extremely-long-model-identifier-name'
+    expect(formatModelChipLabel(long).endsWith('…')).toBe(true)
+    expect(formatModelChipLabel(long).length).toBeLessThanOrEqual(21)
   })
 })

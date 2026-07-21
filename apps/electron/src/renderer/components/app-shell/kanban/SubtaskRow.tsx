@@ -26,7 +26,7 @@ export function SubtaskRow({ subtask, onClick, className }: SubtaskRowProps): Re
     >
       <StateIcon state={subtask.runState} />
       <span className={cn('min-w-0 flex-1 truncate text-xs', subtask.runState === 'done' && 'text-muted-foreground line-through')}>{subtask.title}</span>
-      <ModelChip model={subtask.model} className="max-w-24" />
+      <ModelChip model={subtask.model} />
     </button>
   )
 }
