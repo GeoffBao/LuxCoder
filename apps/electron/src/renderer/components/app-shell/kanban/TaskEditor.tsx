@@ -48,7 +48,13 @@ export interface TaskEditorProps {
   modelGroups?: KanbanModelProviderGroup[]
   modelToConnection?: Map<string, string>
   onClose: () => void
-  onCreated?: (created: { sessionId: string; slug: string; projectId?: string }) => void | Promise<void>
+  onCreated?: (created: {
+    sessionId: string
+    slug: string
+    projectId?: string
+    /** 是否已执行 tasks.run */
+    ran?: boolean
+  }) => void | Promise<void>
   onOpenSession?: (sessionId: string) => void
   onOpenChildSession?: (sessionId: string) => void
 }
@@ -374,6 +380,7 @@ export function TaskEditor({
       const createdEvent = {
         sessionId: created.orchestratorSessionId,
         slug: created.slug,
+        ran: runAfterCreate,
         ...(draft.projectId ? { projectId: draft.projectId } : {}),
       }
       onClose()

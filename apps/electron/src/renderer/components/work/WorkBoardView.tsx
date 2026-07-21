@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useAtom, useAtomValue, useSetAtom } from 'jotai'
+import { useAtom, useAtomValue, useSetAtom, useStore } from 'jotai'
 import { FolderKanban, Info, LayoutDashboard, RefreshCw } from 'lucide-react'
 import {
   agentSessionsAtom,
@@ -53,6 +53,7 @@ export function WorkBoardView(): React.ReactElement {
   const kanbanItems = useAtomValue(kanbanItemsAtom)
   const streamStates = useAtomValue(agentStreamingStatesAtom)
   const openSession = useOpenSession()
+  const store = useStore()
   const [workspaceRoot, setWorkspaceRoot] = React.useState<string | null>(null)
   const [view, setView] = useAtom(workViewAtom)
   const [loading, setLoading] = React.useState(false)
@@ -311,8 +312,16 @@ export function WorkBoardView(): React.ReactElement {
               onSessionCreated={(session) => {
                 setAgentSessions((current) => [session, ...current.filter((candidate) => candidate.id !== session.id)])
               }}
-              onTaskCreated={async () => {
+              onTaskCreated={async (created) => {
                 await refreshAll()
+                // 仅「创建并运行」/看板运行后进入编排会话；纯创建留在看板
+                if (!created?.ran || !created.sessionId) return
+                const session = store.get(agentSessionsAtom).find((candidate) => candidate.id === created.sessionId)
+                openSession(
+                  'agent',
+                  created.sessionId,
+                  session?.title ?? created.slug ?? '任务编排',
+                )
               }}
             />
           )}

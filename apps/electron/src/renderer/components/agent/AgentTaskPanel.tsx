@@ -39,7 +39,13 @@ function summarizeLiveActivity(activities: ToolActivity[], content: string): str
   return snippet.length > 72 ? `${snippet.slice(0, 72)}…` : snippet
 }
 
-/** Code/Agent 会话内的任务编排条：展示子任务 DAG 状态 + 实时执行摘要，对齐 craft TaskChatPreview。 */
+function resolveFocusSubtask(subtasks: KanbanSubtask[]): KanbanSubtask | null {
+  return subtasks.find((subtask) => subtask.runState === 'running')
+    ?? subtasks.find((subtask) => subtask.runState === 'pending' && subtask.sessionId)
+    ?? null
+}
+
+/** Code/Agent 会话内的任务编排条：默认紧凑，展开看全 DAG；对齐 craft TaskChatPreview。 */
 export function AgentTaskPanel({ sessionId }: AgentTaskPanelProps): React.ReactElement | null {
   const sessions = useAtomValue(agentSessionsAtom)
   const streamStates = useAtomValue(agentStreamingStatesAtom)
@@ -47,7 +53,8 @@ export function AgentTaskPanel({ sessionId }: AgentTaskPanelProps): React.ReactE
   const workspaces = useAtomValue(agentWorkspacesAtom)
   const currentWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
   const openSession = useOpenSession()
-  const [expanded, setExpanded] = React.useState(true)
+  // 默认紧凑，避免 5+ 节点占满对话区
+  const [expanded, setExpanded] = React.useState(false)
   const [running, setRunning] = React.useState(false)
   const [localNodes, setLocalNodes] = React.useState<SpecNodeSummary[] | null>(null)
 
@@ -117,6 +124,11 @@ export function AgentTaskPanel({ sessionId }: AgentTaskPanelProps): React.ReactE
     || Boolean(streamStates.get(sessionId)?.running)
   const done = subtasks.filter((subtask) => subtask.runState === 'done').length
   const total = Math.max(subtasks.length, orchestratorSession.taskNodeCount ?? 0)
+  const focus = resolveFocusSubtask(subtasks)
+  const focusStream = focus?.sessionId ? streamStates.get(focus.sessionId) : undefined
+  const focusActivity = focusStream?.running
+    ? summarizeLiveActivity(focusStream.toolActivities, focusStream.content)
+    : null
 
   const runTask = async (): Promise<void> => {
     if (!workspaceRoot || !workspace || !taskSlug) return
@@ -133,6 +145,21 @@ export function AgentTaskPanel({ sessionId }: AgentTaskPanelProps): React.ReactE
     }
   }
 
+  const openOrchestrator = (): void => {
+    openSession('agent', orchestratorSessionId, orchestratorSession.title)
+  }
+
+  const openFocusOrExpand = (): void => {
+    if (focus?.sessionId) {
+      const child = sessions.find((candidate) => candidate.id === focus.sessionId)
+      if (child) {
+        openSession('agent', child.id, child.title)
+        return
+      }
+    }
+    setExpanded(true)
+  }
+
   return (
     <section className={cn(
       'mx-2.5 mb-2 rounded-xl border border-border/60 bg-card/90 px-3 py-2 shadow-sm backdrop-blur-sm md:mx-[18px]',
@@ -141,8 +168,12 @@ export function AgentTaskPanel({ sessionId }: AgentTaskPanelProps): React.ReactE
     >
       <div className="flex items-center gap-2">
         <Workflow className={cn('h-4 w-4 shrink-0 text-primary', live && 'animate-pulse')} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 text-xs font-medium">
+        <button
+          type="button"
+          className="min-w-0 flex-1 text-left"
+          onClick={() => setExpanded((value) => !value)}
+        >
+          <div className="flex flex-wrap items-center gap-2 text-xs font-medium">
             <span>任务编排</span>
             <span className="inline-flex items-center gap-1 text-muted-foreground">
               <GitBranch className="h-3 w-3" />{taskSlug}
@@ -156,7 +187,25 @@ export function AgentTaskPanel({ sessionId }: AgentTaskPanelProps): React.ReactE
               </span>
             )}
           </div>
-        </div>
+          {/* 紧凑态：当前节点一行，不展开全 DAG */}
+          {!expanded && focus && (
+            <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
+              <span className={cn(live && 'text-amber-600 dark:text-amber-400')}>{focus.title}</span>
+              {focusActivity ? ` · ${focusActivity}` : null}
+            </div>
+          )}
+        </button>
+        {viewingChild && (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-7 shrink-0 px-2 text-xs"
+            onClick={openOrchestrator}
+          >
+            回编排
+          </Button>
+        )}
         {!viewingChild && (
           <Button
             type="button"
@@ -179,6 +228,15 @@ export function AgentTaskPanel({ sessionId }: AgentTaskPanelProps): React.ReactE
           <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', expanded && 'rotate-180')} />
         </button>
       </div>
+      {!expanded && focus?.sessionId && (
+        <button
+          type="button"
+          className="mt-1 w-full rounded-md px-1 py-0.5 text-left text-[11px] text-muted-foreground hover:bg-muted/60"
+          onClick={openFocusOrExpand}
+        >
+          打开当前子任务 →
+        </button>
+      )}
       {expanded && subtasks.length > 0 && (
         <div className="mt-2 space-y-0.5 rounded-lg bg-muted/40 p-1.5">
           {subtasks.map((subtask) => {
