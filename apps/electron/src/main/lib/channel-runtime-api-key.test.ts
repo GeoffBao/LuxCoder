@@ -9,6 +9,7 @@ type ChannelManagerModule = typeof import('./channel-manager')
 let channelManager: ChannelManagerModule
 let tempHome: string
 const originalHome = process.env.HOME
+const originalLuxagentsDev = process.env.LUXAGENTS_DEV
 const originalPromaDev = process.env.PROMA_DEV
 
 mock.module('electron', () => ({
@@ -32,7 +33,7 @@ mock.module('node:os', () => ({
 }))
 
 function writeChannels(channels: unknown[]): void {
-  const configDir = join(tempHome, '.proma')
+  const configDir = join(tempHome, '.luxagents')
   mkdirSync(configDir, { recursive: true })
   writeFileSync(
     join(configDir, 'channels.json'),
@@ -42,14 +43,15 @@ function writeChannels(channels: unknown[]): void {
 }
 
 beforeAll(async () => {
-  tempHome = mkdtempSync(join(os.tmpdir(), 'proma-channel-runtime-key-'))
+  tempHome = mkdtempSync(join(os.tmpdir(), 'luxagents-channel-runtime-key-'))
   process.env.HOME = tempHome
+  delete process.env.LUXAGENTS_DEV
   process.env.PROMA_DEV = '0'
   channelManager = await import('./channel-manager')
 })
 
 beforeEach(() => {
-  rmSync(join(tempHome, '.proma'), { recursive: true, force: true })
+  rmSync(join(tempHome, '.luxagents'), { recursive: true, force: true })
 })
 
 afterAll(() => {
@@ -57,6 +59,11 @@ afterAll(() => {
     delete process.env.HOME
   } else {
     process.env.HOME = originalHome
+  }
+  if (originalLuxagentsDev === undefined) {
+    delete process.env.LUXAGENTS_DEV
+  } else {
+    process.env.LUXAGENTS_DEV = originalLuxagentsDev
   }
   if (originalPromaDev === undefined) {
     delete process.env.PROMA_DEV

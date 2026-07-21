@@ -473,7 +473,7 @@ export function mapSDKErrorToTypedError(
 
   // “未选择正确渠道/模型”场景：友好化后的文案已固定，无法登录多半是渠道或模型配置有误，
   // 引导用户直接重新选择模型，而非跳转设置页面
-  const isInvalidChannelOrModel = /请检查是否选择了正确的 Proma 供应渠道和模型/.test(mapped.message)
+  const isInvalidChannelOrModel = /请检查是否选择了正确的 LuxAgents 供应渠道和模型/.test(mapped.message)
 
   return {
     code: mapped.code,

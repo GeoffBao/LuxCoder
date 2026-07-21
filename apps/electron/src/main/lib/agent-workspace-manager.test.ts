@@ -10,6 +10,7 @@ let manager: AgentWorkspaceManager
 let configPaths: ConfigPathsModule
 let tempHome: string
 const originalHome = process.env.HOME
+const originalLuxagentsDev = process.env.LUXAGENTS_DEV
 const originalPromaDev = process.env.PROMA_DEV
 
 mock.module('electron', () => ({
@@ -30,16 +31,18 @@ mock.module('node:os', () => ({
 }))
 
 beforeAll(async () => {
-  tempHome = mkdtempSync(join(os.tmpdir(), 'proma-agent-workspace-manager-'))
+  tempHome = mkdtempSync(join(os.tmpdir(), 'luxagents-agent-workspace-manager-'))
   process.env.HOME = tempHome
+  delete process.env.LUXAGENTS_DEV
   process.env.PROMA_DEV = '0'
   configPaths = await import('./config-paths')
   manager = await import('./agent-workspace-manager')
 })
 
 beforeEach(() => {
-  rmSync(join(tempHome, '.proma'), { recursive: true, force: true })
-  mkdirSync(join(tempHome, '.proma'), { recursive: true })
+  const configDir = join(tempHome, configPaths.getConfigDirName())
+  rmSync(configDir, { recursive: true, force: true })
+  mkdirSync(configDir, { recursive: true })
 })
 
 afterAll(() => {
@@ -47,6 +50,11 @@ afterAll(() => {
     delete process.env.HOME
   } else {
     process.env.HOME = originalHome
+  }
+  if (originalLuxagentsDev === undefined) {
+    delete process.env.LUXAGENTS_DEV
+  } else {
+    process.env.LUXAGENTS_DEV = originalLuxagentsDev
   }
   if (originalPromaDev === undefined) {
     delete process.env.PROMA_DEV
