@@ -27,6 +27,10 @@ import {
   resolveModelByIndex,
   describeBindingModel,
 } from './bridge-model-utils'
+import type { BridgeChatBindingStore } from './bridge-binding-store'
+import { filterExistingBridgeBindings } from './bridge-binding-store'
+import { extractFinalAssistantText } from './bridge-agent-message-utils'
+import { redactSensitiveLogText, redactSensitiveLogValue } from './bridge-log-redaction'
 
 // ===== 接口定义 =====
 
@@ -56,6 +60,8 @@ export interface BridgeCommandHandlerConfig {
   getDefaultWorkspaceId?: () => string | undefined
   /** 工作区切换后的回调 */
   onWorkspaceSwitched?: (workspaceId: string) => void
+  /** 可选持久化存储：用于跨应用重启恢复 chatId → sessionId 绑定 */
+  bindingStore?: BridgeChatBindingStore
 }
 
 /** 通用聊天绑定 */
@@ -75,19 +81,6 @@ interface SessionBuffer {
   startedAt: number
 }
 
-/** Agent SDK 消息中的内容块 */
-interface ContentBlock {
-  type: string
-  text?: string
-}
-
-/** Agent SDK assistant 消息结构 */
-interface AssistantMessagePayload {
-  message?: {
-    content?: ContentBlock[]
-  }
-}
-
 // ===== 命令处理器实现 =====
 
 export class BridgeCommandHandler {
@@ -105,7 +98,8 @@ export class BridgeCommandHandler {
 
   constructor(config: BridgeCommandHandlerConfig) {
     this.config = config
-    this.log = (msg: string) => console.log(`[${config.platformName} Bridge] ${msg}`)
+    this.log = (msg: string) => console.log(`[${config.platformName} Bridge] ${redactSensitiveLogText(msg)}`)
+    this.loadPersistedBindings()
   }
 
   // ===== 公开 API =====
@@ -144,6 +138,8 @@ export class BridgeCommandHandler {
       `${this.config.platformName}会话`,
       channelId,
       workspaceId || undefined,
+      undefined,
+      settings.agentRuntime ?? 'pi',
     )
 
     const binding: BridgeChatBinding = {
@@ -155,6 +151,7 @@ export class BridgeCommandHandler {
     }
     this.chatBindings.set(chatId, binding)
     this.sessionToChat.set(session.id, chatId)
+    this.saveBindings()
     this.log(`为 ${chatId.slice(0, 8)}... 创建会话: ${session.id.slice(0, 8)}`)
     this.notifySessionCreated(session.id, session.title)
     return binding
@@ -192,6 +189,29 @@ export class BridgeCommandHandler {
     this.chatBindings.clear()
     this.sessionToChat.clear()
     this.sessionBuffers.clear()
+    this.saveBindings()
+  }
+
+  private loadPersistedBindings(): void {
+    const bindings = this.config.bindingStore?.load()
+    if (!bindings || bindings.length === 0) return
+
+    const existingBindings = filterExistingBridgeBindings(bindings, (sessionId) => Boolean(getAgentSessionMeta(sessionId)))
+    for (const binding of existingBindings) {
+      this.chatBindings.set(binding.chatId, binding)
+      this.sessionToChat.set(binding.sessionId, binding.chatId)
+    }
+
+    if (existingBindings.length !== bindings.length) {
+      this.config.bindingStore?.save(existingBindings)
+    }
+    if (existingBindings.length > 0) {
+      this.log(`已恢复 ${existingBindings.length} 个聊天绑定`)
+    }
+  }
+
+  private saveBindings(): void {
+    this.config.bindingStore?.save(Array.from(this.chatBindings.values()))
   }
 
   // ===== 命令路由 =====
@@ -282,6 +302,8 @@ export class BridgeCommandHandler {
       title || '新会话',
       channelId,
       workspaceId || undefined,
+      undefined,
+      settings.agentRuntime ?? 'pi',
     )
 
     // 清理旧绑定
@@ -299,6 +321,7 @@ export class BridgeCommandHandler {
     }
     this.chatBindings.set(chatId, binding)
     this.sessionToChat.set(session.id, chatId)
+    this.saveBindings()
 
     // 通知渲染进程刷新会话列表
     this.notifySessionCreated(session.id, session.title)
@@ -397,6 +420,7 @@ export class BridgeCommandHandler {
     }
     this.chatBindings.set(chatId, binding)
     this.sessionToChat.set(match.id, chatId)
+    this.saveBindings()
 
     await this.send(chatId, `✅ 已切换到会话: ${match.title} (${match.id.slice(0, 8)})`, contextData)
   }
@@ -441,6 +465,7 @@ export class BridgeCommandHandler {
     if (binding) {
       this.sessionToChat.delete(binding.sessionId)
       this.chatBindings.delete(chatId)
+      this.saveBindings()
     }
 
     // 通知平台持久化
@@ -632,6 +657,7 @@ export class BridgeCommandHandler {
 
     binding.channelId = channel.id
     binding.modelId = model.id
+    this.saveBindings()
 
     await this.send(
       chatId,
@@ -712,7 +738,7 @@ export class BridgeCommandHandler {
     runAgentHeadless(input, {
       onError: (error) => {
         this.log(`Agent 错误: ${error}`)
-        this.send(chatId, `❌ Agent 错误: ${error}`, contextData).catch(console.error)
+        this.send(chatId, `❌ Agent 错误: ${error}`, contextData).catch((sendError) => console.error(`[${this.config.platformName} Bridge] 发送错误消息失败:`, redactSensitiveLogValue(sendError)))
         this.sessionBuffers.delete(binding!.sessionId)
       },
       onComplete: () => {
@@ -733,14 +759,10 @@ export class BridgeCommandHandler {
     if (payload.kind === 'sdk_message') {
       const msg = payload.message
 
-      // 从 assistant 消息中提取文本
+      // 从 assistant 终态消息中提取文本。Pi 的 _partial 预览帧携带累计全文，
+      // 如果进入 buffer，会在钉钉/微信最终回复里形成多段重复内容。
       if (msg.type === 'assistant') {
-        const aMsg = msg as AssistantMessagePayload
-        for (const block of aMsg.message?.content ?? []) {
-          if (block.type === 'text' && block.text) {
-            buffer.text += block.text
-          }
-        }
+        buffer.text += extractFinalAssistantText(msg)
       }
 
       // result → 会话完成
@@ -758,7 +780,7 @@ export class BridgeCommandHandler {
     const replyText = buffer.text.trim() || '✅ Agent 已完成（无文本输出）'
 
     this.log(`Agent 回复 (${duration}s): ${replyText.slice(0, 100)}${replyText.length > 100 ? '...' : ''}`)
-    this.send(buffer.chatId, replyText, buffer.contextData).catch(console.error)
+    this.send(buffer.chatId, replyText, buffer.contextData).catch((sendError) => console.error(`[${this.config.platformName} Bridge] 发送回复失败:`, redactSensitiveLogValue(sendError)))
     this.sessionBuffers.delete(sessionId)
   }
 

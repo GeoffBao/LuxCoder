@@ -26,6 +26,7 @@ import type {
   SDKUserContentBlock,
   SDKUserMessage,
 } from '@luxagents/shared'
+import { getSDKCompactStatus } from '@luxagents/shared'
 
 export type SessionMiniMapType = 'chat' | 'agent'
 
@@ -157,6 +158,7 @@ function normalizePreviewText(text: string): string {
   return text
     .replace(/<attached_files>[\s\S]*?<\/attached_files>\n*/g, '')
     .replace(/<quoted_file[^>]*>[\s\S]*?<\/quoted_file>\n*/g, '')
+    .replace(/<quoted_context[^>]*>[\s\S]*?<\/quoted_context>\n*/g, '')
     .replace(/\r\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim()
@@ -224,13 +226,16 @@ function buildAgentMinimapItems(messages: SDKMessage[], userAvatar?: string): Ta
 
     if (message.type === 'system') {
       const system = message as SDKSystemMessage
-      const preview = system.subtype === 'compact_boundary'
+      const compactStatus = getSDKCompactStatus(system)
+      const preview = compactStatus === 'success'
         ? '上下文已压缩'
-        : system.subtype === 'compacting'
+        : compactStatus === 'compacting'
           ? '正在压缩上下文...'
-          : system.subtype === 'permission_denied'
-            ? '自动审批已拒绝操作'
-            : ''
+          : compactStatus === 'failed'
+            ? '上下文压缩失败'
+            : system.subtype === 'permission_denied'
+              ? '权限检查已拒绝操作'
+              : ''
       if (preview) {
         items.push({
           id: `${system.subtype ?? 'system'}-${items.length}`,

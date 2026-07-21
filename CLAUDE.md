@@ -135,7 +135,7 @@ bun run generate:icons    # 生成应用图标
 | **构建工具** | Vite | 6.0.3 |
 | **打包工具** | esbuild | 0.24.0+ |
 | **分发工具** | Electron Builder | 25.1.8 |
-| **Agent SDK** | @anthropic-ai/claude-agent-sdk | 0.3.185 |
+| **Agent SDK** | @anthropic-ai/claude-agent-sdk | 0.3.201 |
 | **飞书 SDK** | @larksuiteoapi/node-sdk | 最新 |
 
 ## 核心架构
@@ -160,7 +160,6 @@ bun run generate:icons    # 生成应用图标
 - `ENVIRONMENT_IPC_CHANNELS` - 环境检查
 - `PROXY_IPC_CHANNELS` - 代理设置
 - `SYSTEM_PROMPT_IPC_CHANNELS` - 系统提示词
-- `MEMORY_IPC_CHANNELS` - 记忆功能
 - `CHAT_TOOL_IPC_CHANNELS` - Chat 工具
 - `FEISHU_IPC_CHANNELS` - 飞书集成
 - `GITHUB_RELEASE_IPC_CHANNELS` - GitHub 发布
@@ -194,8 +193,6 @@ bun run generate:icons    # 生成应用图标
 | 服务 | 职责 |
 |------|------|
 | `feishu-bridge.ts` | 飞书集成（68KB）：消息同步、任务通知、OAuth 认证 |
-| `memory-service.ts` | 记忆管理：跨会话记忆存储与检索 |
-| `memos-client.ts` | Memos 客户端：笔记服务集成 |
 
 #### 工具与文件
 
@@ -408,7 +405,7 @@ bun run generate:icons    # 生成应用图标
 
 ## Agent SDK 集成架构
 
-基于 `@anthropic-ai/claude-agent-sdk@0.3.185` 实现 Agent 模式，与 Chat 模式并行。
+基于 `@anthropic-ai/claude-agent-sdk@0.3.201` 实现 Agent 模式，与 Chat 模式并行。
 
 ### 核心流程
 
@@ -476,7 +473,7 @@ React UI 更新
   - `options.env` 回退为"替换"
   - **SDK 包结构重构**：删除 `cli.js`，改为平台 native binary（通过 `@anthropic-ai/claude-agent-sdk-{platform}-{arch}` optionalDependency 分发），ripgrep 编译进 binary
   - 详见上方"打包配置注意事项"段落
-- `0.2.120`: `query()` 省略 `settingSources` 时默认加载所有来源（Proma 已显式传 `['user', 'project']`，不受影响）
+- `0.2.120`: `query()` 省略 `settingSources` 时默认加载所有来源（LuxAgents 已显式传 `['user', 'project']`，不受影响）
 - `0.3.142`: SDK/headless 默认使用 Task 工具（`TaskCreate` / `TaskUpdate` / `TaskGet` / `TaskList`）替代已废弃的 `TodoWrite`；MCP server 默认后台连接，慢连接会在 `init` 中呈现 `pending`
 - `0.3.143`: `@anthropic-ai/sdk` 与 `@modelcontextprotocol/sdk` 改为 peerDependencies；bun/npm/pnpm 会自动安装
 - `0.3.185`: **会话终止语义改变（重要）**。旧版链路「收到 result → `channel.close()` → SDK `endInput()` 关 stdin → 子进程 EOF 退出 → 输出流自然 yield done」已废弃（`Transport.close` 注释明确 "eliminating need for endInput"）。新版把终止逻辑全部挪进 `Query.cleanup()`，而 `cleanup()` **只在 `iterator.return()` 被调用时触发**（`next()` 仅透传，不会因输入关闭而自动 yield done）。
@@ -515,7 +512,6 @@ React UI 更新
 - ✅ **飞书集成**：消息同步、任务通知、OAuth 认证（68KB 核心服务）
 - ✅ **工作区管理**：多工作区隔离、MCP Server 配置、Skills 管理
 - ✅ **权限系统**：工具权限检查、用户确认流程
-- ✅ **记忆系统**：跨会话记忆存储与检索
 - ✅ **自动更新**：Electron Updater 集成
 - ✅ **代理支持**：系统代理检测与配置
 - ✅ **文档解析**：PDF、Office、文本文件提取

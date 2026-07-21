@@ -9,7 +9,7 @@
  */
 
 import * as React from 'react'
-import { useAtomValue, useSetAtom } from 'jotai'
+import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { ChevronDown, Cpu, Search } from 'lucide-react'
 import {
   Dialog,
@@ -22,21 +22,29 @@ import {
   selectedModelAtom,
   channelsAtom,
   channelsLoadedAtom,
+  modelSelectorOpenAtom,
 } from '@/atoms/chat-atoms'
 import { useConversationModelOptional } from '@/hooks/useConversationSettings'
 import { useConversationIdOptional } from '@/contexts/session-context'
 import { getModelLogo, getChannelLogo, DefaultLogo } from '@/lib/model-logo'
 import { cn } from '@/lib/utils'
-import type { Channel, ModelOption } from '@luxagents/shared'
+import type { Channel, ModelOption, ProviderType } from '@luxagents/shared'
+import { ChannelPlanQuotaBadge } from './ChannelPlanQuotaBadge'
 
 /** 从渠道列表构建扁平化的模型选项 */
-function buildModelOptions(channels: Channel[], filterChannelId?: string, filterChannelIds?: string[]): ModelOption[] {
+export function buildModelOptions(
+  channels: Channel[],
+  filterChannelId?: string,
+  filterChannelIds?: string[],
+  excludedProviders?: readonly ProviderType[],
+): ModelOption[] {
   const options: ModelOption[] = []
 
   for (const channel of channels) {
     if (!channel.enabled) continue
     if (filterChannelId && channel.id !== filterChannelId) continue
-    if (filterChannelIds && filterChannelIds.length > 0 && !filterChannelIds.includes(channel.id)) continue
+    if (filterChannelIds && !filterChannelIds.includes(channel.id)) continue
+    if (excludedProviders?.includes(channel.provider)) continue
 
     for (const model of channel.models) {
       if (!model.enabled) continue
@@ -80,6 +88,10 @@ interface ModelSelectorProps {
   onModelSelect?: (option: ModelOption) => void
   /** 触发按钮是否显示「渠道 · 模型」（默认只显示模型名） */
   showChannelInTrigger?: boolean
+  /** 不在此选择器中显示的供应商（例如 Chat 暂不支持的协议） */
+  excludedProviders?: readonly ProviderType[]
+  /** 是否使用全局 modelSelectorOpenAtom 控制打开状态（用于外部拉起，如错误提示按钮） */
+  useSharedOpenState?: boolean
 }
 
 export function ModelSelector({
@@ -88,6 +100,8 @@ export function ModelSelector({
   externalSelectedModel,
   onModelSelect,
   showChannelInTrigger = false,
+  excludedProviders,
+  useSharedOpenState = false,
 }: ModelSelectorProps = {}): React.ReactElement {
   const [conversationModel, setConversationModel] = useConversationModelOptional()
   const conversationId = useConversationIdOptional()
@@ -96,7 +110,10 @@ export function ModelSelector({
   const channels = useAtomValue(channelsAtom)
   const channelsLoaded = useAtomValue(channelsLoadedAtom)
   const setChannels = useSetAtom(channelsAtom)
-  const [open, setOpen] = React.useState(false)
+  const [localOpen, setLocalOpen] = React.useState(false)
+  const [sharedOpen, setSharedOpen] = useAtom(modelSelectorOpenAtom)
+  const open = useSharedOpenState ? sharedOpen : localOpen
+  const setOpen = useSharedOpenState ? setSharedOpen : setLocalOpen
   const [search, setSearch] = React.useState('')
 
   // 外部模型优先 → per-conversation 模型
@@ -110,7 +127,10 @@ export function ModelSelector({
     }
   }, [open, setChannels])
 
-  const modelOptions = React.useMemo(() => buildModelOptions(channels, filterChannelId, filterChannelIds), [channels, filterChannelId, filterChannelIds])
+  const modelOptions = React.useMemo(
+    () => buildModelOptions(channels, filterChannelId, filterChannelIds, excludedProviders),
+    [channels, filterChannelId, filterChannelIds, excludedProviders],
+  )
   const grouped = React.useMemo(() => groupByChannel(modelOptions), [modelOptions])
 
   // 搜索过滤
@@ -284,22 +304,21 @@ export function ModelSelector({
                 return Array.from(filteredGrouped.entries()).map(([channelId, options]) => {
                 const first = options[0]
                 if (!first) return null
+                const channel = channels.find((c) => c.id === channelId)
 
                 return (
                   <div key={channelId}>
                     {/* 供应商标题行 - 灰色背景 */}
                     <div className="flex items-center gap-2 px-4 py-2 bg-muted/50 border-b border-border/30">
                       <img
-                        src={(() => {
-                          const ch = channels.find((c) => c.id === channelId)
-                          return ch ? getChannelLogo(ch) : DefaultLogo
-                        })()}
+                        src={channel ? getChannelLogo(channel) : DefaultLogo}
                         alt={first.channelName}
                         className="size-5 rounded object-cover"
                       />
-                      <span className="text-sm font-medium text-muted-foreground">
+                      <span className="min-w-0 truncate text-sm font-medium text-muted-foreground">
                         {first.channelName}
                       </span>
+                      {channel ? <ChannelPlanQuotaBadge channel={channel} /> : null}
                     </div>
 
                     {/* 该渠道下的模型列表 */}

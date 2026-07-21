@@ -245,7 +245,11 @@ export async function createLuxAgentsConductorSessionHost(): Promise<LuxAgentsCo
     import('./settings-service'),
   ])
   return new LuxAgentsConductorSessionHost({
-    createAgentSession: sessionManager.createAgentSession,
+    createAgentSession: (title, channelId, workspaceId, modelId) => {
+      // Work/Kanban 会话显式跟随全局默认 runtime（与 Code 新建会话一致），避免静默依赖 createAgentSession 默认参数。
+      const agentRuntime = settingsService.getSettings().agentRuntime ?? 'pi'
+      return sessionManager.createAgentSession(title, channelId, workspaceId, modelId, agentRuntime)
+    },
     getAgentSessionMeta: sessionManager.getAgentSessionMeta,
     updateAgentSessionMeta: sessionManager.updateAgentSessionMeta,
     getAgentSessionMessages: sessionManager.getAgentSessionMessages,
@@ -271,10 +275,13 @@ function mapPermissionMode(mode: string | undefined): LuxAgentsPermissionMode | 
     case 'allow-all':
     case 'bypassPermissions':
       return 'bypassPermissions'
+    case 'auto':
+      // 历史 SDK auto 审批 ≈ 完全自动
+      return 'bypassPermissions'
     case 'safe':
     case 'ask':
-    case 'auto':
-      return 'auto'
+      // 历史「需确认」不得静默升权为 bypass；收敛到计划模式
+      return 'plan'
     case 'plan':
       return 'plan'
     default:

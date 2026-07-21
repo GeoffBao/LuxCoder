@@ -14,6 +14,8 @@ export {
   ONE_MILLION_CONTEXT_WINDOW,
   supports1MContext,
   inferContextWindow,
+  inferAgentSdkContextWindow,
+  resolveAgentSdkModelId,
 } from './context-window'
 export { calculateContextUsageRatio } from './context-usage'
 export {
@@ -29,3 +31,8 @@ export {
   normalizeThinkingSignatureError,
 } from './thinking-signature-error'
 export { normalizePathForCompare } from './normalize-path'
+export {
+  getSDKCompactStatus,
+  isPersistableSDKSystemMessage,
+  type SDKCompactStatus,
+} from './agent-system-message'

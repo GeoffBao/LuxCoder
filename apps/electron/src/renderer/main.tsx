@@ -27,6 +27,7 @@ import {
   agentChannelIdAtom,
   agentModelIdAtom,
   agentChannelIdsAtom,
+  agentRuntimeAtom,
   agentWorkspacesAtom,
   agentSessionsAtom,
   currentAgentWorkspaceIdAtom,
@@ -52,6 +53,8 @@ import {
 } from './atoms/notifications'
 import {
   stickyUserMessageEnabledAtom,
+  longTextPasteAsAttachmentEnabledAtom,
+  richTextRenderingEnabledAtom,
   initializeUiPreferences,
 } from './atoms/ui-preferences'
 import {
@@ -77,11 +80,11 @@ import { toast } from 'sonner'
 import { diffCapabilities } from '@luxagents/shared'
 import type { WorkspaceCapabilities } from '@luxagents/shared'
 import { showCapabilityChangeToasts } from './lib/capabilities-toast'
-import { UpdateDialog } from './components/settings/UpdateDialog'
 import { ProjectsInitializer } from './components/ProjectsInitializer'
 import { GlobalShortcuts } from './components/shortcuts/GlobalShortcuts'
 import { TabSwitcher } from './components/tabs/TabSwitcher'
 import { htmlToMarkdown, markdownToHtml } from './lib/markdown-rich-text'
+import { getEnabledClaudeAgentChannelIds } from './lib/agent-channel-selection'
 import './styles/globals.css'
 import 'katex/dist/katex.min.css'
 
@@ -89,6 +92,12 @@ import 'katex/dist/katex.min.css'
 const isQuickTaskWindow = new URLSearchParams(window.location.search).get('window') === 'quick-task'
 const isVoiceDictationWindow = new URLSearchParams(window.location.search).get('window') === 'voice-dictation'
 const isDetachedPreviewWindow = new URLSearchParams(window.location.search).get('window') === 'detached-preview'
+const isMainWindow = !isQuickTaskWindow && !isVoiceDictationWindow && !isDetachedPreviewWindow
+
+// 仅主窗口禁用页面级滚动；独立浮窗各自管理自己的内容高度和滚动。
+if (isMainWindow) {
+  document.documentElement.classList.add('proma-main-window')
+}
 
 /**
  * 主题初始化组件
@@ -161,6 +170,7 @@ function AgentSettingsInitializer(): null {
   const setAgentChannelId = useSetAtom(agentChannelIdAtom)
   const setAgentModelId = useSetAtom(agentModelIdAtom)
   const setAgentChannelIds = useSetAtom(agentChannelIdsAtom)
+  const setAgentRuntime = useSetAtom(agentRuntimeAtom)
   const setAgentWorkspaces = useSetAtom(agentWorkspacesAtom)
   const setCurrentWorkspaceId = useSetAtom(currentAgentWorkspaceIdAtom)
   const bumpCapabilities = useSetAtom(workspaceCapabilitiesVersionAtom)
@@ -204,42 +214,40 @@ function AgentSettingsInitializer(): null {
         store.set(selectedModelAtom, null)
       }
 
-      // 验证并加载 Agent 渠道/模型
-      if (settings.agentChannelId && channelIds.has(settings.agentChannelId)) {
+      const defaultAgentRuntime = settings.agentRuntime ?? 'pi'
+      setAgentRuntime(defaultAgentRuntime)
+
+      // 渠道的启用状态是唯一开关：启动时也必须从实际渠道派生 Claude 白名单，
+      // 不能继承旧版独立开关，或把 Pi 专用渠道带入 Claude runtime。
+      const claudeChannelIds = getEnabledClaudeAgentChannelIds(channels)
+      setAgentChannelIds(claudeChannelIds)
+
+      const selectedChannel = settings.agentChannelId
+        ? channels.find((channel) => channel.id === settings.agentChannelId)
+        : undefined
+      const selectedChannelIsUsable = selectedChannel?.enabled
+        && (defaultAgentRuntime === 'pi' || claudeChannelIds.includes(selectedChannel.id))
+
+      const updates: Parameters<typeof window.electronAPI.updateSettings>[0] = {}
+      const storedClaudeChannelIds = settings.agentChannelIds ?? []
+      const whitelistChanged = claudeChannelIds.length !== storedClaudeChannelIds.length
+        || claudeChannelIds.some((id, index) => id !== storedClaudeChannelIds[index])
+      if (whitelistChanged) updates.agentChannelIds = claudeChannelIds
+
+      // 验证并加载 Agent 默认渠道/模型。Claude runtime 不能恢复到 Pi 专用或已禁用渠道。
+      if (settings.agentChannelId && selectedChannelIsUsable) {
         setAgentChannelId(settings.agentChannelId)
-      } else if (settings.agentChannelId && !channelIds.has(settings.agentChannelId)) {
-        // 渠道已删除，清除无效设置
-        console.warn('[AgentSettings] agentChannelId 指向已删除的渠道，清除')
-        window.electronAPI.updateSettings({ agentChannelId: undefined, agentModelId: undefined }).catch(console.error)
-      }
-      if (settings.agentModelId && (!settings.agentChannelId || channelIds.has(settings.agentChannelId))) {
-        setAgentModelId(settings.agentModelId)
-      }
-
-      // 加载 Agent 启用渠道列表，过滤已删除的渠道
-      if (settings.agentChannelIds && settings.agentChannelIds.length > 0) {
-        const validIds = settings.agentChannelIds.filter((id) => channelIds.has(id))
-        setAgentChannelIds(validIds)
-        // 如果有渠道被清理，持久化更新后的列表
-        if (validIds.length !== settings.agentChannelIds.length) {
-          console.warn('[AgentSettings] 清理了已删除的 agentChannelIds')
-          window.electronAPI.updateSettings({ agentChannelIds: validIds }).catch(console.error)
-        }
-      } else if (settings.agentChannelId && channelIds.has(settings.agentChannelId)) {
-        // 迁移：旧版本只有 agentChannelId，自动转为数组
-        const migrated = [settings.agentChannelId]
-        setAgentChannelIds(migrated)
-        window.electronAPI.updateSettings({ agentChannelIds: migrated }).catch(console.error)
+        if (settings.agentModelId) setAgentModelId(settings.agentModelId)
+      } else if (settings.agentChannelId) {
+        console.warn('[AgentSettings] agentChannelId 指向当前 Core 不可用的渠道，清除')
+        setAgentChannelId(null)
+        setAgentModelId(null)
+        updates.agentChannelId = undefined
+        updates.agentModelId = undefined
       }
 
-      // 兜底：agentChannelId 存在但不在 agentChannelIds 白名单中，自动修复不一致
-      if (settings.agentChannelId && channelIds.has(settings.agentChannelId)) {
-        const currentIds = settings.agentChannelIds?.filter((id) => channelIds.has(id)) ?? []
-        if (!currentIds.includes(settings.agentChannelId)) {
-          const fixedIds = [...currentIds, settings.agentChannelId]
-          setAgentChannelIds(fixedIds)
-          window.electronAPI.updateSettings({ agentChannelIds: fixedIds }).catch(console.error)
-        }
+      if (Object.keys(updates).length > 0) {
+        window.electronAPI.updateSettings(updates).catch(console.error)
       }
 
       if (settings.agentThinking) {
@@ -277,7 +285,7 @@ function AgentSettingsInitializer(): null {
       console.error(err)
       setAgentSettingsReady(true) // 即使出错也标记就绪，避免永远阻塞
     })
-  }, [setAgentChannelId, setAgentModelId, setAgentChannelIds, setAgentWorkspaces, setCurrentWorkspaceId, setThinking, setEffort, setMaxBudget, setMaxTurns, setAutomationGroupOrder, setChannels, setChannelsLoaded, setAgentSettingsReady])
+  }, [setAgentChannelId, setAgentModelId, setAgentChannelIds, setAgentRuntime, setAgentWorkspaces, setCurrentWorkspaceId, setThinking, setEffort, setMaxBudget, setMaxTurns, setAutomationGroupOrder, setChannels, setChannelsLoaded, setAgentSettingsReady])
 
   // 工作区切换时重置能力缓存，预加载基线
   useEffect(() => {
@@ -381,7 +389,7 @@ function NotificationsInitializer(): null {
   const setSounds = useSetAtom(notificationSoundsAtom)
 
   useEffect(() => {
-    initializeNotifications(setEnabled, setSoundEnabled, setSounds)
+    void initializeNotifications(setEnabled, setSoundEnabled, setSounds)
   }, [setEnabled, setSoundEnabled, setSounds])
 
   return null
@@ -431,14 +439,20 @@ function DockBadgeInitializer(): null {
 /**
  * UI 偏好初始化组件
  *
- * 从主进程加载 UI 偏好设置（悬浮置顶条等）。
+ * 从主进程加载 UI 偏好设置（悬浮置顶条、输入框 Markdown 渲染等）。
  */
 function UiPreferencesInitializer(): null {
   const setStickyUserMessageEnabled = useSetAtom(stickyUserMessageEnabledAtom)
+  const setLongTextPasteAsAttachmentEnabled = useSetAtom(longTextPasteAsAttachmentEnabledAtom)
+  const setRichTextRenderingEnabled = useSetAtom(richTextRenderingEnabledAtom)
 
   useEffect(() => {
-    initializeUiPreferences(setStickyUserMessageEnabled)
-  }, [setStickyUserMessageEnabled])
+    initializeUiPreferences(
+      setStickyUserMessageEnabled,
+      setLongTextPasteAsAttachmentEnabled,
+      setRichTextRenderingEnabled
+    )
+  }, [setStickyUserMessageEnabled, setLongTextPasteAsAttachmentEnabled, setRichTextRenderingEnabled])
 
   return null
 }
@@ -906,7 +920,7 @@ if (isQuickTaskWindow) {
       <React.StrictMode>
         <ThemeInitializer />
         <VoiceDictationApp />
-        <Toaster position="top-right" />
+        <Toaster position="bottom-right" />
       </React.StrictMode>
     )
   })
@@ -917,7 +931,7 @@ if (isQuickTaskWindow) {
         <ThemeInitializer />
         <MarkdownFontSizeInitializer />
         <DetachedPreviewApp />
-        <Toaster position="top-right" />
+        <Toaster position="bottom-right" />
       </React.StrictMode>
     )
   })
@@ -945,8 +959,7 @@ if (isQuickTaskWindow) {
       <GlobalShortcuts />
       <TabSwitcher />
       <App />
-      <UpdateDialog />
-      <Toaster position="top-right" />
+      <Toaster position="bottom-right" />
     </React.StrictMode>
   )
 }

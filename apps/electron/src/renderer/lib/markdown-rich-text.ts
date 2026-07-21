@@ -152,6 +152,11 @@ const markdownIt = new MarkdownIt({
   breaks: false,
 })
 
+// 关闭 linkify 的模糊匹配：避免把形如 SKILL.md 的文件名（.md 被误判为摩尔多瓦 TLD）
+// 自动包装成 http://SKILL.md 这样的合成链接。带 scheme 的真实 URL（http(s)://...）
+// 仍会被正常链接。fuzzyEmail 同理关闭，防止 foo@bar.com 被误判。
+markdownIt.linkify.set({ fuzzyLink: false, fuzzyEmail: false })
+
 addMathSupport(markdownIt)
 
 markdownIt.core.ruler.after('inline', 'emoji_shortcode', (state: any) => {
@@ -357,7 +362,7 @@ export function markdownToHtml(markdown: string): string {
 }
 
 /** 将 TipTap 输出的 HTML 转换为 Markdown 格式 */
-export function htmlToMarkdown(html: string): string {
+export function htmlToMarkdown(html: string, options?: { skipMarkdownEscape?: boolean }): string {
   if (!html || html === '<p></p>') return ''
 
   const div = document.createElement('div')
@@ -366,7 +371,8 @@ export function htmlToMarkdown(html: string): string {
   function processNode(node: Node, context: 'normal' | 'code' = 'normal'): string {
     if (node.nodeType === Node.TEXT_NODE) {
       const text = node.textContent || ''
-      return context === 'code' ? text : escapeMarkdownText(text)
+      if (context === 'code' || options?.skipMarkdownEscape) return text
+      return escapeMarkdownText(text)
     }
 
     if (node.nodeType !== Node.ELEMENT_NODE) {

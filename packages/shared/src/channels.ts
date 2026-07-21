@@ -11,7 +11,7 @@
 export { IPC_CHANNELS } from './types/runtime'
 export { CHANNEL_IPC_CHANNELS } from './types/channel'
 export { CHAT_IPC_CHANNELS } from './types/chat'
-export { AGENT_IPC_CHANNELS, MEMORY_IPC_CHANNELS } from './types/agent'
+export { AGENT_IPC_CHANNELS } from './types/agent'
 export { ENVIRONMENT_IPC_CHANNELS } from './types/environment'
 export { INSTALLER_IPC_CHANNELS } from './types/installer'
 export { PROXY_IPC_CHANNELS } from './types/proxy'

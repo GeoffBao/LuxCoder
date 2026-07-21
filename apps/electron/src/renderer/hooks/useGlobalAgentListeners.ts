@@ -26,7 +26,9 @@ import {
   applyAgentEvent,
   liveMessagesMapAtom,
   agentSessionModelMapAtom,
+  agentSessionChannelMapAtom,
   agentModelIdAtom,
+  agentChannelIdAtom,
   agentPermissionModeMapAtom,
   stoppedByUserSessionsAtom,
   agentPlanModeSessionsAtom,
@@ -53,12 +55,14 @@ import { appModeAtom } from '@/atoms/app-mode'
 import { tabsAtom, activeTabIdAtom, openTab, updateTabTitle } from '@/atoms/tab-atoms'
 import type { AgentStreamState } from '@/atoms/agent-atoms'
 import { agentDiffUnseenChangesAtom, agentDiffUnseenFilesAtom } from '@/atoms/agent-atoms'
+import { channelsAtom } from '@/atoms/chat-atoms'
 import { previewFileMapAtom } from '@/atoms/preview-atoms'
 import type { NotificationSoundType } from '@/types/settings'
 import { toast } from 'sonner'
-import type { AgentStreamEvent, AgentStreamCompletePayload, AgentEvent, AgentStreamPayload, SDKAssistantMessage, SDKUserMessage, SDKSystemMessage, SDKContentBlock, SDKUserContentBlock, LuxAgentsEvent, AgentSessionMeta } from '@luxagents/shared'
-import { inferContextWindow } from '@luxagents/shared'
+import type { AgentStreamEvent, AgentStreamCompletePayload, AgentEvent, AgentStreamPayload, SDKAssistantMessage, SDKUserMessage, SDKSystemMessage, SDKContentBlock, SDKUserContentBlock, LuxAgentsEvent, AgentSessionMeta, ProviderType } from '@luxagents/shared'
+import { inferAgentSdkContextWindow, inferContextWindow } from '@luxagents/shared'
 import { buildExternalAgentRunActivation } from '@/lib/external-agent-run'
+import { upsertAgentSession, mergeFetchedAgentSessions } from '@/lib/agent-session-list'
 import { getAgentCompletionMarkers } from '@/lib/agent-completion-presence'
 import { getPlanModeChangeFromToolName, updatePlanModeSessionSet } from '@/lib/agent-plan-mode'
 
@@ -199,7 +203,10 @@ function payloadToLegacyEvents(payload: AgentStreamPayload): AgentEvent[] {
         // 因为部分端点（如智谱）会在 message.model 里剥掉 [1m] 等规格后缀，
         // 导致 glm-x-preview[1m] 被识别成 glm-x-preview（200K）。
         const modelName = aMsg._channelModelId ?? aMsg.message.model
-        const fallbackWindow = inferContextWindow(modelName)
+        const provider = aMsg._channelProvider
+        const fallbackWindow = provider
+          ? inferAgentSdkContextWindow(modelName, provider)
+          : inferContextWindow(modelName)
         events.push({
           type: 'usage_update',
           usage: {
@@ -241,8 +248,28 @@ function payloadToLegacyEvents(payload: AgentStreamPayload): AgentEvent[] {
         total_cost_usd?: number
         modelUsage?: Record<string, { contextWindow?: number }>
         usage?: { input_tokens: number; output_tokens: number; cache_read_input_tokens: number; cache_creation_input_tokens: number }
+        _channelModelId?: string
+        _channelProvider?: ProviderType
       }
-      const contextWindow = rMsg.modelUsage ? Object.values(rMsg.modelUsage)[0]?.contextWindow : undefined
+      // 多 entry 场景（Task 子 Agent 等）：取最大 contextWindow，
+      // 避免子 Agent 的小窗口覆盖主模型的大窗口、导致指示器飘忽。
+      let contextWindow: number | undefined
+      const fallbackWindow = rMsg._channelProvider
+        ? inferAgentSdkContextWindow(rMsg._channelModelId, rMsg._channelProvider)
+        : inferContextWindow(rMsg._channelModelId)
+      if (rMsg.modelUsage) {
+        for (const [modelId, info] of Object.entries(rMsg.modelUsage)) {
+          const modelFallbackWindow = rMsg._channelProvider
+            ? inferAgentSdkContextWindow(rMsg._channelModelId ?? modelId, rMsg._channelProvider)
+            : inferContextWindow(rMsg._channelModelId ?? modelId)
+          const candidate = Math.max(info?.contextWindow ?? 0, modelFallbackWindow ?? 0) || undefined
+          if (candidate && (contextWindow === undefined || candidate > contextWindow)) {
+            contextWindow = candidate
+          }
+        }
+      } else {
+        contextWindow = fallbackWindow
+      }
       // result.usage 是整个 query 内所有模型调用的累计求和，不能当成当前上下文占用，
       // 否则进度环会虚高、冲破 100%（PR #821 修的正是这个问题）。
       //
@@ -271,6 +298,12 @@ function payloadToLegacyEvents(payload: AgentStreamPayload): AgentEvent[] {
       const sMsg = msg as SDKSystemMessage
       if (sMsg.subtype === 'compact_boundary') return [{ type: 'compact_complete' }]
       if (sMsg.subtype === 'compacting') return [{ type: 'compacting' }]
+      if (sMsg.subtype === 'status') {
+        if (sMsg.status === 'compacting') return [{ type: 'compacting' }]
+        if (sMsg.compact_result === 'success' || sMsg.compact_result === 'failed' || typeof sMsg.compact_error === 'string') {
+          return [{ type: 'compact_complete' }]
+        }
+      }
       if (sMsg.subtype === 'task_started' && sMsg.task_id) {
         return [{ type: 'task_started', taskId: sMsg.task_id, description: sMsg.description ?? '', taskType: sMsg.task_type, toolUseId: sMsg.tool_use_id }]
       }
@@ -388,7 +421,24 @@ export function useGlobalAgentListeners(): void {
         // 只更新驱动左侧边栏列表与状态指示条所需的状态，让用户自行决定是否切过去。
         // 若该会话恰好是用户当前正在查看的会话，这里不动 Tab/激活，流式内容会通过
         // agentStreamingStatesAtom 自然刷新，用户视角无任何跳动。
-        store.set(agentSessionsAtom, sessions)
+        // 只 upsert 本次 event 对应的会话，绝不用这份快照整体覆盖列表。
+        //
+        // 一次派发多个子会话时，多个 external_run_started 回调会各自带着
+        // 「事件触发那一刻」或「异步 fetch 那一刻」的快照进来。若整体覆盖
+        // agentSessionsAtom，后 resolve 的回调会用自己那份可能缺失了刚结束
+        // turn 的父会话的快照，把父会话冲掉——父会话从列表消失后，其子会话
+        // 因找不到父而从树形子节点变成根节点直接显示（用户观察到的现象）。
+        // 改为单条 upsert 后，每个回调只负责自己那一个会话，互不干扰。
+        const sessionMeta = sessions.find((item) => item.id === event.sessionId)
+        const upserted: AgentSessionMeta = sessionMeta ?? {
+          id: event.sessionId,
+          title: activation.title,
+          workspaceId: activation.workspaceId,
+          modelId: activation.modelId,
+          createdAt: event.startedAt,
+          updatedAt: event.startedAt,
+        }
+        store.set(agentSessionsAtom, (prev) => upsertAgentSession(prev, upserted))
         const activationModelId = activation.modelId
         if (activationModelId) {
           store.set(agentSessionModelMapAtom, (prev) => {
@@ -569,7 +619,7 @@ export function useGlobalAgentListeners(): void {
         if (payload.kind === 'luxagents_event' && payload.event.type === 'automation_graduated') {
           toast('已接管自动任务会话，后续定时运行将创建新会话。', { duration: 3000 })
           window.electronAPI.listAgentSessions()
-            .then((sessions) => store.set(agentSessionsAtom, sessions))
+            .then((sessions) => store.set(agentSessionsAtom, (prev) => mergeFetchedAgentSessions(prev, sessions)))
             .catch(console.error)
         }
 
@@ -577,7 +627,7 @@ export function useGlobalAgentListeners(): void {
         const knownSessions = store.get(agentSessionsAtom)
         if (!knownSessions.some((s) => s.id === sessionId)) {
           window.electronAPI.listAgentSessions()
-            .then((sessions) => store.set(agentSessionsAtom, sessions))
+            .then((sessions) => store.set(agentSessionsAtom, (prev) => mergeFetchedAgentSessions(prev, sessions)))
             .catch(console.error)
         }
 
@@ -597,21 +647,47 @@ export function useGlobalAgentListeners(): void {
               msgRecord._createdAt = Date.now()
             }
 
-            // 为 assistant 消息注入渠道 modelId，确保流式期间就绑定正确模型
+            // 为 assistant 消息注入渠道信息，确保流式期间就绑定正确模型与 Agent SDK 窗口
             if (msgRecord.type === 'assistant' && !msgRecord._channelModelId) {
               const sessionModelMap = store.get(agentSessionModelMapAtom)
               const defaultModelId = store.get(agentModelIdAtom)
               msgRecord._channelModelId = sessionModelMap.get(sessionId) ?? defaultModelId ?? undefined
+            }
+            if (msgRecord.type === 'assistant' && !msgRecord._channelProvider) {
+              const sessionChannelMap = store.get(agentSessionChannelMapAtom)
+              const defaultChannelId = store.get(agentChannelIdAtom)
+              const channelId = sessionChannelMap.get(sessionId) ?? defaultChannelId ?? undefined
+              const channels = store.get(channelsAtom)
+              const provider = channels.find((c) => c.id === channelId)?.provider
+              if (provider) {
+                msgRecord._channelProvider = provider as ProviderType
+              }
             }
 
             store.set(liveMessagesMapAtom, (prev) => {
               const map = new Map(prev)
               const current = map.get(sessionId) ?? []
 
-              // UUID 去重：队列消息已被乐观注入，SDK 再次推送时跳过
+              // UUID 去重 / partial upsert：
+              // - 队列用户消息已被乐观注入，SDK 再次推送时跳过
+              // - Pi message_update 使用稳定 uuid 标记 _partial，最终 message_end 用同一 uuid 替换
               const incomingUuid = msgRecord.uuid as string | undefined
-              if (incomingUuid && current.some((m) => (m as Record<string, unknown>).uuid === incomingUuid)) {
-                return prev
+              if (incomingUuid) {
+                const existingIndex = current.findIndex((m) => (m as Record<string, unknown>).uuid === incomingUuid)
+                if (existingIndex >= 0) {
+                  const existing = current[existingIndex] as Record<string, unknown>
+                  const incomingIsPartial = msgRecord._partial === true
+                  const existingIsPartial = existing._partial === true
+
+                  if (incomingIsPartial || existingIsPartial) {
+                    const next = [...current]
+                    next[existingIndex] = payload.message
+                    map.set(sessionId, next)
+                    return map
+                  }
+
+                  return prev
+                }
               }
 
               map.set(sessionId, [...current, payload.message])
@@ -858,7 +934,7 @@ export function useGlobalAgentListeners(): void {
               updatePlanModeSessionSet(prev, sessionId, event.active)
             )
           } else if (event.type === 'permission_mode_changed') {
-            // 权限模式变更（如 Plan 模式退出后切换到自动审批或完全自动）
+            // 权限模式变更（如 Plan 模式退出后切换到完全自动）
             console.log(`[GlobalAgentListeners] 权限模式变更: ${event.mode}`)
             store.set(agentPermissionModeMapAtom, (prev: Map<string, import('@luxagents/shared').LuxAgentsPermissionMode>) => {
               const next = new Map(prev)
@@ -892,12 +968,17 @@ export function useGlobalAgentListeners(): void {
         // 不发"任务已完成"通知（任务并未真正完成）、不清后台任务列表、不重载消息——
         // 等后台任务完成时 Agent 会自动唤醒续轮。
         const backgroundTasksPending = data.backgroundTasksPending === true
-        // 发送桌面通知（任务完成，始终播放提示音）
+        const hasStreamError = store.get(agentStreamErrorsAtom).has(data.sessionId)
+        const isSuccessfulCompletion = !data.stoppedByUser &&
+          !hasStreamError &&
+          (!data.resultSubtype || data.resultSubtype === 'success')
+
+        // 发送桌面通知（仅真正成功完成时播放提示音，错误/中断/异常完成不伪装成完成）
         const enabled = store.get(notificationsEnabledAtom)
         const soundEnabled = store.get(notificationSoundEnabledAtom)
         const sounds = store.get(notificationSoundsAtom)
         const sessionTitle = getSessionTitle(data.sessionId)
-        if (!backgroundTasksPending) {
+        if (!backgroundTasksPending && isSuccessfulCompletion) {
           sendDesktopNotification(
             'Agent 任务完成',
             `[${sessionTitle}] 任务已完成`,
@@ -970,6 +1051,7 @@ export function useGlobalAgentListeners(): void {
             error_max_turns: '任务被中断：已达到轮次上限。继续对话可让 Agent 接着完成。',
             error_max_budget_usd: '任务被中断：已达到预算上限。',
             error_during_execution: '任务执行过程中发生错误。',
+            empty_response: 'Agent 本轮结束了，但没有返回任何可展示内容。你的消息已保留，可以直接重试或切换模型。',
           }
           // error_during_execution 等执行期错误：优先展示 SDK result.errors[] 携带的真实原因，
           // 让用户能据此判断重试 / 改提问 / 报 bug，而非只看到泛泛的兜底文案。
@@ -1034,7 +1116,9 @@ export function useGlobalAgentListeners(): void {
           window.electronAPI
             .listAgentSessions()
             .then((sessions) => {
-              store.set(agentSessionsAtom, sessions)
+              // 合并而非整体覆盖：避免与并发的 external_run_started 回调互相用
+              // 陈旧快照冲掉对方刚写入的会话（如刚结束 turn 的父会话）。
+              store.set(agentSessionsAtom, (prev) => mergeFetchedAgentSessions(prev, sessions))
               // 从持久化 meta 对齐 stoppedByUser 状态
               store.set(stoppedByUserSessionsAtom, new Set<string>(
                 sessions.filter((s) => s.stoppedByUser).map((s) => s.id)
@@ -1092,7 +1176,7 @@ export function useGlobalAgentListeners(): void {
       window.electronAPI
         .listAgentSessions()
         .then((sessions) => {
-          store.set(agentSessionsAtom, sessions)
+          store.set(agentSessionsAtom, (prev) => mergeFetchedAgentSessions(prev, sessions))
         })
         .catch(console.error)
     })

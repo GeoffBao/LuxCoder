@@ -5,11 +5,10 @@
  * 都收敛在本模块，避免主编排流程继续膨胀。
  */
 
-import type { AgentSessionMeta, LuxAgentsPermissionMode } from '@luxagents/shared'
+import type { AgentRuntime, AgentSessionMeta, LuxAgentsPermissionMode } from '@luxagents/shared'
 import { injectAgentCollaborationMcpServer } from '../agent-collaboration-tools'
 import { injectAutomationMcpServer } from '../automation-agent-tools'
 import { injectNanoBananaMcpServer } from '../chat-tools/nano-banana-mcp'
-import { injectMemoryMcpServer } from './memory'
 import { isBuiltinMcpUserEnabled } from './settings'
 
 export interface BuiltinMcpInjectContext {
@@ -18,6 +17,7 @@ export interface BuiltinMcpInjectContext {
   sessionId: string
   channelId: string
   modelId?: string
+  agentRuntime?: AgentRuntime
   workspaceId?: string
   workspaceSlug?: string
   agentCwd?: string
@@ -35,10 +35,6 @@ async function injectBuiltinSafely(name: string, task: () => Promise<void>): Pro
 }
 
 export async function injectBuiltinMcpServers(ctx: BuiltinMcpInjectContext): Promise<{ collaborationAvailable: boolean }> {
-  if (isBuiltinMcpUserEnabled('mem')) {
-    await injectBuiltinSafely('mem', () => injectMemoryMcpServer(ctx.sdk, ctx.mcpServers))
-  }
-
   if (isBuiltinMcpUserEnabled('nano-banana')) {
     await injectBuiltinSafely('nano-banana', () => injectNanoBananaMcpServer(
       ctx.sdk,
@@ -53,6 +49,7 @@ export async function injectBuiltinMcpServers(ctx: BuiltinMcpInjectContext): Pro
       sessionId: ctx.sessionId,
       channelId: ctx.channelId,
       modelId: ctx.modelId,
+      agentRuntime: ctx.agentRuntime,
       workspaceId: ctx.workspaceId,
       triggeredBy: ctx.triggeredBy,
     }))

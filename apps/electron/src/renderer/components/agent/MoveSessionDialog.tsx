@@ -26,26 +26,26 @@ interface MoveSessionDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   sessionId: string
-  currentWorkspaceId: string | undefined
+  sourceWorkspaceId: string | undefined
   workspaces: AgentWorkspace[]
-  onMoved: (updatedSession: AgentSessionMeta, targetWorkspaceName: string) => void
+  onMoved: (updatedSession: AgentSessionMeta, targetWorkspaceName: string) => void | Promise<void>
 }
 
 export function MoveSessionDialog({
   open,
   onOpenChange,
   sessionId,
-  currentWorkspaceId,
+  sourceWorkspaceId,
   workspaces,
   onMoved,
 }: MoveSessionDialogProps): React.ReactElement {
   const [selectedWorkspaceId, setSelectedWorkspaceId] = React.useState<string>('')
   const [moving, setMoving] = React.useState(false)
 
-  // 过滤掉当前工作区
+  // 过滤掉会话已属的工作区
   const availableWorkspaces = React.useMemo(
-    () => workspaces.filter((ws) => ws.id !== currentWorkspaceId),
-    [workspaces, currentWorkspaceId]
+    () => workspaces.filter((ws) => ws.id !== sourceWorkspaceId),
+    [workspaces, sourceWorkspaceId]
   )
 
   // 打开时重置选择
@@ -66,7 +66,7 @@ export function MoveSessionDialog({
         sessionId,
         targetWorkspaceId: selectedWorkspaceId,
       })
-      onMoved(updated, targetWs?.name ?? '未知工作区')
+      await onMoved(updated, targetWs?.name ?? '未知工作区')
       onOpenChange(false)
     } catch (error) {
       console.error('[迁移会话] 迁移失败:', error)

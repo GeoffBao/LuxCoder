@@ -3,7 +3,7 @@
  *
  * Anthropic 在 Claude 4.6+ 引入了 adaptive thinking，协议与旧版 extended thinking 不兼容：
  * - Opus 4.7 / Mythos Preview：只支持 adaptive，发送旧版 `{type: 'enabled', budget_tokens}` 会 400
- * - Opus 4.6 / Sonnet 4.6：两种都支持，adaptive 为推荐
+ * - Opus 4.6 / Sonnet 5：两种都支持，adaptive 为推荐
  * - 更老的 Claude 系列（Sonnet 4.5 / Opus 4.5 / 3.x 等）：只支持 manual
  *
  * DeepSeek v4 系列走 Anthropic 兼容端点，但思考强度通过 `output_config.effort` 控制
@@ -17,7 +17,7 @@ import type { ProviderType } from '@luxagents/shared'
 export type ThinkingMode =
   /** 仅支持 adaptive（Opus 4.7 / Mythos Preview） */
   | 'adaptive-only'
-  /** 同时支持 adaptive 和 manual，推荐用 adaptive（Opus 4.6 / Sonnet 4.6） */
+  /** 同时支持 adaptive 和 manual，推荐用 adaptive（Opus 4.6 / Sonnet 5） */
   | 'adaptive-preferred'
   /** 仅支持 manual（旧 Claude 4.5 及以下，以及 DeepSeek v3/reasoner 等） */
   | 'manual-only'
@@ -73,9 +73,20 @@ export function detectThinkingCapability(
     return { mode: 'manual-only', disableStrategy: 'explicit-disabled' }
   }
 
-  // Kimi / 智谱 / MiniMax 的 Anthropic 协议渠道：
+  // Kimi / 智谱 / MiniMax / Token Plan 的 Anthropic 协议渠道：
   // 这些供应商的 thinking 请求参数存在兼容差异，这里直接省略以保持连接稳定。
-  if (providerType === 'kimi-api' || providerType === 'kimi-coding' || providerType === 'zhipu-coding' || providerType === 'minimax') {
+  // Token Plan（qwen-token-plan / xiaomi-token-plan）端点不接受 thinking 字段，
+  // 发送 `thinking: {type:'disabled'}` 会导致请求失败（标题生成等场景）。
+  if (
+    providerType === 'kimi-api'
+    || providerType === 'kimi-coding'
+    || providerType === 'zhipu-coding'
+    || providerType === 'zhipu-coding-team'
+    || providerType === 'ark-coding-plan'
+    || providerType === 'minimax'
+    || providerType === 'qwen-token-plan'
+    || providerType === 'xiaomi-token-plan'
+  ) {
     return { mode: 'none', disableStrategy: 'omit-field' }
   }
 
@@ -94,10 +105,10 @@ export function detectThinkingCapability(
     return { mode: 'adaptive-only', disableStrategy: 'explicit-disabled' }
   }
 
-  // Claude Opus 4.6 / Sonnet 4.6：两者都支持，优先 adaptive
+  // Claude Opus 4.6 / Sonnet 5：两者都支持，优先 adaptive
   if (
     startsWith(modelId, 'claude-opus-4-6') ||
-    startsWith(modelId, 'claude-sonnet-4-6')
+    startsWith(modelId, 'claude-sonnet-5')
   ) {
     return { mode: 'adaptive-preferred', disableStrategy: 'explicit-disabled' }
   }

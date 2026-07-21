@@ -1,3 +1,5 @@
+import type { ProviderType } from './channel'
+
 /**
  * Agent 相关类型定义
  *
@@ -5,32 +7,6 @@
  */
 
 import type { LoadedProject } from '../projects/types'
-
-// ===== 记忆配置 =====
-
-/** 全局记忆配置（MemOS Cloud） */
-export interface MemoryConfig {
-  /** 是否启用记忆功能 */
-  enabled: boolean
-  /** MemOS Cloud API Key */
-  apiKey: string
-  /** 用户标识 */
-  userId: string
-  /** 自定义 API 地址（可选，默认 MemOS Cloud） */
-  baseUrl?: string
-}
-
-/**
- * 全局记忆配置 IPC 通道常量
- */
-export const MEMORY_IPC_CHANNELS = {
-  /** 获取全局记忆配置 */
-  GET_CONFIG: 'memory:get-config',
-  /** 保存全局记忆配置 */
-  SET_CONFIG: 'memory:set-config',
-  /** 测试记忆连接 */
-  TEST_CONNECTION: 'memory:test-connection',
-} as const
 
 // ===== Agent 工作区 =====
 
@@ -73,6 +49,32 @@ export type ThinkingConfig =
  * - max: 最大深度（仅 Opus 4.6）
  */
 export type AgentEffort = 'low' | 'medium' | 'high' | 'max'
+
+/** Agent 思考等级（用于 Pi runtime；Claude runtime 继续使用 ThinkingConfig/AgentEffort） */
+export type AgentThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'
+
+/** 是否为 Proma 可暴露 reasoning.effort 的 OpenAI 推理模型。 */
+export function isOpenAIReasoningSupportedModel(modelId: string | undefined): boolean {
+  const normalized = modelId?.toLowerCase() ?? ''
+  // Pi catalog 中 gpt-5*-chat-latest 是非 reasoning 的对话变体；它们不能接受
+  // reasoning.effort，必须在 UI 层与请求层共同排除。
+  if (normalized.endsWith('-chat-latest')) return false
+  return normalized.startsWith('gpt-5') || /^(o1|o3|o4)(?:-|$)/.test(normalized)
+}
+
+/** 支持 ChatGPT Codex Fast Mode（priority service tier）的模型。 */
+export const CODEX_FAST_MODE_MODEL_IDS = [
+  'gpt-5.4',
+  'gpt-5.5',
+  'gpt-5.6-sol',
+  'gpt-5.6-terra',
+  'gpt-5.6-luna',
+] as const
+
+/** 模型 ID 是否可通过 ChatGPT Codex OAuth 使用 Fast Mode。 */
+export function isCodexFastModeSupportedModel(modelId: string | undefined): boolean {
+  return modelId !== undefined && (CODEX_FAST_MODE_MODEL_IDS as readonly string[]).includes(modelId.toLowerCase())
+}
 
 /**
  * 自定义子代理定义
@@ -129,14 +131,6 @@ export interface SDKSessionMessage {
   /** 时间戳 */
   timestamp?: string
 }
-
-/**
- * SDK Beta 特性标识
- *
- * 当前支持：
- * - context-1m-2025-08-07: 启用 1M token 上下文窗口（Claude Sonnet 4+ / Opus 4.6+、DeepSeek V4 系列）
- */
-export type SdkBeta = 'context-1m-2025-08-07'
 
 /**
  * JSON Schema 输出格式
@@ -218,6 +212,8 @@ export interface SDKAssistantMessage {
   isReplay?: boolean
   /** 渠道配置的模型 ID，持久化/流式期间注入，用于正确匹配模型显示名 */
   _channelModelId?: string
+  /** 渠道 provider，用于按 Agent SDK 实际运行窗口计算压缩阈值 */
+  _channelProvider?: ProviderType
 }
 
 /** SDK user 消息 */
@@ -253,6 +249,10 @@ export interface SDKResultMessage {
   background_tasks?: SDKBackgroundTaskSummary[]
   session_crons?: SDKSessionCronSummary[]
   session_id?: string
+  /** 渠道配置的模型 ID，用于缺失 modelUsage.contextWindow 时按 Agent SDK 运行窗口兜底 */
+  _channelModelId?: string
+  /** 渠道 provider，用于按 Agent SDK 实际运行窗口计算压缩阈值 */
+  _channelProvider?: ProviderType
 }
 
 /** SDK system 消息（init / compact_boundary / permission_denied / task_started / task_progress / task_notification） */
@@ -268,6 +268,10 @@ export interface SDKSystemMessage {
   task_type?: string
   tool_use_id?: string
   status?: string
+  /** SDK status: 上下文压缩结果 */
+  compact_result?: 'success' | 'failed'
+  /** SDK status: 上下文压缩失败原因 */
+  compact_error?: string
   summary?: string
   output_file?: string
   last_tool_name?: string
@@ -377,8 +381,12 @@ export type ErrorCode =
   // 环境 / 配置类错误（本地可修复）
   | 'windows_shell_missing'
   | 'channel_not_found'
+  | 'channel_disabled'
+  | 'agent_provider_not_supported'
+  | 'agent_model_unavailable'
   | 'api_key_decrypt_failed'
   | 'claude_binary_not_found'
+  | 'agent_runtime_not_found'
   | 'session_busy'
   | 'unknown_error'
 
@@ -396,6 +404,7 @@ export interface RecoveryAction {
     | 'compact'
     | 'open_environment_check'
     | 'open_channel_settings'
+    | 'select_model'
     | 'open_external'
     | (string & {})
   /** 操作附带的载荷，例如 open_external 的 URL */
@@ -638,10 +647,22 @@ export interface AgentSessionMeta {
   modelId?: string
   /** SDK 内部会话 ID（用于 resume 衔接上下文） */
   sdkSessionId?: string
+  /** Pi session JSONL 的精确路径；避免仅按 session ID 子串定位 artifact。 */
+  piSessionFile?: string
+  /** Proma assistant UI UUID 到 Pi 树状 session entry ID 的持久映射。 */
+  piEntryBindings?: Record<string, string>
+  /** 当前会话使用的 Agent runtime；历史会话缺省为 claude */
+  agentRuntime?: import('./agent-provider').AgentRuntime
+  /** ChatGPT Codex Fast Mode 开关；仅 Pi + ChatGPT OAuth 的受支持模型实际生效。 */
+  codexFastMode?: boolean
+  /** 本会话的 OpenAI（Codex OAuth / Responses API）推理深度；未设置时兼容旧版全局思考设置。 */
+  openAIThinkingLevel?: AgentThinkingLevel
   /** 所属工作区 ID */
   workspaceId?: string
   /** 是否置顶 */
   pinned?: boolean
+  /** 是否已星标（仅用于侧栏快速识别，不影响排序或置顶） */
+  starred?: boolean
   /** 是否已归档 */
   archived?: boolean
   /** 附加的外部目录路径列表（绝对路径，作为 SDK additionalDirectories 传递） */
@@ -861,7 +882,7 @@ export interface McpToolSummary {
 }
 
 /** LuxAgents 内置 MCP 分类 */
-export type BuiltinMcpCategory = 'system' | 'automation' | 'collaboration' | 'memory' | 'media'
+export type BuiltinMcpCategory = 'system' | 'automation' | 'collaboration' | 'memory' | 'media' | 'browser'
 
 /** LuxAgents 内置 MCP 摘要，不写入工作区 mcp.json */
 export interface BuiltinMcpServerSummary {
@@ -941,11 +962,43 @@ export interface SkillFileContent {
   size: number
 }
 
+/** 工作区记忆文件摘要 */
+export interface WorkspaceMemoryFileSummary {
+  /** 文件是否存在 */
+  exists: boolean
+  /** 绝对路径 */
+  path: string
+  /** 文件大小（字节） */
+  size: number
+  /** 最近修改时间戳 */
+  updatedAt?: number
+}
+
+/** 工作区记忆摘要 */
+export interface WorkspaceMemorySummary {
+  /** 工作区级 CLAUDE.md */
+  claudeMd: WorkspaceMemoryFileSummary
+  /** SDK auto memory 目录 */
+  autoMemory: {
+    /** 绝对目录路径 */
+    directory: string
+    /** MEMORY.md 是否存在 */
+    memoryMdExists: boolean
+    /** 文本文件数量 */
+    fileCount: number
+    /** 总大小（字节） */
+    totalSize: number
+    /** 最近修改时间戳 */
+    updatedAt?: number
+  }
+}
+
 /** 工作区能力摘要（MCP + Skill 计数） */
 export interface WorkspaceCapabilities {
   mcpServers: Array<{ name: string; enabled: boolean; type: McpTransportType }>
   builtinMcpServers: BuiltinMcpServerSummary[]
   skills: SkillMeta[]
+  memory: WorkspaceMemorySummary
 }
 
 // ===== Agent 发送输入 =====
@@ -962,6 +1015,8 @@ export interface AgentSendInput {
   channelId: string
   /** 模型 ID */
   modelId?: string
+  /** 本轮请求使用的 Agent runtime（用于输入区快速切换后的兜底同步） */
+  agentRuntime?: import('./agent-provider').AgentRuntime
   /** 工作区 ID（用于确定 cwd） */
   workspaceId?: string
   /** 附加的外部目录（绝对路径，传递给 SDK additionalDirectories） */
@@ -978,6 +1033,8 @@ export interface AgentSendInput {
   mentionedSessionIds?: string[]
   /** 渲染进程生成的流式开始时间戳，主进程原样回传到 STREAM_COMPLETE，确保竞态保护比较的是同一个值 */
   startedAt?: number
+  /** 用户点击错误消息的重试时，指向本轮开始前应删除的错误 UUID。 */
+  retryOfErrorUuid?: string
   /** 触发来源：用户手动、定时任务、父 Agent 委派、Task Conductor 编排（用于 UI 区分标记） */
   triggeredBy?: 'user' | 'automation' | 'delegation' | 'work'
   /** 定时任务执行上下文（注入到系统提示词，用户不可见） */
@@ -994,6 +1051,8 @@ export interface AgentQueueMessageInput {
   sessionId: string
   /** 用户消息内容 */
   userMessage: string
+  /** 仅用于持久化/重放的原始用户输入；省略时回退到 userMessage */
+  rawUserMessage?: string
   /** 前端预生成的 UUID（用于乐观更新去重） */
   uuid?: string
   /**
@@ -1002,6 +1061,12 @@ export interface AgentQueueMessageInput {
    * false / undefined：排队追加（默认行为，turn 结束后才会被消费）。
    */
   interrupt?: boolean
+  /** 用户通过 /skill:xxx 引用的 Skill slug 列表 */
+  mentionedSkills?: string[]
+  /** 用户通过 #mcp:xxx 引用的 MCP 服务器名称列表 */
+  mentionedMcpServers?: string[]
+  /** 用户通过 &session:xxx 引用的 Agent 会话 ID 列表 */
+  mentionedSessionIds?: string[]
 }
 
 // ===== 会话迁移输入 =====
@@ -1304,7 +1369,7 @@ export interface ExitPlanModeRequest {
 }
 
 /** ExitPlanMode 用户选择行为 */
-export type ExitPlanModeAction = 'approve_auto' | 'approve_edit' | 'deny' | 'feedback'
+export type ExitPlanModeAction = 'approve_bypass' | 'deny' | 'feedback'
 
 /** ExitPlanMode 响应（渲染进程 → 主进程） */
 export interface ExitPlanModeResponse {
@@ -1319,7 +1384,7 @@ export interface ExitPlanModeResponse {
 // ===== 权限系统类型 =====
 
 /** 当前 LuxAgents 支持的权限模式，值直接映射 SDK 原生 permissionMode */
-export const LUXAGENTS_PERMISSION_MODES = ['auto', 'bypassPermissions', 'plan'] as const
+export const LUXAGENTS_PERMISSION_MODES = ['bypassPermissions', 'plan'] as const
 
 export type LuxAgentsPermissionMode = typeof LUXAGENTS_PERMISSION_MODES[number]
 
@@ -1334,11 +1399,6 @@ export interface LuxAgentsPermissionModeConfig {
 
 /** LuxAgents 权限模式的单一配置来源 */
 export const LUXAGENTS_PERMISSION_MODE_CONFIG = {
-  auto: {
-    sdkMode: 'auto',
-    label: '自动审批',
-    description: 'SDK 内置审批器自动判断，危险操作才需确认',
-  },
   bypassPermissions: {
     sdkMode: 'bypassPermissions',
     label: '完全自动',
@@ -1358,7 +1418,7 @@ export function isLuxAgentsPermissionMode(mode: string): mode is LuxAgentsPermis
   return (LUXAGENTS_PERMISSION_MODES as readonly string[]).includes(mode)
 }
 
-/** 规范化权限模式：不匹配当前三种模式时统一回到默认自动审批 */
+/** 规范化权限模式：历史 auto 或其它非法值统一回到默认完全自动模式 */
 export function migratePermissionMode(mode: string): LuxAgentsPermissionMode {
   if (isLuxAgentsPermissionMode(mode)) return mode
   return LUXAGENTS_DEFAULT_PERMISSION_MODE
@@ -1379,7 +1439,7 @@ export interface PermissionRequest {
   toolInput: Record<string, unknown>
   /** 操作描述（人类可读，LuxAgents 生成） */
   description: string
-  /** 具体命令（Bash 工具时有值��� */
+  /** 具体命令（Bash 工具时有值） */
   command?: string
   /** 危险等级 */
   dangerLevel: DangerLevel
@@ -1420,12 +1480,16 @@ export const AGENT_IPC_CHANNELS = {
   GET_SDK_MESSAGES: 'agent:get-sdk-messages',
   /** 更新会话标题 */
   UPDATE_TITLE: 'agent:update-title',
+  /** 更新会话模型选择 */
+  UPDATE_SESSION_MODEL: 'agent:update-session-model',
   /** 删除会话 */
   DELETE_SESSION: 'agent:delete-session',
   /** 迁移 Chat 对话记录到 Agent 会话 */
   MIGRATE_CHAT_TO_AGENT: 'agent:migrate-chat-to-agent',
   /** 切换会话置顶状态 */
   TOGGLE_PIN: 'agent:toggle-pin',
+  /** 切换会话星标状态 */
+  TOGGLE_STAR: 'agent:toggle-star',
   /** 清除会话完成状态（兼容清除旧版 manualWorking）。channel 值保留旧名以兼容已缓存的 preload */
   CLEAR_COMPLETION_STATE: 'agent:confirm-working-done',
   /** 切换会话归档状态 */
@@ -1512,6 +1576,18 @@ export const AGENT_IPC_CHANNELS = {
   DELETE_SKILL_ENTRY: 'agent:delete-skill-entry',
   /** 重命名/移动 Skill 目录下的文件或目录 */
   RENAME_SKILL_ENTRY: 'agent:rename-skill-entry',
+  /** 获取工作区记忆摘要 */
+  GET_WORKSPACE_MEMORY_SUMMARY: 'agent:get-workspace-memory-summary',
+  /** 读取工作区 CLAUDE.md */
+  READ_WORKSPACE_CLAUDE_MD: 'agent:read-workspace-claude-md',
+  /** 写入工作区 CLAUDE.md */
+  WRITE_WORKSPACE_CLAUDE_MD: 'agent:write-workspace-claude-md',
+  /** 列出工作区 auto memory 文件树 */
+  LIST_WORKSPACE_AUTO_MEMORY_FILES: 'agent:list-workspace-auto-memory-files',
+  /** 读取工作区 auto memory 文件 */
+  READ_WORKSPACE_AUTO_MEMORY_FILE: 'agent:read-workspace-auto-memory-file',
+  /** 写入工作区 auto memory 文件 */
+  WRITE_WORKSPACE_AUTO_MEMORY_FILE: 'agent:write-workspace-auto-memory-file',
 
   // 流式事件（主进程 → 渲染进程推送）
   /** Agent 流式事件 */
@@ -1606,6 +1682,12 @@ export const AGENT_IPC_CHANNELS = {
   PERMISSION_RESPOND: 'agent:permission:respond',
   /** 热切换指定会话的权限模式（运行中生效，不广播到其他会话） */
   UPDATE_SESSION_PERMISSION_MODE: 'agent:update-session-permission-mode',
+  /** 切换指定会话的 Agent runtime（下一轮生效，跨 runtime 时清空 SDK resume ID） */
+  UPDATE_SESSION_AGENT_RUNTIME: 'agent:update-session-agent-runtime',
+  /** 切换指定会话的 ChatGPT Codex Fast Mode（下一轮 Pi 请求生效） */
+  UPDATE_SESSION_CODEX_FAST_MODE: 'agent:update-session-codex-fast-mode',
+  /** 更新指定会话的 OpenAI 推理设置（下一轮 Pi 请求生效） */
+  UPDATE_SESSION_OPENAI_REASONING: 'agent:update-session-openai-reasoning',
 
   // AskUserQuestion 交互式问答
   /** AskUser 响应（渲染进程 → 主进程） */

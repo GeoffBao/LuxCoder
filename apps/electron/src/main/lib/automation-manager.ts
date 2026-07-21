@@ -29,17 +29,24 @@ interface AutomationsIndex {
 const INDEX_VERSION = 2
 
 /**
- * 兼容历史 sessionMode 字面量：v1 用过的 'new' 值统一改为 'daily'。
+ * 兼容历史字段：
+ * - sessionMode：v1 用过的 'new' 值统一改为 'daily'。
+ * - permissionMode：已移除的 'auto' 统一改为默认完全自动模式。
  * - v1 默认值 'new' 的语义是「每次新建会话」；v2 的 'daily' 默认行为是「同日复用、跨日新建」，
  *   高频任务可少占左侧栏 tab，低频任务（间隔 ≥ 24h）的实际行为等价于「每次新建」，对用户无负面影响。
  * - 同时把 index.version bump 到当前值，避免下次启动反复迁移。
  * 返回是否发生改动，由调用方决定是否写回磁盘。
  */
-function migrateLegacySessionMode(data: AutomationsIndex): boolean {
+function migrateLegacyFields(data: AutomationsIndex): boolean {
   let changed = false
   for (const a of data.automations) {
     if ((a.sessionMode as string | undefined) === 'new') {
       a.sessionMode = 'daily'
+      changed = true
+    }
+    const permissionMode = a.permissionMode as string | undefined
+    if (permissionMode && permissionMode !== AUTOMATION_DEFAULT_PERMISSION_MODE) {
+      a.permissionMode = AUTOMATION_DEFAULT_PERMISSION_MODE
       changed = true
     }
   }
@@ -89,11 +96,11 @@ function readIndex(): AutomationsIndex {
     cachedIndex = { version: INDEX_VERSION, automations: [] }
     return cachedIndex
   }
-  const migrated = migrateLegacySessionMode(data)
+  const migrated = migrateLegacyFields(data)
   cachedIndex = data
   if (migrated) {
     writeIndex(data)
-    console.log('[定时任务] 索引已迁移至最新版本（sessionMode: new → daily）')
+    console.log('[定时任务] 索引已迁移至最新版本（sessionMode: new → daily，permissionMode: auto → bypassPermissions）')
   }
   return cachedIndex
 }
@@ -265,6 +272,8 @@ export function createAutomation(input: CreateAutomationInput): Automation {
     dayOfMonth: input.dayOfMonth,
     scheduledAt: input.scheduledAt,
     maxRuns: normalizeMaxRuns(input.maxRuns),
+    // 新建任务未指定 runtime 时默认 Pi；已有历史任务的缺省值由读取/调度路径继续按 Claude 处理。
+    agentRuntime: input.agentRuntime ?? 'pi',
     channelId: input.channelId,
     modelId: input.modelId,
     workspaceId: input.workspaceId,
@@ -294,6 +303,7 @@ export function updateAutomation(input: UpdateAutomationInput): Automation | und
   const now = Date.now()
   if (input.name !== undefined) target.name = input.name
   if (input.prompt !== undefined) target.prompt = input.prompt
+  if (input.agentRuntime !== undefined) target.agentRuntime = input.agentRuntime
   if (input.channelId !== undefined) target.channelId = input.channelId
   if (input.modelId !== undefined) target.modelId = input.modelId
   // workspaceId 允许设为空字符串表示「无工作区」；用 undefined 区分「不修改」

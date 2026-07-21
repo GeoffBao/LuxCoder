@@ -26,11 +26,10 @@ export type AutomationScheduleType = 'interval' | 'daily' | 'weekly' | 'monthly'
 
 /**
  * 定时任务的权限模式（无人值守运行场景）
- * - auto：自动审批，SDK 内置审批器判断，危险操作可能挂起等待（不推荐用于无人值守）
  * - bypassPermissions：完全自动，所有工具调用自动允许
  * 不含 plan（计划模式只规划不执行，对定时任务无意义）
  */
-export type AutomationPermissionMode = 'auto' | 'bypassPermissions'
+export type AutomationPermissionMode = 'bypassPermissions'
 
 /** 定时任务默认权限模式（向后兼容：旧任务无此字段时按此值运行） */
 export const AUTOMATION_DEFAULT_PERMISSION_MODE: AutomationPermissionMode = 'bypassPermissions'
@@ -90,6 +89,8 @@ export interface Automation {
    * 与 scheduleType 正交——任意循环模式都可叠加；once 模式语义上等价于 maxRuns=1。
    */
   maxRuns?: number
+  /** 本任务运行时使用的 Agent runtime；新任务默认 pi，历史任务缺省仍按 claude 兼容。 */
+  agentRuntime?: import('./agent-provider').AgentRuntime
   /** AI 渠道 ID */
   channelId: string
   /** 模型 ID（可选，继承来源会话或渠道默认） */
@@ -147,6 +148,8 @@ export interface CreateAutomationInput {
   scheduledAt?: number
   /** 最大运行次数上限（实际执行次数），达到后自动停用；不传 = 不限次 */
   maxRuns?: number
+  /** 本任务运行时使用的 Agent runtime；新建任务不传则为 pi。 */
+  agentRuntime?: import('./agent-provider').AgentRuntime
   channelId: string
   modelId?: string
   workspaceId?: string
@@ -172,6 +175,8 @@ export interface UpdateAutomationInput {
   scheduledAt?: number
   /** 最大运行次数上限（实际执行次数）；传 0 或负数等价于不限次。改动会重置已执行次数计数 */
   maxRuns?: number
+  /** 本任务运行时使用的 Agent runtime */
+  agentRuntime?: import('./agent-provider').AgentRuntime
   channelId?: string
   modelId?: string
   /** 工作区（用户可在创建后调整子会话归属的工作区） */

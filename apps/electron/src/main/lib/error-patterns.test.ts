@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { isTransientNetworkError, isMalformedResponseError } from './error-patterns'
+import { isTransientNetworkError, isMalformedResponseError, isSessionNotFoundError } from './error-patterns'
 
 describe('isTransientNetworkError', () => {
   // 原有覆盖：确保扩展正则未回归
@@ -16,6 +16,8 @@ describe('isTransientNetworkError', () => {
     'network error',
     'stream closed prematurely',
     'premature close',
+    'OpenAI Responses stream ended before a terminal response event',
+    'Anthropic stream ended before message_stop',
   ])('Given 已知瞬时网络错误 "%s" Then 判定为可重试', (msg) => {
     expect(isTransientNetworkError(msg)).toBe(true)
   })
@@ -43,6 +45,7 @@ describe('isTransientNetworkError', () => {
   test('Given 普通业务错误 Then 不判定为瞬时网络错误', () => {
     expect(isTransientNetworkError('invalid api key')).toBe(false)
     expect(isTransientNetworkError('400 Bad Request: model not found')).toBe(false)
+    expect(isTransientNetworkError('stream ended before an unrelated local marker')).toBe(false)
     expect(isTransientNetworkError()).toBe(false)
   })
 })
@@ -55,5 +58,26 @@ describe('isMalformedResponseError', () => {
 
   test('Given 普通错误 Then 不判定为响应体解析失败', () => {
     expect(isMalformedResponseError('socket hang up')).toBe(false)
+  })
+})
+
+describe('isSessionNotFoundError', () => {
+  test.each([
+    'No conversation found with session ID: 4465917d-d054-4a5e-b29e-cc9f7d571810',
+    'No conversation found withsessionID:4465917d-d054-4a5e-b29e-cc9f7d571810',
+    '任务执行出错：No conversation found withsessionID:4465917d-d054-4a5e-b29e-cc9f7d571810',
+    'No conversation found sessionID: 4465917d-d054-4a5e-b29e-cc9f7d571810',
+  ])('Given SDK resume 会话丢失文案 "%s" Then 判定为 session-not-found', (msg) => {
+    expect(isSessionNotFoundError(msg)).toBe(true)
+  })
+
+  test('Given stderr 含 session-not-found Then 判定为 session-not-found', () => {
+    expect(isSessionNotFoundError(undefined, 'No conversation found withsessionID:abc')).toBe(true)
+  })
+
+  test('Given 普通错误 Then 不判定为 session-not-found', () => {
+    expect(isSessionNotFoundError('conversation request failed with 502')).toBe(false)
+    expect(isSessionNotFoundError('No model found with id claude')).toBe(false)
+    expect(isSessionNotFoundError()).toBe(false)
   })
 })

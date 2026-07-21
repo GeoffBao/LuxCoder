@@ -8,17 +8,50 @@ import {
   LUXAGENTS_DEFAULT_PERMISSION_MODE,
   type AgentDelegationRole,
   type AgentDelegationStatus,
+  type AgentRuntime,
   type AgentSessionMeta,
   type LuxAgentsPermissionMode,
 } from '@luxagents/shared'
 
 const PERMISSION_RANK: Record<LuxAgentsPermissionMode, number> = {
   plan: 0,
-  auto: 1,
-  bypassPermissions: 2,
+  bypassPermissions: 1,
 }
 
 export const MAX_RUNNING_DELEGATIONS_PER_PARENT = 50
+
+/**
+ * 为具有副作用的工具调用提供进程内幂等保护。
+ *
+ * Pi runtime 在流恢复或上游重放时可能再次执行同一个 toolCallId；以父会话和
+ * toolCallId 作为键可复用第一次的结果，避免重复创建子会话。缓存有界，防止长
+ * 会话中的工具调用 ID 无限累积。
+ */
+export function createToolCallIdempotencyCache<T>(maxEntries = 512): {
+  getOrCreate: (parentSessionId: string, toolCallId: string | undefined, create: () => T) => T
+} {
+  const entries = new Map<string, T>()
+
+  return {
+    getOrCreate(parentSessionId, toolCallId, create) {
+      const normalizedCallId = toolCallId?.trim()
+      // 缺少稳定调用 ID 时无法安全去重，保持原有执行语义。
+      if (!normalizedCallId) return create()
+
+      const key = `${parentSessionId}:${normalizedCallId}`
+      if (entries.has(key)) return entries.get(key)!
+
+      const result = create()
+      entries.set(key, result)
+      while (entries.size > maxEntries) {
+        const oldestKey = entries.keys().next().value
+        if (!oldestKey) break
+        entries.delete(oldestKey)
+      }
+      return result
+    },
+  }
+}
 
 export interface RecoveredDelegationState {
   delegationId: string
@@ -36,7 +69,11 @@ export interface RecoveredDelegationState {
 export function resolveDelegationPermissionMode(
   parentMode: LuxAgentsPermissionMode | undefined,
   requestedMode: LuxAgentsPermissionMode | undefined,
+  agentRuntime?: AgentRuntime,
 ): LuxAgentsPermissionMode {
+  // Pi 子会话目前不支持 Plan 模式下的完整工具集，固定直接执行。
+  if (agentRuntime === 'pi') return 'bypassPermissions'
+
   const parent = parentMode ?? LUXAGENTS_DEFAULT_PERMISSION_MODE
   const requested = requestedMode ?? parent
   return PERMISSION_RANK[requested] <= PERMISSION_RANK[parent] ? requested : parent

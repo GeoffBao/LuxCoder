@@ -135,7 +135,7 @@ bun run generate:icons    # 生成应用图标
 | **构建工具** | Vite | 6.0.3 |
 | **打包工具** | esbuild | 0.24.0+ |
 | **分发工具** | Electron Builder | 25.1.8 |
-| **Agent SDK** | @anthropic-ai/claude-agent-sdk | 0.2.120 |
+| **Agent SDK** | @anthropic-ai/claude-agent-sdk | 0.3.201 |
 | **飞书 SDK** | @larksuiteoapi/node-sdk | 最新 |
 
 ## 核心架构
@@ -160,7 +160,6 @@ bun run generate:icons    # 生成应用图标
 - `ENVIRONMENT_IPC_CHANNELS` - 环境检查
 - `PROXY_IPC_CHANNELS` - 代理设置
 - `SYSTEM_PROMPT_IPC_CHANNELS` - 系统提示词
-- `MEMORY_IPC_CHANNELS` - 记忆功能
 - `CHAT_TOOL_IPC_CHANNELS` - Chat 工具
 - `FEISHU_IPC_CHANNELS` - 飞书集成
 - `GITHUB_RELEASE_IPC_CHANNELS` - GitHub 发布
@@ -194,8 +193,6 @@ bun run generate:icons    # 生成应用图标
 | 服务 | 职责 |
 |------|------|
 | `feishu-bridge.ts` | 飞书集成（68KB）：消息同步、任务通知、OAuth 认证 |
-| `memory-service.ts` | 记忆管理：跨会话记忆存储与检索 |
-| `memos-client.ts` | Memos 客户端：笔记服务集成 |
 
 #### 工具与文件
 
@@ -409,7 +406,7 @@ bun run generate:icons    # 生成应用图标
 
 ## Agent SDK 集成架构
 
-基于 `@anthropic-ai/claude-agent-sdk@0.2.120` 实现 Agent 模式，与 Chat 模式并行。
+基于 `@anthropic-ai/claude-agent-sdk@0.3.201` 实现 Agent 模式，与 Chat 模式并行。
 
 ### 核心流程
 
@@ -477,7 +474,7 @@ React UI 更新
   - `options.env` 回退为"替换"
   - **SDK 包结构重构**：删除 `cli.js`，改为平台 native binary（通过 `@anthropic-ai/claude-agent-sdk-{platform}-{arch}` optionalDependency 分发），ripgrep 编译进 binary
   - 详见上方"打包配置注意事项"段落
-- `0.2.120`: `query()` 省略 `settingSources` 时默认加载所有来源（Proma 已显式传 `['user', 'project']`，不受影响）
+- `0.2.120`: `query()` 省略 `settingSources` 时默认加载所有来源（LuxAgents 已显式传 `['user', 'project']`，不受影响）
 
 ### 共享类型（`@luxagents/shared`）
 
@@ -510,7 +507,6 @@ React UI 更新
 - ✅ **飞书集成**：消息同步、任务通知、OAuth 认证（68KB 核心服务）
 - ✅ **工作区管理**：多工作区隔离、MCP Server 配置、Skills 管理
 - ✅ **权限系统**：工具权限检查、用户确认流程
-- ✅ **记忆系统**：跨会话记忆存储与检索
 - ✅ **自动更新**：Electron Updater 集成
 - ✅ **代理支持**：系统代理检测与配置
 - ✅ **文档解析**：PDF、Office、文本文件提取
@@ -538,7 +534,7 @@ React UI 更新
 - Prefer Code IA: Sessions remain the primary list; module order Auto Tasks → Agent Skills → Agent Experts → 项目中心 (last in module zone); top-bar is Chat|Code only (Work/`cowork` retired)
 - Prefer naming the Projects hub「项目中心」(not bare「项目」); Agent专家 are creatable domain-role shells (builtin label「通用软件专家」, slug `general`) empowered by skills; TaskEditor expert picker must use the expert module list; Kanban uses task/project `expertId`—not swarm or IM bot UI yet
 - Prefer 项目中心 hub card → filtered Board (card may shortcut 新建任务); 新建任务/Teambition stay on Board toolbar, not project settings or left-rail; project detail stays in Code with craft-aligned fields (cwd/color/description)
-- Prefer one-way Proma sync only; do not open reverse PRs or dual-contribute back to proma-ai/Proma
+- Prefer one-way Proma sync only (no reverse PRs / dual-contribute); cherry-pick upstream in chronological order ~10 commits/batch on a dedicated `sync/proma-*` branch—agent auto-applies clean picks and pauses on structural conflicts for discussion; include Proma CLI/`session-core` when upstream brings them (rename to `@luxagents`); do not merge the sync branch to `origin/main` until explicitly asked
 
 ## Learned Workspace Facts
 
@@ -553,4 +549,4 @@ React UI 更新
 - craft CreateProject is name-first; cwd/color/description thickness belongs on `ProjectInfoPage`, not a heavy create wizard
 - Agent专家 live under `~/.luxagents/experts/{slug}/` (dev: `~/.luxagents-dev/experts/`) with IDENTITY/SOUL/RULES + `expert.json`; builtins include 通用软件专家 + 驱动/应用/系统/通信软件专家、软件交付经理、软件SE、软件架构师、软件测试、代码审查; Kanban TaskRunner injects expert preamble via `task.defaults.expertId` → project `defaultExpertId` and merges `skillSlugs` (skip+warn if missing); no Code-session/`mcpIds`/Bot injection yet
 - `TaskModelSelect` / Radix dropdowns over AppShell need `z-[9999]` (AppShell chrome is `z-[60]`; default portal `z-50` gets clipped)
-- Proma upstream: `origin`=GeoffBao/LuxAgents, `upstream`=proma-ai/Proma; one-way only (no reverse PRs / dual contribution to Proma); strategy C (cherry-pick high-value first, later full merge); short-lived `sync/proma-YYYYMMDD` → main then delete; `feature/*` only from main; tag `synced/proma-<sha>`; gate with `bun run sync:check` / `sync:apply-renames` (`scripts/upstream-sync/`, `.cursor/commands/upstream-sync.md`)
+- Proma upstream: `origin`=GeoffBao/LuxAgents, `upstream`=proma-ai/Proma; short-lived `sync/proma-YYYYMMDD[-bNN]` (push for backup; merge→main only when asked, then delete); `feature/*` only from main; tag `synced/proma-<sha>`; gate with `bun run sync:check` / `sync:apply-renames` (`scripts/upstream-sync/`, `.cursor/commands/upstream-sync.md`); Lux-owned surfaces (Kanban/项目中心/专家/`AgentSessionItem`/`@luxagents`) win structure conflicts—take upstream for SDK/security/bugfix semantics; ported `@luxagents/session-core` + `apps/cli` (`luxagents` / `$LUXAGENTS_CLI`) stay in tree

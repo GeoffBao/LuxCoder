@@ -48,13 +48,54 @@
     "**/docs/plans/**"
   ],
   "replacements": [
-    { "from": "@anthropic-ai/Codex-agent-sdk", "to": "@anthropic-ai/claude-agent-sdk" },
-    { "from": "Codex-agent-sdk", "to": "claude-agent-sdk" },
-    { "from": "@proma/", "to": "@luxagents/" },
-    { "from": "~/.proma", "to": "~/.luxagents" },
-    { "from": ".proma-dev", "to": ".luxagents-dev" },
-    { "from": "/.proma/", "to": "/.luxagents/" },
-    { "from": "\"@proma/", "to": "\"@luxagents/" }
+    {
+      "from": "@anthropic-ai/Codex-agent-sdk",
+      "to": "@anthropic-ai/claude-agent-sdk"
+    },
+    {
+      "from": "Codex-agent-sdk",
+      "to": "claude-agent-sdk"
+    },
+    {
+      "from": "@proma/",
+      "to": "@luxagents/"
+    },
+    {
+      "from": "~/.proma",
+      "to": "~/.luxagents"
+    },
+    {
+      "from": ".proma-dev",
+      "to": ".luxagents-dev"
+    },
+    {
+      "from": "/.proma/",
+      "to": "/.luxagents/"
+    },
+    {
+      "from": "\"@proma/",
+      "to": "\"@luxagents/"
+    },
+    {
+      "from": "requiresPromaUserAgent",
+      "to": "requiresAppUserAgent"
+    },
+    {
+      "from": "getPromaUserAgent",
+      "to": "getAppUserAgent"
+    },
+    {
+      "from": "setPromaVersion",
+      "to": "setAppVersion"
+    },
+    {
+      "from": "PromaPermissionMode",
+      "to": "LuxAgentsPermissionMode"
+    },
+    {
+      "from": "proma_event",
+      "to": "luxagents_event"
+    }
   ],
   "forbiddenPatterns": [
     {

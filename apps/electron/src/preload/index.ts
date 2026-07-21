@@ -7,7 +7,7 @@
 
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { PROJECT_IPC_CHANNELS, TASK_IPC_CHANNELS, SESSION_COMMAND_CHANNEL, TEAMBITION_IPC_CHANNELS, EXPERT_IPC_CHANNELS } from '@luxagents/shared/channels'
-import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, MEMORY_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS } from '@luxagents/shared'
+import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS } from '@luxagents/shared'
 import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, SCRATCH_PAD_IPC_CHANNELS, APP_ICON_IPC_CHANNELS, DOCK_BADGE_IPC_CHANNELS, STORAGE_IPC_CHANNELS } from '../types'
 import type {
   RuntimeStatus,
@@ -16,8 +16,11 @@ import type {
   ChannelCreateInput,
   ChannelUpdateInput,
   ChannelTestResult,
+  ChannelDirectTestInput,
   FetchModelsInput,
   FetchModelsResult,
+  ChannelPlanQuotaResult,
+  CodexOAuthLoginResult,
   ConversationMeta,
   ChatMessage,
   ChatSendInput,
@@ -35,6 +38,8 @@ import type {
   AgentSessionMeta,
   SDKMessage,
   AgentSendInput,
+  AgentRuntime,
+  AgentThinkingLevel,
   AgentStreamEvent,
   AgentStreamCompletePayload,
   AgentWorkspace,
@@ -53,6 +58,7 @@ import type {
   SkillMeta,
   OtherWorkspaceSkillsGroup,
   WorkspaceCapabilities,
+  WorkspaceMemorySummary,
   FileEntry,
   FileSearchResult,
   EnvironmentCheckResult,
@@ -74,7 +80,6 @@ import type {
   SystemPrompt,
   SystemPromptCreateInput,
   SystemPromptUpdateInput,
-  MemoryConfig,
   ChatToolInfo,
   ChatToolState,
   ChatToolMeta,
@@ -344,10 +349,19 @@ export interface ElectronAPI {
   testChannel: (channelId: string) => Promise<ChannelTestResult>
 
   /** 直接测试连接（无需已保存渠道，传入明文凭证） */
-  testChannelDirect: (input: FetchModelsInput) => Promise<ChannelTestResult>
+  testChannelDirect: (input: ChannelDirectTestInput) => Promise<ChannelTestResult>
 
   /** 从供应商拉取可用模型列表（直接传入凭证，无需已保存渠道） */
   fetchModels: (input: FetchModelsInput) => Promise<FetchModelsResult>
+
+  /** 查询渠道订阅 Plan 额度 */
+  getChannelPlanQuota: (channelId: string) => Promise<ChannelPlanQuotaResult>
+
+  /** 发起 ChatGPT (Codex) OAuth 登录，返回序列化凭据（作为 apiKey 存储） */
+  codexOAuthLogin: () => Promise<CodexOAuthLoginResult>
+
+  /** 取消进行中的 ChatGPT (Codex) OAuth 登录 */
+  codexOAuthCancel: () => Promise<void>
 
   // ===== 对话管理相关 =====
 
@@ -547,13 +561,25 @@ export interface ElectronAPI {
   listAgentSessions: () => Promise<AgentSessionMeta[]>
 
   /** 创建 Agent 会话 */
-  createAgentSession: (title?: string, channelId?: string, workspaceId?: string) => Promise<AgentSessionMeta>
+  createAgentSession: (title?: string, channelId?: string, workspaceId?: string, modelId?: string) => Promise<AgentSessionMeta>
 
   /** 获取 Agent 会话 SDKMessage（Phase 4 新格式） */
   getAgentSessionSDKMessages: (id: string) => Promise<SDKMessage[]>
 
   /** 更新 Agent 会话标题 */
   updateAgentSessionTitle: (id: string, title: string) => Promise<AgentSessionMeta>
+
+  /** 切换 Agent 会话 runtime */
+  updateSessionAgentRuntime: (sessionId: string, runtime: AgentRuntime) => Promise<AgentSessionMeta>
+
+  /** 切换当前会话的 ChatGPT Codex Fast Mode */
+  updateSessionCodexFastMode: (sessionId: string, enabled: boolean) => Promise<AgentSessionMeta>
+
+  /** 更新当前会话的 Codex 思考深度 */
+  updateSessionOpenAIThinkingLevel: (sessionId: string, thinkingLevel: AgentThinkingLevel) => Promise<AgentSessionMeta>
+
+  /** 更新 Agent 会话模型选择 */
+  updateAgentSessionModel: (id: string, channelId?: string, modelId?: string) => Promise<AgentSessionMeta>
 
   /** 删除 Agent 会话 */
   deleteAgentSession: (id: string) => Promise<void>
@@ -563,6 +589,9 @@ export interface ElectronAPI {
 
   /** 切换 Agent 会话置顶状态 */
   togglePinAgentSession: (id: string) => Promise<AgentSessionMeta>
+
+  /** 切换 Agent 会话星标状态 */
+  toggleStarAgentSession: (id: string) => Promise<AgentSessionMeta>
 
   /** 清除 Agent 会话完成状态（兼容清除旧版 manualWorking） */
   clearAgentCompletionState: (id: string) => Promise<AgentSessionMeta>
@@ -689,6 +718,24 @@ export interface ElectronAPI {
   /** 重命名/移动 Skill 目录下的文件或目录 */
   renameSkillEntry: (workspaceSlug: string, skillSlug: string, fromRelative: string, toRelative: string) => Promise<void>
 
+  /** 获取工作区记忆摘要 */
+  getWorkspaceMemorySummary: (workspaceSlug: string) => Promise<WorkspaceMemorySummary>
+
+  /** 读取工作区 CLAUDE.md */
+  readWorkspaceClaudeMd: (workspaceSlug: string) => Promise<import('@luxagents/shared').SkillFileContent>
+
+  /** 写入工作区 CLAUDE.md */
+  writeWorkspaceClaudeMd: (workspaceSlug: string, content: string) => Promise<void>
+
+  /** 列出工作区 auto memory 文件树 */
+  listWorkspaceAutoMemoryFiles: (workspaceSlug: string) => Promise<import('@luxagents/shared').SkillFileNode[]>
+
+  /** 读取工作区 auto memory 文件 */
+  readWorkspaceAutoMemoryFile: (workspaceSlug: string, relativePath: string) => Promise<import('@luxagents/shared').SkillFileContent>
+
+  /** 写入工作区 auto memory 文件 */
+  writeWorkspaceAutoMemoryFile: (workspaceSlug: string, relativePath: string, content: string) => Promise<void>
+
   /** 订阅 Agent 流式事件（返回清理函数） */
   onAgentStreamEvent: (callback: (event: AgentStreamEvent) => void) => () => void
 
@@ -708,15 +755,6 @@ export interface ElectronAPI {
 
   /** 热切换指定会话的权限模式（运行中生效，仅影响该 session） */
   updateSessionPermissionMode: (sessionId: string, mode: LuxAgentsPermissionMode) => Promise<void>
-
-  /** 获取全局记忆配置 */
-  getMemoryConfig: () => Promise<MemoryConfig>
-
-  /** 保存全局记忆配置 */
-  setMemoryConfig: (config: MemoryConfig) => Promise<void>
-
-  /** 测试记忆连接 */
-  testMemoryConnection: () => Promise<{ success: boolean; message: string }>
 
   // ===== Chat 工具管理 =====
 
@@ -838,7 +876,7 @@ export interface ElectronAPI {
   showInFolder: (filePath: string) => Promise<void>
 
   /** 在系统文件管理器中显示文件（无工作区限制，支持候选基础目录） */
-  showItemInFolder: (filePath: string, candidateBasePaths?: string[]) => Promise<void>
+  showItemInFolder: (filePath: string, candidateBasePaths?: string[]) => Promise<boolean>
 
   /** 解析文件路径并读取内容（供内联预览使用） */
   resolveAndReadFile: (filePath: string, access?: import('@luxagents/shared').FileAccessOptions) => Promise<{ resolvedPath: string; content: string } | null>
@@ -961,7 +999,7 @@ export interface ElectronAPI {
   stopFeishuBridge: () => Promise<void>
   /** 获取飞书 Bridge 状态 */
   getFeishuStatus: () => Promise<FeishuBridgeState>
-  /** 获取活跃绑定列表 */
+  /** 获取绑定列表（包含已归档，调用方按视图过滤） */
   listFeishuBindings: () => Promise<FeishuChatBinding[]>
   /** 更新绑定（修改工作区/会话） */
   updateFeishuBinding: (input: FeishuUpdateBindingInput) => Promise<FeishuChatBinding | null>
@@ -1360,12 +1398,24 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(CHANNEL_IPC_CHANNELS.TEST, channelId)
   },
 
-  testChannelDirect: (input: FetchModelsInput) => {
+  testChannelDirect: (input: ChannelDirectTestInput) => {
     return ipcRenderer.invoke(CHANNEL_IPC_CHANNELS.TEST_DIRECT, input)
   },
 
   fetchModels: (input: FetchModelsInput) => {
     return ipcRenderer.invoke(CHANNEL_IPC_CHANNELS.FETCH_MODELS, input)
+  },
+
+  getChannelPlanQuota: (channelId: string) => {
+    return ipcRenderer.invoke(CHANNEL_IPC_CHANNELS.GET_PLAN_QUOTA, channelId)
+  },
+
+  codexOAuthLogin: () => {
+    return ipcRenderer.invoke(CHANNEL_IPC_CHANNELS.CODEX_OAUTH_LOGIN)
+  },
+
+  codexOAuthCancel: () => {
+    return ipcRenderer.invoke(CHANNEL_IPC_CHANNELS.CODEX_OAUTH_CANCEL)
   },
 
   // 对话管理
@@ -1623,8 +1673,8 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.LIST_SESSIONS)
   },
 
-  createAgentSession: (title?: string, channelId?: string, workspaceId?: string) => {
-    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.CREATE_SESSION, title, channelId, workspaceId)
+  createAgentSession: (title?: string, channelId?: string, workspaceId?: string, modelId?: string) => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.CREATE_SESSION, title, channelId, workspaceId, modelId)
   },
 
   getAgentSessionSDKMessages: (id: string) => {
@@ -1633,6 +1683,22 @@ const electronAPI: ElectronAPI = {
 
   updateAgentSessionTitle: (id: string, title: string) => {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.UPDATE_TITLE, id, title)
+  },
+
+  updateSessionAgentRuntime: (sessionId: string, runtime: AgentRuntime) => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.UPDATE_SESSION_AGENT_RUNTIME, sessionId, runtime)
+  },
+
+  updateSessionCodexFastMode: (sessionId: string, enabled: boolean) => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.UPDATE_SESSION_CODEX_FAST_MODE, sessionId, enabled)
+  },
+
+  updateSessionOpenAIThinkingLevel: (sessionId: string, thinkingLevel: AgentThinkingLevel) => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.UPDATE_SESSION_OPENAI_REASONING, sessionId, thinkingLevel)
+  },
+
+  updateAgentSessionModel: (id: string, channelId?: string, modelId?: string) => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.UPDATE_SESSION_MODEL, id, channelId, modelId)
   },
 
   deleteAgentSession: (id: string) => {
@@ -1645,6 +1711,10 @@ const electronAPI: ElectronAPI = {
 
   togglePinAgentSession: (id: string) => {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.TOGGLE_PIN, id)
+  },
+
+  toggleStarAgentSession: (id: string) => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.TOGGLE_STAR, id)
   },
 
   clearAgentCompletionState: (id: string) => {
@@ -1825,6 +1895,30 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.RENAME_SKILL_ENTRY, workspaceSlug, skillSlug, fromRelative, toRelative)
   },
 
+  getWorkspaceMemorySummary: (workspaceSlug: string) => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.GET_WORKSPACE_MEMORY_SUMMARY, workspaceSlug)
+  },
+
+  readWorkspaceClaudeMd: (workspaceSlug: string) => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.READ_WORKSPACE_CLAUDE_MD, workspaceSlug)
+  },
+
+  writeWorkspaceClaudeMd: (workspaceSlug: string, content: string) => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.WRITE_WORKSPACE_CLAUDE_MD, workspaceSlug, content)
+  },
+
+  listWorkspaceAutoMemoryFiles: (workspaceSlug: string) => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.LIST_WORKSPACE_AUTO_MEMORY_FILES, workspaceSlug)
+  },
+
+  readWorkspaceAutoMemoryFile: (workspaceSlug: string, relativePath: string) => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.READ_WORKSPACE_AUTO_MEMORY_FILE, workspaceSlug, relativePath)
+  },
+
+  writeWorkspaceAutoMemoryFile: (workspaceSlug: string, relativePath: string, content: string) => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.WRITE_WORKSPACE_AUTO_MEMORY_FILE, workspaceSlug, relativePath, content)
+  },
+
   onAgentStreamEvent: (callback: (event: AgentStreamEvent) => void) => {
     const listener = (_: unknown, event: AgentStreamEvent): void => callback(event)
     ipcRenderer.on(AGENT_IPC_CHANNELS.STREAM_EVENT, listener)
@@ -1857,18 +1951,6 @@ const electronAPI: ElectronAPI = {
 
   updateSessionPermissionMode: (sessionId: string, mode: LuxAgentsPermissionMode) => {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.UPDATE_SESSION_PERMISSION_MODE, sessionId, mode)
-  },
-
-  getMemoryConfig: () => {
-    return ipcRenderer.invoke(MEMORY_IPC_CHANNELS.GET_CONFIG)
-  },
-
-  setMemoryConfig: (config: MemoryConfig) => {
-    return ipcRenderer.invoke(MEMORY_IPC_CHANNELS.SET_CONFIG, config)
-  },
-
-  testMemoryConnection: () => {
-    return ipcRenderer.invoke(MEMORY_IPC_CHANNELS.TEST_CONNECTION)
   },
 
   // Chat 工具管理
@@ -2045,7 +2127,7 @@ const electronAPI: ElectronAPI = {
   },
 
   /** 在系统文件管理器中显示文件（无工作区限制，支持候选基础目录） */
-  showItemInFolder: (filePath: string, candidateBasePaths?: string[]) => {
+  showItemInFolder: (filePath: string, candidateBasePaths?: string[]): Promise<boolean> => {
     return ipcRenderer.invoke(IPC_CHANNELS.SHOW_ITEM_IN_FOLDER, filePath, candidateBasePaths)
   },
 

@@ -158,6 +158,15 @@ export function getSettingsPath(): string {
 }
 
 /**
+ * 获取系统默认 App 探测缓存路径
+ *
+ * @returns ~/.luxagents/default-apps.json
+ */
+export function getDefaultAppsCachePath(): string {
+  return join(getConfigDir(), 'default-apps.json')
+}
+
+/**
  * 获取用户档案文件路径
  *
  * @returns ~/.luxagents/user-profile.json
@@ -182,15 +191,6 @@ export function getProxySettingsPath(): string {
  */
 export function getSystemPromptsPath(): string {
   return join(getConfigDir(), 'system-prompts.json')
-}
-
-/**
- * 获取记忆配置文件路径
- *
- * @returns ~/.luxagents/memory.json
- */
-export function getMemoryConfigPath(): string {
-  return join(getConfigDir(), 'memory.json')
 }
 
 /**
@@ -415,6 +415,23 @@ export function getExpertsDir(): string {
 }
 
 /**
+ * 获取打包进 App 的 luxagents CLI 二进制路径。
+ *
+ * 打包模式下从 process.resourcesPath/bin 取（electron-builder extraResources 注入）。
+ * 开发模式下没有编译二进制——返回 undefined，由调用方回退到源码运行
+ * （bun apps/cli/src/index.ts）。
+ *
+ * @returns 二进制绝对路径；不存在时返回 undefined
+ */
+export function getBundledCliPath(): string | undefined {
+  const { app } = require('electron')
+  if (!app.isPackaged) return undefined
+  const binName = process.platform === 'win32' ? 'luxagents.exe' : 'luxagents'
+  const cliPath = join(process.resourcesPath, 'bin', binName)
+  return existsSync(cliPath) ? cliPath : undefined
+}
+
+/**
  * 从 SKILL.md 的 YAML frontmatter 中解析 version 字段
  *
  * 无 version 字段时返回 '0.0.0'（确保旧 Skill 会被更新）。
@@ -554,12 +571,30 @@ export function getWeChatSyncPath(): string {
 }
 
 /**
+ * 获取微信聊天绑定持久化路径
+ *
+ * @returns ~/.luxagents/wechat-bindings.json
+ */
+export function getWeChatBindingsPath(): string {
+  return join(getConfigDir(), 'wechat-bindings.json')
+}
+
+/**
  * 获取钉钉配置文件路径
  *
  * @returns ~/.luxagents/dingtalk.json
  */
 export function getDingTalkConfigPath(): string {
   return join(getConfigDir(), 'dingtalk.json')
+}
+
+/**
+ * 获取某个钉钉 Bot 的聊天绑定持久化路径
+ *
+ * @returns ~/.luxagents/dingtalk-bindings-{botId}.json
+ */
+export function getDingTalkBotBindingsPath(botId: string): string {
+  return join(getConfigDir(), `dingtalk-bindings-${botId}.json`)
 }
 
 /**

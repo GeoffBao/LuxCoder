@@ -15,6 +15,9 @@ export const channelsAtom = atom<Channel[]>([])
 /** 渠道列表是否已完成首次加载 */
 export const channelsLoadedAtom = atom(false)
 
+/** 主输入框「模型选择器」是否打开（错误卡片的「重新选择模型」按钮会置 true） */
+export const modelSelectorOpenAtom = atom(false)
+
 /** 选中的模型信息 */
 export interface SelectedModel {
   channelId: string
@@ -32,6 +35,9 @@ export const conversationsAtom = atom<ConversationMeta[]>([])
 
 /** 当前对话 ID */
 export const currentConversationIdAtom = atom<string | null>(null)
+
+/** Agent 会话右侧 Chat 面板，key 为 Agent sessionId，value 为 Chat conversationId */
+export const agentSideChatMapAtom = atom<Map<string, string>>(new Map())
 
 /** 当前对话的消息列表 */
 export const currentMessagesAtom = atom<ChatMessage[]>([])

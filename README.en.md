@@ -229,7 +229,7 @@ Main-process services live in `apps/electron/src/main/lib/`:
 - `conversation-manager.ts`: Chat session index and message storage.
 - `channel-manager.ts`: channel CRUD, API key encryption, connection tests, model fetching.
 - `feishu-bridge.ts` / `dingtalk-bridge.ts` / `wechat-bridge.ts`: remote bot bridges.
-- `memory-service.ts`, `chat-tool-*`, `document-parser.ts`, `workspace-watcher.ts`: memory, tools, document parsing, and file watching.
+- `chat-tool-*`, `document-parser.ts`, `workspace-watcher.ts`: tools, document parsing, and file watching.
 
 Renderer state is managed with Jotai. Key atoms live in `apps/electron/src/renderer/atoms/`. Agent IPC listeners are mounted globally at the app root so streaming events, permission requests, and background tasks survive view changes.
 
@@ -260,10 +260,6 @@ Before opening a PR, please check:
 - Bump the patch version of affected packages when behavior changes.
 - Add focused tests where possible, especially for shared logic, IPC contracts, and persistence formats.
 
-Proma currently has a PR bounty program. You can leave your email in the PR description for follow-up.
-
-![Proma PR Bounty](https://img.erlich.fun/personal-blog/uPic/PR%20%E8%B5%A0%E9%87%91%201.png)
-
 ## Star History
 
 <a href="https://www.star-history.com/?repos=ErlichLiu%2FProma&type=date&legend=top-left">
@@ -281,7 +277,6 @@ Proma currently has a PR bounty program. You can leave your email in the PR desc
 - [Cherry Studio](https://github.com/CherryHQ/cherry-studio): inspiration for multi-provider desktop AI products.
 - [Lobe Icons](https://github.com/lobehub/lobe-icons): AI / LLM brand icons.
 - [Craft Agents OSS](https://github.com/lukilabs/craft-agents-oss): Agent SDK integration reference.
-- [MemOS](https://memos.openmem.net): memory reference and integration.
 
 ## License
 

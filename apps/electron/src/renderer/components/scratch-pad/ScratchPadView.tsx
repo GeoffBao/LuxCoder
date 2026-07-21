@@ -12,10 +12,20 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
-import { useAtom, useAtomValue } from 'jotai'
-import { FileDown } from 'lucide-react'
+import { useAtom, useAtomValue, useSetAtom, useStore } from 'jotai'
+import { FileDown, List, ListTodo, PanelRight, X } from 'lucide-react'
+import { toast } from 'sonner'
 import { scratchPadContentAtom, scratchPadLoadedAtom, tabsAtom, activeTabIdAtom } from '@/atoms/tab-atoms'
-import { currentAgentWorkspaceIdAtom, agentWorkspacesAtom } from '@/atoms/agent-atoms'
+import {
+  agentDiffPanelTabAtom,
+  agentSidePanelOpenAtom,
+  currentAgentSessionIdAtom,
+  currentAgentWorkspaceIdAtom,
+  agentWorkspacesAtom,
+} from '@/atoms/agent-atoms'
+import { agentSideChatMapAtom, conversationsAtom, conversationDraftsAtom, selectedModelAtom } from '@/atoms/chat-atoms'
+import { appModeAtom } from '@/atoms/app-mode'
+import { quotedSelectionMapAtom } from '@/atoms/preview-atoms'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -45,15 +55,97 @@ import {
   getLastFocusedVoiceInputId,
   setLastFocusedVoiceInputId,
 } from '@/lib/voice-input-focus'
+import { SelectionActionPopover } from '@/components/selection/SelectionActionPopover'
+import { SELECTION_ACTION_POPOVER_SELECTOR } from '@/lib/quoted-selection'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { openScratchInSplit } from './scratch-pad-opener'
+
+const MAX_SCRATCH_PAD_QUOTED_CHARS = 2000
+
+interface ScratchPadSelection {
+  text: string
+  x: number
+  y: number
+}
+
+interface ScratchPadPaneProps {
+  onClose: () => void
+}
+
+interface ScratchPadEditorProps {
+  variant: 'page' | 'pane'
+}
+
+function normalizeSelectionText(text: string): string {
+  return text.replace(/\s+\n/g, '\n').replace(/\n\s+/g, '\n').trim()
+}
+
+function getElementFromNode(node: Node | null): Element | null {
+  if (!node) return null
+  return node instanceof Element ? node : node.parentElement
+}
 
 export function ScratchPadView(): React.ReactElement {
+  return <ScratchPadEditor variant="page" />
+}
+
+export function ScratchPadPane({ onClose }: ScratchPadPaneProps): React.ReactElement {
+  return (
+    <div className="flex h-full flex-col overflow-hidden bg-content-area titlebar-no-drag">
+      <div className="flex-shrink-0 border-b border-border/30 titlebar-no-drag">
+        <div className="flex h-[34px] items-center px-3">
+          <span className="truncate text-xs text-muted-foreground">
+            草稿
+          </span>
+          <div className="ml-auto flex shrink-0 items-center gap-0.5">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+                  aria-label="关闭草稿分屏"
+                >
+                  <X className="size-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>关闭草稿分屏</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </div>
+      </div>
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <ScratchPadEditor variant="pane" />
+      </div>
+    </div>
+  )
+}
+
+function ScratchPadEditor({ variant }: ScratchPadEditorProps): React.ReactElement {
   const [content, setContent] = useAtom(scratchPadContentAtom)
   const loaded = useAtomValue(scratchPadLoadedAtom)
+  const store = useStore()
   const containerRef = React.useRef<HTMLDivElement>(null)
+  const [selection, setSelection] = React.useState<ScratchPadSelection | null>(null)
+  const pointerSelectingRef = React.useRef(false)
+  const captureTimerRef = React.useRef<number | null>(null)
+  const openSideChatPendingRef = React.useRef(false)
 
   // 用 ref 追踪最新内容，避免在 useEffect deps 里包含 content 导致循环
   const contentRef = React.useRef(content)
   contentRef.current = content
+
+  const setQuotedSelectionMap = useSetAtom(quotedSelectionMapAtom)
+  const selectedChatModel = useAtomValue(selectedModelAtom)
+  const setConversations = useSetAtom(conversationsAtom)
+  const setConversationDrafts = useSetAtom(conversationDraftsAtom)
+  const setAgentSideChatMap = useSetAtom(agentSideChatMapAtom)
+  const setAgentSidePanelOpen = useSetAtom(agentSidePanelOpenAtom)
+  const setAgentSidePanelTabMap = useSetAtom(agentDiffPanelTabAtom)
+  const setCurrentAgentSessionId = useSetAtom(currentAgentSessionIdAtom)
+  const setAppMode = useSetAtom(appModeAtom)
 
   const extensions = React.useMemo(() => [
     StarterKit.configure({
@@ -109,6 +201,216 @@ export function ScratchPadView(): React.ReactElement {
     const agentTab = tabs.find((t) => t.sessionId === activeSessionId && t.type === 'agent')
     return agentTab?.title ?? null
   }, [tabs, activeSessionId])
+
+  const handleOpenScratchPanel = React.useCallback((): void => {
+    const opened = openScratchInSplit(store)
+    if (!opened) {
+      toast.info('先打开一个 Agent 会话，再把草稿放到右侧。')
+    }
+  }, [store])
+
+  const clearSelection = React.useCallback((): void => {
+    setSelection(null)
+  }, [])
+
+  const captureSelection = React.useCallback((): void => {
+    const editorRoot = editor?.view.dom
+    if (!editorRoot) return
+
+    const sel = window.getSelection()
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+      clearSelection()
+      return
+    }
+
+    const range = sel.getRangeAt(0)
+    const startEl = getElementFromNode(range.startContainer)
+    const endEl = getElementFromNode(range.endContainer)
+    if (!startEl || !endEl || !editorRoot.contains(startEl) || !editorRoot.contains(endEl)) {
+      clearSelection()
+      return
+    }
+
+    const rawText = normalizeSelectionText(sel.toString())
+    if (!rawText) {
+      clearSelection()
+      return
+    }
+
+    const truncated = rawText.length > MAX_SCRATCH_PAD_QUOTED_CHARS
+    const text = truncated ? rawText.slice(0, MAX_SCRATCH_PAD_QUOTED_CHARS) : rawText
+    const rect = range.getBoundingClientRect()
+    const firstRect = range.getClientRects()[0]
+    const anchorRect = rect.width > 0 || rect.height > 0 ? rect : firstRect
+    if (!anchorRect) return
+
+    setSelection({
+      text,
+      x: anchorRect.left + anchorRect.width / 2,
+      y: Math.max(12, anchorRect.top - 12),
+    })
+
+    if (truncated) {
+      toast.warning(`已选中超过 ${MAX_SCRATCH_PAD_QUOTED_CHARS} 字符，仅引用前 ${MAX_SCRATCH_PAD_QUOTED_CHARS} 字符`, {
+        id: 'scratch-pad-selection-cap',
+        duration: 3000,
+      })
+    }
+  }, [clearSelection, editor])
+
+  const scheduleCaptureSelection = React.useCallback((): void => {
+    if (captureTimerRef.current != null) {
+      window.clearTimeout(captureTimerRef.current)
+    }
+    captureTimerRef.current = window.setTimeout(() => {
+      captureTimerRef.current = null
+      captureSelection()
+    }, 80)
+  }, [captureSelection])
+
+  React.useEffect(() => {
+    const editorRoot = editor?.view.dom
+    if (!editorRoot) return
+
+    const onPointerDown = (event: PointerEvent): void => {
+      const target = event.target
+      if (target instanceof Element && target.closest(SELECTION_ACTION_POPOVER_SELECTOR)) return
+      if (target instanceof Element && editorRoot.contains(target)) {
+        pointerSelectingRef.current = true
+        clearSelection()
+        return
+      }
+      clearSelection()
+    }
+    const onPointerUp = (): void => {
+      if (!pointerSelectingRef.current) return
+      pointerSelectingRef.current = false
+      scheduleCaptureSelection()
+    }
+    const onPointerCancel = (): void => {
+      pointerSelectingRef.current = false
+    }
+    const onSelectionChange = (): void => {
+      if (pointerSelectingRef.current) return
+      const sel = window.getSelection()
+      if (!sel || sel.isCollapsed) {
+        clearSelection()
+        return
+      }
+      scheduleCaptureSelection()
+    }
+
+    document.addEventListener('pointerdown', onPointerDown, true)
+    document.addEventListener('pointerup', onPointerUp, true)
+    document.addEventListener('pointercancel', onPointerCancel, true)
+    document.addEventListener('selectionchange', onSelectionChange)
+    return () => {
+      if (captureTimerRef.current != null) {
+        window.clearTimeout(captureTimerRef.current)
+        captureTimerRef.current = null
+      }
+      document.removeEventListener('pointerdown', onPointerDown, true)
+      document.removeEventListener('pointerup', onPointerUp, true)
+      document.removeEventListener('pointercancel', onPointerCancel, true)
+      document.removeEventListener('selectionchange', onSelectionChange)
+    }
+  }, [clearSelection, editor, scheduleCaptureSelection])
+
+  const getTargetAgentSessionId = React.useCallback((): string | null => {
+    if (activeSessionId) return activeSessionId
+    toast.warning('请先打开一个 Agent 会话，再引用草稿选区')
+    return null
+  }, [activeSessionId])
+
+  const handleAddToAgent = React.useCallback((): void => {
+    if (!selection) return
+    const sessionId = getTargetAgentSessionId()
+    if (!sessionId) return
+
+    setQuotedSelectionMap((prev) => {
+      const next = new Map(prev)
+      next.set(sessionId, {
+        text: selection.text,
+        filePath: '草稿页',
+        sourceType: 'scratch-pad',
+        sourceLabel: '草稿页',
+        capturedAt: Date.now(),
+      })
+      return next
+    })
+    window.getSelection()?.removeAllRanges()
+    clearSelection()
+    toast.success('已添加到 Agent 引用')
+  }, [clearSelection, getTargetAgentSessionId, selection, setQuotedSelectionMap])
+
+  const handleOpenSideChat = React.useCallback(async (): Promise<void> => {
+    if (!selection) return
+    if (openSideChatPendingRef.current) return
+    const sessionId = getTargetAgentSessionId()
+    if (!sessionId) return
+
+    openSideChatPendingRef.current = true
+    try {
+      const conversation = await window.electronAPI.createConversation(
+        '草稿选区问答',
+        selectedChatModel?.modelId,
+        selectedChatModel?.channelId,
+      )
+      setConversations((prev) => {
+        if (prev.some((item) => item.id === conversation.id)) return prev
+        return [conversation, ...prev]
+      })
+      setConversationDrafts((prev) => {
+        const next = new Map(prev)
+        next.set(conversation.id, '我的问题：')
+        return next
+      })
+      setQuotedSelectionMap((prev) => {
+        const next = new Map(prev)
+        next.set(conversation.id, {
+          text: selection.text,
+          filePath: '草稿页',
+          sourceType: 'scratch-pad',
+          sourceLabel: '草稿页',
+          capturedAt: Date.now(),
+        })
+        return next
+      })
+      setCurrentAgentSessionId(sessionId)
+      setAppMode('agent')
+      setAgentSideChatMap((prev) => {
+        const next = new Map(prev)
+        next.set(sessionId, conversation.id)
+        return next
+      })
+      setAgentSidePanelOpen(true)
+      setAgentSidePanelTabMap((prev) => {
+        const next = new Map(prev)
+        next.set(sessionId, 'chat')
+        return next
+      })
+      window.getSelection()?.removeAllRanges()
+      clearSelection()
+    } catch (error) {
+      console.error('[ScratchPad] 打开草稿选区右侧问答失败:', error)
+      toast.error('打开右侧问答失败')
+    } finally {
+      openSideChatPendingRef.current = false
+    }
+  }, [
+    clearSelection,
+    getTargetAgentSessionId,
+    selectedChatModel,
+    selection,
+    setAgentSideChatMap,
+    setAgentSidePanelOpen,
+    setAgentSidePanelTabMap,
+    setAppMode,
+    setConversationDrafts,
+    setConversations,
+    setCurrentAgentSessionId,
+    setQuotedSelectionMap,
+  ])
 
   const makeFilename = () => {
     const now = new Date()
@@ -250,27 +552,60 @@ export function ScratchPadView(): React.ReactElement {
     return () => el.removeEventListener('paste', handlePaste, true)
   }, [editor])
 
+  const isPane = variant === 'pane'
+  const scrollClassName = isPane
+    ? 'flex-1 overflow-auto scrollbar-thin px-4 pt-4 pb-20'
+    : 'flex-1 overflow-auto scrollbar-thin px-8 pt-6 pb-20'
+  const contentClassName = isPane ? 'h-full max-w-none' : 'max-w-3xl mx-auto h-full'
+  const speechWrapperClassName = isPane
+    ? 'absolute left-1/2 -translate-x-1/2 bottom-9 z-20'
+    : 'absolute left-1/2 -translate-x-1/2 bottom-10 z-20'
+  const speechButtonClassName = isPane
+    ? 'size-9 rounded-full bg-background/95 border border-border/60 shadow-md backdrop-blur hover:bg-accent text-foreground/80'
+    : 'size-11 rounded-full bg-background/95 border border-border/60 shadow-md backdrop-blur hover:bg-accent text-foreground/80'
+
   return (
     <div ref={containerRef} className="relative flex flex-col h-full">
-      <div className="flex-1 overflow-auto scrollbar-thin px-8 pt-6 pb-20">
-        <div className="max-w-3xl mx-auto h-full">
-          <div className="mb-5 flex flex-col gap-2">
-            <div>
-              <h1 className="text-xl font-semibold tracking-normal text-foreground">草稿页</h1>
-              <p className="mt-1 text-[13px] leading-5 text-muted-foreground">
-                临时记录内容、整理 Todo、暂存剪贴板文本，稍后再导出到会话或工作区。
-              </p>
+      <div className={scrollClassName}>
+        <div className={contentClassName}>
+          {isPane ? (
+            <div className="mb-3 text-[11px] text-muted-foreground">自动保存到本地</div>
+          ) : (
+            <div className="mb-5 flex flex-col gap-2">
+              <div className="flex items-start gap-3">
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-xl font-semibold tracking-normal text-foreground">草稿页</h1>
+                  <p className="mt-1 text-[13px] leading-5 text-muted-foreground">
+                    临时记录内容、整理 Todo、暂存剪贴板文本，稍后再导出到会话或工作区。
+                  </p>
+                </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={handleOpenScratchPanel}
+                      className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                      aria-label="在右侧边栏打开草稿"
+                    >
+                      <PanelRight className="size-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <p>在右侧边栏打开草稿（也可将草稿 Tab 拖出标签栏）</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <div className="flex flex-wrap gap-1.5 text-[11px] text-muted-foreground/80">
+                <span className="rounded-md bg-muted px-2 py-1">临时笔记</span>
+                <span className="rounded-md bg-muted px-2 py-1">Todo 草稿</span>
+                <span className="rounded-md bg-muted px-2 py-1">剪贴板暂存</span>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-1.5 text-[11px] text-muted-foreground/80">
-              <span className="rounded-md bg-muted px-2 py-1">临时笔记</span>
-              <span className="rounded-md bg-muted px-2 py-1">Todo 草稿</span>
-              <span className="rounded-md bg-muted px-2 py-1">剪贴板暂存</span>
-            </div>
-          </div>
+          )}
           {loaded ? (
             <EditorContent
               editor={editor}
-              className="prose prose-sm dark:prose-invert max-w-none h-full [&_.ProseMirror]:min-h-full [&_.ProseMirror]:outline-none [&_.ProseMirror]:text-sm [&_.ProseMirror_p.is-editor-empty:first-child::before]:text-muted-foreground/50 [&_.ProseMirror_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.ProseMirror_p.is-editor-empty:first-child::before]:float-left [&_.ProseMirror_p.is-editor-empty:first-child::before]:pointer-events-none [&_.ProseMirror_p.is-editor-empty:first-child::before]:h-0"
+              className="scratch-pad-editor prose prose-sm dark:prose-invert max-w-none h-full [&_.ProseMirror]:min-h-full [&_.ProseMirror]:outline-none [&_.ProseMirror]:text-sm [&_.ProseMirror_p.is-editor-empty:first-child::before]:text-muted-foreground/50 [&_.ProseMirror_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.ProseMirror_p.is-editor-empty:first-child::before]:float-left [&_.ProseMirror_p.is-editor-empty:first-child::before]:pointer-events-none [&_.ProseMirror_p.is-editor-empty:first-child::before]:h-0"
             />
           ) : (
             <div className="min-h-[200px] flex items-center justify-center">
@@ -279,14 +614,42 @@ export function ScratchPadView(): React.ReactElement {
           )}
         </div>
       </div>
+      {selection && (
+        <SelectionActionPopover
+          x={selection.x}
+          y={selection.y}
+          onAddToAgent={handleAddToAgent}
+          onOpenChat={handleOpenSideChat}
+        />
+      )}
       {/* 底部居中悬浮：圆形语音输入按钮 */}
-      <div className="absolute left-1/2 -translate-x-1/2 bottom-10 z-20">
-        <SpeechButton className="size-11 rounded-full bg-background/95 border border-border/60 shadow-md backdrop-blur hover:bg-accent text-foreground/80" />
+      <div className={speechWrapperClassName}>
+        <SpeechButton className={speechButtonClassName} />
       </div>
       <div className="h-[28px] border-t border-border/40 px-4 flex items-center justify-between">
-        <span className="text-[11px] text-muted-foreground/60">
-          Scratch Pad — 内容自动保存到本地
-        </span>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => editor?.chain().focus().toggleTaskList().run()}
+            className="text-[11px] text-muted-foreground/60 hover:text-foreground flex items-center gap-1 transition-colors"
+            title="插入 / 切换待办清单（也可在行首输入 [ ] 加空格）"
+          >
+            <ListTodo className="w-3 h-3" />
+            待办清单
+          </button>
+          <button
+            type="button"
+            onClick={() => editor?.chain().focus().toggleBulletList().run()}
+            className="text-[11px] text-muted-foreground/60 hover:text-foreground flex items-center gap-1 transition-colors"
+            title="插入 / 切换无序列表（也可在行首输入 - 加空格）"
+          >
+            <List className="w-3 h-3" />
+            无序列表
+          </button>
+          <span className="text-[11px] text-muted-foreground/60">
+            {isPane ? '草稿自动保存' : 'Scratch Pad — 内容自动保存到本地'}
+          </span>
+        </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button

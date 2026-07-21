@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils'
 import { FileBrowser, FileDropZone, FileTypeIcon, FileSearchBar, computeRevealAncestors, isPathUnderRoot, computeTreeRowLayout, AncestorGuides, STICKY_ROW_BASE_CLASS, canBeSticky } from '@/components/file-browser'
 import { DiffPanelTabBar } from '@/components/diff/DiffPanelTabBar'
 import { DiffChangesList } from '@/components/diff/DiffChangesList'
+import { ChatView } from '@/components/chat/ChatView'
 import {
   agentSidePanelOpenAtom,
   workspaceFilesVersionAtom,
@@ -34,6 +35,8 @@ import {
   fileBrowserAutoRevealAtom,
   agentSelectedWorktreeAtom,
 } from '@/atoms/agent-atoms'
+import type { AgentSidePanelTab } from '@/atoms/agent-atoms'
+import { agentSideChatMapAtom } from '@/atoms/chat-atoms'
 import { interfaceVariantAtom } from '@/atoms/theme'
 import { previewFileMapAtom } from '@/atoms/preview-atoms'
 import { useOpenPreview } from '@/components/diff/preview-opener'
@@ -55,8 +58,8 @@ function getMediaTypeFromFilename(filename: string): string {
 interface SidePanelProps {
   sessionId: string
   sessionPath: string | null
-  activeTab: 'session' | 'workspace' | 'changes'
-  onTabChange: (tab: 'session' | 'workspace' | 'changes') => void
+  activeTab: AgentSidePanelTab
+  onTabChange: (tab: AgentSidePanelTab) => void
   width?: number
 }
 
@@ -396,6 +399,24 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
   const hasWorkspaceAttachedItems = wsAttachedDirs.length > 0 || wsAttachedFiles.length > 0
   const interfaceVariant = useAtomValue(interfaceVariantAtom)
   const isClassic = interfaceVariant === 'classic'
+  const sideChatMap = useAtomValue(agentSideChatMapAtom)
+  const setSideChatMap = useSetAtom(agentSideChatMapAtom)
+  const sideChatConversationId = sideChatMap.get(sessionId) ?? null
+  const effectiveActiveTab: AgentSidePanelTab = activeTab === 'chat' && !sideChatConversationId
+    ? 'session'
+    : activeTab
+
+  const handleCloseChatTab = React.useCallback(() => {
+    setSideChatMap((prev) => {
+      if (!prev.has(sessionId)) return prev
+      const next = new Map(prev)
+      next.delete(sessionId)
+      return next
+    })
+    if (activeTab === 'chat') {
+      onTabChange('session')
+    }
+  }, [activeTab, onTabChange, sessionId, setSideChatMap])
 
   return (
     <div
@@ -416,9 +437,24 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
           isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none',
         )}
         >
-          <DiffPanelTabBar activeTab={activeTab} onTabChange={onTabChange} onClose={() => setIsOpen(false)} />
+          <DiffPanelTabBar
+            activeTab={effectiveActiveTab}
+            onTabChange={onTabChange}
+            onClose={() => setIsOpen(false)}
+            onCloseChat={handleCloseChatTab}
+            showChatTab={Boolean(sideChatConversationId)}
+            isWindows={isWindows}
+          />
 
-          {activeTab === 'changes' ? (
+          {effectiveActiveTab === 'chat' ? (
+            sideChatConversationId ? (
+              <div className="min-h-0 flex-1 overflow-hidden">
+                <ChatView conversationId={sideChatConversationId} />
+              </div>
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-muted-foreground text-xs">暂无问答会话</div>
+            )
+          ) : effectiveActiveTab === 'changes' ? (
             sessionPath ? (
               <DiffChangesList
                 key={sessionId}
@@ -436,7 +472,7 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
             ) : (
               <div className="flex-1 flex items-center justify-center text-muted-foreground text-xs">等待会话初始化...</div>
             )
-          ) : activeTab === 'session' ? (
+          ) : effectiveActiveTab === 'session' ? (
             <div className="flex-1 min-h-0 flex flex-col pt-0.5 mx-2 mb-2">
               {sessionPath ? (
                 <>
@@ -641,7 +677,7 @@ function AttachedFilesSection({ attachedFiles, onDetach, onAddToChat, onFilePrev
             <FileTypeIcon name={name} isDirectory={false} />
             <span className="text-xs truncate flex-1" title={filePath}>{name}</span>
             <div
-              className="flex-shrink-0"
+              className="flex-shrink-0 mr-1"
               onClick={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.stopPropagation()}
             >
@@ -871,29 +907,35 @@ function AttachedDirTree({ dirPath, onDetach, selectedPaths, onSelect, refreshVe
       <div
         data-sticky-row={isSticky ? 'true' : undefined}
         className={cn(
-          'relative flex h-8 items-center gap-1 pr-2 text-sm cursor-pointer group transition-colors',
+          'file-tree-row relative flex h-8 items-center gap-1 pr-2 text-sm cursor-pointer group',
           isSticky && cn(STICKY_ROW_BASE_CLASS, 'top-0 z-10'),
-          // sticky 行 hover 用不透明色，避免下方滚动内容透出；普通行保持半透明柔和感
-          isSticky ? 'hover:bg-accent' : 'hover:bg-accent/50',
         )}
         style={{ paddingLeft }}
         onClick={toggleExpand}
       >
+        <span
+          aria-hidden="true"
+          className={cn(
+            'pointer-events-none absolute inset-y-0 left-2 right-2 z-0 rounded-[17px] transition-colors',
+            // sticky 行 hover 用不透明色，避免下方滚动内容透出；普通行保持半透明柔和感
+            isSticky ? 'group-hover:bg-accent' : 'group-hover:bg-accent/50',
+          )}
+        />
         <ChevronRight
           className={cn(
-            'size-3.5 text-muted-foreground flex-shrink-0 transition-transform duration-150',
+            'relative z-10 size-3.5 text-muted-foreground flex-shrink-0 transition-transform duration-150',
             expanded && 'rotate-90',
           )}
         />
-        <FileTypeIcon name={dirName} isDirectory isOpen={expanded} />
-        <span className="text-xs truncate flex-1" title={dirPath}>
+        <FileTypeIcon name={dirName} isDirectory isOpen={expanded} className="relative z-10" />
+        <span className="relative z-10 text-xs truncate flex-1" title={dirPath}>
           {dirName}
         </span>
         <Button
           type="button"
           variant="ghost"
           size="icon"
-          className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+          className="relative z-10 h-5 w-5 mr-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
           onClick={(e) => { e.stopPropagation(); onDetach() }}
         >
           <X className="size-3" />
@@ -1093,14 +1135,8 @@ function AttachedDirItem({ entry, depth, selectedPaths, onSelect, refreshVersion
         ref={rowRef}
         data-sticky-row={isSticky ? 'true' : undefined}
         className={cn(
-          'relative flex h-8 items-center gap-1 pr-2 text-sm cursor-pointer group transition-colors',
+          'file-tree-row relative flex h-8 items-center gap-1 pr-2 text-sm cursor-pointer group',
           isSticky && STICKY_ROW_BASE_CLASS,
-          // sticky 行 hover 用不透明色，避免下方滚动内容透出；普通行保持半透明柔和感
-          isSelected
-            ? 'bg-accent'
-            : isSticky
-              ? 'hover:bg-accent'
-              : 'hover:bg-accent/50',
         )}
         style={{
           paddingLeft,
@@ -1109,26 +1145,38 @@ function AttachedDirItem({ entry, depth, selectedPaths, onSelect, refreshVersion
         }}
         onClick={handleClick}
       >
+        <span
+          aria-hidden="true"
+          className={cn(
+            'pointer-events-none absolute inset-y-0 left-2 right-2 z-0 rounded-[17px] transition-colors',
+            // sticky 行 hover 用不透明色，避免下方滚动内容透出；普通行保持半透明柔和感
+            isSelected
+              ? 'bg-accent'
+              : isSticky
+                ? 'group-hover:bg-accent'
+                : 'group-hover:bg-accent/50',
+          )}
+        />
         {/* sticky 行祖先链竖线，逻辑见 tree-row-layout.tsx 的 AncestorGuides。
             选中态下 bg-accent 不透明背景会盖住原 border 色，组件内部已切到 accent-foreground。 */}
         {isSticky && <AncestorGuides depth={depth} isSelected={isSelected} />}
         {entry.isDirectory ? (
           <ChevronRight
             className={cn(
-              'size-3.5 text-muted-foreground flex-shrink-0 transition-transform duration-150',
+              'relative z-10 size-3.5 text-muted-foreground flex-shrink-0 transition-transform duration-150',
               expanded && 'rotate-90',
             )}
           />
         ) : (
-          <span className="w-3.5 flex-shrink-0" />
+          <span className="relative z-10 w-3.5 flex-shrink-0" />
         )}
-        <FileTypeIcon name={currentName} isDirectory={entry.isDirectory} isOpen={expanded} />
+        <FileTypeIcon name={currentName} isDirectory={entry.isDirectory} isOpen={expanded} className="relative z-10" />
 
         {/* 名称：正常显示 / 重命名输入框 */}
         {isRenaming ? (
           <input
             ref={renameInputRef}
-            className="text-xs flex-1 min-w-0 bg-background border border-primary rounded px-1 py-0.5 outline-none"
+            className="relative z-10 text-xs flex-1 min-w-0 bg-background border border-primary rounded px-1 py-0.5 outline-none"
             value={renameValue}
             onChange={(e) => setRenameValue(e.target.value)}
             onKeyDown={(e) => {
@@ -1140,12 +1188,12 @@ function AttachedDirItem({ entry, depth, selectedPaths, onSelect, refreshVersion
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
-          <span className="truncate text-xs flex-1">{currentName}</span>
+          <span className="relative z-10 truncate text-xs flex-1">{currentName}</span>
         )}
 
         {/* 右侧操作按钮占位 */}
         <div
-          className="flex-shrink-0"
+          className="relative z-10 flex-shrink-0 mr-1"
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
         >

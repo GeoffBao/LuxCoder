@@ -4,7 +4,7 @@
  * 主题模式、IPC 通道等设置相关定义。
  */
 
-import type { EnvironmentCheckResult, ThinkingConfig, AgentEffort, FeishuSessionMirrorSettings } from '@luxagents/shared'
+import type { AgentRuntime, EnvironmentCheckResult, ThinkingConfig, AgentEffort, FeishuSessionMirrorSettings } from '@luxagents/shared'
 
 /** 通知音场景类型 */
 export type NotificationSoundType = 'taskComplete' | 'permissionRequest' | 'exitPlanMode'
@@ -180,6 +180,9 @@ export type InterfaceVariant = 'classic' | 'modern'
 /** 默认界面风格 */
 export const DEFAULT_INTERFACE_VARIANT: InterfaceVariant = 'modern'
 
+/** 新建 Agent 会话与自动任务的默认 runtime。历史持久化记录缺失 runtime 时仍按 Claude 兼容。 */
+export const DEFAULT_AGENT_RUNTIME: AgentRuntime = 'pi'
+
 /** Markdown 预览字号档位 */
 export type MarkdownFontSize = 'small' | 'medium' | 'large'
 
@@ -194,14 +197,16 @@ export interface AppSettings {
   themeStyle?: ThemeStyle
   /** 界面风格 */
   interfaceVariant?: InterfaceVariant
-  /** Agent 默认渠道 ID（仅限 Anthropic 渠道） — 当前选中的渠道 */
+  /** Agent 默认渠道 ID（由当前 Agent Core 解释） — 当前选中的渠道 */
   agentChannelId?: string
   /** Agent 默认模型 ID */
   agentModelId?: string
-  /** Agent 启用的渠道 ID 列表（多选，Switch 开关） */
+  /** Claude Agent 可用渠道 ID 列表（由渠道启用状态与协议兼容性派生） */
   agentChannelIds?: string[]
   /** Agent 当前工作区 ID */
   agentWorkspaceId?: string
+  /** 新 Agent 会话默认使用的 runtime；历史会话缺省仍按 claude 兼容。 */
+  agentRuntime?: AgentRuntime
   /** 侧栏「自动任务」合成项目组在项目列表中的位置索引（默认 0 = 最靠前；可拖拽调整） */
   agentAutomationGroupOrder?: number
   /** 是否已完成 Onboarding 流程 */
@@ -236,6 +241,10 @@ export interface AppSettings {
   shortcutOverrides?: ShortcutOverrides
   /** 是否显示用户消息悬浮置顶条（默认 true） */
   stickyUserMessageEnabled?: boolean
+  /** 粘贴超过阈值的长文本时是否自动转为附件（默认 false） */
+  longTextPasteAsAttachmentEnabled?: boolean
+  /** 输入框是否渲染 Markdown 富文本格式（默认 false，关闭后为纯文本模式，仍保留 Mention 引用） */
+  richTextRenderingEnabled?: boolean
   /** Markdown 预览字号档位（默认 'medium'，对应 15px） */
   markdownFontSize?: MarkdownFontSize
   /** 上次是否在 Scratch Pad 页（用于重启恢复） */
@@ -246,8 +255,10 @@ export interface AppSettings {
   voiceDictation?: VoiceDictationPersistedSettings
   /** 飞书 Session 镜像设置：每个 LuxAgents Session 可创建一个仅包含用户与指定 Bot 的飞书群 */
   feishuSessionMirror?: FeishuSessionMirrorSettings
-  /** 用户手动关闭的 LuxAgents 内置 MCP ID 列表 */
+  /** 用户手动关闭的 LuxAgents 内置 MCP ID 列表（针对默认开启的内置 MCP） */
   builtinMcpDisabledIds?: string[]
+  /** 用户手动开启的 LuxAgents 内置 MCP ID 列表（针对默认关闭的内置 MCP，如 nano-banana、mem） */
+  builtinMcpEnabledIds?: string[]
   /** 启动时自动清理临时文件（luxagents-preview、luxagents-installers），默认 true */
   autoCleanupTempOnStart?: boolean
   /** 自动清理 N 天前已归档会话的 SDK 数据（0 = 禁用，默认 0） */

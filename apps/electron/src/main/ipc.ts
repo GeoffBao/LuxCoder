@@ -9,7 +9,7 @@ import { join, resolve, sep, dirname } from 'node:path'
 import { existsSync, realpathSync, rmSync, readFileSync, writeFileSync, mkdirSync, statSync } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, MEMORY_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS, EXPERT_IPC_CHANNELS, isLuxAgentsPermissionMode, normalizePathForCompare } from '@luxagents/shared'
+import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS, EXPERT_IPC_CHANNELS, isLuxAgentsPermissionMode, normalizePathForCompare } from '@luxagents/shared'
 import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, SCRATCH_PAD_IPC_CHANNELS, QUICK_TASK_IPC_CHANNELS, VOICE_DICTATION_IPC_CHANNELS, APP_ICON_IPC_CHANNELS, DOCK_BADGE_IPC_CHANNELS, STORAGE_IPC_CHANNELS } from '../types'
 import type {
   QuickTaskSubmitInput,
@@ -31,6 +31,7 @@ import type {
   ChannelCreateInput,
   ChannelUpdateInput,
   ChannelTestResult,
+  ChannelDirectTestInput,
   FetchModelsInput,
   FetchModelsResult,
   ConversationMeta,
@@ -43,6 +44,8 @@ import type {
   RecentMessagesResult,
   AgentSessionMeta,
   AgentSendInput,
+  AgentRuntime,
+  AgentThinkingLevel,
   AgentWorkspace,
   AgentGenerateTitleInput,
   AgentSaveFilesInput,
@@ -57,7 +60,9 @@ import type {
   StopTaskInput,
   WorkspaceMcpConfig,
   SkillMeta,
+  SkillFileContent,
   WorkspaceCapabilities,
+  WorkspaceMemorySummary,
   FileEntry,
   FileSearchResult,
   EnvironmentCheckResult,
@@ -76,7 +81,6 @@ import type {
   SystemPrompt,
   SystemPromptCreateInput,
   SystemPromptUpdateInput,
-  MemoryConfig,
   ChatToolInfo,
   ChatToolState,
   ChatToolMeta,
@@ -126,7 +130,10 @@ import {
   testChannel,
   testChannelDirect,
   fetchModels,
+  getChannelPlanQuota,
 } from './lib/channel-manager'
+import { loginCodexOAuth, cancelCodexOAuthLogin } from './lib/codex-oauth-service'
+import { serializeCodexCredentials } from '@luxagents/shared'
 import {
   listConversations,
   createConversation,
@@ -165,6 +172,7 @@ import { getProxySettings, saveProxySettings } from './lib/proxy-settings-servic
 import { detectSystemProxy } from './lib/system-proxy-detector'
 import {
   listAutomations,
+  getAutomation,
   createAutomation,
   updateAutomation,
   deleteAutomation,
@@ -198,6 +206,7 @@ import { askUserService } from './lib/agent-ask-user-service'
 import { exitPlanService } from './lib/agent-exit-plan-service'
 import { getAgentSessionWorkspacePath, getAgentWorkspacesDir, getWorkspaceSkillsDir, getWorkspaceFilesDir, getScratchPadPath, getExpertsDir } from './lib/config-paths'
 import { getAgentWorkspacePath } from './lib/config-paths'
+import { getCachedDefaultAppInfo, saveCachedDefaultAppInfo } from './lib/default-app-cache'
 import { calculateStorageStats, cleanupStorage, cleanupTempFiles } from './lib/storage-service'
 import type { CleanupOptions } from './lib/storage-service'
 import {
@@ -226,6 +235,12 @@ import {
   createSkillEntry,
   deleteSkillEntry,
   renameSkillEntry,
+  getWorkspaceMemorySummary,
+  readWorkspaceClaudeMd,
+  writeWorkspaceClaudeMd,
+  listWorkspaceAutoMemoryFiles,
+  readWorkspaceAutoMemoryFile,
+  writeWorkspaceAutoMemoryFile,
   getWorkspaceAttachedDirectories,
   getWorkspaceAttachedFiles,
   attachWorkspaceDirectory,
@@ -237,7 +252,6 @@ import {
   removeWorktreeRepo,
   cleanupStaleWorkspaceAttachedPaths,
 } from './lib/agent-workspace-manager'
-import { getMemoryConfig, setMemoryConfig } from './lib/memory-service'
 import { getAllToolInfos } from './lib/chat-tool-registry'
 import { updateToolState, updateToolCredentials, getToolCredentials, addCustomTool, deleteCustomTool } from './lib/chat-tool-config'
 import {
@@ -450,10 +464,12 @@ function getBundledResourcesDir(): string {
 }
 
 /**
- * 默认 App 探测结果按文件后缀缓存（含 null 负缓存），避免反复 spawn osascript / 注册表查询。
- * 进程级别一次会话足够，无需失效策略——用户切换默认 App 是低频行为，下次重启生效即可。
+ * 默认 App 探测结果按文件后缀缓存，避免反复 spawn Swift / 注册表查询。
+ * 成功结果会落盘；失败只做短暂内存冷却，避免一次瞬时失败导致整会话都隐藏按钮。
  */
-const defaultAppCache = new Map<string, import('@luxagents/shared').DefaultAppInfo | null>()
+const defaultAppCache = new Map<string, import('@luxagents/shared').DefaultAppInfo>()
+const defaultAppFailureCache = new Map<string, number>()
+const DEFAULT_APP_FAILURE_RETRY_MS = 60_000
 
 function extOf(filePath: string): string {
   const base = filePath.split(/[\\/]/).pop() ?? ''
@@ -719,7 +735,12 @@ async function getDefaultAppInfoForFile(
   const absPath = resolve(filePath)
 
   const cacheKey = `${process.platform}:${extOf(filePath) || filePath}`
-  if (defaultAppCache.has(cacheKey)) return defaultAppCache.get(cacheKey) ?? null
+  const cachedInfo = defaultAppCache.get(cacheKey) ?? getCachedDefaultAppInfo(cacheKey)
+  if (cachedInfo) {
+    defaultAppCache.set(cacheKey, cachedInfo)
+    return cachedInfo
+  }
+  if (isFailureCacheFresh(cacheKey)) return null
 
   let appPath = ''
   let appName = ''
@@ -742,6 +763,7 @@ if let appUrl = NSWorkspace.shared.urlForApplication(toOpen: url) {
     if (r.status === 0) {
       appPath = r.stdout.trim().replace(/\/$/, '')
     }
+    console.log('[DefaultApp] darwin swift 结果: status=%s appPath=%s', r.status, appPath)
     if (appPath.endsWith('.app')) {
       const base = appPath.split('/').pop() || ''
       appName = base.replace(/\.app$/, '')
@@ -786,12 +808,26 @@ if let appUrl = NSWorkspace.shared.urlForApplication(toOpen: url) {
 
   const info: import('@luxagents/shared').DefaultAppInfo = { name: appName, appPath, iconDataUrl }
   defaultAppCache.set(cacheKey, info)
+  defaultAppFailureCache.delete(cacheKey)
+  saveCachedDefaultAppInfo(cacheKey, info)
   return info
 }
 
+function isFailureCacheFresh(key: string): boolean {
+  const failedAt = defaultAppFailureCache.get(key)
+  if (failedAt === undefined) return false
+  if (Date.now() - failedAt < DEFAULT_APP_FAILURE_RETRY_MS) return true
+  defaultAppFailureCache.delete(key)
+  return false
+}
+
 function cacheNull(key: string): null {
-  defaultAppCache.set(key, null)
+  defaultAppFailureCache.set(key, Date.now())
   return null
+}
+
+function isAgentRuntime(value: unknown): value is AgentRuntime {
+  return value === 'claude' || value === 'pi'
 }
 
 /**
@@ -1117,7 +1153,7 @@ export function registerIpcHandlers(): void {
   // 直接测试连接（无需已保存渠道，传入明文凭证）
   ipcMain.handle(
     CHANNEL_IPC_CHANNELS.TEST_DIRECT,
-    async (_, input: FetchModelsInput): Promise<ChannelTestResult> => {
+    async (_, input: ChannelDirectTestInput): Promise<ChannelTestResult> => {
       return testChannelDirect(input)
     }
   )
@@ -1127,6 +1163,44 @@ export function registerIpcHandlers(): void {
     CHANNEL_IPC_CHANNELS.FETCH_MODELS,
     async (_, input: FetchModelsInput): Promise<FetchModelsResult> => {
       return fetchModels(input)
+    }
+  )
+
+  // 查询订阅 Plan 额度（用于 Agent Context 圆环 hover 信息）
+  ipcMain.handle(
+    CHANNEL_IPC_CHANNELS.GET_PLAN_QUOTA,
+    async (_, channelId: string): Promise<import('@luxagents/shared').ChannelPlanQuotaResult> => {
+      return getChannelPlanQuota(channelId)
+    }
+  )
+
+  // 发起 ChatGPT (Codex) OAuth 登录。登录在主进程执行（Pi SDK 用 Node crypto +
+  // 本地 :1455 回调服务）；成功后返回序列化的凭据 JSON（明文），由渲染层作为
+  // apiKey 传给 create/update，channel-manager 加密后存储——与现有 apiKey 明文回传模式一致。
+  ipcMain.handle(
+    CHANNEL_IPC_CHANNELS.CODEX_OAUTH_LOGIN,
+    async (): Promise<import('@luxagents/shared').CodexOAuthLoginResult> => {
+      try {
+        const credentials = await loginCodexOAuth()
+        return {
+          success: true,
+          credentials: serializeCodexCredentials(credentials),
+          ...(credentials.accountId ? { accountId: credentials.accountId } : {}),
+        }
+      } catch (error) {
+        return {
+          success: false,
+          message: error instanceof Error ? error.message : String(error),
+        }
+      }
+    }
+  )
+
+  // 取消进行中的 ChatGPT OAuth 登录流程
+  ipcMain.handle(
+    CHANNEL_IPC_CHANNELS.CODEX_OAUTH_CANCEL,
+    async (): Promise<void> => {
+      cancelCodexOAuthLogin()
     }
   )
 
@@ -1734,8 +1808,8 @@ export function registerIpcHandlers(): void {
   // 创建 Agent 会话
   ipcMain.handle(
     AGENT_IPC_CHANNELS.CREATE_SESSION,
-    async (_, title?: string, channelId?: string, workspaceId?: string): Promise<AgentSessionMeta> => {
-      const session = createAgentSession(title, channelId, workspaceId)
+    async (_, title?: string, channelId?: string, workspaceId?: string, modelId?: string): Promise<AgentSessionMeta> => {
+      const session = createAgentSession(title, channelId, workspaceId, modelId, getSettings().agentRuntime ?? 'pi')
       feishuBridgeManager.ensureSessionMirror(session).catch((error) => {
         console.error('[飞书 Session 镜像] 新会话建群失败:', error)
       })
@@ -1756,6 +1830,17 @@ export function registerIpcHandlers(): void {
     AGENT_IPC_CHANNELS.UPDATE_TITLE,
     async (_, id: string, title: string): Promise<AgentSessionMeta> => {
       return updateAgentSessionMeta(id, { title })
+    }
+  )
+
+  // 更新 Agent 会话模型选择
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.UPDATE_SESSION_MODEL,
+    async (_, id: string, channelId?: string, modelId?: string): Promise<AgentSessionMeta> => {
+      if (isAgentSessionActive(id)) {
+        throw new Error('Agent 正在运行，完成后再切换模型')
+      }
+      return updateAgentSessionMeta(id, { channelId, modelId })
     }
   )
 
@@ -1804,6 +1889,17 @@ export function registerIpcHandlers(): void {
         updates.archived = false
       }
       return updateAgentSessionMeta(id, updates)
+    }
+  )
+
+  // 切换 Agent 会话星标状态
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.TOGGLE_STAR,
+    async (_, id: string): Promise<AgentSessionMeta> => {
+      const sessions = listAgentSessions()
+      const current = sessions.find((s) => s.id === id)
+      if (!current) throw new Error(`Agent session not found: ${id}`)
+      return updateAgentSessionMeta(id, { starred: !current.starred })
     }
   )
 
@@ -2138,6 +2234,50 @@ export function registerIpcHandlers(): void {
     }
   )
 
+  // ===== 工作区记忆文件管理 =====
+
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.GET_WORKSPACE_MEMORY_SUMMARY,
+    async (_, workspaceSlug: string): Promise<WorkspaceMemorySummary> => {
+      return getWorkspaceMemorySummary(workspaceSlug)
+    }
+  )
+
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.READ_WORKSPACE_CLAUDE_MD,
+    async (_, workspaceSlug: string): Promise<SkillFileContent> => {
+      return readWorkspaceClaudeMd(workspaceSlug)
+    }
+  )
+
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.WRITE_WORKSPACE_CLAUDE_MD,
+    async (_, workspaceSlug: string, content: string): Promise<void> => {
+      writeWorkspaceClaudeMd(workspaceSlug, content)
+    }
+  )
+
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.LIST_WORKSPACE_AUTO_MEMORY_FILES,
+    async (_, workspaceSlug: string) => {
+      return listWorkspaceAutoMemoryFiles(workspaceSlug)
+    }
+  )
+
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.READ_WORKSPACE_AUTO_MEMORY_FILE,
+    async (_, workspaceSlug: string, relativePath: string): Promise<SkillFileContent> => {
+      return readWorkspaceAutoMemoryFile(workspaceSlug, relativePath)
+    }
+  )
+
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.WRITE_WORKSPACE_AUTO_MEMORY_FILE,
+    async (_, workspaceSlug: string, relativePath: string, content: string): Promise<void> => {
+      writeWorkspaceAutoMemoryFile(workspaceSlug, relativePath, content)
+    }
+  )
+
   // 发送 Agent 消息（触发 Agent SDK 流式响应）
   ipcMain.handle(
     AGENT_IPC_CHANNELS.SEND_MESSAGE,
@@ -2255,40 +2395,65 @@ export function registerIpcHandlers(): void {
     }
   )
 
-  // 全局记忆配置
+  // 切换指定会话的 Agent runtime（空闲后下一轮生效）
   ipcMain.handle(
-    MEMORY_IPC_CHANNELS.GET_CONFIG,
-    async (): Promise<MemoryConfig> => {
-      return getMemoryConfig()
+    AGENT_IPC_CHANNELS.UPDATE_SESSION_CODEX_FAST_MODE,
+    async (_, sessionId: string, enabled: boolean): Promise<AgentSessionMeta> => {
+      if (typeof enabled !== 'boolean') {
+        throw new Error(`无效的 Codex Fast Mode 状态: ${String(enabled)}`)
+      }
+      if (!getAgentSessionMeta(sessionId)) {
+        throw new Error(`Agent 会话不存在: ${sessionId}`)
+      }
+      if (isAgentSessionActive(sessionId)) {
+        throw new Error('Agent 正在运行，完成后再切换快速模式')
+      }
+      return updateAgentSessionMeta(sessionId, { codexFastMode: enabled })
     }
   )
 
   ipcMain.handle(
-    MEMORY_IPC_CHANNELS.SET_CONFIG,
-    async (_, config: MemoryConfig): Promise<void> => {
-      setMemoryConfig(config)
+    AGENT_IPC_CHANNELS.UPDATE_SESSION_OPENAI_REASONING,
+    async (_, sessionId: string, thinkingLevel: AgentThinkingLevel): Promise<AgentSessionMeta> => {
+      const validThinkingLevels: AgentThinkingLevel[] = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh']
+      if (!validThinkingLevels.includes(thinkingLevel)) {
+        throw new Error(`无效的 Codex 思考深度: ${String(thinkingLevel)}`)
+      }
+      if (!getAgentSessionMeta(sessionId)) {
+        throw new Error(`Agent 会话不存在: ${sessionId}`)
+      }
+      if (isAgentSessionActive(sessionId)) {
+        throw new Error('Agent 正在运行，完成后再切换思考深度')
+      }
+      return updateAgentSessionMeta(sessionId, { openAIThinkingLevel: thinkingLevel })
     }
   )
 
   ipcMain.handle(
-    MEMORY_IPC_CHANNELS.TEST_CONNECTION,
-    async (): Promise<{ success: boolean; message: string }> => {
-      const config = getMemoryConfig()
-      if (!config.apiKey) {
-        return { success: false, message: '请先填写 API Key' }
+    AGENT_IPC_CHANNELS.UPDATE_SESSION_AGENT_RUNTIME,
+    async (_, sessionId: string, runtime: AgentRuntime): Promise<AgentSessionMeta> => {
+      if (!isAgentRuntime(runtime)) {
+        throw new Error(`无效的 Agent runtime: ${String(runtime)}`)
       }
-      try {
-        const { searchMemory } = await import('./lib/memos-client')
-        const result = await searchMemory(
-          { apiKey: config.apiKey, userId: config.userId?.trim() || 'luxagents-user', baseUrl: config.baseUrl },
-          'test connection',
-          1,
-        )
-        return { success: true, message: `连接成功，已检索到 ${result.facts.length} 条事实、${result.preferences.length} 条偏好` }
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error)
-        return { success: false, message: `连接失败: ${msg}` }
+      const current = getAgentSessionMeta(sessionId)
+      if (!current) {
+        throw new Error(`Agent 会话不存在: ${sessionId}`)
       }
+
+      if (isAgentSessionActive(sessionId)) {
+        throw new Error('Agent 正在运行，完成后再切换内核')
+      }
+
+      // 历史会话缺失 runtime 时按 Claude 处理，避免将 Claude SDK 会话 ID 交给 Pi 恢复。
+      const previousRuntime: AgentRuntime = isAgentRuntime(current.agentRuntime) ? current.agentRuntime : 'claude'
+      const updates: Partial<Pick<AgentSessionMeta, 'agentRuntime' | 'sdkSessionId'>> = {
+        agentRuntime: runtime,
+      }
+      if (previousRuntime !== runtime) {
+        updates.sdkSessionId = undefined
+      }
+
+      return updateAgentSessionMeta(sessionId, updates)
     }
   )
 
@@ -2346,25 +2511,6 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(
     CHAT_TOOL_IPC_CHANNELS.TEST_TOOL,
     async (_, toolId: string): Promise<{ success: boolean; message: string }> => {
-      // 记忆工具复用现有测试逻辑
-      if (toolId === 'memory') {
-        const config = getMemoryConfig()
-        if (!config.apiKey) {
-          return { success: false, message: '请先填写 API Key' }
-        }
-        try {
-          const { searchMemory } = await import('./lib/memos-client')
-          const result = await searchMemory(
-            { apiKey: config.apiKey, userId: config.userId?.trim() || 'luxagents-user', baseUrl: config.baseUrl },
-            'test connection',
-            1,
-          )
-          return { success: true, message: `连接成功，已检索到 ${result.facts.length} 条事实、${result.preferences.length} 条偏好` }
-        } catch (error) {
-          const msg = error instanceof Error ? error.message : String(error)
-          return { success: false, message: `连接失败: ${msg}` }
-        }
-      }
       // 联网搜索工具测试
       if (toolId === 'web-search') {
         const { getToolCredentials: getCredentials } = await import('./lib/chat-tool-config')
@@ -2375,9 +2521,11 @@ export function registerIpcHandlers(): void {
         try {
           const response = await fetch('https://api.tavily.com/search', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${credentials.apiKey}`,
+            },
             body: JSON.stringify({
-              api_key: credentials.apiKey,
               query: 'test connection',
               search_depth: 'basic',
               max_results: 1,
@@ -2851,7 +2999,7 @@ export function registerIpcHandlers(): void {
   // 在系统文件管理器中显示任意路径（无工作区限制，用户主动点击触发）
   ipcMain.handle(
     IPC_CHANNELS.SHOW_ITEM_IN_FOLDER,
-    async (_, filePath: string, candidateBasePaths?: string[]): Promise<void> => {
+    async (_, filePath: string, candidateBasePaths?: string[]): Promise<boolean> => {
       const { resolve } = await import('node:path')
       const { existsSync } = await import('node:fs')
       const { resolveTargetPath } = await import('./lib/file-preview-service')
@@ -2859,9 +3007,10 @@ export function registerIpcHandlers(): void {
       const resolvedPath = resolveTargetPath(filePath, candidateBasePaths?.length ? candidateBasePaths : undefined)
       if (!existsSync(resolvedPath)) {
         console.warn('[IPC] shell:show-item-in-folder 路径不存在:', resolvedPath)
-        return
+        return false
       }
       shell.showItemInFolder(resolve(resolvedPath))
+      return true
     }
   )
 
@@ -3619,7 +3768,7 @@ export function registerIpcHandlers(): void {
     }
   )
 
-  // 获取活跃绑定列表
+  // 获取绑定列表（包含已归档，前端按视图过滤）
   ipcMain.handle(
     FEISHU_IPC_CHANNELS.LIST_BINDINGS,
     async (): Promise<FeishuChatBinding[]> => {
@@ -4244,10 +4393,10 @@ export function registerIpcHandlers(): void {
   const isNonEmptyString = (v: unknown): v is string => typeof v === 'string' && v.length > 0
   const isNonBlankString = (v: unknown): v is string => typeof v === 'string' && v.trim().length > 0
   const isFiniteInt = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && Number.isInteger(v)
-  const validScheduleType = (v: unknown): v is 'interval' | 'daily' | 'weekly' | 'monthly' =>
-    v === 'interval' || v === 'daily' || v === 'weekly' || v === 'monthly'
-  const validPermissionMode = (v: unknown): v is 'auto' | 'bypassPermissions' =>
-    v === 'auto' || v === 'bypassPermissions'
+  const validScheduleType = (v: unknown): v is 'interval' | 'daily' | 'weekly' | 'monthly' | 'once' =>
+    v === 'interval' || v === 'daily' || v === 'weekly' || v === 'monthly' || v === 'once'
+  const validPermissionMode = (v: unknown): v is 'bypassPermissions' =>
+    v === 'bypassPermissions'
   const validAutomationNotificationTrigger = (v: unknown): v is 'always' | 'success' | 'error' =>
     v === 'always' || v === 'success' || v === 'error'
   const validTimeOfDay = (v: unknown): boolean => typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v)
@@ -4286,6 +4435,15 @@ export function registerIpcHandlers(): void {
     if (i.dayOfMonth !== undefined && (!isFiniteInt(i.dayOfMonth) || i.dayOfMonth < 1 || i.dayOfMonth > 31)) {
       throw new Error(`非法的 dayOfMonth: ${String(i.dayOfMonth)}`)
     }
+    if (i.scheduledAt !== undefined && (typeof i.scheduledAt !== 'number' || !Number.isFinite(i.scheduledAt) || i.scheduledAt <= 0)) {
+      throw new Error(`非法的 scheduledAt: ${String(i.scheduledAt)}`)
+    }
+    if (i.maxRuns !== undefined && (!isFiniteInt(i.maxRuns) || i.maxRuns < 1)) {
+      throw new Error(`非法的 maxRuns: ${String(i.maxRuns)}`)
+    }
+    if (i.agentRuntime !== undefined && !isAgentRuntime(i.agentRuntime)) {
+      throw new Error(`非法的 agentRuntime: ${String(i.agentRuntime)}`)
+    }
     if (i.permissionMode !== undefined && !validPermissionMode(i.permissionMode)) {
       throw new Error(`非法的 permissionMode: ${String(i.permissionMode)}`)
     }
@@ -4293,6 +4451,50 @@ export function registerIpcHandlers(): void {
       throw new Error(`非法的 sessionMode: ${String(i.sessionMode)}`)
     }
     validateAutomationNotificationTargets(i.notificationTargets)
+  }
+
+  const validateAutomationRuntimePolicy = (
+    input: Partial<CreateAutomationInput | UpdateAutomationInput>,
+    existing?: Automation,
+  ): void => {
+    // 更新历史任务时，缺失的持久化 runtime 仍按 Claude 解释；仅新建任务使用 Pi 默认值。
+    const finalRuntime: AgentRuntime = input.agentRuntime ?? existing?.agentRuntime ?? (existing ? 'claude' : 'pi')
+    const finalChannelId = input.channelId !== undefined ? input.channelId : existing?.channelId
+    if (finalRuntime === 'claude' && finalChannelId) {
+      const agentChannelIds = getSettings().agentChannelIds ?? []
+      if (!agentChannelIds.includes(finalChannelId)) {
+        throw new Error('Claude Agent 内核只能使用已启用的 Agent 兼容渠道')
+      }
+    }
+  }
+
+  const validateAutomationScheduleComplete = (
+    input: Partial<CreateAutomationInput | UpdateAutomationInput>,
+    existing?: Automation,
+  ): void => {
+    const scheduleType = input.scheduleType ?? existing?.scheduleType
+    if (scheduleType === 'interval') {
+      const intervalMinutes = input.intervalMinutes ?? existing?.intervalMinutes
+      if (!isFiniteInt(intervalMinutes) || intervalMinutes < 1) throw new Error('scheduleType=interval 时 intervalMinutes 必填')
+    }
+    if (scheduleType === 'daily' || scheduleType === 'weekly' || scheduleType === 'monthly') {
+      const timeOfDay = input.timeOfDay ?? existing?.timeOfDay
+      if (!validTimeOfDay(timeOfDay)) throw new Error('scheduleType=daily/weekly/monthly 时 timeOfDay 必填')
+    }
+    if (scheduleType === 'weekly') {
+      const dayOfWeek = input.dayOfWeek ?? existing?.dayOfWeek
+      if (!isFiniteInt(dayOfWeek)) throw new Error('scheduleType=weekly 时 dayOfWeek 必填')
+    }
+    if (scheduleType === 'monthly') {
+      const dayOfMonth = input.dayOfMonth ?? existing?.dayOfMonth
+      if (!isFiniteInt(dayOfMonth)) throw new Error('scheduleType=monthly 时 dayOfMonth 必填')
+    }
+    if (scheduleType === 'once') {
+      const scheduledAt = input.scheduledAt ?? existing?.scheduledAt
+      if (typeof scheduledAt !== 'number' || !Number.isFinite(scheduledAt) || scheduledAt <= 0) {
+        throw new Error('scheduleType=once 时 scheduledAt 必填')
+      }
+    }
   }
 
   ipcMain.handle(
@@ -4308,10 +4510,8 @@ export function registerIpcHandlers(): void {
       if (!isNonEmptyString(input.prompt)) throw new Error('prompt 必填')
       // channelId / workspaceId 允许为空（草稿态），但此时任务不能被启用
       validateAutomationFields(input)
-      if (input.scheduleType === 'interval' && !isFiniteInt(input.intervalMinutes)) throw new Error('scheduleType=interval 时 intervalMinutes 必填')
-      if ((input.scheduleType === 'daily' || input.scheduleType === 'weekly' || input.scheduleType === 'monthly') && !validTimeOfDay(input.timeOfDay)) throw new Error('scheduleType=daily/weekly/monthly 时 timeOfDay 必填')
-      if (input.scheduleType === 'weekly' && !isFiniteInt(input.dayOfWeek)) throw new Error('scheduleType=weekly 时 dayOfWeek 必填')
-      if (input.scheduleType === 'monthly' && input.dayOfMonth === undefined) throw new Error('scheduleType=monthly 时 dayOfMonth 必填')
+      validateAutomationRuntimePolicy(input)
+      validateAutomationScheduleComplete(input)
       const a = createAutomation(input)
       broadcastAutomationsChanged()
       return a
@@ -4325,7 +4525,11 @@ export function registerIpcHandlers(): void {
       if (!isNonEmptyString(input.id)) throw new Error('id 必填')
       if (input.name !== undefined && !isNonBlankString(input.name)) throw new Error('name 不能为空')
       if (input.prompt !== undefined && !isNonBlankString(input.prompt)) throw new Error('prompt 不能为空')
+      const existing = getAutomation(input.id)
+      if (!existing) return undefined
       validateAutomationFields(input)
+      validateAutomationRuntimePolicy(input, existing)
+      validateAutomationScheduleComplete(input, existing)
       const a = updateAutomation(input)
       broadcastAutomationsChanged()
       return a

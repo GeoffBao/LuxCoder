@@ -11,9 +11,8 @@ import type { SuggestionOptions } from '@tiptap/suggestion'
 import { MessageSquareText, Sparkles, Server } from 'lucide-react'
 import { MentionList } from './MentionList'
 import type { MentionListRef } from './MentionList'
-import { createMentionPopup, positionPopup } from './mention-popup-utils'
+import { createMentionPopup, positionPopup, isSuggestionTriggerPresent } from './mention-popup-utils'
 import type { AgentSessionReferenceSearchResult } from '@luxagents/shared'
-
 // ===== 泛型工厂 =====
 
 interface MentionSuggestionConfig<T> {
@@ -42,6 +41,9 @@ function createMentionSuggestion<T>(
   return {
     char: config.char,
     allowSpaces: false,
+    // allowedPrefixes 为 null：允许任意字符前缀触发（含中文等无空格场景，如 `你好#`）。
+    // 注意：设为 [' '] 不能阻止"空输入框触发"——TipTap 在块开头的前缀为空串，
+    // 始终通过校验；却会让中文/单词后紧跟触发符无法触发，属回归。
     allowedPrefixes: null,
 
     items: async ({ query }): Promise<T[]> => {
@@ -78,6 +80,12 @@ function createMentionSuggestion<T>(
         onStart(props) {
           if (popup || renderer) {
             cleanup()
+          }
+
+          // 防御异步竞态：await items() 期间触发符可能已被删除导致 suggestion 退出，
+          // 插件仍会用过期 props 调用 onStart；过期则跳过建弹窗，避免残留幽灵弹窗。
+          if (!isSuggestionTriggerPresent(props.editor, props.range, config.char)) {
+            return
           }
 
           mentionActiveRef.current = true
@@ -222,6 +230,10 @@ export function createMcpMentionSuggestion(
 
 export type SessionMentionItem = AgentSessionReferenceSearchResult
 
+// 空查询只读会话索引，可安全展示更多；搜索会读取 JSONL 消息，保持较小上限避免阻塞主进程。
+const RECENT_SESSION_MENTION_LIMIT = 200
+const SEARCHED_SESSION_MENTION_LIMIT = 20
+
 export function createSessionMentionSuggestion(
   workspaceIdRef: React.RefObject<string | null>,
   currentSessionIdRef: React.RefObject<string | null>,
@@ -240,7 +252,7 @@ export function createSessionMentionSuggestion(
           workspaceId,
           excludeSessionId: currentSessionIdRef.current ?? undefined,
           query: q,
-          limit: 20,
+          limit: q ? SEARCHED_SESSION_MENTION_LIMIT : RECENT_SESSION_MENTION_LIMIT,
         })
       },
       keyExtractor: (item) => item.sessionId,

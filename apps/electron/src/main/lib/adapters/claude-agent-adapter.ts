@@ -14,7 +14,6 @@ import type {
   ThinkingConfig,
   AgentEffort,
   AgentDefinition,
-  SdkBeta,
   JsonSchemaOutputFormat,
   SDKMessage,
   LuxAgentsPermissionMode,
@@ -142,8 +141,10 @@ export interface ClaudeAgentQueryOptions extends AgentQueryInput {
   resumeSessionAt?: string
   /** MCP 服务器配置 */
   mcpServers?: Record<string, unknown>
+  /** 仅使用 Proma 显式传入的 MCP 配置，避免 SDK 从其它来源发现额外 MCP */
+  strictMcpConfig?: boolean
   /** 插件配置 */
-  plugins?: Array<{ type: 'local'; path: string }>
+  plugins?: Array<{ type: 'local'; path: string; skipMcpDiscovery?: boolean }>
   /** stderr 回调 */
   onStderr?: (data: string) => void
   /** SDK session ID 捕获回调 */
@@ -173,8 +174,6 @@ export interface ClaudeAgentQueryOptions extends AgentQueryInput {
   maxBudgetUsd?: number
   /** 结构化 JSON 输出格式 */
   outputFormat?: JsonSchemaOutputFormat
-  /** Beta 特性（如 1M context window） */
-  betas?: SdkBeta[]
   /** 是否持久化会话到磁盘（默认 true） */
   persistSession?: boolean
   /** resume 时是否 fork 为新会话 */
@@ -472,12 +471,18 @@ export function mapSDKErrorToTypedError(
     canRetry: false,
   }
 
+  // “未选择正确渠道/模型”场景：友好化后的文案已固定，无法登录多半是渠道或模型配置有误，
+  // 引导用户直接重新选择模型，而非跳转设置页面
+  const isInvalidChannelOrModel = /请检查是否选择了正确的 LuxAgents 供应渠道和模型/.test(mapped.message)
+
   return {
     code: mapped.code,
     title: mapped.title,
     message: detailedMessage || mapped.message,
     actions: [
-      { key: 's', label: '设置', action: 'settings' },
+      isInvalidChannelOrModel
+        ? { key: 'm', label: '重新选择模型', action: 'select_model' }
+        : { key: 's', label: '设置', action: 'settings' },
       ...(mapped.canRetry ? [{ key: 'r', label: '重试', action: 'retry' }] : []),
       ...(mapped.code === 'prompt_too_long' ? [{ key: 'c', label: '压缩上下文', action: 'compact' }] : []),
     ],
@@ -732,7 +737,7 @@ export class ClaudeAgentAdapter implements AgentProviderAdapter {
       const sdkOptions = {
         // 基础字段
         pathToClaudeCodeExecutable: options.sdkCliPath,
-        model: options.model || 'claude-sonnet-4-6',
+        model: options.model || 'claude-sonnet-5',
         ...(options.maxTurns != null && { maxTurns: options.maxTurns }),
         permissionMode: options.sdkPermissionMode,
         allowDangerouslySkipPermissions: options.allowDangerouslySkipPermissions,
@@ -747,7 +752,7 @@ export class ClaudeAgentAdapter implements AgentProviderAdapter {
         abortController: controller,
         env: options.env,
         systemPrompt: options.systemPrompt,
-        // 不加载 user 级别的 ~/.claude/settings.json
+        // 加载用户级和项目级 SDK settings，排除 local 级别的 .claude/settings.local.json。
         settingSources: ['user', 'project'],
 
         // 条件字段
@@ -758,6 +763,7 @@ export class ClaudeAgentAdapter implements AgentProviderAdapter {
         ...(options.mcpServers && Object.keys(options.mcpServers).length > 0 && {
           mcpServers: options.mcpServers as Record<string, import('@anthropic-ai/claude-agent-sdk').McpServerConfig>,
         }),
+        ...(options.strictMcpConfig != null && { strictMcpConfig: options.strictMcpConfig }),
         ...(options.plugins && { plugins: options.plugins }),
         ...(options.onStderr && { stderr: options.onStderr }),
 
@@ -771,7 +777,6 @@ export class ClaudeAgentAdapter implements AgentProviderAdapter {
         ...(options.fallbackModel && { fallbackModel: options.fallbackModel }),
         ...(options.maxBudgetUsd != null && { maxBudgetUsd: options.maxBudgetUsd }),
         ...(options.outputFormat && { outputFormat: options.outputFormat }),
-        ...(options.betas && { betas: options.betas }),
         ...(options.persistSession != null && { persistSession: options.persistSession }),
         ...(options.forkSession != null && { forkSession: options.forkSession }),
         ...(options.sdkSessionId && { sessionId: options.sdkSessionId }),
@@ -809,6 +814,8 @@ export class ClaudeAgentAdapter implements AgentProviderAdapter {
             env: spawnOpts.env,
             signal: spawnOpts.signal,
             stdio: ['pipe', 'pipe', 'pipe'],
+            // 与 SDK 默认 spawnLocalProcess 保持一致，避免 Windows 上为 claude.exe 创建独立控制台。
+            windowsHide: true,
           })
           // 手动转发 stderr（SDK 默认在 spawnLocalProcess 里做，自定义 spawn 需自己做）
           // 同时必须消费 stderr 流避免缓冲区满（默认 64KB）导致子进程挂起
@@ -900,15 +907,22 @@ export class ClaudeAgentAdapter implements AgentProviderAdapter {
         }
 
         // 捕获 result 中的 contextWindow
+        // 多 entry 场景（Task 子 Agent 等）：取最大 contextWindow 作为分母，
+        // 避免子 Agent 的小窗口覆盖主模型的大窗口、导致 UI 指示器飘忽。
         if (msg.type === 'result') {
           const resultMsg = msg as {
             modelUsage?: Record<string, { contextWindow?: number }>
             terminal_reason?: string
           }
           if (resultMsg.modelUsage) {
-            const firstEntry = Object.values(resultMsg.modelUsage)[0]
-            if (firstEntry?.contextWindow) {
-              options.onContextWindow?.(firstEntry.contextWindow)
+            let bestWindow: number | undefined
+            for (const info of Object.values(resultMsg.modelUsage)) {
+              if (info?.contextWindow && (bestWindow === undefined || info.contextWindow > bestWindow)) {
+                bestWindow = info.contextWindow
+              }
+            }
+            if (bestWindow != null) {
+              options.onContextWindow?.(bestWindow)
             }
           }
           // 被软中断 / 延迟工具 / hook 暂停等场景产生的 result：不关闭通道，

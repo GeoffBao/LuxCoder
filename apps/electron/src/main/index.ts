@@ -90,6 +90,7 @@ import { seedDefaultSkills, getExpertsDir } from './lib/config-paths'
 import { seedBuiltinExperts } from './lib/expert-service'
 import { upgradeDefaultSkillsInWorkspaces } from './lib/agent-workspace-manager'
 import { stopAllAgents, killOrphanedClaudeSubprocesses, isAgentSessionActive } from './lib/agent-service'
+import { disposePiMcpConnections } from './lib/adapters/pi-mcp-tools'
 import { markRunningDelegationsAsInterrupted, markStaleTaskSessionsIdle } from './lib/agent-session-manager'
 import { stopAllGenerations } from './lib/chat-service'
 import { initAutoUpdater, cleanupUpdater } from './lib/updater/auto-updater'
@@ -107,6 +108,7 @@ import { startScheduler, stopScheduler } from './lib/automation-scheduler'
 import { feishuBridgeManager } from './lib/feishu-bridge-manager'
 import { getFeishuMultiBotConfig } from './lib/feishu-config'
 import { stopFeishuSyncSleepBlocker, syncFeishuSyncSleepBlocker } from './lib/feishu-sleep-blocker'
+import { getPersistableMainWindowState, hideMacMainWindowAfterClose } from './lib/main-window-lifecycle'
 import { dingtalkBridgeManager } from './lib/dingtalk-bridge-manager'
 import { getDingTalkMultiBotConfig } from './lib/dingtalk-config'
 import { wechatBridge } from './lib/wechat-bridge'
@@ -308,18 +310,19 @@ function getIconPath(): string {
 
 function saveMainWindowState(): void {
   if (!mainWindow || mainWindow.isDestroyed()) return
-  const isMaximized = mainWindow.isMaximized()
-  // 最大化时用恢复尺寸（unmaximize 后的尺寸），避免记录最大化的全屏 bounds
-  const bounds = isMaximized ? mainWindow.getNormalBounds() : mainWindow.getBounds()
+  const mainWindowState = getPersistableMainWindowState(mainWindow)
+  if (!mainWindowState) return
   updateSettings({
-    mainWindowState: {
-      width: bounds.width,
-      height: bounds.height,
-      x: bounds.x,
-      y: bounds.y,
-      isMaximized,
-    },
+    mainWindowState,
   })
+}
+
+function isDevServerNavigation(url: string): boolean {
+  try {
+    return new URL(url).origin === 'http://127.0.0.1:5173'
+  } catch {
+    return false
+  }
 }
 
 function createWindow(): void {
@@ -406,7 +409,7 @@ function createWindow(): void {
   // 拦截页面内导航，外部链接用系统浏览器打开，防止 Electron 窗口被覆盖
   mainWindow.webContents.on('will-navigate', (event, url) => {
     // 允许开发模式下的 Vite HMR 热重载
-    if (isDev && url.startsWith('http://localhost:')) return
+    if (isDev && isDevServerNavigation(url)) return
     event.preventDefault()
     if (url.startsWith('http://') || url.startsWith('https://')) {
       shell.openExternal(url)
@@ -433,8 +436,9 @@ function createWindow(): void {
         }
         saveMainWindowState()
         event.preventDefault()
-        mainWindow?.hide()
-        app.hide()
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          hideMacMainWindowAfterClose(mainWindow, app)
+        }
       }
     })
   }
@@ -694,6 +698,8 @@ app.on('before-quit', () => {
   // 销毁快速任务窗口
   destroyQuickTaskWindow()
   destroyVoiceDictationWindow()
+  // 关闭 Pi MCP 桥接连接（释放 stdio 子进程）
+  disposePiMcpConnections().catch(() => {})
   // Clean up system tray before quitting
   destroyTray()
 })

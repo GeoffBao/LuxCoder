@@ -18,3 +18,9 @@ export const projectListHeightAtom = atomWithStorage<number>(
   'luxagents-workspace-list-height',
   120,
 )
+
+/** 左侧边栏宽度（px），用户可拖拽调整，持久化到 localStorage */
+export const leftSidebarWidthAtom = atomWithStorage<number>(
+  'luxagents-left-sidebar-width',
+  300,
+)

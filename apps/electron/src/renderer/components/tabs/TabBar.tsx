@@ -30,11 +30,12 @@ import {
 import { appModeAtom } from '@/atoms/app-mode'
 import { automationFormAtom } from '@/atoms/automation-atoms'
 import { tearOffPreviewToSplit } from '@/components/diff/preview-opener'
+import { tearOffScratchToSplit } from '@/components/scratch-pad/scratch-pad-opener'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { TabBarItem } from './TabBarItem'
 import { useCloseTab } from '@/hooks/useCloseTab'
-import { detectIsWindows } from '@/lib/platform'
+import { detectIsWindows, WINDOW_CONTROLS_INSET_RIGHT, WINDOW_CONTROLS_PADDING_RIGHT } from '@/lib/platform'
 import { registerShortcut } from '@/lib/shortcut-registry'
 import { cn } from '@/lib/utils'
 
@@ -59,12 +60,19 @@ export function TabBar(): React.ReactElement {
   const store = useStore()
 
   /**
-   * Tear-off：把 preview Tab 拖出 TabBar 时，转成右侧分屏预览。
-   * 公共实现在 preview-opener.ts，PreviewTabContent 顶栏切换按钮共用同一份逻辑。
+   * Tear-off：把 preview/scratch Tab 拖出 TabBar 时，转成 Agent 右侧分屏。
+   * preview 公共实现在 preview-opener.ts，PreviewTabContent 顶栏切换按钮共用同一份逻辑。
    */
   const handleTearOff = React.useCallback((tabId: string) => {
-    tearOffPreviewToSplit(store, tabId)
-  }, [store])
+    const tab = tabs.find((item) => item.id === tabId)
+    if (tab?.type === 'preview') {
+      tearOffPreviewToSplit(store, tabId)
+      return
+    }
+    if (tab?.type === 'scratch') {
+      tearOffScratchToSplit(store)
+    }
+  }, [store, tabs])
 
   const workspaceNameBySessionId = React.useMemo(() => {
     const workspaceNameMap = new Map(agentWorkspaces.map((workspace) => [workspace.id, workspace.name]))
@@ -80,7 +88,7 @@ export function TabBar(): React.ReactElement {
   const automationSessionIds = React.useMemo(() => {
     const ids = new Set<string>()
     for (const s of agentSessions) {
-      if (s.sourceAutomationId) ids.add(s.id)
+      if (s.sourceAutomationId && !s.sourceDelegationId) ids.add(s.id)
     }
     return ids
   }, [agentSessions])
@@ -240,14 +248,14 @@ function TabBarInner({
   // 整条 TabBar 容器 ref，用于拖拽 tear-off 时检测鼠标是否离开 TabBar 区域
   const barRef = React.useRef<HTMLDivElement>(null)
 
-  // 拖出 TabBar 区域时给出视觉提示（仅 preview Tab 可 tear-off）
+  // 拖出 TabBar 区域时给出视觉提示（preview/scratch Tab 可 tear-off）
   const [tearingOff, setTearingOff] = React.useState<string | null>(null)
 
-  // 拦截外层 handleDragStart：若拖出 TabBar 区域且是 preview Tab，触发 tear-off
+  // 拦截外层 handleDragStart：若拖出 TabBar 区域且是 preview/scratch Tab，触发 tear-off
   const handleDragStartWithTearOff = React.useCallback((tabId: string, e: React.PointerEvent) => {
     const tab = tabs.find((t) => t.id === tabId)
-    // 仅 preview Tab 支持拖出转分屏
-    if (!tab || tab.type !== 'preview') {
+    // 仅 preview / scratch Tab 支持拖出转分屏
+    if (!tab || (tab.type !== 'preview' && tab.type !== 'scratch')) {
       onDragStart(tabId, e)
       return
     }
@@ -360,12 +368,12 @@ function TabBarInner({
   }, [])
 
   return (
-    <div ref={barRef} className="flex items-end h-[34px] tabbar-bg relative">
+    <div ref={barRef} className="main-tabbar flex items-end h-[34px] tabbar-bg relative">
       {/* 顶部 TabBar 的空白区域必须保持可拖拽，尤其是 macOS/Windows 自定义标题栏。
           注意：不要把 titlebar-no-drag 加到下面的整条 flex 容器上，否则标签右侧空白会再次失去拖拽能力。
           Windows 上背景拖拽层避开右上角 WindowControls 区域（126px），防止 hitmask 重叠。
           需要交互的单个 Tab 会在 TabBarItem 内部自己声明 titlebar-no-drag。 */}
-      <div className={cn("absolute inset-0 titlebar-drag-region", isWindows && "right-[126px]")} />
+      <div className={cn("absolute inset-0 titlebar-drag-region", isWindows && WINDOW_CONTROLS_INSET_RIGHT)} />
 
       {/* Tear-off 提示遮罩：拖出 TabBar 区域时，让 TabBar 下方出现一条高亮分割线 */}
       {tearingOff && (
@@ -376,10 +384,8 @@ function TabBarInner({
         ref={scrollRef}
         className={cn(
           "relative flex items-end flex-1 min-w-0 overflow-x-auto scrollbar-none",
-          // 右上角同时存在窗口控件（Windows ~126px）和文件面板按钮（~40px）时，给 scroll 预留对应宽度，
-          // 避免最右一个 Tab 被遮挡。
-          isWindows && !showOpenPanelButton && "pr-[126px]",
-          isWindows && showOpenPanelButton && "pr-[166px]",
+          // Windows 始终避开 WindowControls（~126px）；非 Windows 打开按钮时给 scroll 预留空间
+          isWindows && WINDOW_CONTROLS_PADDING_RIGHT,
           !isWindows && showOpenPanelButton && "pr-10",
         )}
       >
@@ -418,7 +424,9 @@ function TabBarInner({
   )
 }
 
-/** 打开 Agent 文件面板按钮。 */
+/** 打开 Agent 文件面板按钮。
+ *  非 Windows：inset-y-0 撑满 TabBar，贴右边缘 right-1。
+ *  Windows：溢出到 TabBar 下方（top-[37px]），避开 WindowControls，贴右边缘与关闭按钮对齐。 */
 function AgentPanelOpenButton({
   isWindows,
   onToggle,
@@ -429,8 +437,10 @@ function AgentPanelOpenButton({
   return (
     <div
       className={cn(
-        "absolute inset-y-0 z-10 flex items-end pb-[3px] titlebar-no-drag",
-        isWindows ? "right-[132px]" : "right-[9px]",
+        "absolute flex titlebar-no-drag",
+        isWindows
+          ? "top-[37px] right-1 h-7 z-[52]"
+          : "inset-y-0 right-1 items-end pb-[3px] z-10",
       )}
     >
       <Tooltip>

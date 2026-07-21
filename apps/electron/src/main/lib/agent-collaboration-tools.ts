@@ -10,6 +10,7 @@ import type {
   AgentDelegationRole,
   AgentDelegationStatus,
   AgentMessage,
+  AgentRuntime,
   AgentSessionMeta,
   AgentStreamPayload,
   AskUserRequest,
@@ -33,6 +34,7 @@ import {
   buildRecoveredDelegationState,
   buildDelegationTaskWithSharedContext,
   buildDelegationPrompt,
+  createToolCallIdempotencyCache,
   resolveDelegationPermissionMode,
 } from './agent-collaboration-utils'
 import { assertEnabledModelForChannel, listEnabledAgentModelsForChannel } from './agent-model-selection'
@@ -43,6 +45,7 @@ interface CollaborationToolContext {
   modelId?: string
   workspaceId?: string
   permissionMode?: LuxAgentsPermissionMode
+  agentRuntime?: AgentRuntime
   triggeredBy?: 'user' | 'automation' | 'delegation' | 'work'
 }
 
@@ -79,6 +82,9 @@ const DELEGATION_GOAL_CHAR_LIMIT = 1_000
 const MAX_RETAINED_FINISHED_DELEGATIONS = 200
 
 const delegations = new Map<string, DelegationRecord>()
+// Pi 的 provider/retry 流可能重放同一个 tool call；委派会创建真实会话，必须幂等。
+const piDelegateAgentCalls = createToolCallIdempotencyCache<PiDelegationToolResult>()
+const piDelegateAgentsCalls = createToolCallIdempotencyCache<PiBatchDelegationResult>()
 
 // ===== 阻塞事件追踪（Level 1: Blocked Event Bubbling） =====
 
@@ -246,6 +252,17 @@ interface StartDelegationResult {
   record: DelegationRecord
   effectivePermissionMode: LuxAgentsPermissionMode
   effectiveModelId?: string
+}
+
+interface PiDelegationToolResult {
+  delegationId: string
+  effectivePermissionMode: LuxAgentsPermissionMode
+  effectiveModelId?: string
+}
+
+interface PiBatchDelegationResult {
+  created: PiDelegationToolResult[]
+  failures: Array<{ index: number; title?: string; error: string }>
 }
 
 function getRunningDelegationCount(parentSessionId: string): number {
@@ -626,7 +643,11 @@ function startDelegation(
   const title = normalizeTitle(args.title, `协作：${task}`)
   const goal = truncateText(task, DELEGATION_GOAL_CHAR_LIMIT)
   const parentPermissionMode = getCurrentParentPermissionMode(parent, ctx.permissionMode)
-  const permissionMode = resolveDelegationPermissionMode(parentPermissionMode, args.permissionMode)
+  const permissionMode = resolveDelegationPermissionMode(
+    parentPermissionMode,
+    args.permissionMode,
+    ctx.agentRuntime ?? parent?.agentRuntime,
+  )
   const effectiveModelId = args.modelId !== undefined
     ? assertEnabledModelForChannel({
         channelId: ctx.channelId,
@@ -637,7 +658,7 @@ function startDelegation(
 
   const { completion, resolveCompletion } = createDelegationCompletion()
 
-  const child = createAgentSession(title, ctx.channelId, ctx.workspaceId, effectiveModelId)
+  const child = createAgentSession(title, ctx.channelId, ctx.workspaceId, effectiveModelId, parent?.agentRuntime ?? 'claude')
   const rootSessionId = parent?.rootSessionId ?? parent?.id ?? ctx.sessionId
   // 继承父会话的 craft Project，避免子会话掉出项目子分组、丢失项目 workingDirectory / prompt 上下文
   updateAgentSessionMeta(child.id, {
@@ -717,7 +738,7 @@ function startDelegation(
 function buildCollaborationSchemas(z: ZodModule['z']) {
   const nonBlankString = z.string().trim().min(1)
   const role = z.enum(['explore', 'research', 'implement', 'review', 'custom'])
-  const permissionMode = z.enum(['plan', 'auto', 'bypassPermissions'])
+  const permissionMode = z.enum(['plan', 'bypassPermissions'])
   const delegateItem = z.object({
     title: z.string().optional().describe('子会话标题，简短说明子任务'),
     role: role.optional().describe('子任务角色：explore/research/implement/review/custom'),
@@ -794,7 +815,7 @@ export async function injectAgentCollaborationMcpServer(
       ),
       sdk.tool(
         'delegate_agent',
-        '创建一个真实可见的 LuxAgents 协作子 Agent 会话来并行处理独立子任务。只用于长耗时、可并行、需要追踪的任务；简单搜索优先用内置 Agent/SubAgent。',
+        '创建一个真实可见的 LuxAgents 协作子 Agent 会话来并行处理独立子任务。只用于长耗时、可并行、需要追踪的任务；简单搜索由父会话直接使用普通工具完成。',
         schemas.delegate,
         async (args) => {
           const parent = assertCanCreateDelegation(ctx)
@@ -1049,4 +1070,354 @@ export async function injectAgentCollaborationMcpServer(
 
   mcpServers.collaboration = server as unknown as Record<string, unknown>
   console.log('[Agent 编排] 已注入内置协作会话工具 (collaboration)')
+}
+
+// ===== Pi Runtime 桥接 =====
+
+/**
+ * 为 Pi runtime 构建协作会话工具定义。
+ * 复用同一份内部状态（delegations Map、blocked events 等），
+ * 只是用 Pi SDK 的 defineTool() + TypeBox schema 包装。
+ */
+export function buildPiCollaborationTools(
+  sdk: typeof import('@earendil-works/pi-coding-agent'),
+  ctx: CollaborationToolContext,
+): unknown[] {
+  const { Type } = require('typebox') as typeof import('typebox')
+
+  const roleType = Type.Optional(Type.Union([
+    Type.Literal('explore'),
+    Type.Literal('research'),
+    Type.Literal('implement'),
+    Type.Literal('review'),
+    Type.Literal('custom'),
+  ], { description: '子任务角色' }))
+
+  const delegateItemType = Type.Object({
+    title: Type.Optional(Type.String({ description: '子会话标题' })),
+    role: roleType,
+    task: Type.String({ description: '发送给子 Agent 的完整任务说明' }),
+    expectedOutput: Type.Optional(Type.String({ description: '希望子 Agent 最终返回的格式或要点' })),
+    modelId: Type.Optional(Type.String({ description: '可选目标模型 ID' })),
+  })
+
+  function piJsonResult(payload: unknown): { content: Array<{ type: 'text'; text: string }>; details: unknown } {
+    return {
+      content: [{ type: 'text', text: JSON.stringify(payload, null, 2) }],
+      details: payload,
+    }
+  }
+
+  return [
+    sdk.defineTool({
+      name: 'mcp__collaboration__list_available_agent_models',
+      label: '列出可用模型',
+      description: '列出当前父会话渠道下已启用、可用于协作子 Agent 的模型。需要给 delegate_agent/delegate_agents 指定 modelId 前应先调用此工具。',
+      parameters: Type.Object({}),
+      async execute() {
+        return piJsonResult(getAvailableAgentModels(ctx))
+      },
+    }),
+    sdk.defineTool({
+      name: 'mcp__collaboration__delegate_agent',
+      label: '委派子 Agent',
+      description: '创建一个真实可见的 LuxAgents 协作子 Agent 会话来并行处理独立子任务。只用于长耗时、可并行、需要追踪的任务。',
+      parameters: Type.Object({
+        title: Type.Optional(Type.String({ description: '子会话标题' })),
+        role: roleType,
+        task: Type.String({ description: '发送给子 Agent 的完整任务说明，必须自包含必要上下文' }),
+        expectedOutput: Type.Optional(Type.String({ description: '希望子 Agent 最终返回的格式或要点' })),
+        modelId: Type.Optional(Type.String({ description: '可选目标模型 ID' })),
+      }),
+      async execute(toolCallId: string, params: unknown) {
+        const args = params as DelegateAgentArgs
+        const result = piDelegateAgentCalls.getOrCreate(ctx.sessionId, toolCallId, () => {
+          const parent = assertCanCreateDelegation(ctx)
+          const created = startDelegation(ctx, parent, args)
+          return {
+            delegationId: created.record.delegationId,
+            effectivePermissionMode: created.effectivePermissionMode,
+            effectiveModelId: created.effectiveModelId,
+          }
+        })
+        return piJsonResult({
+          delegation: getDelegationResult(ctx.sessionId, result.delegationId),
+          effectivePermissionMode: result.effectivePermissionMode,
+          effectiveModelId: result.effectiveModelId,
+          note: '子会话已启动。需要结果时调用 wait_for_delegations。',
+        })
+      },
+    }),
+    sdk.defineTool({
+      name: 'mcp__collaboration__delegate_agents',
+      label: '批量委派子 Agent',
+      description: '批量创建多个真实可见的 LuxAgents 协作子 Agent 会话。适合把同一大任务拆成多片并行处理。',
+      parameters: Type.Object({
+        sharedContext: Type.Optional(Type.String({ description: '批量子任务共用背景' })),
+        items: Type.Array(delegateItemType, { description: '要创建的子会话列表，最多 50 个' }),
+      }),
+      async execute(toolCallId: string, params: unknown) {
+        const args = params as { sharedContext?: string; items: DelegateAgentArgs[] }
+        const batch = piDelegateAgentsCalls.getOrCreate(ctx.sessionId, toolCallId, () => {
+          const parent = assertCanCreateDelegation(ctx, args.items.length)
+          const created: PiDelegationToolResult[] = []
+          const failures: Array<{ index: number; title?: string; error: string }> = []
+          args.items.forEach((item, index) => {
+            try {
+              const started = startDelegation(ctx, parent, {
+                ...item,
+                task: buildDelegationTaskWithSharedContext({
+                  sharedContext: args.sharedContext,
+                  task: item.task,
+                }),
+              })
+              created.push({
+                delegationId: started.record.delegationId,
+                effectivePermissionMode: started.effectivePermissionMode,
+                effectiveModelId: started.effectiveModelId,
+              })
+            } catch (error) {
+              failures.push({
+                index,
+                title: item.title,
+                error: error instanceof Error ? error.message : '未知错误',
+              })
+            }
+          })
+          return { created, failures }
+        })
+        return piJsonResult({
+          delegations: batch.created.map((item) => getDelegationResult(ctx.sessionId, item.delegationId)),
+          effectivePermissionModes: batch.created.map((item) => ({
+            delegationId: item.delegationId,
+            permissionMode: item.effectivePermissionMode,
+          })),
+          effectiveModels: batch.created.map((item) => ({
+            delegationId: item.delegationId,
+            modelId: item.effectiveModelId,
+          })),
+          failures: batch.failures,
+          createdCount: batch.created.length,
+          failedCount: batch.failures.length,
+          maxRunningDelegations: MAX_RUNNING_DELEGATIONS_PER_PARENT,
+        })
+      },
+    }),
+    sdk.defineTool({
+      name: 'mcp__collaboration__wait_for_delegations',
+      label: '等待子会话完成',
+      description: '等待一个或多个 LuxAgents 协作子会话完成，并返回结构化结果摘要。',
+      parameters: Type.Object({
+        delegationIds: Type.Optional(Type.Array(Type.String(), { description: '要等待的委派 ID' })),
+        mode: Type.Optional(Type.Union([Type.Literal('all'), Type.Literal('any')])),
+        minCompleted: Type.Optional(Type.Number({ description: 'mode=any 时至少等待完成的数量，默认 1' })),
+        timeoutSeconds: Type.Optional(Type.Number({ description: '最长等待秒数，默认 1800' })),
+      }),
+      async execute(_toolCallId: string, params: unknown) {
+        const args = params as { delegationIds?: string[]; mode?: 'all' | 'any'; minCompleted?: number; timeoutSeconds?: number }
+        const ids = args.delegationIds?.length
+          ? args.delegationIds
+          : Array.from(delegations.values())
+            .filter((item) => item.parentSessionId === ctx.sessionId && item.status === 'running')
+            .map((item) => item.delegationId)
+        const { liveRecords, settled } = resolveWaitTargets(ids, ctx.sessionId)
+        const totalTargets = liveRecords.length + settled.length
+        if (totalTargets === 0) {
+          return piJsonResult({ delegations: [], note: '没有找到可等待的协作委派' })
+        }
+        const mode = args.mode ?? 'all'
+        const minCompleted = args.minCompleted ?? 1
+        const timeoutSeconds = Math.min(args.timeoutSeconds ?? DEFAULT_WAIT_SECONDS, MAX_WAIT_SECONDS)
+        const targetCompleted = mode === 'all' ? totalTargets : Math.max(1, Math.min(minCompleted, totalTargets))
+        const liveTarget = Math.max(0, targetCompleted - settled.length)
+        const waitResult = liveRecords.length > 0
+          ? await waitForLiveRecords(liveRecords, timeoutSeconds, liveTarget)
+          : 'completed'
+        const allDelegations = [...liveRecords.map(getDelegationSummary), ...settled]
+        return piJsonResult({
+          status: waitResult,
+          mode,
+          completedCount: allDelegations.filter((item) => item.status !== 'running').length,
+          runningCount: allDelegations.filter((item) => item.status === 'running').length,
+          delegations: allDelegations,
+        })
+      },
+    }),
+    sdk.defineTool({
+      name: 'mcp__collaboration__list_delegations',
+      label: '列出协作子会话',
+      description: '列出当前父会话创建的 LuxAgents 协作子会话及状态。',
+      parameters: Type.Object({
+        includeCompleted: Type.Optional(Type.Boolean({ description: '是否包含已完成委派，默认 true' })),
+      }),
+      async execute(_toolCallId: string, params: unknown) {
+        const args = params as { includeCompleted?: boolean }
+        const items = listKnownDelegations(ctx.sessionId)
+        const delegationsResult = args.includeCompleted === false
+          ? items.filter((item) => item.status === 'running')
+          : items
+        return piJsonResult({
+          maxRunningDelegations: MAX_RUNNING_DELEGATIONS_PER_PARENT,
+          runningCount: delegationsResult.filter((item) => item.status === 'running').length,
+          delegations: delegationsResult,
+        })
+      },
+    }),
+    sdk.defineTool({
+      name: 'mcp__collaboration__get_delegation_results',
+      label: '读取子会话结果',
+      description: '按委派 ID 读取一个或多个 LuxAgents 协作子会话的结果摘要。',
+      parameters: Type.Object({
+        delegationIds: Type.Array(Type.String(), { description: '要读取结果的委派 ID 列表' }),
+      }),
+      async execute(_toolCallId: string, params: unknown) {
+        const args = params as { delegationIds: string[] }
+        return piJsonResult({
+          delegations: args.delegationIds.map((delegationId) => getDelegationResult(ctx.sessionId, delegationId)),
+        })
+      },
+    }),
+    sdk.defineTool({
+      name: 'mcp__collaboration__stop_delegation',
+      label: '停止子会话',
+      description: '停止一个正在运行的 LuxAgents 协作子会话。',
+      parameters: Type.Object({
+        delegationId: Type.String({ description: '要停止的委派 ID' }),
+      }),
+      async execute(_toolCallId: string, params: unknown) {
+        const args = params as { delegationId: string }
+        return piJsonResult(stopDelegation(ctx.sessionId, args.delegationId))
+      },
+    }),
+    sdk.defineTool({
+      name: 'mcp__collaboration__stop_delegations',
+      label: '批量停止子会话',
+      description: '批量停止多个正在运行的 LuxAgents 协作子会话。',
+      parameters: Type.Object({
+        delegationIds: Type.Array(Type.String(), { description: '要停止的委派 ID 列表' }),
+      }),
+      async execute(_toolCallId: string, params: unknown) {
+        const args = params as { delegationIds: string[] }
+        return piJsonResult({
+          results: args.delegationIds.map((delegationId) => stopDelegation(ctx.sessionId, delegationId)),
+        })
+      },
+    }),
+    sdk.defineTool({
+      name: 'mcp__collaboration__answer_delegation_question',
+      label: '代答子会话问题',
+      description: '代答协作子会话的阻塞问题或审批权限请求。从 delegation 的 pendingBlockedEvents 获取 blockedEventId。',
+      parameters: Type.Object({
+        delegationId: Type.String({ description: '子会话所属的委派 ID' }),
+        blockedEventId: Type.String({ description: '要回答的阻塞事件 ID' }),
+        answers: Type.Optional(Type.Record(Type.String(), Type.String(), { description: 'AskUserQuestion 的回答' })),
+        permissionBehavior: Type.Optional(Type.Union([Type.Literal('allow'), Type.Literal('deny')])),
+      }),
+      async execute(_toolCallId: string, params: unknown) {
+        const args = params as { delegationId: string; blockedEventId: string; answers?: Record<string, string>; permissionBehavior?: 'allow' | 'deny' }
+        const blocked = getBlockedEventById(args.blockedEventId)
+        if (!blocked) throw new Error(`阻塞事件不存在: ${args.blockedEventId}`)
+        if (blocked.resolved) return piJsonResult({ answered: false, note: '该阻塞事件已被解决' })
+
+        const record = delegations.get(blocked.delegationId)
+        if (record && record.parentSessionId !== ctx.sessionId) {
+          throw new Error(`委派不属于当前父会话: ${blocked.delegationId}`)
+        }
+
+        if (blocked.type === 'ask_user' && blocked.askUserRequestId) {
+          const { askUserService } = await import('./agent-ask-user-service')
+          const answers = args.answers ?? {}
+          const sessionId = askUserService.respondToAskUser(blocked.askUserRequestId, answers)
+          blocked.resolved = !!sessionId
+          if (blocked.resolved && _eventBusRef) {
+            _eventBusRef.emit(blocked.childSessionId, {
+              kind: 'luxagents_event',
+              event: { type: 'ask_user_resolved', requestId: blocked.askUserRequestId },
+            })
+          }
+          return piJsonResult({ answered: blocked.resolved, type: 'ask_user' })
+        }
+
+        if (blocked.type === 'permission' && blocked.permissionRequestId) {
+          const { permissionService } = await import('./agent-permission-service')
+          const behavior = args.permissionBehavior ?? 'allow'
+          const sessionId = permissionService.respondToPermission(blocked.permissionRequestId, behavior, false)
+          blocked.resolved = !!sessionId
+          if (blocked.resolved && _eventBusRef) {
+            _eventBusRef.emit(blocked.childSessionId, {
+              kind: 'luxagents_event',
+              event: { type: 'permission_resolved', requestId: blocked.permissionRequestId, behavior },
+            })
+          }
+          return piJsonResult({ answered: blocked.resolved, type: 'permission', behavior })
+        }
+
+        return piJsonResult({ answered: false, note: '无法匹配阻塞事件类型' })
+      },
+    }),
+    sdk.defineTool({
+      name: 'mcp__collaboration__continue_delegation',
+      label: '追加后续指令',
+      description: '向已完成、已失败、已取消或已中断的协作子会话追加后续指令。子会话保留完整上下文继续执行。',
+      parameters: Type.Object({
+        delegationId: Type.String({ description: '要继续操作的委派 ID' }),
+        message: Type.String({ description: '追加给子 Agent 的后续指令' }),
+      }),
+      async execute(_toolCallId: string, params: unknown) {
+        const args = params as { delegationId: string; message: string }
+        const record = getDelegationRecordForContinuation(ctx, args.delegationId)
+        if (!record) throw new Error(`未找到当前会话下的委派: ${args.delegationId}`)
+        if (record.status === 'running') {
+          throw new Error(`委派正在运行中，无法追加指令: ${args.delegationId}`)
+        }
+
+        record.status = 'running'
+        record.error = undefined
+        record.resultSummary = undefined
+        record.completedAt = undefined
+        const completionHandle = createDelegationCompletion()
+        record.completion = completionHandle.completion
+        record.resolveCompletion = completionHandle.resolveCompletion
+
+        updateAgentSessionMeta(record.childSessionId, { delegationStatus: 'running' })
+
+        runRegisteredHeadlessAgent(
+          {
+            sessionId: record.childSessionId,
+            userMessage: args.message,
+            channelId: record.channelId,
+            modelId: record.modelId,
+            workspaceId: ctx.workspaceId,
+            permissionModeOverride: record.permissionMode,
+            triggeredBy: 'delegation',
+            startedAt: Date.now(),
+          },
+          {
+            source: 'delegation',
+            onError: (error) => {
+              markDelegationFinished(record, 'failed', { error })
+            },
+            onComplete: (messages) => {
+              if (record.status !== 'running') return
+              const resultSummary = summarizeChildResult(record.childSessionId, messages)
+              markDelegationFinished(record, 'completed', { resultSummary })
+            },
+            onTitleUpdated: () => {},
+          },
+        ).catch((error: unknown) => {
+          markDelegationFinished(record, 'failed', {
+            error: error instanceof Error ? error.message : '未知错误',
+          })
+        })
+
+        const timeout = new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), DEFAULT_WAIT_SECONDS * 1000))
+        await Promise.race([record.completion, timeout])
+
+        return piJsonResult({
+          delegation: getDelegationSummary(record),
+          note: record.status === 'running' ? '子会话仍在运行中（等待超时），可稍后用 wait_for_delegations 等待结果。' : undefined,
+        })
+      },
+    }),
+  ]
 }

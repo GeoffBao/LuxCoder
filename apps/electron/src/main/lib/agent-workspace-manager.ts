@@ -6,7 +6,9 @@
  * - 工作区目录：~/.luxagents/agent-workspaces/{slug}/（Agent 的 cwd）
  */
 
-import { readFileSync, writeFileSync, existsSync, readdirSync, cpSync, rmSync, mkdirSync, statSync, renameSync, openSync, readSync, closeSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, readdirSync, cpSync, mkdirSync, statSync, openSync, readSync, closeSync, realpathSync } from 'node:fs'
+import type { Dirent } from 'node:fs'
+import { rmSyncWithRetry, renameWithRetry } from './fs-retry'
 import { writeJsonFileAtomic, readJsonFileSafe } from './safe-file'
 import { randomUUID } from 'node:crypto'
 import { join, resolve, relative, isAbsolute, dirname, basename } from 'node:path'
@@ -22,8 +24,9 @@ import {
 } from './config-paths'
 import { findAllGitRoots, normalizeGitRoot } from './git-diff-service'
 import { listBuiltinMcpServers } from './builtin-mcp/catalog'
+import { RESERVED_BUILTIN_KEYS } from './builtin-mcp/baseline'
 import { inferMcpTransportType, normalizeMcpTransportType } from '@luxagents/shared'
-import type { AgentWorkspace, WorkspaceMcpConfig, SkillMeta, SkillImportSource, OtherWorkspaceSkillsGroup, WorkspaceCapabilities, SkillFileNode, SkillFileContent } from '@luxagents/shared'
+import type { AgentWorkspace, WorkspaceMcpConfig, SkillMeta, SkillImportSource, OtherWorkspaceSkillsGroup, WorkspaceCapabilities, SkillFileNode, SkillFileContent, WorkspaceMemorySummary } from '@luxagents/shared'
 
 interface AgentWorkspacesIndex {
   version: number
@@ -31,6 +34,30 @@ interface AgentWorkspacesIndex {
 }
 
 const INDEX_VERSION = 2
+const WINDOWS_RESERVED_SLUGS = new Set([
+  'con',
+  'prn',
+  'aux',
+  'nul',
+  'com1',
+  'com2',
+  'com3',
+  'com4',
+  'com5',
+  'com6',
+  'com7',
+  'com8',
+  'com9',
+  'lpt1',
+  'lpt2',
+  'lpt3',
+  'lpt4',
+  'lpt5',
+  'lpt6',
+  'lpt7',
+  'lpt8',
+  'lpt9',
+])
 
 /** 读取工作区索引文件，自动执行版本迁移 */
 function readIndex(): AgentWorkspacesIndex {
@@ -76,7 +103,7 @@ function activateSkillCreatorInAllWorkspaces(index: AgentWorkspacesIndex): void 
       if (!existsSync(activeDir)) {
         mkdirSync(activeDir, { recursive: true })
       }
-      renameSync(inactivePath, activePath)
+      renameWithRetry(inactivePath, activePath)
       console.log(`[Agent 工作区] 已为 ${workspace.slug} 启用 skill-creator`)
     } catch (err) {
       console.warn(`[Agent 工作区] 启用 skill-creator 失败 (${workspace.slug}):`, err)
@@ -104,6 +131,9 @@ function slugify(name: string, existingSlugs: Set<string>): string {
 
   if (!base) {
     base = `workspace-${Date.now()}`
+  }
+  if (WINDOWS_RESERVED_SLUGS.has(base)) {
+    base = `workspace-${base}`
   }
 
   let slug = base
@@ -153,7 +183,7 @@ export function getAgentWorkspace(id: string): AgentWorkspace | undefined {
 }
 
 /** 将 ~/.luxagents/default-skills/ 的内容逐个复制到工作区 skills/ 目录 */
-function copyDefaultSkills(workspaceSlug: string): void {
+function copyDefaultSkills(workspaceSlug: string, options: { throwOnError?: boolean } = {}): void {
   const defaultDir = getDefaultSkillsDir()
   const targetDir = getWorkspaceSkillsDir(workspaceSlug)
 
@@ -168,11 +198,17 @@ function copyDefaultSkills(workspaceSlug: string): void {
       if (!entry.isDirectory()) continue
       const source = join(defaultDir, entry.name)
       const target = join(targetDir, entry.name)
-      cpSync(source, target, { recursive: true })
+      try {
+        cpSync(source, target, { recursive: true, filter: skillCopyFilter })
+      } catch (err) {
+        console.warn(`[Agent 工作区] 复制默认 Skill 失败 (${workspaceSlug}/${entry.name}):`, err)
+        if (options.throwOnError) throw err
+      }
     }
     console.log(`[Agent 工作区] 已复制默认 Skills 到: ${workspaceSlug}`)
   } catch (err) {
     console.error(`[Agent 工作区] 复制默认 Skills 失败 (${workspaceSlug}):`, err)
+    if (options.throwOnError) throw err
   }
 }
 
@@ -196,9 +232,24 @@ export function createAgentWorkspace(name: string): AgentWorkspace {
     updatedAt: now,
   }
 
-  getAgentWorkspacePath(slug)
-  ensurePluginManifest(slug, name)
-  copyDefaultSkills(slug)
+  try {
+    getAgentWorkspacePath(slug)
+    ensurePluginManifest(slug, name)
+    copyDefaultSkills(slug, { throwOnError: true })
+  } catch (error) {
+    const workspacesRoot = resolve(getAgentWorkspacesDir())
+    const workspaceDir = resolve(join(workspacesRoot, slug))
+    const relativePath = relative(workspacesRoot, workspaceDir)
+    if (relativePath && !relativePath.startsWith('..') && !isAbsolute(relativePath) && existsSync(workspaceDir)) {
+      try {
+        rmSyncWithRetry(workspaceDir, { recursive: true, force: true })
+      } catch (cleanupError) {
+        console.warn(`[Agent 工作区] 创建失败后清理目录失败 (${slug}):`, cleanupError)
+      }
+    }
+    console.error(`[Agent 工作区] 创建工作区失败 (${name}, slug: ${slug}):`, error)
+    throw new Error(`创建项目失败: ${(error as Error)?.message ?? '初始化项目目录失败'}`)
+  }
 
   index.workspaces.unshift(workspace)
   writeIndex(index)
@@ -271,7 +322,7 @@ export function deleteAgentWorkspace(id: string): void {
 
   if (existsSync(workspaceDir)) {
     try {
-      rmSync(workspaceDir, { recursive: true, force: true })
+      rmSyncWithRetry(workspaceDir, { recursive: true, force: true })
       console.log(`[Agent 工作区] 已删除工作区目录: ${workspaceDir}`)
     } catch (error) {
       console.warn(`[Agent 工作区] 删除工作区目录失败，已残留无引用目录 (${target.slug}):`, error)
@@ -411,7 +462,7 @@ export function upgradeDefaultSkillsInWorkspaces(): void {
  */
 function safeReplaceSkillDir(sourcePath: string, targetPath: string): boolean {
   try {
-    rmSync(targetPath, { recursive: true, force: true })
+    rmSyncWithRetry(targetPath, { recursive: true, force: true })
     cpSync(sourcePath, targetPath, { recursive: true, filter: skillCopyFilter })
     return true
   } catch (err) {
@@ -473,12 +524,16 @@ export function ensurePluginManifest(workspaceSlug: string, workspaceName: strin
 
 // ===== MCP 配置管理 =====
 
-function normalizeWorkspaceMcpConfig(config: Partial<WorkspaceMcpConfig>): WorkspaceMcpConfig {
+export function normalizeWorkspaceMcpConfig(config: Partial<WorkspaceMcpConfig>): WorkspaceMcpConfig {
   const servers: WorkspaceMcpConfig['servers'] = {}
   const rawServers = config.servers ?? {}
 
   for (const [name, rawEntry] of Object.entries(rawServers)) {
     if (!rawEntry || typeof rawEntry !== 'object') continue
+    if (RESERVED_BUILTIN_KEYS.has(name)) {
+      console.warn(`[Agent 工作区] MCP 服务器 "${name}" 与内置 MCP 保留名冲突，已忽略（内置 MCP 不写入 mcp.json）`)
+      continue
+    }
 
     const entryRecord = { ...(rawEntry as unknown as Record<string, unknown>) }
     const entry = entryRecord as unknown as WorkspaceMcpConfig['servers'][string] & { type?: unknown }
@@ -599,6 +654,7 @@ export function getWorkspaceCapabilities(workspaceSlug: string): WorkspaceCapabi
   const mcpConfig = getWorkspaceMcpConfig(workspaceSlug)
   const skills = getWorkspaceSkills(workspaceSlug)
   const builtinMcpServers = listBuiltinMcpServers({ workspaceSlug })
+  const memory = getWorkspaceMemorySummary(workspaceSlug)
 
   const mcpServers = Object.entries(mcpConfig.servers ?? {}).map(([name, entry]) => ({
     name,
@@ -606,7 +662,7 @@ export function getWorkspaceCapabilities(workspaceSlug: string): WorkspaceCapabi
     type: entry.type,
   }))
 
-  return { mcpServers, builtinMcpServers, skills }
+  return { mcpServers, builtinMcpServers, skills, memory }
 }
 
 export function deleteWorkspaceSkill(workspaceSlug: string, skillSlug: string): void {
@@ -617,11 +673,22 @@ export function deleteWorkspaceSkill(workspaceSlug: string, skillSlug: string): 
     throw new Error(`Skill 不存在: ${skillSlug}`)
   }
 
-  rmSync(skillPath, { recursive: true, force: true })
+  rmSyncWithRetry(skillPath, { recursive: true, force: true })
   console.log(`[Agent 工作区] 已删除 Skill: ${workspaceSlug}/${skillSlug}`)
 }
 
 /** 扫描指定目录下的 Skills，供 getWorkspaceSkills 和 getAllWorkspaceSkills 复用 */
+function isSkillDirectoryEntry(dir: string, entry: Dirent): boolean {
+  if (entry.isDirectory()) return true
+  if (!entry.isSymbolicLink()) return false
+
+  try {
+    return statSync(join(dir, entry.name)).isDirectory()
+  } catch {
+    return false
+  }
+}
+
 function scanSkillsInDir(dir: string, enabled: boolean): SkillMeta[] {
   const skills: SkillMeta[] = []
 
@@ -629,8 +696,7 @@ function scanSkillsInDir(dir: string, enabled: boolean): SkillMeta[] {
     const entries = readdirSync(dir, { withFileTypes: true })
 
     for (const entry of entries) {
-      const isDir = entry.isDirectory() || (entry.isSymbolicLink() && statSync(join(dir, entry.name)).isDirectory())
-      if (!isDir) continue
+      if (!isSkillDirectoryEntry(dir, entry)) continue
 
       const skillMdPath = join(dir, entry.name, 'SKILL.md')
       if (!existsSync(skillMdPath)) continue
@@ -702,7 +768,7 @@ export function toggleWorkspaceSkill(workspaceSlug: string, skillSlug: string, e
     throw new Error(`目标目录已存在同名 Skill: ${skillSlug}`)
   }
 
-  renameSync(srcPath, destPath)
+  renameWithRetry(srcPath, destPath)
   console.log(`[Agent 工作区] Skill ${enabled ? '启用' : '禁用'}: ${workspaceSlug}/${skillSlug}`)
 }
 
@@ -822,11 +888,11 @@ export function updateSkillFromSource(
     cpSync(sourcePath, tmpPath, { recursive: true })
   } catch (err) {
     // 复制失败时清理临时目录，保留原目录不变
-    if (existsSync(tmpPath)) rmSync(tmpPath, { recursive: true, force: true })
+    if (existsSync(tmpPath)) rmSyncWithRetry(tmpPath, { recursive: true, force: true })
     throw err
   }
-  rmSync(targetPath, { recursive: true, force: true })
-  renameSync(tmpPath, targetPath)
+  rmSyncWithRetry(targetPath, { recursive: true, force: true })
+  renameWithRetry(tmpPath, targetPath)
 
   // 更新来源元数据（保留原始 importedAt）
   const sourceWorkspace = listAgentWorkspaces().find((w) => w.slug === existingSource.sourceWorkspaceSlug)
@@ -896,6 +962,236 @@ export function writeWorkspaceSkillContent(workspaceSlug: string, skillSlug: str
 const SKILL_FILE_SIZE_LIMIT = 10 * 1024 * 1024
 /** 文件树递归深度上限，防止异常深嵌套 */
 const SKILL_TREE_MAX_DEPTH = 8
+
+const WORKSPACE_CLAUDE_MD = 'CLAUDE.md'
+const AUTO_MEMORY_DIR = '.claude/memory'
+const AUTO_MEMORY_INDEX = 'MEMORY.md'
+
+function fileSummary(absPath: string): WorkspaceMemorySummary['claudeMd'] {
+  if (!existsSync(absPath)) {
+    return { exists: false, path: absPath, size: 0 }
+  }
+  const st = statSync(absPath)
+  return {
+    exists: st.isFile(),
+    path: absPath,
+    size: st.isFile() ? st.size : 0,
+    updatedAt: st.mtimeMs,
+  }
+}
+
+export function getWorkspaceClaudeMdPath(workspaceSlug: string): string {
+  return join(getAgentWorkspacePath(workspaceSlug), WORKSPACE_CLAUDE_MD)
+}
+
+function getWorkspaceAutoMemoryPath(workspaceSlug: string): string {
+  return join(getAgentWorkspacePath(workspaceSlug), AUTO_MEMORY_DIR)
+}
+
+export function getWorkspaceAutoMemoryDir(workspaceSlug: string): string {
+  const dir = getWorkspaceAutoMemoryPath(workspaceSlug)
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true })
+  }
+  return dir
+}
+
+function resolveAutoMemoryFilePath(memoryDir: string, relativePath: string): string {
+  if (typeof relativePath !== 'string' || relativePath.length === 0) {
+    throw new Error('相对路径不能为空')
+  }
+  if (isAbsolute(relativePath)) {
+    throw new Error('禁止传入绝对路径')
+  }
+  const normalized = relativePath.replace(/\\/g, '/')
+  const resolved = resolve(memoryDir, normalized)
+  const rel = relative(memoryDir, resolved)
+  if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) {
+    throw new Error('非法路径：禁止访问 auto memory 目录外')
+  }
+  // 防御 symlink 逃逸：字符串层面的 relative 检查无法识别目录内指向外部的软链接。
+  // 对真实存在的最近祖先做 realpath 校验，确保解析后仍落在 memoryDir 之内。
+  const memoryRealDir = existsSync(memoryDir) ? realpathSync(memoryDir) : memoryDir
+  let probe = resolved
+  while (probe !== memoryDir && !existsSync(probe)) {
+    const parent = dirname(probe)
+    if (parent === probe) break
+    probe = parent
+  }
+  if (existsSync(probe)) {
+    const realProbe = realpathSync(probe)
+    const realRel = relative(memoryRealDir, realProbe)
+    if (realRel.startsWith('..') || isAbsolute(realRel)) {
+      throw new Error('非法路径：禁止通过软链接访问 auto memory 目录外')
+    }
+  }
+  return resolved
+}
+
+function collectAutoMemorySummary(memoryDir: string): WorkspaceMemorySummary['autoMemory'] {
+  let fileCount = 0
+  let totalSize = 0
+  let updatedAt: number | undefined
+
+  const walk = (dir: string, depth: number): void => {
+    if (depth > SKILL_TREE_MAX_DEPTH) return
+    let entries: import('node:fs').Dirent[]
+    try {
+      entries = readdirSync(dir, { withFileTypes: true })
+    } catch {
+      return
+    }
+    for (const entry of entries) {
+      if (entry.name.startsWith('.')) continue
+      const absPath = join(dir, entry.name)
+      if (entry.isDirectory()) {
+        walk(absPath, depth + 1)
+      } else if (entry.isFile()) {
+        const st = statSync(absPath)
+        if (isLikelyBinaryFile(absPath, st.size)) continue
+        fileCount += 1
+        totalSize += st.size
+        updatedAt = updatedAt == null ? st.mtimeMs : Math.max(updatedAt, st.mtimeMs)
+      }
+    }
+  }
+
+  walk(memoryDir, 0)
+  return {
+    directory: memoryDir,
+    memoryMdExists: existsSync(join(memoryDir, AUTO_MEMORY_INDEX)),
+    fileCount,
+    totalSize,
+    updatedAt,
+  }
+}
+
+function buildMemoryFileTree(rootDir: string, currentDir: string, depth: number): SkillFileNode[] {
+  if (depth > SKILL_TREE_MAX_DEPTH) return []
+  let entries: import('node:fs').Dirent[]
+  try {
+    entries = readdirSync(currentDir, { withFileTypes: true })
+  } catch {
+    return []
+  }
+
+  const nodes: SkillFileNode[] = []
+  for (const entry of entries) {
+    if (entry.name.startsWith('.')) continue
+    const absPath = join(currentDir, entry.name)
+    const rel = relative(rootDir, absPath).split(/[\\/]/).join('/')
+
+    if (entry.isDirectory()) {
+      nodes.push({
+        relativePath: rel,
+        name: entry.name,
+        type: 'directory',
+        children: buildMemoryFileTree(rootDir, absPath, depth + 1),
+      })
+    } else if (entry.isFile()) {
+      let size = 0
+      try {
+        size = statSync(absPath).size
+      } catch {
+        // ignore
+      }
+      nodes.push({
+        relativePath: rel,
+        name: entry.name,
+        type: 'file',
+        size,
+        isText: !isLikelyBinaryFile(absPath, size),
+      })
+    }
+  }
+
+  nodes.sort((a, b) => {
+    if (a.type !== b.type) return a.type === 'directory' ? -1 : 1
+    if (a.relativePath === AUTO_MEMORY_INDEX) return -1
+    if (b.relativePath === AUTO_MEMORY_INDEX) return 1
+    return a.name.localeCompare(b.name)
+  })
+  return nodes
+}
+
+export function getWorkspaceMemorySummary(workspaceSlug: string): WorkspaceMemorySummary {
+  const memoryDir = getWorkspaceAutoMemoryPath(workspaceSlug)
+  return {
+    claudeMd: fileSummary(getWorkspaceClaudeMdPath(workspaceSlug)),
+    autoMemory: collectAutoMemorySummary(memoryDir),
+  }
+}
+
+export function readWorkspaceClaudeMd(workspaceSlug: string): SkillFileContent {
+  const abs = getWorkspaceClaudeMdPath(workspaceSlug)
+  if (!existsSync(abs)) {
+    return { relativePath: WORKSPACE_CLAUDE_MD, isText: true, size: 0, content: '' }
+  }
+  const st = statSync(abs)
+  if (!st.isFile()) throw new Error(`${WORKSPACE_CLAUDE_MD} 不是文件`)
+  if (st.size > SKILL_FILE_SIZE_LIMIT) {
+    throw new Error(`文件过大（${(st.size / 1024 / 1024).toFixed(2)} MB），超过 10 MB 限制`)
+  }
+  const binary = isLikelyBinaryFile(abs, st.size)
+  return {
+    relativePath: WORKSPACE_CLAUDE_MD,
+    isText: !binary,
+    size: st.size,
+    content: binary ? undefined : readFileSync(abs, 'utf-8'),
+  }
+}
+
+export function writeWorkspaceClaudeMd(workspaceSlug: string, content: string): void {
+  const byteLen = Buffer.byteLength(content, 'utf-8')
+  if (byteLen > SKILL_FILE_SIZE_LIMIT) {
+    throw new Error(`内容过大（${(byteLen / 1024 / 1024).toFixed(2)} MB），超过 10 MB 限制`)
+  }
+  writeFileSync(getWorkspaceClaudeMdPath(workspaceSlug), content, 'utf-8')
+  console.log(`[Agent 工作区] 已更新工作区 CLAUDE.md: ${workspaceSlug}`)
+}
+
+export function listWorkspaceAutoMemoryFiles(workspaceSlug: string): SkillFileNode[] {
+  const dir = getWorkspaceAutoMemoryDir(workspaceSlug)
+  return buildMemoryFileTree(dir, dir, 0)
+}
+
+export function readWorkspaceAutoMemoryFile(workspaceSlug: string, relativePath: string): SkillFileContent {
+  const dir = getWorkspaceAutoMemoryDir(workspaceSlug)
+  const abs = resolveAutoMemoryFilePath(dir, relativePath)
+  if (!existsSync(abs) && relativePath === AUTO_MEMORY_INDEX) {
+    return { relativePath: AUTO_MEMORY_INDEX, isText: true, size: 0, content: '' }
+  }
+  if (!existsSync(abs)) throw new Error(`文件不存在: ${relativePath}`)
+
+  const st = statSync(abs)
+  if (!st.isFile()) throw new Error(`目标不是文件: ${relativePath}`)
+  if (st.size > SKILL_FILE_SIZE_LIMIT) {
+    throw new Error(`文件过大（${(st.size / 1024 / 1024).toFixed(2)} MB），超过 10 MB 限制`)
+  }
+
+  const binary = isLikelyBinaryFile(abs, st.size)
+  return {
+    relativePath: relative(dir, abs).split(/[\\/]/).join('/'),
+    isText: !binary,
+    size: st.size,
+    content: binary ? undefined : readFileSync(abs, 'utf-8'),
+  }
+}
+
+export function writeWorkspaceAutoMemoryFile(workspaceSlug: string, relativePath: string, content: string): void {
+  const dir = getWorkspaceAutoMemoryDir(workspaceSlug)
+  const abs = resolveAutoMemoryFilePath(dir, relativePath)
+  const byteLen = Buffer.byteLength(content, 'utf-8')
+  if (byteLen > SKILL_FILE_SIZE_LIMIT) {
+    throw new Error(`内容过大（${(byteLen / 1024 / 1024).toFixed(2)} MB），超过 10 MB 限制`)
+  }
+  const parent = dirname(abs)
+  if (!existsSync(parent)) {
+    mkdirSync(parent, { recursive: true })
+  }
+  writeFileSync(abs, content, 'utf-8')
+  console.log(`[Agent 工作区] 已更新 auto memory 文件: ${workspaceSlug}/${relativePath}`)
+}
 
 /** 把相对路径限制在 Skill 根目录内，并拒绝直接覆盖 SKILL.md */
 function resolveSkillChildPath(skillDir: string, relativePath: string, opts: { allowSkillMd?: boolean } = {}): string {
@@ -1068,7 +1364,7 @@ export function deleteSkillEntry(workspaceSlug: string, skillSlug: string, relat
   if (!existsSync(abs)) {
     throw new Error(`目标不存在: ${relativePath}`)
   }
-  rmSync(abs, { recursive: true, force: true })
+  rmSyncWithRetry(abs, { recursive: true, force: true })
   console.log(`[Agent 工作区] 已删除 Skill 子项: ${workspaceSlug}/${skillSlug}/${relativePath}`)
 }
 
@@ -1092,7 +1388,7 @@ export function renameSkillEntry(
   if (!existsSync(parent)) {
     mkdirSync(parent, { recursive: true })
   }
-  renameSync(fromAbs, toAbs)
+  renameWithRetry(fromAbs, toAbs)
   console.log(`[Agent 工作区] Skill 子项重命名: ${workspaceSlug}/${skillSlug}: ${fromRelative} → ${toRelative}`)
 }
 

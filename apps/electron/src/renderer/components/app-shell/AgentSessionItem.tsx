@@ -8,6 +8,7 @@ import { useAtomValue } from 'jotai'
 import {
   Pin,
   PinOff,
+  Star,
   Trash2,
   Pencil,
   ArrowRightLeft,
@@ -163,6 +164,15 @@ function SafeTooltip({ children, content, side = 'top' }: SafeTooltipProps): Rea
  * 列表项右侧操作区：默认显示相对更新时间，hover 时切换为「置顶 / 归档 / 三点菜单」按钮组。
  * 归档需要二次确认；进入确认态后强制保持按钮可见，避免鼠标移开后用户失去反馈。
  */
+function SessionQuickSwitchKeycap(): React.ReactElement {
+  return (
+    <span className="session-quick-switch-keycap" aria-hidden="true">
+      <span className="session-quick-switch-modifier" />
+      <span className="session-quick-switch-number" />
+    </span>
+  )
+}
+
 export function SessionItemActions({
   updatedAt,
   relativeTimeNow,
@@ -226,13 +236,13 @@ export function SessionItemActions({
 
   return (
     <div
-      className="relative flex-shrink-0 h-[18px] w-[58px]"
+      className="session-item-actions relative flex-shrink-0 h-[18px] w-[58px]"
       onClick={(e) => e.stopPropagation()}
     >
       <span
         title={`最后更新：${new Date(updatedAt).toLocaleString('zh-CN')}`}
         className={cn(
-          'absolute inset-y-0 right-0 block w-full text-right text-[11px] leading-[18px] tabular-nums text-foreground/35 transition-opacity duration-100',
+          'absolute inset-y-0 right-0 block w-full overflow-hidden whitespace-nowrap text-right text-[11px] leading-[18px] tabular-nums text-foreground/35 transition-opacity duration-100',
           forceVisible ? 'opacity-0' : 'opacity-100 group-hover:opacity-0',
         )}
       >
@@ -240,7 +250,7 @@ export function SessionItemActions({
       </span>
       <div
         className={cn(
-          'absolute right-0 top-0 flex items-center gap-0.5 transition-opacity duration-100',
+          'absolute right-1 top-0 flex items-center gap-0.5 transition-opacity duration-100',
           forceVisible
             ? 'opacity-100 pointer-events-auto'
             : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto',
@@ -355,7 +365,8 @@ export interface AgentSessionItemProps {
   onRequestDelete: (id: string) => void
   onRequestMove: (id: string) => void
   onRename: (id: string, newTitle: string) => Promise<void>
-  onTogglePin: (id: string) => Promise<void>
+  onTogglePin: (id: string, cascade: boolean) => Promise<void>
+  onToggleStar: (id: string) => Promise<void>
   onToggleArchive: (id: string) => Promise<void>
 }
 
@@ -377,11 +388,13 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
   onRequestMove,
   onRename,
   onTogglePin,
+  onToggleStar,
   onToggleArchive,
 }: AgentSessionItemProps): React.ReactElement {
   const [editing, setEditing] = React.useState(false)
   const [editTitle, setEditTitle] = React.useState('')
   const [menuOpen, setMenuOpen] = React.useState(false)
+  const [rowHovered, setRowHovered] = React.useState(false)
   const inputRef = React.useRef<HTMLInputElement>(null)
   const justStartedEditing = React.useRef(false)
   // 菜单打开时关闭迷你地图预览，避免预览面板盖住菜单项导致点不动
@@ -422,6 +435,13 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
 
   const canMove = indicatorStatus === 'idle' || indicatorStatus === 'completed'
 
+  const childCount = delegationSummary?.total ?? 0
+  const hasChildren = childCount > 0
+  const pinLabel = session.pinned ? '取消置顶' : '置顶会话'
+  const cascadePinLabel = session.pinned
+    ? `取消置顶(含 ${childCount} 个子会话)`
+    : `置顶会话(含 ${childCount} 个子会话)`
+
   // 同一份菜单在 DropdownMenu（三点按钮）和 ContextMenu（右键）里渲染，
   // Sub 组件必须与所在菜单同源，因此由调用方注入对应实现。
   const menuItems = (
@@ -432,10 +452,23 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
     MenuSubContent: typeof ContextMenuSubContent | typeof DropdownMenuSubContent,
   ) => (
     <>
-      <MenuItem className="text-xs py-1 [&>svg]:size-3.5" onSelect={() => onTogglePin(session.id)}>
-        {session.pinned ? <PinOff size={14} /> : <Pin size={14} />}
-        {session.pinned ? '取消置顶' : '置顶会话'}
-      </MenuItem>
+      {hasChildren ? (
+        <>
+          <MenuItem className="text-xs py-1 [&>svg]:size-3.5" onSelect={() => onTogglePin(session.id, false)}>
+            {session.pinned ? <PinOff size={14} /> : <Pin size={14} />}
+            仅{pinLabel}
+          </MenuItem>
+          <MenuItem className="text-xs py-1 [&>svg]:size-3.5" onSelect={() => onTogglePin(session.id, true)}>
+            {session.pinned ? <PinOff size={14} /> : <Pin size={14} />}
+            {cascadePinLabel}
+          </MenuItem>
+        </>
+      ) : (
+        <MenuItem className="text-xs py-1 [&>svg]:size-3.5" onSelect={() => onTogglePin(session.id, true)}>
+          {session.pinned ? <PinOff size={14} /> : <Pin size={14} />}
+          {pinLabel}
+        </MenuItem>
+      )}
       {canMove && (
         <MenuItem className="text-xs py-1 [&>svg]:size-3.5" onSelect={() => onRequestMove(session.id)}>
           <ArrowRightLeft size={14} />
@@ -494,11 +527,14 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
           ref={preview.setAnchorRef}
           role="button"
           tabIndex={0}
+          data-session-switch-id={session.id}
+          data-session-switch-title={session.title}
+          data-session-switch-type="agent"
           onClick={() => onSelect(session.id, session.title)}
-          onMouseEnter={preview.handleMouseEnter}
-          onMouseLeave={preview.handleMouseLeave}
+          onMouseEnter={() => { setRowHovered(true); preview.handleMouseEnter() }}
+          onMouseLeave={() => { setRowHovered(false); preview.handleMouseLeave() }}
           className={cn(
-            'group relative w-full flex items-center gap-1.5 rounded-md py-1 pl-2.5 pr-1.5 transition-colors duration-100 titlebar-no-drag text-left',
+            'session-quick-switch-row group relative w-full flex items-center gap-1.5 rounded-md py-1 pl-2.5 pr-1.5 transition-colors duration-100 titlebar-no-drag text-left',
             active && 'agent-session-item-active',
             leftAccent
               ? SESSION_ACCENT_ROW_CLASS[leftAccent]
@@ -544,10 +580,10 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
                 {showPinIcon && (
                   <Pin size={11} className="flex-shrink-0 text-primary/60" />
                 )}
-                {session.sourceAutomationId && (
+                {session.sourceAutomationId && !session.sourceDelegationId && (
                   <Clock size={11} className="flex-shrink-0 text-foreground/40" />
                 )}
-                {session.sourceDelegationId && !session.sourceAutomationId && (
+                {session.sourceDelegationId && (
                   <GitBranch size={11} className={cn('flex-shrink-0', DELEGATION_STATUS_ICON_CLASS[indicatorStatus])} />
                 )}
                 <span
@@ -559,6 +595,37 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
                 >
                   {session.title}
                 </span>
+                <SafeTooltip content={session.starred ? '取消星标' : '添加星标'} side="top">
+                  <button
+                    type="button"
+                    aria-label={session.starred ? '取消星标' : '添加星标'}
+                    aria-pressed={!!session.starred}
+                    onMouseEnter={preview.closeNow}
+                    onFocus={preview.closeNow}
+                    onMouseDown={(event) => {
+                      event.stopPropagation()
+                      preview.closeNow()
+                    }}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      preview.closeNow()
+                      if (event.detail > 1) return
+                      void onToggleStar(session.id)
+                    }}
+                    onDoubleClick={(event) => {
+                      event.stopPropagation()
+                      preview.closeNow()
+                    }}
+                    className={cn(
+                      'flex-shrink-0 inline-flex size-6 -my-1 items-center justify-center rounded transition-colors',
+                      session.starred
+                        ? 'text-amber-500 hover:text-amber-500'
+                        : cn('text-foreground/45 hover:bg-foreground/[0.055] hover:text-foreground/70', rowHovered ? 'opacity-100' : 'opacity-0'),
+                    )}
+                  >
+                    <Star size={13} fill={session.starred ? 'currentColor' : 'none'} />
+                  </button>
+                </SafeTooltip>
                 {workspaceName && (
                   <span className="flex-shrink-0 px-1.5 py-0 rounded-full bg-primary/10 text-[10px] leading-4 workspace-badge font-medium truncate max-w-[80px]">
                     {workspaceName}
@@ -566,7 +633,7 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
                 )}
                 {delegationSummary && (
                   <span className="flex-shrink-0 text-[11px] leading-4 text-foreground/45">
-                    {delegationSummary.completed}/{delegationSummary.total} 子会话
+                    {delegationSummary.completed}/{delegationSummary.total}
                   </span>
                 )}
               </div>
@@ -576,45 +643,48 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
           {!editing && (
             <>
               {delegationSummary && (
-                <button
-                  type="button"
-                  aria-label={`${delegationSummary.expanded ? '收起' : '展开'}子会话`}
-                  onMouseEnter={preview.closeNow}
-                  onFocus={preview.closeNow}
-                  onMouseDown={(event) => {
-                    event.stopPropagation()
-                    preview.closeNow()
-                  }}
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    preview.closeNow()
-                    delegationSummary.onToggle()
-                  }}
-                  onDoubleClick={(event) => {
-                    event.stopPropagation()
-                    preview.closeNow()
-                  }}
-                  className="flex-shrink-0 inline-flex size-6 -my-1 items-center justify-center rounded text-foreground/45 hover:bg-foreground/[0.055] hover:text-foreground/70 transition-colors"
-                >
-                  <ChevronRight
-                    size={11}
-                    className={cn(
-                      'transition-transform duration-150',
-                      delegationSummary.expanded && 'rotate-90',
-                    )}
-                  />
-                </button>
+                <SafeTooltip content={delegationSummary.expanded ? '收起子会话' : '展开子会话'} side="top">
+                  <button
+                    type="button"
+                    aria-label={`${delegationSummary.expanded ? '收起' : '展开'}子会话`}
+                    onMouseEnter={preview.closeNow}
+                    onFocus={preview.closeNow}
+                    onMouseDown={(event) => {
+                      event.stopPropagation()
+                      preview.closeNow()
+                    }}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      preview.closeNow()
+                      delegationSummary.onToggle()
+                    }}
+                    onDoubleClick={(event) => {
+                      event.stopPropagation()
+                      preview.closeNow()
+                    }}
+                    className="session-delegation-toggle flex-shrink-0 inline-flex size-6 -my-1 items-center justify-center rounded text-foreground/45 hover:bg-foreground/[0.055] hover:text-foreground/70 transition-colors"
+                  >
+                    <ChevronRight
+                      size={11}
+                      className={cn(
+                        'transition-transform duration-150',
+                        delegationSummary.expanded && 'rotate-90',
+                      )}
+                    />
+                  </button>
+                </SafeTooltip>
               )}
               <SessionItemActions
                 updatedAt={session.updatedAt}
                 relativeTimeNow={relativeTimeNow}
                 pinned={!!session.pinned}
                 archived={!!session.archived}
-                onTogglePin={() => onTogglePin(session.id)}
+                onTogglePin={() => onTogglePin(session.id, true)}
                 onToggleArchive={() => onToggleArchive(session.id)}
                 onMenuOpenChange={setMenuOpen}
                 menuItems={menuItems}
               />
+              <SessionQuickSwitchKeycap />
             </>
           )}
         </div>

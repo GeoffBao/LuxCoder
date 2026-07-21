@@ -10,6 +10,7 @@ import { atomFamily, atomWithStorage } from 'jotai/utils'
 import type { AgentSessionMeta, AgentEvent, AgentWorkspace, AgentPendingFile, RetryAttempt, LuxAgentsPermissionMode, PermissionRequest, AskUserRequest, ExitPlanModeRequest, ThinkingConfig, AgentEffort, SDKMessage, UnstagedChangesResult } from '@luxagents/shared'
 import { LUXAGENTS_DEFAULT_PERMISSION_MODE } from '@luxagents/shared'
 import { calculateDockBadgeCount, countPendingRequests } from '@/lib/dock-badge-count'
+import type { AgentQueuedMessage } from '@/lib/agent-message-queue'
 
 /** 活动状态 */
 export type ActivityStatus = 'pending' | 'running' | 'completed' | 'error' | 'backgrounded'
@@ -81,8 +82,6 @@ export interface AgentStreamState {
   contextWindow?: number
   /** 当前 thinking block 的 token 估算值（SDK 实时估算，非计费值） */
   thinkingEstimatedTokens?: number
-  /** usage 数据最后更新时间戳（毫秒），用于 UI 提示数据时效 */
-  usageUpdatedAt?: number
   /** 是否正在压缩上下文 */
   isCompacting?: boolean
   /**
@@ -213,6 +212,8 @@ export const agentChannelIdAtom = atom<string | null>(null)
 export const agentModelIdAtom = atom<string | null>(null)
 /** Agent 启用的渠道 ID 列表（多选，设置页 Switch 开关控制） */
 export const agentChannelIdsAtom = atom<string[]>([])
+/** 新 Agent 会话默认 runtime */
+export const agentRuntimeAtom = atom<'claude' | 'pi'>('pi')
 
 /** Per-session 渠道 ID Map — sessionId → channelId */
 export const agentSessionChannelMapAtom = atom<Map<string, string>>(new Map())
@@ -220,12 +221,6 @@ export const agentSessionChannelMapAtom = atom<Map<string, string>>(new Map())
 export const agentSessionModelMapAtom = atom<Map<string, string>>(new Map())
 export const currentAgentSessionIdAtom = atom<string | null>(null)
 export const agentStreamingStatesAtom = atom<Map<string, AgentStreamState>>(new Map())
-
-/** Agent 流式结束后是否保持过程组展开，默认收起以降低结果阅读干扰 */
-export const agentProcessGroupsKeepExpandedAtom = atomWithStorage<boolean>(
-  'luxagents-agent-process-groups-keep-expanded',
-  false,
-)
 
 /**
  * 单个 session 的 streaming state 派生 atomFamily — 按 sessionId 切片订阅。
@@ -279,6 +274,35 @@ export const agentPendingFilesAtomFamily = atomFamily((sessionId: string) =>
   ),
 )
 
+/**
+ * Agent 运行中待发送消息队列 Map — 以 sessionId 为 key。
+ * 队列只保存在渲染进程内存中，避免跨重启恢复时误把过期上下文继续发送。
+ */
+export const agentSessionMessageQueueAtom = atom<Map<string, AgentQueuedMessage[]>>(new Map())
+
+/**
+ * 单个 session 的队列派生 atom（读写）。
+ * 空队列写回时删除 Map entry，避免长时间使用后残留空数组。
+ */
+export const agentMessageQueueAtomFamily = atomFamily((sessionId: string) =>
+  atom(
+    (get) => get(agentSessionMessageQueueAtom).get(sessionId) ?? [],
+    (_get, set, update: AgentQueuedMessage[] | ((prev: AgentQueuedMessage[]) => AgentQueuedMessage[])) => {
+      set(agentSessionMessageQueueAtom, (prev) => {
+        const current = prev.get(sessionId) ?? []
+        const next = typeof update === 'function' ? update(current) : update
+        const map = new Map(prev)
+        if (next.length === 0) {
+          map.delete(sessionId)
+        } else {
+          map.set(sessionId, next)
+        }
+        return map
+      })
+    },
+  ),
+)
+
 /** 工作区能力版本号 — 每次修改 MCP/Skills 后自增，触发侧边栏重新获取 */
 export const workspaceCapabilitiesVersionAtom = atom(0)
 
@@ -296,11 +320,13 @@ export const agentSidePanelWidthAtom = atomWithStorage<number>('luxagents-agent-
 /** @deprecated 保留以兼容旧代码，但实际所有 session 都读全局 atom */
 export const agentSidePanelOpenMapAtom = atom<Map<string, boolean>>(new Map())
 
-/** 侧面板当前 Tab：'session' | 'workspace' | 'changes'（per-session Map） */
-export const agentDiffPanelTabAtom = atom<Map<string, 'session' | 'workspace' | 'changes'>>(new Map())
+export type AgentSidePanelTab = 'session' | 'workspace' | 'changes' | 'chat'
 
-/** Diff 视图模式：'split' | 'unified' */
-export const agentDiffViewModeAtom = atom<'split' | 'unified'>('split')
+/** 侧面板当前 Tab：会话文件 / 工作区文件 / 文件改动 / Chat（per-session Map） */
+export const agentDiffPanelTabAtom = atom<Map<string, AgentSidePanelTab>>(new Map())
+
+/** Diff 视图模式：'split' | 'unified'，默认使用统一预览 */
+export const agentDiffViewModeAtom = atom<'split' | 'unified'>('unified')
 
 /** Diff 刷新版本号 — 按 session 隔离，Agent 写工具完成时递增 */
 export const agentDiffRefreshVersionAtom = atom(new Map<string, number>())
@@ -385,8 +411,8 @@ export const sessionExistsAtom = atomFamily((sessionId: string) =>
   }),
 )
 
-/** Agent 思考模式 */
-export const agentThinkingAtom = atom<ThinkingConfig | undefined>(undefined)
+/** Agent 思考模式：未加载持久化设置前也默认开启，避免输入栏按钮短暂显示为关闭。 */
+export const agentThinkingAtom = atom<ThinkingConfig | undefined>({ type: 'adaptive' })
 
 /** Agent 推理深度 */
 export const agentEffortAtom = atom<AgentEffort | undefined>(undefined)
@@ -720,20 +746,23 @@ export function applyAgentEvent(
       //
       // 折中：仅当「整个 query 期间从未收到流式 usage_update」（prev.inputTokens 为空/0）
       // 才从 result.usage 兜底写入 token 字段；已有流式真实值时不动。
-      // - contextWindow：始终覆盖（result 才是权威分母）
+      // - contextWindow：取流式与 result 的较大值（result 未必更权威——多 entry 时
+      //   子 Agent 的小窗口可能拉低值，Fix 1/2 已从源头取 max，此处作为安全网）。
       // - costUsd：始终覆盖（本就该是整轮累计成本）
       const needResultFallback = !prev.inputTokens || prev.inputTokens <= 0
       return {
         ...prev,
         ...(event.usage ? {
           ...(event.usage.costUsd != null && { costUsd: event.usage.costUsd }),
-          ...(event.usage.contextWindow != null && { contextWindow: event.usage.contextWindow }),
-          ...(event.usage.contextWindow != null && { usageUpdatedAt: Date.now() }),
+          ...(event.usage.contextWindow != null && {
+            contextWindow: prev.contextWindow != null
+              ? Math.max(prev.contextWindow, event.usage.contextWindow)
+              : event.usage.contextWindow,
+          }),
           ...(needResultFallback && event.usage.inputTokens != null && { inputTokens: event.usage.inputTokens }),
           ...(needResultFallback && event.usage.outputTokens != null && { outputTokens: event.usage.outputTokens }),
           ...(needResultFallback && event.usage.cacheReadTokens != null && { cacheReadTokens: event.usage.cacheReadTokens }),
           ...(needResultFallback && event.usage.cacheCreationTokens != null && { cacheCreationTokens: event.usage.cacheCreationTokens }),
-          ...(needResultFallback && { usageUpdatedAt: Date.now() }),
         } : {}),
         retrying: undefined,
         ...finalizeStreamingActivities(prev.toolActivities),
@@ -762,10 +791,13 @@ export function applyAgentEvent(
         ...(event.usage.cacheReadTokens != null && { cacheReadTokens: event.usage.cacheReadTokens }),
         ...(event.usage.cacheCreationTokens != null && { cacheCreationTokens: event.usage.cacheCreationTokens }),
         ...(event.usage.costUsd != null && { costUsd: event.usage.costUsd }),
-        // 流式中 assistant 消息的 usage_update 可能携带推断的 contextWindow，
-        // 若已有 result 消息提供的真实值，则不再覆盖
-        ...(event.usage.contextWindow && !prev.contextWindow && { contextWindow: event.usage.contextWindow }),
-        usageUpdatedAt: Date.now(),
+        // contextWindow 取 max：本分支同时承载「流式 assistant 消息按模型名推断的窗口」
+        // 与「后端从 SDK result 透传的真实窗口（context_window 事件）」两个来源。
+        // 模型窗口在同一会话内不会缩小，取更大值可兼顾两类端点——既不会让推断偏小的
+        // 端点（如 GLM 剥掉 [1m] 后缀）挡住真实的 1M，也不会让回报偏小的端点覆盖正确的 1M。
+        ...(event.usage.contextWindow && {
+          contextWindow: Math.max(prev.contextWindow ?? 0, event.usage.contextWindow),
+        }),
       }
 
     case 'compacting':
@@ -858,8 +890,6 @@ export interface AgentContextStatus {
   cacheCreationTokens?: number
   costUsd?: number
   contextWindow?: number
-  /** usage 数据最后更新时间戳（毫秒） */
-  usageUpdatedAt?: number
 }
 
 /** 当前会话的上下文使用量派生 atom */
@@ -875,7 +905,6 @@ export const agentContextStatusAtom = atom<AgentContextStatus>((get) => {
     cacheCreationTokens: state?.cacheCreationTokens,
     costUsd: state?.costUsd,
     contextWindow: state?.contextWindow,
-    usageUpdatedAt: state?.usageUpdatedAt,
   }
 })
 
