@@ -135,7 +135,7 @@ bun run generate:icons    # 生成应用图标
 | **构建工具** | Vite | 6.0.3 |
 | **打包工具** | esbuild | 0.24.0+ |
 | **分发工具** | Electron Builder | 25.1.8 |
-| **Agent SDK** | @anthropic-ai/Codex-agent-sdk | 0.2.120 |
+| **Agent SDK** | @anthropic-ai/claude-agent-sdk | 0.2.120 |
 | **飞书 SDK** | @larksuiteoapi/node-sdk | 最新 |
 
 ## 核心架构
@@ -212,7 +212,7 @@ bun run generate:icons    # 生成应用图标
 | 服务 | 职责 |
 |------|------|
 | `runtime-init.ts` | 运行时初始化：Shell 环境、Bun、Git 检测（`bun-finder.ts`、`git-detector.ts`、`shell-env.ts`） |
-| `config-paths.ts` | 配置路径管理：`~/.proma/` 目录结构 |
+| `config-paths.ts` | 配置路径管理：`~/.luxagents/` 目录结构 |
 | `user-profile-service.ts` | 用户档案持久化 |
 | `settings-service.ts` | 应用设置持久化（主题等） |
 | `updater/` | 自动更新：Electron Updater 集成 |
@@ -328,7 +328,7 @@ bun run generate:icons    # 生成应用图标
 
 ## 构建工具
 
-- **主进程/Preload**：esbuild (`--bundle --platform=node --format=cjs --external:electron --external:@anthropic-ai/Codex-agent-sdk`)
+- **主进程/Preload**：esbuild (`--bundle --platform=node --format=cjs --external:electron --external:@anthropic-ai/claude-agent-sdk`)
 - **渲染进程**：Vite + React 插件 + Tailwind CSS + HMR
 - **开发热重载**：渲染进程 Vite HMR 即时生效；主进程/Preload 通过 electronmon 监听 dist 文件变化自动重启
 - **打包分发**：electron-builder（配置见 `electron-builder.yml`）
@@ -336,22 +336,22 @@ bun run generate:icons    # 生成应用图标
 ### 重要：打包配置注意事项
 
 **Agent SDK 打包要求（必须遵守）：**
-- `@anthropic-ai/Codex-agent-sdk` 必须使用 `--external` 参数排除在 esbuild 打包之外
-- **0.2.113+ 架构变化**：SDK 主包已不再携带 JS CLI 入口（`cli.js`）和 `vendor/ripgrep/`，改为按平台分发 native binary（`Codex` / `Codex.exe`，单文件 214-252 MB），通过 `optionalDependencies` 安装到 `@anthropic-ai/Codex-agent-sdk-{platform}-{arch}/` 子包
+- `@anthropic-ai/claude-agent-sdk` 必须使用 `--external` 参数排除在 esbuild 打包之外
+- **0.2.113+ 架构变化**：SDK 主包已不再携带 JS CLI 入口（`cli.js`）和 `vendor/ripgrep/`，改为按平台分发 native binary（`Codex` / `Codex.exe`，单文件 214-252 MB），通过 `optionalDependencies` 安装到 `@anthropic-ai/claude-agent-sdk-{platform}-{arch}/` 子包
 - `apps/electron/package.json` 必须显式声明当前 CI 矩阵覆盖的平台子包为 `optionalDependencies`（darwin-arm64 / darwin-x64 / win32-x64），否则 bun workspace 不会把它们链接到 `apps/electron/node_modules/`
 - `electron-builder.yml` 的 `files` 配置要同时包含主包和所有平台子包：
   ```yaml
   files:
     - dist/**/*
     - package.json
-    - node_modules/@anthropic-ai/Codex-agent-sdk/**/*
-    - node_modules/@anthropic-ai/Codex-agent-sdk-darwin-arm64/**/*
-    - node_modules/@anthropic-ai/Codex-agent-sdk-darwin-x64/**/*
-    - node_modules/@anthropic-ai/Codex-agent-sdk-win32-x64/**/*
-    - "!node_modules/@proma/**"
+    - node_modules/@anthropic-ai/claude-agent-sdk/**/*
+    - node_modules/@anthropic-ai/claude-agent-sdk-darwin-arm64/**/*
+    - node_modules/@anthropic-ai/claude-agent-sdk-darwin-x64/**/*
+    - node_modules/@anthropic-ai/claude-agent-sdk-win32-x64/**/*
+    - "!node_modules/@luxagents/**"
   ```
 - SDK 主包和同级平台子包会被复制到 `app/node_modules/@anthropic-ai/`，Node.js 的模块解析能从 `app/dist/main.cjs` 找到
-- `agent-orchestrator.ts` 中 `resolveSDKCliPath()` 解析到 SDK 主包入口后，沿 `..` 到 `@anthropic-ai/` 同级目录，再拼 `Codex-agent-sdk-${platform}-${arch}/{Codex|Codex.exe}` 得到 binary 路径
+- `agent-orchestrator.ts` 中 `resolveSDKCliPath()` 解析到 SDK 主包入口后，沿 `..` 到 `@anthropic-ai/` 同级目录，再拼 `claude-agent-sdk-${platform}-${arch}/{Codex|Codex.exe}` 得到 binary 路径
 
 **跨平台打包限制：**
 - optionalDependencies 的平台子包由包管理器按 `os`/`cpu` 字段筛选：Apple Silicon runner 只会装 darwin-arm64，不会装 darwin-x64（cpu 不匹配）
@@ -367,13 +367,13 @@ bun run generate:icons    # 生成应用图标
 1. ✅ 确认 SDK 在 esbuild 中使用 `--external` 参数
 2. ✅ 确认 SDK 主包 + 所有目标平台子包都在 `files` 配置中
 3. ✅ 确认 `apps/electron/package.json` 的 `optionalDependencies` 列出了所有目标平台子包
-4. ✅ `bun install` 后验证 `apps/electron/node_modules/@anthropic-ai/Codex-agent-sdk-{platform}-{arch}/` symlink 存在且 binary 可执行
+4. ✅ `bun install` 后验证 `apps/electron/node_modules/@anthropic-ai/claude-agent-sdk-{platform}-{arch}/` symlink 存在且 binary 可执行
 5. ✅ 本地测试打包后的应用 Agent 功能（`CSC_IDENTITY_AUTO_DISCOVERY=false bun run dist:fast`）
 
 **其他依赖的打包策略：**
-- **原则**：只有 `electron` 和 `@anthropic-ai/Codex-agent-sdk` 需要标记为 `--external`
+- **原则**：只有 `electron` 和 `@anthropic-ai/claude-agent-sdk` 需要标记为 `--external`
 - `electron`：由 Electron 运行时提供，必须 external
-- `@anthropic-ai/Codex-agent-sdk`：有特殊打包要求（含 214 MB native binary），必须 external + 在 files 中包含主包和平台子包
+- `@anthropic-ai/claude-agent-sdk`：有特殊打包要求（含 214 MB native binary），必须 external + 在 files 中包含主包和平台子包
 - **所有其他依赖**（如 `electron-updater`、`undici`、`chokidar` 等）：应该让 esbuild 打包进 `main.cjs`
   - ✅ 优点：避免遗漏子依赖，简化 electron-builder 配置
   - ❌ 如果标记为 external：必须在 `electron-builder.yml` 的 `files` 中手动列出所有子依赖
@@ -401,7 +401,7 @@ bun run generate:icons    # 生成应用图标
 
 修改任何 `default-skills/<skill>/` 内容时，**必须同步递增该 Skill `SKILL.md` frontmatter 的 `version` 字段**（patch +1）。
 
-**为什么**：`seedDefaultSkills()` 与 `upgradeDefaultSkillsInWorkspaces()` 通过 semver 比较决定是否将 bundle 中的 Skill 同步到老用户的 `~/.proma/default-skills/` 与各工作区。**version 不变 = 老用户拿不到新内容**。
+**为什么**：`seedDefaultSkills()` 与 `upgradeDefaultSkillsInWorkspaces()` 通过 semver 比较决定是否将 bundle 中的 Skill 同步到老用户的 `~/.luxagents/default-skills/` 与各工作区。**version 不变 = 老用户拿不到新内容**。
 
 **早期实现曾用"无条件 cpSync"绕开这个约束**，但每次启动同步 4MB+ 文件会阻塞主进程导致启动卡顿，已恢复为 semver 比较（见 `config-paths.ts:seedDefaultSkills`、`agent-workspace-manager.ts:upgradeDefaultSkillsInWorkspaces`）。
 
@@ -409,7 +409,7 @@ bun run generate:icons    # 生成应用图标
 
 ## Agent SDK 集成架构
 
-基于 `@anthropic-ai/Codex-agent-sdk@0.2.120` 实现 Agent 模式，与 Chat 模式并行。
+基于 `@anthropic-ai/claude-agent-sdk@0.2.120` 实现 Agent 模式，与 Chat 模式并行。
 
 ### 核心流程
 
@@ -450,7 +450,7 @@ React UI 更新
 ### 关键设计
 
 - **SDK 调用**：`sdk.query({ prompt, options: { apiKey, model, permissionMode, cwd, abortController } })`
-- **事件转换**：`convertSDKMessage()`（`@proma/shared`）将 SDK 原始消息转为统一的 `AgentEvent` 类型
+- **事件转换**：`convertSDKMessage()`（`@luxagents/shared`）将 SDK 原始消息转为统一的 `AgentEvent` 类型
 - **工具匹配**：`packages/shared/src/agent/tool-matching.ts` — 无状态 `ToolIndex` + `extractToolStarts` / `extractToolResults` 解析工具调用
 - **状态管理**：`applyAgentEvent()` 纯函数更新 `AgentStreamState`，支持流式增量更新
 - **全局 IPC 监听**：`useGlobalAgentListeners`（`renderer/hooks/`）在 `main.tsx` 顶层挂载，通过 `useStore()` 直接操作 atoms，永不销毁。确保页面切换（如设置页）时流式输出、权限请求不丢失
@@ -459,7 +459,7 @@ React UI 更新
 
 ### SDK 版本升级注意事项
 
-**`@anthropic-ai/Codex-agent-sdk` 0.2.113+ `options.env` 语义为"替换"**
+**`@anthropic-ai/claude-agent-sdk` 0.2.113+ `options.env` 语义为"替换"**
 
 - SDK 将 `options.env` **替换** 传递给子进程（0.2.111/0.2.112 短暂改为叠加，0.2.113 恢复替换）
 - 如果传 `env` 时只给 `ANTHROPIC_*` 相关变量，子进程会丢失 `PATH` / `HOME` / `SHELL` 等关键变量，导致 SDK 调用 `npx` / `git` 等命令失败
@@ -475,11 +475,11 @@ React UI 更新
 - `0.2.111`: `options.env` 从"替换"变为"叠加"
 - `0.2.113`:
   - `options.env` 回退为"替换"
-  - **SDK 包结构重构**：删除 `cli.js`，改为平台 native binary（通过 `@anthropic-ai/Codex-agent-sdk-{platform}-{arch}` optionalDependency 分发），ripgrep 编译进 binary
+  - **SDK 包结构重构**：删除 `cli.js`，改为平台 native binary（通过 `@anthropic-ai/claude-agent-sdk-{platform}-{arch}` optionalDependency 分发），ripgrep 编译进 binary
   - 详见上方"打包配置注意事项"段落
 - `0.2.120`: `query()` 省略 `settingSources` 时默认加载所有来源（Proma 已显式传 `['user', 'project']`，不受影响）
 
-### 共享类型（`@proma/shared`）
+### 共享类型（`@luxagents/shared`）
 
 - `AgentEvent`：Agent 事件（text / tool_start / tool_result / done / error）
 - `AgentSessionMeta`：会话元数据（id / title / channelId / workspaceId）
@@ -494,10 +494,10 @@ React UI 更新
 
 - **会话管理**：收件箱/归档工作流
 - **权限模式**：safe / ask / allow-all
-- **Agent SDK**：@anthropic-ai/Codex-agent-sdk（[v1 文档](https://platform.Codex.com/docs/en/agent-sdk/typescript)、[v2 文档](https://platform.Codex.com/docs/en/agent-sdk/typescript-v2-preview)）
+- **Agent SDK**：@anthropic-ai/claude-agent-sdk（[v1 文档](https://platform.Codex.com/docs/en/agent-sdk/typescript)、[v2 文档](https://platform.Codex.com/docs/en/agent-sdk/typescript-v2-preview)）
 - **MCP 集成**：Model Context Protocol 用于外部数据源
 - **凭证存储**：AES-256-GCM 加密
-- **配置位置**：`~/.proma/`（类似 `~/.craft-agent/`）
+- **配置位置**：`~/.luxagents/`（类似 `~/.craft-agent/`）
 
 ## 核心特性
 
@@ -534,8 +534,10 @@ React UI 更新
 - Prefer fully aligning Work/Kanban behavior with craft-agents-max rather than inventing parallel UX
 - When changing Code `LeftSidebar`, isolate craft-Project UI (e.g. `SidebarProjectSubgroup`, `SidebarProjectsSection`) to keep Proma LeftSidebar ports merge-friendly
 - Prefer Appearance and Tools settings tabs visible; do not re-hide them in `HIDDEN_TABS` without asking
-- Prefer Project list click to filter Board and stay on board; open detail via secondary affordance; after create, enter Project detail with craft-aligned fields (cwd/color/description)
-- Prefer long-term Code/Work IA: Sessions as left-rail primary, Projects as secondary section, Kanban as main-area Board view — not Projects|Kanban as dual left-rail modules
+- Prefer Code left-rail modules as single entry rows (like Agent Skills / Auto Tasks), not expandable project lists; open management surfaces in the main area
+- Prefer Code IA: Sessions remain the primary list; module order Auto Tasks → Agent Skills → Agent Experts → 项目中心 (last in module zone); top-bar is Chat|Code only (Work/`cowork` retired)
+- Prefer naming the Projects hub「项目中心」(not bare「项目」); Agent专家 are creatable domain-role shells (builtin label「通用软件专家」, slug `general`) empowered by skills; TaskEditor expert picker must use the expert module list; Kanban uses task/project `expertId`—not swarm or IM bot UI yet
+- Prefer 项目中心 hub card → filtered Board (card may shortcut 新建任务); 新建任务/Teambition stay on Board toolbar, not project settings or left-rail; project detail stays in Code with craft-aligned fields (cwd/color/description)
 
 ## Learned Workspace Facts
 
@@ -543,8 +545,11 @@ React UI 更新
 - Task `llmConnection` maps to LuxAgents `channelId` (Channel acts as the connection)
 - Dev config/storage lives under `~/.luxagents-dev/`; packaged builds use `~/.luxagents/`
 - Work/Kanban Conductor must run agents via `runAgentHeadless` so `STREAM_EVENT` reaches the Code renderer
-- Work mode (`cowork`) mounts Project + Task DAG + Kanban (`WorkBoardView`); the old WorkTask/LangGraph path was replaced
-- Code sidebar「工作区」= `AgentWorkspace`; craft「项目」= workspace-internal Project shared by Work board and Code subgroups via `serverKanbanProjectsAtom`
+- Code main Board uses `codeMainViewAtom` (`'session' | 'work'`); `workViewAtom` stays separate; `WorkBoardView` is reused (no second board); project ⓘ stays in Code
+- Top-bar Work/`cowork` is retired: ModeSwitcher is Chat|Code; persisted `cowork` migrates to `agent` + `codeMainView='work'`
+- Code sidebar「工作区」= `AgentWorkspace`; craft「项目」= workspace-internal Project shared via `serverKanbanProjectsAtom`; Board filters by `selectedProjectIdAtom`
 - `projects:changed` payload `workspaceId` is the workspace root basename (slug), not the workspace UUID
-- P0 Projects IA: Work/Code share compact left-rail Projects (`SidebarProjectsSection`); Work right-rail `ProjectsListPanel` removed; Board is full-width main view filtered by `selectedProjectIdAtom`
+- Code IA: 项目中心 Hub via `activeView='projects'`, Agent专家 via `activeView='agent-experts'`; left-rail entry rows only (no expandable project list)
 - craft CreateProject is name-first; cwd/color/description thickness belongs on `ProjectInfoPage`, not a heavy create wizard
+- Agent专家 live under `~/.luxagents/experts/{slug}/` (dev: `~/.luxagents-dev/experts/`) with IDENTITY/SOUL/RULES + `expert.json`; builtins include 通用软件专家 + 驱动/应用/系统/通信软件专家、软件交付经理、软件SE、软件架构师、软件测试、代码审查; Kanban TaskRunner injects expert preamble via `task.defaults.expertId` → project `defaultExpertId` and merges `skillSlugs` (skip+warn if missing); no Code-session/`mcpIds`/Bot injection yet
+- `TaskModelSelect` / Radix dropdowns over AppShell need `z-[9999]` (AppShell chrome is `z-[60]`; default portal `z-50` gets clipped)

@@ -2,14 +2,14 @@
 name: agent-collaboration
 description: Proma 协作子 Agent Skill。用户任务复杂、可并行、长耗时、需要多个独立方向同时推进、需要真实可见进展、需要保留完整子任务记录，或用户明确说“开几个 Agent/多会话/一起协作/并行处理/spawn 子 Agent”时触发。用于判断是否调用 Proma 内置 collaboration 工具创建真实子会话。简单搜索、短调研、单文件修改、一次性代码审查优先使用 SDK 内置 SubAgent，不要创建真实 Proma 子会话。
 group: proma
-version: "1.0.1"
+version: "1.0.2"
 ---
 
 # Proma Agent Collaboration
 
 你负责判断何时把复杂任务交给 Workflow、SDK SubAgent，或拆给真实可见的 Proma 协作子 Agent 会话。
 
-Proma 已提供内置 `collaboration` MCP 工具。你必须通过这些工具创建、等待、查看和停止协作子会话，不要用 Bash、脚本或直接修改 `~/.proma/agent-sessions.json` 的方式创建会话。
+Proma 已提供内置 `collaboration` MCP 工具。你必须通过这些工具创建、等待、查看和停止协作子会话，不要用 Bash、脚本或直接修改 `~/.luxagents/agent-sessions.json` 的方式创建会话。
 
 可用工具：
 
