@@ -1,31 +1,32 @@
 /**
- * ModeSwitcher - Chat/Work/Code 三模式切换（带滑动指示器）
+ * ModeSwitcher - Chat/Code 双模式切换（带滑动指示器）
  *
  * 切换模式时自动恢复上一次在该模式下查看的对话/会话：
  * 1. 优先恢复上次选中的对话 ID
  * 2. 其次查找已打开的同类型 Tab
  * 3. 兜底打开最近的对话/会话（列表首项）
  * 4. 都没有则仅切换模式
- * Work 模式无会话，直接切换。
+ *
+ * 顶栏 Work（cowork）已下线：看板 / 项目详情改由 Code 主区 codeMainViewAtom 承载。
  */
 
 import * as React from 'react'
 import { useAtom, useAtomValue } from 'jotai'
-import { appModeAtom, type AppMode } from '@/atoms/app-mode'
+import { appModeAtom } from '@/atoms/app-mode'
 import { conversationsAtom, currentConversationIdAtom } from '@/atoms/chat-atoms'
 import { agentSessionsAtom, currentAgentSessionIdAtom } from '@/atoms/agent-atoms'
 import { tabsAtom } from '@/atoms/tab-atoms'
 import { useOpenSession } from '@/hooks/useOpenSession'
-import { Code2, MessageSquare, Users } from 'lucide-react'
+import { normalizeAppModeForUi } from '@/components/app-shell/code-main-view-model'
+import { Code2, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const modes: { value: AppMode; label: string; icon: React.ReactNode }[] = [
+const modes: { value: 'chat' | 'agent'; label: string; icon: React.ReactNode }[] = [
   { value: 'chat', label: 'Chat', icon: <MessageSquare size={15} /> },
-  { value: 'cowork', label: 'Work', icon: <Users size={15} /> },
   { value: 'agent', label: 'Code', icon: <Code2 size={15} /> },
 ]
 
-const SLIDER_TRANSLATE = ['translate-x-0', 'translate-x-full', 'translate-x-[200%]'] as const
+const SLIDER_TRANSLATE = ['translate-x-0', 'translate-x-full'] as const
 
 export function ModeSwitcher(): React.ReactElement {
   const [mode, setMode] = useAtom(appModeAtom)
@@ -36,17 +37,13 @@ export function ModeSwitcher(): React.ReactElement {
   const currentAgentSessionId = useAtomValue(currentAgentSessionIdAtom)
   const tabs = useAtomValue(tabsAtom)
 
-  const modeIndex = modes.findIndex((m) => m.value === mode)
+  // 遗留 cowork 高亮到 Code，直到 AppShell 迁移 effect 落盘
+  const uiMode = normalizeAppModeForUi(mode)
+  const modeIndex = modes.findIndex((m) => m.value === uiMode)
   const sliderTranslate = SLIDER_TRANSLATE[modeIndex] ?? 'translate-x-0'
 
   /** 尝试恢复目标模式下的上一个对话/会话，按优先级 fallback */
-  const restoreSession = React.useCallback((targetMode: AppMode) => {
-    // cowork 暂无会话，直接切换
-    if (targetMode === 'cowork') {
-      setMode('cowork')
-      return
-    }
-
+  const restoreSession = React.useCallback((targetMode: 'chat' | 'agent') => {
     const isChatMode = targetMode === 'chat'
     const sessions = isChatMode ? conversations : agentSessions
     const lastId = isChatMode ? currentConversationId : currentAgentSessionId
@@ -75,20 +72,20 @@ export function ModeSwitcher(): React.ReactElement {
     setMode(targetMode)
   }, [openSession, conversations, agentSessions, currentConversationId, currentAgentSessionId, tabs, setMode])
 
-  const handleModeSwitch = React.useCallback((targetMode: AppMode) => {
-    if (targetMode === mode) return
+  const handleModeSwitch = React.useCallback((targetMode: 'chat' | 'agent') => {
+    if (targetMode === uiMode) return
     restoreSession(targetMode)
-  }, [mode, restoreSession])
+  }, [uiMode, restoreSession])
 
   return (
     <div className="pt-2 titlebar-drag-region select-none">
       <div
         className="relative flex rounded-xl p-1 titlebar-drag-region mode-switcher-track sidebar-control-surface"
       >
-        {/* 滑动背景指示器 */}
+        {/* 滑动背景指示器（双模式各占一半） */}
         <div
           className={cn(
-            'mode-slider pointer-events-none absolute top-1 bottom-1 left-1 w-[calc(33.333%-2.667px)] rounded-lg bg-background shadow-sm transition-transform duration-300 ease-in-out',
+            'mode-slider pointer-events-none absolute top-1 bottom-1 left-1 w-[calc(50%-2px)] rounded-lg bg-background shadow-sm transition-transform duration-300 ease-in-out',
             sliderTranslate
           )}
         />
@@ -99,7 +96,7 @@ export function ModeSwitcher(): React.ReactElement {
             onClick={() => handleModeSwitch(value)}
             className={cn(
               'mode-btn titlebar-no-drag relative z-[1] h-8 flex-1 flex items-center justify-center gap-1.5 rounded-lg px-3 py-0 text-sm font-medium transition-colors duration-200 select-none',
-              mode === value
+              uiMode === value
                 ? 'mode-btn-selected text-foreground'
                 : 'text-muted-foreground hover:text-foreground'
             )}

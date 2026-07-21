@@ -6,7 +6,7 @@
  */
 
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import { PROJECT_IPC_CHANNELS, TASK_IPC_CHANNELS, SESSION_COMMAND_CHANNEL, TEAMBITION_IPC_CHANNELS } from '@luxagents/shared/channels'
+import { PROJECT_IPC_CHANNELS, TASK_IPC_CHANNELS, SESSION_COMMAND_CHANNEL, TEAMBITION_IPC_CHANNELS, EXPERT_IPC_CHANNELS } from '@luxagents/shared/channels'
 import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, MEMORY_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS } from '@luxagents/shared'
 import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, SCRATCH_PAD_IPC_CHANNELS, APP_ICON_IPC_CHANNELS, DOCK_BADGE_IPC_CHANNELS, STORAGE_IPC_CHANNELS } from '../types'
 import type {
@@ -117,6 +117,7 @@ import type {
   TaskGeneratedEventPayload,
 } from '@luxagents/shared'
 import type { ProjectConfig } from '@luxagents/shared/projects'
+import type { ExpertManifest, ExpertPackage } from '@luxagents/shared/experts'
 import type { ValidationResult } from '../../../../packages/shared/src/tasks/validate.ts'
 import type {
   UserProfile,
@@ -165,10 +166,10 @@ interface TaskResults {
   runId: string
 }
 
-/** 渲染进程项目 DTO：不泄露项目目录与工作目录。 */
-export type BrowserProject = Omit<ProjectConfig, 'workingDirectory'> & { workspaceId: string }
-export type BrowserProjectCreateInput = Omit<CreateProjectInput, 'workingDirectory'>
-export type BrowserProjectUpdateInput = Omit<UpdateProjectInput, 'workingDirectory'>
+/** 渲染进程项目 DTO：透传 ProjectConfig（含 workingDirectory）；不泄露 LoadedProject 运行时路径（folderPath 等）。 */
+export type BrowserProject = ProjectConfig & { workspaceId: string }
+export type BrowserProjectCreateInput = CreateProjectInput
+export type BrowserProjectUpdateInput = UpdateProjectInput
 export type BrowserProjectAsset = Omit<ProjectAsset, 'absolutePath'>
 export interface BrowserProjectAssetUploadInput {
   filename: string
@@ -251,8 +252,7 @@ function invokeTyped<TResult>(channel: string, ...args: unknown[]): Promise<TRes
 }
 
 function toBrowserProject(project: LoadedProject): BrowserProject {
-  const { workingDirectory: _workingDirectory, ...config } = project.config
-  return { ...config, workspaceId: project.workspaceId }
+  return { ...project.config, workspaceId: project.workspaceId }
 }
 
 function toBrowserProjectAsset(asset: ProjectAsset): BrowserProjectAsset {
@@ -1163,6 +1163,21 @@ export interface ElectronAPI {
   runAutomationNow: (id: string) => Promise<void>
   /** 订阅任务列表变更事件 */
   onAutomationChanged: (callback: () => void) => () => void
+
+  // ===== Agent 专家包 =====
+  experts: {
+    list: () => Promise<ExpertPackage[]>
+    get: (id: string) => Promise<ExpertPackage | null>
+    create: (input: { id: string; label: string; identitySummary?: string }) => Promise<ExpertPackage>
+    updateManifest: (
+      id: string,
+      patch: Partial<Pick<ExpertManifest, 'skillSlugs' | 'mcpIds' | 'label'>>,
+    ) => Promise<ExpertPackage>
+    updateFiles: (
+      id: string,
+      files: Partial<{ identityMd: string; soulMd: string; rulesMd: string }>,
+    ) => Promise<ExpertPackage>
+  }
 
   // ===== Projects / Tasks Kanban（新版 typed bridge） =====
   projects: {
@@ -2558,6 +2573,26 @@ const electronAPI: ElectronAPI = {
     const listener = (): void => callback()
     ipcRenderer.on(AUTOMATION_IPC_CHANNELS.CHANGED, listener)
     return () => { ipcRenderer.removeListener(AUTOMATION_IPC_CHANNELS.CHANGED, listener) }
+  },
+
+  // ===== Agent 专家包 =====
+  experts: {
+    list: (): Promise<ExpertPackage[]> =>
+      invokeTyped<ExpertPackage[]>(EXPERT_IPC_CHANNELS.LIST),
+    get: (id: string): Promise<ExpertPackage | null> =>
+      invokeTyped<ExpertPackage | null>(EXPERT_IPC_CHANNELS.GET, id),
+    create: (input: { id: string; label: string; identitySummary?: string }): Promise<ExpertPackage> =>
+      invokeTyped<ExpertPackage>(EXPERT_IPC_CHANNELS.CREATE, input),
+    updateManifest: (
+      id: string,
+      patch: Partial<Pick<ExpertManifest, 'skillSlugs' | 'mcpIds' | 'label'>>,
+    ): Promise<ExpertPackage> =>
+      invokeTyped<ExpertPackage>(EXPERT_IPC_CHANNELS.UPDATE_MANIFEST, id, patch),
+    updateFiles: (
+      id: string,
+      files: Partial<{ identityMd: string; soulMd: string; rulesMd: string }>,
+    ): Promise<ExpertPackage> =>
+      invokeTyped<ExpertPackage>(EXPERT_IPC_CHANNELS.UPDATE_FILES, id, files),
   },
 
   // ===== Projects / Tasks Kanban（新版 typed bridge） =====

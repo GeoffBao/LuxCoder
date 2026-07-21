@@ -33,13 +33,18 @@ export function resolveKanbanItemOpen(item: KanbanItem): KanbanItemOpenAction {
   }
 }
 
-export function createTaskEditorDraft(target: TaskEditorTarget, defaultModel: string): TaskEditorDraft {
+export function createTaskEditorDraft(
+  target: TaskEditorTarget,
+  defaultModel: string,
+  initialExpertId?: string,
+): TaskEditorDraft {
   return {
     title: '',
     goal: '',
     projectId: target.mode === 'create' ? target.initialProjectId ?? '' : '',
     orchModel: defaultModel,
     permissionMode: 'allow-all',
+    ...(initialExpertId ? { expertId: initialExpertId } : {}),
     subtasks: [],
   }
 }
@@ -59,6 +64,7 @@ export function taskSpecToEditorDraft(
     orchModel: spec.defaults?.model ?? defaultModel,
     orchConnection: spec.defaults?.llmConnection,
     permissionMode: spec.defaults?.permissionMode ?? 'allow-all',
+    expertId: spec.defaults?.expertId,
     subtasks: specToSubtasks(spec.nodes),
     cwd: spec.cwd,
     sourceSlugs: spec.sources,

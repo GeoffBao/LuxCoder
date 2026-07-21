@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils'
 import { userProfileAtom } from '@/atoms/user-profile'
 import { appModeAtom, type AppMode } from '@/atoms/app-mode'
 import { themeStyleAtom } from '@/atoms/theme'
+import { normalizeAppModeForUi } from '@/components/app-shell/code-main-view-model'
 import { getRandomTip, getPlatform, type Tip } from '@/lib/tips'
 
 /** 根据小时返回时段问候 */
@@ -43,15 +44,16 @@ export function WelcomeEmptyState(): React.ReactElement {
   const hour = new Date().getHours()
   const greeting = getGreeting(hour)
   const displayName = userProfile.userName || '用户'
+  const uiMode = normalizeAppModeForUi(mode)
 
   // 森息晨光主题下选中按钮使用主色
   const selectedColor = themeStyle === 'forest-light' ? '#3f8361' : undefined
 
-  /** 切换模式：仅切换模式，不创建新会话 */
-  const handleModeSwitch = React.useCallback((targetMode: AppMode): void => {
-    if (targetMode === mode) return
+  /** 切换模式：仅切换模式，不创建新会话；遗留 cowork 点 Chat/Code 正常切走 */
+  const handleModeSwitch = React.useCallback((targetMode: 'chat' | 'agent'): void => {
+    if (targetMode === uiMode) return
     setMode(targetMode)
-  }, [mode, setMode])
+  }, [uiMode, setMode])
 
   return (
     <div className="welcome-empty-state flex h-full flex-col items-center justify-center gap-6 px-4">
@@ -72,12 +74,12 @@ export function WelcomeEmptyState(): React.ReactElement {
         <div
           className={cn(
             'absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg bg-background shadow-sm transition-transform duration-300 ease-in-out',
-            mode === 'agent' ? 'translate-x-0' : 'translate-x-full',
+            uiMode === 'agent' ? 'translate-x-0' : 'translate-x-full',
           )}
         />
         {(['agent', 'chat'] as const).map((m) => {
           const config = MODE_CONFIG[m]
-          const isSelected = mode === m
+          const isSelected = uiMode === m
           return (
             <button
               key={m}

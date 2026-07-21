@@ -21,10 +21,10 @@ export interface BoardNotification {
 }
 
 export const DEFAULT_KANBAN_COLUMNS: KanbanColumnDefinition[] = [
-  { id: INBOX_COLUMN_ID, name: '收件箱', color: 'var(--muted-foreground)' },
-  { id: 'todo', name: '待办', color: 'var(--chart-2)' },
-  { id: 'in-progress', name: '进行中', color: 'var(--chart-4)' },
-  { id: 'done', name: '已完成', color: 'var(--chart-1)' },
+  { id: INBOX_COLUMN_ID, name: '收件箱', color: '#64748b' },
+  { id: 'todo', name: '待办', color: '#6366f1' },
+  { id: 'in-progress', name: '进行中', color: '#f59e0b' },
+  { id: 'done', name: '已完成', color: '#10b981' },
 ]
 
 function resolveColumns(customColumns?: KanbanColumnDefinition[]): KanbanColumnDefinition[] {

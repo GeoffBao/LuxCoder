@@ -59,6 +59,24 @@ export function resolveKanbanModelName(groups: KanbanModelProviderGroup[], id: s
   return id
 }
 
+/**
+ * 运行时 ModelChip 展示文案：优先渠道友好名，否则压缩 raw model id。
+ * 去掉日期后缀，过长则保留末段并截断，避免 `deepseek-...` 无信息截断。
+ */
+export function formatModelChipLabel(
+  modelId: string,
+  groups?: readonly KanbanModelProviderGroup[],
+): string {
+  const id = modelId.trim()
+  if (!id) return ''
+  const resolved = groups && groups.length > 0 ? resolveKanbanModelName([...groups], id) : id
+  const base = (resolved === '选择模型' ? id : resolved).replace(/-\d{8}$/, '')
+  if (base.length <= 22) return base
+  const segment = base.split(/[/:]/).filter(Boolean).at(-1) ?? base
+  if (segment.length <= 22) return segment
+  return `${segment.slice(0, 20)}…`
+}
+
 /** 解析当前选中项：优先匹配 channelId+modelId，否则回退到任意同 modelId。 */
 export function resolveKanbanModelSelection(
   groups: KanbanModelProviderGroup[],

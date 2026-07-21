@@ -3,11 +3,15 @@ import { ChevronDown, ExternalLink, GitBranch, Link2, Play } from 'lucide-react'
 import * as React from 'react'
 import { cn } from '@/lib/utils'
 import { ModelChip } from './ModelChip'
+import { ExpertChip } from './ExpertChip'
 import { StatusBadge } from './StatusBadge'
 import { SubtaskProgress } from './SubtaskProgress'
 import { SubtaskRow } from './SubtaskRow'
+import { resolveDagAttention, shouldShowDoneColumnAttention } from './dag-attention'
 import type { KanbanItem } from './types'
 import { resolveTeambitionSyncBadge } from '@/components/work/teambition-view'
+import { useExpertOptions } from '@/components/agent-experts/useExpertOptions'
+import { getTaskExpertOption } from './task-editor-ui-model'
 
 interface TaskTileProps {
   item: KanbanItem
@@ -37,6 +41,10 @@ export function TaskTile({
   const [expanded, setExpanded] = React.useState(
     () => item.subtasks.some((subtask) => subtask.runState === 'running') || item.subtasks.length > 0,
   )
+  const { options: expertOptions } = useExpertOptions()
+  const expertLabel = item.expertId
+    ? getTaskExpertOption(item.expertId, expertOptions).label
+    : null
   const drag = useDraggable({ id: item.id, disabled: !draggable, data: { kind: 'kanban-item' } })
   const teambitionBadge = item.teambition?.syncState
     ? resolveTeambitionSyncBadge(item.teambition.syncState)
@@ -47,6 +55,8 @@ export function TaskTile({
   const hasRunning = item.isProcessing || item.subtasks.some((subtask) => subtask.runState === 'running')
   const live = hasRunning || isLiveStatus(item.session.sessionStatus)
   const progressTotal = item.subtaskTotal ?? item.taskRun?.totalNodes ?? item.subtasks.length
+  const dagAttention = resolveDagAttention(item.subtasks, progressTotal)
+  const showDoneAttention = shouldShowDoneColumnAttention(item.columnId, dagAttention)
   const canRun = Boolean(onRunTask)
     && Boolean(item.session.taskSlug)
     && !hasRunning
@@ -68,6 +78,9 @@ export function TaskTile({
       className={cn(
         'group cursor-pointer rounded-xl bg-card p-3 shadow-sm ring-1 ring-border/30 transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         live && 'ring-amber-500/40',
+        showDoneAttention && dagAttention?.kind === 'has-failed' && 'ring-destructive/35',
+        showDoneAttention && dagAttention?.kind === 'needs-review' && 'ring-violet-500/35',
+        showDoneAttention && dagAttention?.kind === 'incomplete' && 'ring-amber-500/35',
         draggable && 'touch-none',
         className,
       )}
@@ -97,7 +110,23 @@ export function TaskTile({
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         <StatusBadge status={item.session.sessionStatus} live={live} />
+        {showDoneAttention && dagAttention && (
+          <span
+            title="列在「已完成」，但任务 DAG 尚未全部成功结束"
+            className={cn(
+              'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium',
+              dagAttention.kind === 'has-failed' && 'bg-destructive/10 text-destructive',
+              dagAttention.kind === 'needs-review' && 'bg-violet-500/10 text-violet-700 dark:text-violet-300',
+              dagAttention.kind === 'incomplete' && 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+            )}
+          >
+            {dagAttention.label}
+          </span>
+        )}
         <ModelChip model={item.session.modelId} className="max-w-32" />
+        {item.expertId && expertLabel && (
+          <ExpertChip expertId={item.expertId} label={expertLabel} />
+        )}
         {item.session.taskSlug && (
           <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
             <GitBranch className="h-3 w-3" />{item.session.taskSlug}
@@ -135,6 +164,7 @@ export function TaskTile({
                 <SubtaskRow
                   key={subtask.id}
                   subtask={subtask}
+                  hideModelWhen={item.session.modelId}
                   onClick={subtask.sessionId && onOpenSubtask
                     ? () => onOpenSubtask(subtask.sessionId!)
                     : undefined}

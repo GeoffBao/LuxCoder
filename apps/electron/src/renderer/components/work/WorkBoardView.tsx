@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useAtom, useAtomValue, useSetAtom } from 'jotai'
+import { useAtom, useAtomValue, useSetAtom, useStore } from 'jotai'
 import { FolderKanban, Info, LayoutDashboard, RefreshCw } from 'lucide-react'
 import {
   agentSessionsAtom,
@@ -10,6 +10,7 @@ import {
 import {
   kanbanItemsAtom,
   kanbanSpecNodesAtom,
+  kanbanTaskExpertIdsAtom,
   serverKanbanRunsAtom,
   serverKanbanSessionsAtom,
   serverTeambitionBindingsAtom,
@@ -26,7 +27,6 @@ import type { SpecNodeSummary } from '@/components/app-shell/kanban/subtask-merg
 import type { KanbanItem, KanbanProject, KanbanTaskRun } from '@/components/app-shell/kanban/types'
 import { useOpenSession } from '@/hooks/useOpenSession'
 import { ProjectInfoPage } from './ProjectInfoPage'
-import { ProjectsListPanel } from './ProjectsListPanel'
 import { buildKanbanTaskRun } from './work-board-model'
 
 function errorMessage(cause: unknown): string {
@@ -51,9 +51,11 @@ export function WorkBoardView(): React.ReactElement {
   const setRuns = useSetAtom(serverKanbanRunsAtom)
   const setBindings = useSetAtom(serverTeambitionBindingsAtom)
   const setSpecNodes = useSetAtom(kanbanSpecNodesAtom)
+  const setTaskExpertIds = useSetAtom(kanbanTaskExpertIdsAtom)
   const kanbanItems = useAtomValue(kanbanItemsAtom)
   const streamStates = useAtomValue(agentStreamingStatesAtom)
   const openSession = useOpenSession()
+  const store = useStore()
   const [workspaceRoot, setWorkspaceRoot] = React.useState<string | null>(null)
   const [view, setView] = useAtom(workViewAtom)
   const [loading, setLoading] = React.useState(false)
@@ -71,6 +73,7 @@ export function WorkBoardView(): React.ReactElement {
     setRuns([])
     setBindings([])
     setSpecNodes(new Map())
+    setTaskExpertIds(new Map())
     setWorkspaceRoot(null)
     setError(null)
     if (!workspace) return () => { cancelled = true }
@@ -88,7 +91,7 @@ export function WorkBoardView(): React.ReactElement {
       })
 
     return () => { cancelled = true }
-  }, [setBindings, setRuns, setSpecNodes, workspace])
+  }, [setBindings, setRuns, setSpecNodes, setTaskExpertIds, workspace])
 
   const refreshSessions = React.useCallback(async (): Promise<void> => {
     const sessions = await window.electronAPI.listAgentSessions()
@@ -129,22 +132,30 @@ export function WorkBoardView(): React.ReactElement {
   const refreshSpecNodes = React.useCallback(async (): Promise<void> => {
     if (!workspaceRoot) return
     const slugs = [...new Set(agentSessions.map((session) => session.taskSlug).filter((slug): slug is string => Boolean(slug)))]
-    const entries: Array<[string, SpecNodeSummary[]]> = await Promise.all(slugs.map(async (slug) => {
+    const results = await Promise.all(slugs.map(async (slug) => {
       try {
         const validation = await window.electronAPI.tasks.get(workspaceRoot, slug)
-        if (!validation?.valid || !validation.spec?.nodes) return [slug, []]
+        if (!validation?.valid || !validation.spec?.nodes) {
+          return { slug, nodes: [] as SpecNodeSummary[], expertId: undefined as string | undefined }
+        }
         const nodes: SpecNodeSummary[] = validation.spec.nodes.map((node) => ({
           id: node.id,
           title: node.title ?? node.id,
           ...(node.model ? { model: node.model } : {}),
         }))
-        return [slug, nodes]
+        const expertId = validation.spec.defaults?.expertId?.trim() || undefined
+        return { slug, nodes, expertId }
       } catch {
-        return [slug, []]
+        return { slug, nodes: [] as SpecNodeSummary[], expertId: undefined as string | undefined }
       }
     }))
-    setSpecNodes(new Map(entries))
-  }, [agentSessions, setSpecNodes, workspaceRoot])
+    setSpecNodes(new Map(results.map((entry) => [entry.slug, entry.nodes])))
+    setTaskExpertIds(new Map(
+      results
+        .filter((entry): entry is typeof entry & { expertId: string } => Boolean(entry.expertId))
+        .map((entry) => [entry.slug, entry.expertId]),
+    ))
+  }, [agentSessions, setSpecNodes, setTaskExpertIds, workspaceRoot])
 
   const refreshBindings = React.useCallback(async (): Promise<void> => {
     if (!workspaceRoot) return
@@ -219,7 +230,12 @@ export function WorkBoardView(): React.ReactElement {
 
   const handleProjectChanged = React.useCallback((project: KanbanProject): void => {
     setProjects((current) => upsertProject(current, project))
-  }, [setProjects])
+    // 归档后列表默认隐藏该项；若仍保持选中会导致看板过滤到「看不见的项目」
+    if (project.archivedAt && selectedProjectId === project.id) {
+      setSelectedProjectId(null)
+      setView('board')
+    }
+  }, [selectedProjectId, setProjects, setSelectedProjectId, setView])
 
   const handleProjectDeleted = React.useCallback((projectId: string): void => {
     setProjects((current) => current.filter((project) => project.id !== projectId))
@@ -265,67 +281,63 @@ export function WorkBoardView(): React.ReactElement {
   }
 
   return (
-    <div className="flex h-full min-h-0 gap-3 bg-background p-3">
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <div className="flex min-h-9 items-center justify-between rounded-xl bg-card px-2 shadow-sm">
-          <div className="flex items-center gap-1">
-            <Button size="sm" variant={view === 'board' ? 'secondary' : 'ghost'} onClick={() => setView('board')}>
-              <LayoutDashboard className="h-4 w-4" />看板
-            </Button>
-            <Button
-              size="sm"
-              variant={view === 'project' ? 'secondary' : 'ghost'}
-              disabled={!selectedProject}
-              onClick={() => setView('project')}
-            >
-              <Info className="h-4 w-4" />项目详情
-            </Button>
-          </div>
-          <Button size="sm" variant="ghost" disabled={loading} onClick={() => void handleRefresh()}>
-            <RefreshCw className={loading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />刷新
+    <div className="flex h-full min-h-0 flex-col gap-2 bg-background p-3">
+      <div className="flex min-h-9 items-center justify-between rounded-xl bg-card px-2 shadow-sm">
+        <div className="flex items-center gap-1">
+          <Button size="sm" variant={view === 'board' ? 'secondary' : 'ghost'} onClick={() => setView('board')}>
+            <LayoutDashboard className="h-4 w-4" />看板
+          </Button>
+          <Button
+            size="sm"
+            variant={view === 'project' ? 'secondary' : 'ghost'}
+            disabled={!selectedProject}
+            onClick={() => setView('project')}
+          >
+            <Info className="h-4 w-4" />项目详情
           </Button>
         </div>
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          {error && (
-            <div className="mb-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {error}
-            </div>
-          )}
-          <div className="min-h-0 flex-1 overflow-hidden">
-            {view === 'project' && selectedProject ? (
-              <ProjectInfoPage
-                workspaceRoot={workspaceRoot}
-                project={selectedProject}
-                sessions={agentSessions}
-                onProjectChanged={handleProjectChanged}
-                onDeleted={handleProjectDeleted}
-                onOpenSession={handleOpenSession}
-              />
-            ) : (
-              <KanbanBoardContainer
-                onOpenItem={handleOpenItem}
-                onOpenSubtask={handleOpenSubtask}
-                onSessionCreated={(session) => {
-                  setAgentSessions((current) => [session, ...current.filter((candidate) => candidate.id !== session.id)])
-                }}
-                onTaskCreated={async () => {
-                  await refreshAll()
-                }}
-              />
-            )}
+        <Button size="sm" variant="ghost" disabled={loading} onClick={() => void handleRefresh()}>
+          <RefreshCw className={loading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />刷新
+        </Button>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        {error && (
+          <div className="mb-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {error}
           </div>
+        )}
+        <div className="min-h-0 flex-1 overflow-hidden">
+          {view === 'project' && selectedProject ? (
+            <ProjectInfoPage
+              workspaceRoot={workspaceRoot}
+              project={selectedProject}
+              sessions={agentSessions}
+              onProjectChanged={handleProjectChanged}
+              onDeleted={handleProjectDeleted}
+              onOpenSession={handleOpenSession}
+            />
+          ) : (
+            <KanbanBoardContainer
+              onOpenItem={handleOpenItem}
+              onOpenSubtask={handleOpenSubtask}
+              onSessionCreated={(session) => {
+                setAgentSessions((current) => [session, ...current.filter((candidate) => candidate.id !== session.id)])
+              }}
+              onTaskCreated={async (created) => {
+                await refreshAll()
+                // 仅「创建并运行」/看板运行后进入编排会话；纯创建留在看板
+                if (!created?.ran || !created.sessionId) return
+                const session = store.get(agentSessionsAtom).find((candidate) => candidate.id === created.sessionId)
+                openSession(
+                  'agent',
+                  created.sessionId,
+                  session?.title ?? created.slug ?? '任务编排',
+                )
+              }}
+            />
+          )}
         </div>
       </div>
-      <ProjectsListPanel
-        workspaceRoot={workspaceRoot}
-        projects={projects}
-        selectedProjectId={selectedProjectId}
-        onSelect={(projectId) => {
-          setSelectedProjectId(projectId)
-          setView('board')
-        }}
-        onProjectChanged={handleProjectChanged}
-      />
     </div>
   )
 }

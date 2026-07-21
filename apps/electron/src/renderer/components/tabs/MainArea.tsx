@@ -19,10 +19,15 @@ import { TabContent } from './TabContent'
 import { AutomationFormView } from '@/components/automation/AutomationFormView'
 import { AutomationsListView } from '@/components/automation/AutomationsListView'
 import { AgentSkillsView } from '@/components/agent-skills/AgentSkillsView'
+import { AgentExpertsView } from '@/components/agent-experts/AgentExpertsView'
+import { ProjectsHubView } from '@/components/work/ProjectsHubView'
 import { automationFormAtom } from '@/atoms/automation-atoms'
 import { activeViewAtom } from '@/atoms/active-view'
 import { interfaceVariantAtom } from '@/atoms/theme'
 import { appModeAtom } from '@/atoms/app-mode'
+import { codeMainViewAtom } from '@/atoms/project-atoms'
+import { CodeMainViewSwitcher } from '@/components/app-shell/CodeMainViewSwitcher'
+import { shouldShowWorkViewInCode } from '@/components/app-shell/code-main-view-model'
 import { WorkBoardView } from '@/components/work/WorkBoardView'
 import { cn } from '@/lib/utils'
 
@@ -37,6 +42,9 @@ export function MainArea(): React.ReactElement {
   const automationFormOpen = useAtomValue(automationFormAtom).open
   const activeView = useAtomValue(activeViewAtom)
   const appMode = useAtomValue(appModeAtom)
+  const codeMainView = useAtomValue(codeMainViewAtom)
+  // Code 模式主区是否渲染 Work 视图（看板 / 项目详情），优先级规则见 code-main-view-model
+  const showCodeWorkView = shouldShowWorkViewInCode({ appMode, codeMainView, activeView })
   const interfaceVariant = useAtomValue(interfaceVariantAtom)
   const isClassic = interfaceVariant === 'classic'
 
@@ -161,9 +169,17 @@ export function MainArea(): React.ReactElement {
             style={leftFlexStyle}
           >
             {appMode === 'cowork' ? (
-              // Work 模式：全屏取代 TabBar + TabContent，与 automations/agent-skills 同一模式，
-              // 但优先级更高——appMode 是顶层模式（对齐 Chat/Code），不是 Agent 模式内的子视图。
+              // 遗留 cowork 兜底：AppShell 会迁移到 agent + codeMainView='work'；
+              // 保留此分支避免迁移前一帧空白。
               <WorkBoardView />
+            ) : showCodeWorkView ? (
+              // Code 模式 Work 视图：复用同一 WorkBoardView，顶部加「会话 | 看板」切换条
+              <div className="flex h-full min-h-0 flex-col">
+                <CodeMainViewSwitcher />
+                <div className="min-h-0 flex-1">
+                  <WorkBoardView />
+                </div>
+              </div>
             ) : activeView === 'automations' ? (
               automationFormOpen ? (
                 // 定时任务设置页：与列表同层级替换中间区，不经过 TabBar，避免切换时闪出会话 Tab。
@@ -175,8 +191,15 @@ export function MainArea(): React.ReactElement {
             ) : activeView === 'agent-skills' ? (
               // Agent 技能视图：全屏取代 TabBar + TabContent
               <AgentSkillsView />
+            ) : activeView === 'projects' ? (
+              // 项目中心 Hub：全屏取代 TabBar + TabContent
+              <ProjectsHubView />
+            ) : activeView === 'agent-experts' ? (
+              <AgentExpertsView />
             ) : (
               <>
+                {/* Code 模式会话视图顶部常驻「会话 | 看板」切换条 */}
+                {appMode === 'agent' && <CodeMainViewSwitcher />}
                 <TabBar />
                 {automationFormOpen ? (
                   // 兼容从会话内入口打开任务设置的场景。

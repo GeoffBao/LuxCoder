@@ -40,7 +40,8 @@ import { createLuxAgentsConductorSessionHost, type LuxAgentsConductorSessionHost
 import { getAgentSessionMeta, updateAgentSessionMeta } from './agent-session-manager'
 import { isAgentSessionActive } from './agent-service'
 import { getAgentWorkspace, listAgentWorkspaces } from './agent-workspace-manager'
-import { getAgentWorkspacePath } from './config-paths'
+import { getAgentWorkspacePath, getExpertsDir } from './config-paths'
+import { getExpert } from './expert-service'
 import { projectRepository } from './project-repository'
 import { TaskRunner, type RunOptions } from './task-runner'
 import { TeambitionService, type ClaimTeambitionTaskInput, type TeambitionRemoteTask } from './teambition-service'
@@ -89,11 +90,21 @@ async function getRunnerFor(workspaceRoot: string, workspaceId: string): Promise
   const existing = runners.get(workspaceId)
   if (existing) return existing
 
+  const expertsRoot = getExpertsDir()
   const runner = new TaskRunner({
     host: await getSessionHost(),
     workspaceId,
     workspaceRoot,
     isSessionActive: isAgentSessionActive,
+    getExpert: (expertId) => getExpert(expertsRoot, expertId),
+    resolveProjectDefaultExpertId: (projectId) => {
+      try {
+        return projectRepository.getProjectAtRoot(workspaceRoot, projectId)?.config.defaultExpertId ?? null
+      } catch (cause) {
+        console.warn(`[TaskRunner] 读取项目默认专家失败: ${projectId}`, cause)
+        return null
+      }
+    },
   })
   runners.set(workspaceId, runner)
   return runner
@@ -147,6 +158,21 @@ export function resolveTaskWorkingDirectory(
   const cwd = spec.cwd?.trim()
   if (cwd) return cwd
   return projectRepository.resolveWorkingDirectory(workspaceRoot, spec.project)
+}
+
+/**
+ * 构造 set_project_id 的会话更新补丁。
+ * 仅当目标项目解析出非空 workingDirectory 时才写入该字段；
+ * 解绑或项目无 cwd 时省略，保留会话已有工作目录（避免误清手动附加路径）。
+ */
+export function buildSetProjectIdUpdates(
+  projectId: string | undefined,
+  resolvedWorkingDirectory: string | undefined,
+): Pick<AgentSessionMeta, 'projectId'> & Partial<Pick<AgentSessionMeta, 'workingDirectory'>> {
+  return {
+    projectId,
+    ...(projectId && resolvedWorkingDirectory ? { workingDirectory: resolvedWorkingDirectory } : {}),
+  }
 }
 
 function mapTaskPermissionMode(mode: string | undefined): AgentSessionMeta['permissionMode'] | undefined {
@@ -484,13 +510,16 @@ export function registerTaskHandlers(window: BrowserWindow): void {
       case 'set_project_id': {
         const meta = getAgentSessionMeta(sessionId)
         const workspace = meta?.workspaceId ? getAgentWorkspace(meta.workspaceId) : undefined
-        const workingDirectory = workspace && command.projectId
-          ? projectRepository.resolveWorkingDirectory(getAgentWorkspacePath(workspace.slug), command.projectId)
+        const resolvedWorkingDirectory = command.projectId && workspace
+          ? projectRepository.resolveWorkingDirectory(
+              getAgentWorkspacePath(workspace.slug),
+              command.projectId,
+            )
           : undefined
-        return updateAgentSessionMeta(sessionId, {
-          projectId: command.projectId,
-          workingDirectory,
-        })
+        return updateAgentSessionMeta(
+          sessionId,
+          buildSetProjectIdUpdates(command.projectId, resolvedWorkingDirectory),
+        )
       }
       case 'set_kanban_column': {
         const sessionStatus = resolveSessionDropStatus(sessionId, command.kanbanColumn)

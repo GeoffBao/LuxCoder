@@ -6,6 +6,7 @@ import type { TaskSpec } from '@luxagents/shared/tasks/schema'
 import { appendRunLog, saveTaskSpec, writeRunSpecSnapshot } from '@luxagents/shared/tasks/storage'
 import {
   TaskRunner,
+  type ConductorSendMessageOptions,
   type ConductorSessionHost,
   type CreateSessionOptions,
   type SessionCompletionEvent,
@@ -45,6 +46,7 @@ function buildSpec(overrides: Partial<TaskSpec> = {}): TaskSpec {
 class FakeConductorSessionHost implements ConductorSessionHost {
   readonly createdSessions: Array<{ id: string; workspaceId: string; options: CreateSessionOptions }> = []
   readonly sentMessages = new Map<string, string[]>()
+  readonly sentOptions = new Map<string, Array<ConductorSendMessageOptions | undefined>>()
   readonly cancelledSessions: string[] = []
   readonly statusUpdates: Array<{ sessionId: string; status: string }> = []
   readonly kanbanUpdates: Array<{ sessionId: string; column: string | null }> = []
@@ -64,10 +66,17 @@ class FakeConductorSessionHost implements ConductorSessionHost {
     return { id }
   }
 
-  async sendMessage(sessionId: string, message: string): Promise<void> {
+  async sendMessage(
+    sessionId: string,
+    message: string,
+    options?: ConductorSendMessageOptions,
+  ): Promise<void> {
     const existing = this.sentMessages.get(sessionId) ?? []
     existing.push(message)
     this.sentMessages.set(sessionId, existing)
+    const optionLog = this.sentOptions.get(sessionId) ?? []
+    optionLog.push(options)
+    this.sentOptions.set(sessionId, optionLog)
   }
 
   async setSessionStatus(sessionId: string, status: string): Promise<void> {
@@ -471,5 +480,98 @@ describe('TaskRunner', () => {
       expect.objectContaining({ status: 'verifying' }),
     )
     expect(host.sentMessages.get('orchestrator-1')?.[0]).toContain('Verify the final result')
+  })
+
+  test('注入专家 preamble 并合并 skills', async () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    saveTaskSpec(workspaceRoot, buildSpec({
+      skills: ['task-skill'],
+      defaults: { expertId: 'architect' },
+      nodes: [{ id: 'draft', kind: 'session', prompt: 'draft the task' }],
+    }))
+    const host = new FakeConductorSessionHost()
+    const runner = new TaskRunner({
+      host,
+      workspaceId: 'ws-1',
+      workspaceRoot,
+      defaultMaxParallel: 2,
+      genRunId: () => 'run-1',
+      now: () => '2026-07-13T00:00:00.000Z',
+      getExpert: (id) => id === 'architect'
+        ? {
+            id: 'architect',
+            label: '软件架构师',
+            skillSlugs: ['task-skill', 'pdf'],
+            mcpIds: ['filesystem', 'browser'],
+            channelBindings: [],
+            identityMd: 'I am architect',
+            soulMd: 'calm',
+            rulesMd: 'no secrets',
+          }
+        : null,
+    })
+    runner.run('demo-task', { verifyOnComplete: false })
+    await flushAsyncWork()
+    const message = host.sentMessages.get('session-1')?.[0] ?? ''
+    expect(message).toContain('Apply these skills: [skill:task-skill] [skill:pdf]')
+    expect(message).toContain('<agent_expert id="architect"')
+    expect(message).toContain('I am architect')
+    expect(message).toContain('draft the task')
+    expect(host.sentOptions.get('session-1')?.[0]).toEqual({
+      mentionedSkills: ['task-skill', 'pdf'],
+      mentionedMcpServers: ['filesystem', 'browser'],
+    })
+  })
+
+  test('专家缺失时仍派发且无 agent_expert 块', async () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    saveTaskSpec(workspaceRoot, buildSpec({
+      defaults: { expertId: 'missing' },
+      nodes: [{ id: 'draft', kind: 'session', prompt: 'draft the task' }],
+    }))
+    const host = new FakeConductorSessionHost()
+    const runner = new TaskRunner({
+      host,
+      workspaceId: 'ws-1',
+      workspaceRoot,
+      genRunId: () => 'run-1',
+      getExpert: () => null,
+    })
+    runner.run('demo-task', { verifyOnComplete: false })
+    await flushAsyncWork()
+    const message = host.sentMessages.get('session-1')?.[0] ?? ''
+    expect(message).not.toContain('<agent_expert')
+    expect(message).toContain('draft the task')
+  })
+
+  test('无 defaults.expertId 时回退项目 defaultExpertId', async () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    saveTaskSpec(workspaceRoot, buildSpec({
+      project: 'proj-1',
+      nodes: [{ id: 'draft', kind: 'session', prompt: 'draft the task' }],
+    }))
+    const host = new FakeConductorSessionHost()
+    const runner = new TaskRunner({
+      host,
+      workspaceId: 'ws-1',
+      workspaceRoot,
+      genRunId: () => 'run-1',
+      resolveProjectDefaultExpertId: (id) => (id === 'proj-1' ? 'qa' : null),
+      getExpert: (id) => id === 'qa'
+        ? {
+            id: 'qa',
+            label: '软件测试',
+            skillSlugs: [],
+            mcpIds: [],
+            channelBindings: [],
+            identityMd: 'qa identity',
+            soulMd: '',
+            rulesMd: '',
+          }
+        : null,
+    })
+    runner.run('demo-task', { verifyOnComplete: false })
+    await flushAsyncWork()
+    expect(host.sentMessages.get('session-1')?.[0]).toContain('qa identity')
   })
 })

@@ -5,7 +5,7 @@ export const INBOX_COLUMN_ID = 'inbox'
 
 export type KanbanBoardMode = 'board' | 'list'
 export type KanbanNodeState = 'pending' | 'running' | 'done' | 'failed' | 'cancelled' | 'skipped'
-export type SubtaskRunState = 'done' | 'running' | 'pending' | 'failed'
+export type SubtaskRunState = 'done' | 'running' | 'pending' | 'failed' | 'needs-review'
 
 /** TaskEditor 的创建目标或已绑定会话目标。 */
 export type TaskEditorTarget =
@@ -20,17 +20,21 @@ export interface KanbanSubtask {
   model: string
 }
 
-/** 渲染进程使用的项目摘要，不包含本地文件路径。 */
+/** 渲染进程使用的项目摘要；列表可含 workingDirectory，供详情编辑；路径仅桌面端本地使用。 */
 export interface KanbanProject {
   id: string
   slug?: string
   name: string
   description?: string
   details?: string
+  /** 项目绑定工作目录；新会话可继承（主进程 set_project_id） */
+  workingDirectory?: string
   color?: string
   archivedAt?: number
   /** 项目最近更新时间（侧边栏子分组排序用；preload 透传 ProjectConfig.updatedAt） */
   updatedAt?: number
+  /** 项目默认 Agent 专家 slug；任务未指定时由 TaskRunner 注入 */
+  defaultExpertId?: string
   workspaceId?: string
   kanbanColumns?: Array<{ id: string; name: string; color?: string; dropStatusId?: string }>
 }
@@ -84,6 +88,8 @@ export interface KanbanItem {
   subtaskTotal?: number
   /** 编排器或任一子任务正在流式执行 */
   isProcessing?: boolean
+  /** 解析后的专家 slug（任务 defaults ∨ 项目默认） */
+  expertId?: string
   taskRun?: KanbanNodeProgress
   teambition?: KanbanTeambitionFields
 }

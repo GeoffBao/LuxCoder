@@ -84,6 +84,8 @@ export interface SpecForm {
   /** 整个任务族（orchestrator + children）的权限模式，输出为 `defaults.permissionMode`，
    *  使子任务自主性显式持久化而非隐含默认值。 */
   permissionMode?: PermissionMode
+  /** Agent 专家 slug，持久化为 `defaults.expertId`。 */
+  expertId?: string
   /** 任务已有的 project 绑定（编辑模式）。作为下限使用，使选择器停在“No Project”时仍保留绑定，
    *  而不是从 spec 静默删除 `project`，导致仍绑定的 orchestrator 与读取 spec.project 的 children 不一致。 */
   boundProjectId?: string
@@ -163,6 +165,8 @@ export function buildSpec(form: SpecForm, modelToConnection: Map<string, string>
   if (form.orchModel) defaults.model = form.orchModel
   if (orchConn) defaults.llmConnection = orchConn
   if (form.permissionMode) defaults.permissionMode = form.permissionMode
+  const expertId = form.expertId?.trim()
+  if (expertId) defaults.expertId = expertId
   // 编辑已绑定任务时，选择器停在“No Project”也不能丢失 `project`（子会话读取 spec.project）；
   // 以现有绑定作下限，新的选择覆盖它。
   const project = form.projectId || form.boundProjectId

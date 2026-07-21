@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import type { AgentSessionMeta } from '@luxagents/shared'
 import {
   buildKanbanViewModel,
+  deriveSubtaskRunState,
   type KanbanProject,
   type KanbanTaskRun,
   type TeambitionBinding,
@@ -160,5 +161,51 @@ describe('buildKanbanViewModel', () => {
     })
 
     expect(model.listItems.map((item) => item.id)).toEqual(['visible-session'])
+  })
+
+  test('解析任务专家优先于项目默认专家', () => {
+    const model = buildKanbanViewModel({
+      projects: [{ id: 'project-a', name: '项目 A', defaultExpertId: 'general' }],
+      sessions: [createSession({
+        id: 'task-session',
+        projectId: 'project-a',
+        taskSlug: 'release',
+        updatedAt: 20,
+      })],
+      runs: [],
+      bindings: [],
+      filter: { projectId: null },
+      expertIdsBySlug: new Map([['release', 'architect']]),
+    })
+
+    expect(model.listItems[0]?.expertId).toBe('architect')
+  })
+
+  test('任务未设专家时回退项目默认', () => {
+    const model = buildKanbanViewModel({
+      projects: [{ id: 'project-a', name: '项目 A', defaultExpertId: 'driver' }],
+      sessions: [createSession({
+        id: 'task-session',
+        projectId: 'project-a',
+        taskSlug: 'release',
+        updatedAt: 20,
+      })],
+      runs: [],
+      bindings: [],
+      filter: { projectId: null },
+    })
+
+    expect(model.listItems[0]?.expertId).toBe('driver')
+  })
+})
+
+describe('deriveSubtaskRunState', () => {
+  test('needs-review 不成 failed', () => {
+    expect(deriveSubtaskRunState(createSession({ sessionStatus: 'needs-review' }))).toBe('needs-review')
+  })
+
+  test('failed 与用户中断仍为 failed', () => {
+    expect(deriveSubtaskRunState(createSession({ sessionStatus: 'failed' }))).toBe('failed')
+    expect(deriveSubtaskRunState(createSession({ stoppedByUser: true, sessionStatus: 'running' }))).toBe('failed')
   })
 })

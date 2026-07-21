@@ -17,6 +17,8 @@ export const serverKanbanRunsAtom = atom<KanbanTaskRun[]>([])
 export const serverTeambitionBindingsAtom = atom<TeambitionBinding[]>([])
 /** taskSlug → DAG nodes，供卡片合并子任务行 */
 export const kanbanSpecNodesAtom = atom<Map<string, SpecNodeSummary[]>>(new Map())
+/** taskSlug → TaskSpec.defaults.expertId（未设则不入 map；展示时再与项目默认 resolve） */
+export const kanbanTaskExpertIdsAtom = atom<Map<string, string>>(new Map())
 
 /** 仅保存尚未得到服务端确认的列覆盖，避免污染服务端快照。 */
 interface OptimisticKanbanColumn {
@@ -52,6 +54,7 @@ export const kanbanItemsAtom = atom<KanbanItem[]>((get) => {
     bindings: get(serverTeambitionBindingsAtom),
     filter: { projectId: get(selectedProjectIdAtom) },
     specNodesBySlug: get(kanbanSpecNodesAtom),
+    expertIdsBySlug: get(kanbanTaskExpertIdsAtom),
     fallbackModel: get(agentModelIdAtom) ?? '',
   }).listItems
 

@@ -27,6 +27,13 @@ import {
   type RunLogEntry,
   type NodeRunState,
 } from '@luxagents/shared/tasks/storage'
+import type { ExpertPackage } from '@luxagents/shared/experts'
+import {
+  formatExpertPreamble,
+  mergeMcpIds,
+  mergeSkillSlugs,
+  resolveExpertId,
+} from '@luxagents/shared/experts'
 
 // ---------------------------------------------------------------------------
 // 本地类型（替代 OSS 的 protocol dto / SessionManager）
@@ -63,9 +70,14 @@ export interface CreateSessionOptions {
 // Host 接口
 // ---------------------------------------------------------------------------
 
+export interface ConductorSendMessageOptions {
+  mentionedSkills?: string[]
+  mentionedMcpServers?: string[]
+}
+
 export interface ConductorSessionHost {
   createSession(workspaceId: string, options: CreateSessionOptions): Promise<{ id: string }>;
-  sendMessage(sessionId: string, message: string): Promise<void>;
+  sendMessage(sessionId: string, message: string, options?: ConductorSendMessageOptions): Promise<void>;
   setSessionStatus(sessionId: string, status: string): Promise<void>;
   setKanbanColumn(sessionId: string, column: string | null): Promise<void>;
   setTaskNodeCount(sessionId: string, count: number): Promise<void>;
@@ -86,6 +98,10 @@ export interface TaskRunnerDeps {
   genRunId?: () => string;
   /** 冷启动/恢复时判断子会话 Agent 是否仍在跑；缺省视为未在跑 */
   isSessionActive?: (sessionId: string) => boolean;
+  /** 按专家 id 读取包；缺失返回 null；未注入则跳过专家 preamble */
+  getExpert?: (expertId: string) => ExpertPackage | null;
+  /** 解析项目 defaultExpertId；失败返回 null */
+  resolveProjectDefaultExpertId?: (projectId: string) => string | null;
 }
 
 export interface RunOptions {
@@ -358,7 +374,26 @@ class ActiveRun {
 
   private async dispatch(node: TaskNode): Promise<void> {
     try {
-      const prompt = skillsPreamble(this.spec.skills) + (await this.buildPrompt(node));
+      const projectDefault = this.spec.project && this.deps.resolveProjectDefaultExpertId
+        ? this.deps.resolveProjectDefaultExpertId(this.spec.project)
+        : null;
+      const expertId = resolveExpertId(this.spec.defaults?.expertId, projectDefault ?? undefined);
+      let expert: ExpertPackage | null = null;
+      if (expertId && this.deps.getExpert) {
+        try {
+          expert = this.deps.getExpert(expertId);
+          if (!expert) {
+            console.warn(`[TaskRunner] 专家不存在，跳过注入: ${expertId}`);
+          }
+        } catch (cause) {
+          console.warn(`[TaskRunner] 读取专家失败，跳过注入: ${expertId}`, cause);
+          expert = null;
+        }
+      }
+      const mergedSkills = mergeSkillSlugs(this.spec.skills, expert?.skillSlugs);
+      const mergedMcps = mergeMcpIds(undefined, expert?.mcpIds);
+      const expertBlock = expert ? formatExpertPreamble(expert) : '';
+      const prompt = skillsPreamble(mergedSkills) + expertBlock + (await this.buildPrompt(node));
       const cwd = (this.opts.orchestratorSessionId ? this.deps.host.getSessionWorkingDirectory(this.opts.orchestratorSessionId) : undefined) ?? this.spec.cwd;
       const options: CreateSessionOptions = {
         parentSessionId: this.opts.orchestratorSessionId,
@@ -380,7 +415,10 @@ class ActiveRun {
       this.sessionToNode.set(child.id, node.id);
       this.log({ kind: 'node-spawned', nodeId: node.id, sessionId: child.id });
       await this.deps.host.setKanbanColumn(child.id, 'in-progress');
-      await this.deps.host.sendMessage(child.id, prompt);
+      await this.deps.host.sendMessage(child.id, prompt, {
+        ...(mergedSkills.length > 0 ? { mentionedSkills: mergedSkills } : {}),
+        ...(mergedMcps.length > 0 ? { mentionedMcpServers: mergedMcps } : {}),
+      });
     } catch (err) {
       this.failNode(node.id, `dispatch 失败: ${(err as Error).message}`);
     }

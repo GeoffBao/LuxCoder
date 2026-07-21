@@ -16,6 +16,7 @@ import {
   moveCardAtom,
 } from '@/atoms/kanban-atoms'
 import {
+  pendingTaskEditorTargetAtom,
   selectedKanbanProjectAtom,
   selectedProjectIdAtom,
   serverKanbanProjectsAtom,
@@ -32,10 +33,19 @@ import { Button } from '@/components/ui/button'
 import type { KanbanItem, TaskEditorTarget } from './types'
 import { TeambitionPicker } from '@/components/work/TeambitionPicker'
 
+/** 任务创建/运行后回调；`ran` 为 true 时打开编排会话。 */
+export interface TaskCreatedEvent {
+  sessionId: string
+  slug?: string
+  projectId?: string
+  /** 是否已触发 tasks.run（创建并运行 / 看板运行） */
+  ran?: boolean
+}
+
 interface KanbanBoardContainerProps {
   onOpenItem?: (item: KanbanItem) => void
   onOpenSubtask?: (sessionId: string) => void
-  onTaskCreated?: () => void | Promise<void>
+  onTaskCreated?: (created?: TaskCreatedEvent) => void | Promise<void>
   onSessionCreated?: (session: AgentSessionMeta) => void
 }
 
@@ -63,11 +73,25 @@ export function KanbanBoardContainer({
   const [workspaceRoot, setWorkspaceRoot] = React.useState<string | null>(null)
   const [editorTarget, setEditorTarget] = React.useState<TaskEditorTarget | null>(null)
   const [teambitionPickerOpen, setTeambitionPickerOpen] = React.useState(false)
+  const pendingEditorTarget = useAtomValue(pendingTaskEditorTargetAtom)
+  const setPendingEditorTarget = useSetAtom(pendingTaskEditorTargetAtom)
 
   const { groups: modelGroups, modelToConnection } = React.useMemo(
     () => buildKanbanModelCatalog(channels),
     [channels],
   )
+
+  // 消费项目中心等跨视图「新建任务」请求
+  React.useEffect(() => {
+    if (!pendingEditorTarget) return
+    setEditorTarget({
+      mode: 'create',
+      ...(pendingEditorTarget.initialProjectId
+        ? { initialProjectId: pendingEditorTarget.initialProjectId }
+        : {}),
+    })
+    setPendingEditorTarget(null)
+  }, [pendingEditorTarget, setPendingEditorTarget])
 
   React.useEffect(() => {
     if (channelsLoaded && channels.length > 0) return
@@ -126,7 +150,16 @@ export function KanbanBoardContainer({
         modelGroups={modelGroups}
         modelToConnection={modelToConnection}
         onClose={() => setEditorTarget(null)}
-        onCreated={onTaskCreated ? async () => { await onTaskCreated() } : undefined}
+        onCreated={onTaskCreated
+          ? async (created) => {
+              await onTaskCreated({
+                sessionId: created.sessionId,
+                slug: created.slug,
+                ran: created.ran,
+                ...(created.projectId ? { projectId: created.projectId } : {}),
+              })
+            }
+          : undefined}
         onOpenSession={(sessionId) => {
           const item = items.find((candidate) => candidate.id === sessionId)
           if (item) onOpenItem?.(item)
@@ -175,9 +208,13 @@ export function KanbanBoardContainer({
           void window.electronAPI.tasks.run(workspaceRoot, workspace.id, item.session.taskSlug, {
             orchestratorSessionId: item.id,
           })
-            .then(() => {
+            .then(async () => {
               toast.success('任务已开始运行')
-              void onTaskCreated?.()
+              await onTaskCreated?.({
+                sessionId: item.id,
+                slug: item.session.taskSlug ?? undefined,
+                ran: true,
+              })
             })
             .catch((cause: unknown) => {
               toast.error('启动任务失败', {

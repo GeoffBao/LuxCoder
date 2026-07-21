@@ -7,6 +7,7 @@ import type {
 } from '@luxagents/shared'
 import type {
   ConductorSessionHost,
+  ConductorSendMessageOptions,
   CreateSessionOptions,
   SessionCompletionEvent,
 } from './task-runner'
@@ -102,7 +103,11 @@ export class LuxAgentsConductorSessionHost implements ConductorSessionHost {
     return { id: session.id }
   }
 
-  async sendMessage(sessionId: string, message: string): Promise<void> {
+  async sendMessage(
+    sessionId: string,
+    message: string,
+    options?: ConductorSendMessageOptions,
+  ): Promise<void> {
     const meta = asConductorSessionMeta(this.deps.getAgentSessionMeta(sessionId))
     if (!meta) throw new Error(`Agent 会话不存在: ${sessionId}`)
     if (!meta.channelId) throw new Error(`Agent 会话缺少 channelId: ${sessionId}`)
@@ -142,6 +147,10 @@ export class LuxAgentsConductorSessionHost implements ConductorSessionHost {
         ...(workingDirectory !== undefined ? { additionalDirectories: [workingDirectory] } : {}),
         triggeredBy: 'work',
         ...(meta.permissionMode !== undefined ? { permissionModeOverride: meta.permissionMode } : {}),
+        ...(options?.mentionedSkills?.length ? { mentionedSkills: options.mentionedSkills } : {}),
+        ...(options?.mentionedMcpServers?.length
+          ? { mentionedMcpServers: options.mentionedMcpServers }
+          : {}),
       }
       const sessionCallbacks: ConductorSessionCallbacks = {
         onError: () => {

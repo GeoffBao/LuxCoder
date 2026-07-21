@@ -27,12 +27,11 @@ import {
 } from './task-editor-model'
 import {
   getTaskExpertOption,
-  TASK_EXPERT_OPTIONS,
   type TaskEditorMode,
-  type TaskExpertId,
 } from './task-editor-ui-model'
 import { canDependOn, uid, type EditorSubtask } from './task-spec-form'
 import type { KanbanModelProviderGroup, KanbanProject, TaskEditorTarget } from './types'
+import { useExpertOptions } from '@/components/agent-experts/useExpertOptions'
 
 const GENERATE_TIMEOUT_MS = 200_000
 
@@ -49,7 +48,13 @@ export interface TaskEditorProps {
   modelGroups?: KanbanModelProviderGroup[]
   modelToConnection?: Map<string, string>
   onClose: () => void
-  onCreated?: (created: { sessionId: string; slug: string; projectId?: string }) => void | Promise<void>
+  onCreated?: (created: {
+    sessionId: string
+    slug: string
+    projectId?: string
+    /** 是否已执行 tasks.run */
+    ran?: boolean
+  }) => void | Promise<void>
   onOpenSession?: (sessionId: string) => void
   onOpenChildSession?: (sessionId: string) => void
 }
@@ -199,10 +204,15 @@ export function TaskEditor({
   onOpenSession,
   onOpenChildSession,
 }: TaskEditorProps): React.ReactElement {
-  const [draft, setDraft] = React.useState<TaskEditorDraft>(() => createTaskEditorDraft(target, defaultModel))
+  const initialProjectId = target.mode === 'create' ? target.initialProjectId : undefined
+  const initialExpertId = initialProjectId
+    ? projects.find((project) => project.id === initialProjectId)?.defaultExpertId
+    : undefined
+  const [draft, setDraft] = React.useState<TaskEditorDraft>(() =>
+    createTaskEditorDraft(target, defaultModel, initialExpertId ?? 'general'),
+  )
   const [tab, setTab] = React.useState<EditorTab>('definition')
   const [mode, setMode] = React.useState<TaskEditorMode>('manual')
-  const [expertId, setExpertId] = React.useState<TaskExpertId>('general')
   const [loading, setLoading] = React.useState(target.mode === 'edit')
   const [busy, setBusy] = React.useState(false)
   const [generating, setGenerating] = React.useState(false)
@@ -211,7 +221,8 @@ export function TaskEditor({
   const pendingGenerationRef = React.useRef<string | null>(null)
   const earlyGeneratedEventRef = React.useRef<TaskGeneratedEventPayload | null>(null)
   const generationTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
-  const expert = getTaskExpertOption(expertId)
+  const { options: expertOptions } = useExpertOptions()
+  const expert = getTaskExpertOption(draft.expertId ?? 'general', expertOptions)
 
   const patchDraft = (patch: Partial<TaskEditorDraft>): void => {
     setDraft((current) => ({ ...current, ...patch }))
@@ -369,6 +380,7 @@ export function TaskEditor({
       const createdEvent = {
         sessionId: created.orchestratorSessionId,
         slug: created.slug,
+        ran: runAfterCreate,
         ...(draft.projectId ? { projectId: draft.projectId } : {}),
       }
       onClose()
@@ -476,13 +488,17 @@ export function TaskEditor({
               <label className="space-y-1.5 text-xs font-medium">
                 Agent 专家
                 <select
-                  value={expertId}
-                  onChange={(event) => setExpertId(event.target.value as TaskExpertId)}
+                  value={draft.expertId ?? 'general'}
+                  onChange={(event) => patchDraft({ expertId: event.target.value || undefined })}
                   className="h-9 w-full rounded-md border border-border/60 bg-background px-2 text-sm"
                 >
-                  {TASK_EXPERT_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+                  {expertOptions.map((option) => (
+                    <option key={option.id} value={option.id}>{option.label}</option>
+                  ))}
                 </select>
-                <span className="block text-[11px] font-normal leading-4 text-muted-foreground">{expert.description}</span>
+                <span className="block text-[11px] font-normal leading-4 text-muted-foreground">
+                  {expert.description ?? '对应左侧「Agent 专家」模块中的角色配置'}
+                </span>
               </label>
               <label className="space-y-1.5 text-xs font-medium">最大修复次数<Input type="number" min={0} max={10} value={draft.maxRepairs ?? ''} onChange={(event) => patchDraft({ maxRepairs: event.target.value === '' ? undefined : Number(event.target.value) })} placeholder="默认 3" /></label>
             </div>
