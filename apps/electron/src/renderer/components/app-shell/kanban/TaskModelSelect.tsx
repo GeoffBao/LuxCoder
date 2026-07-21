@@ -79,7 +79,12 @@ export function TaskModelSelect({
           </span>
         </SelectButton>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="max-h-[320px] min-w-[220px]">
+      <DropdownMenuContent
+        align="start"
+        side="bottom"
+        collisionPadding={8}
+        className="z-[9999] max-h-[320px] min-w-[220px]"
+      >
         {groups.length === 0 ? (
           <div className="px-2 py-1.5 text-xs text-muted-foreground">暂无可用模型，请先配置渠道</div>
         ) : (
