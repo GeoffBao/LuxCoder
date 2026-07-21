@@ -3,6 +3,7 @@ import type { ExpertPackage } from '../types.ts'
 import {
   EXPERT_PREAMBLE_MAX_CHARS,
   formatExpertPreamble,
+  mergeMcpIds,
   mergeSkillSlugs,
   resolveExpertId,
 } from '../prompt.ts'
@@ -49,6 +50,12 @@ describe('mergeSkillSlugs', () => {
   })
   test('两边空返回空数组', () => {
     expect(mergeSkillSlugs(undefined, undefined)).toEqual([])
+  })
+})
+
+describe('mergeMcpIds', () => {
+  test('与 skills 同序去重', () => {
+    expect(mergeMcpIds(['fs'], ['fs', 'browser'])).toEqual(['fs', 'browser'])
   })
 })
 

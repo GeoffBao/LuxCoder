@@ -30,6 +30,7 @@ import {
 import type { ExpertPackage } from '@luxagents/shared/experts'
 import {
   formatExpertPreamble,
+  mergeMcpIds,
   mergeSkillSlugs,
   resolveExpertId,
 } from '@luxagents/shared/experts'
@@ -69,9 +70,14 @@ export interface CreateSessionOptions {
 // Host 接口
 // ---------------------------------------------------------------------------
 
+export interface ConductorSendMessageOptions {
+  mentionedSkills?: string[]
+  mentionedMcpServers?: string[]
+}
+
 export interface ConductorSessionHost {
   createSession(workspaceId: string, options: CreateSessionOptions): Promise<{ id: string }>;
-  sendMessage(sessionId: string, message: string): Promise<void>;
+  sendMessage(sessionId: string, message: string, options?: ConductorSendMessageOptions): Promise<void>;
   setSessionStatus(sessionId: string, status: string): Promise<void>;
   setKanbanColumn(sessionId: string, column: string | null): Promise<void>;
   setTaskNodeCount(sessionId: string, count: number): Promise<void>;
@@ -385,6 +391,7 @@ class ActiveRun {
         }
       }
       const mergedSkills = mergeSkillSlugs(this.spec.skills, expert?.skillSlugs);
+      const mergedMcps = mergeMcpIds(undefined, expert?.mcpIds);
       const expertBlock = expert ? formatExpertPreamble(expert) : '';
       const prompt = skillsPreamble(mergedSkills) + expertBlock + (await this.buildPrompt(node));
       const cwd = (this.opts.orchestratorSessionId ? this.deps.host.getSessionWorkingDirectory(this.opts.orchestratorSessionId) : undefined) ?? this.spec.cwd;
@@ -408,7 +415,10 @@ class ActiveRun {
       this.sessionToNode.set(child.id, node.id);
       this.log({ kind: 'node-spawned', nodeId: node.id, sessionId: child.id });
       await this.deps.host.setKanbanColumn(child.id, 'in-progress');
-      await this.deps.host.sendMessage(child.id, prompt);
+      await this.deps.host.sendMessage(child.id, prompt, {
+        ...(mergedSkills.length > 0 ? { mentionedSkills: mergedSkills } : {}),
+        ...(mergedMcps.length > 0 ? { mentionedMcpServers: mergedMcps } : {}),
+      });
     } catch (err) {
       this.failNode(node.id, `dispatch 失败: ${(err as Error).message}`);
     }

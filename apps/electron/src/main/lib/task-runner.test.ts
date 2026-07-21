@@ -6,6 +6,7 @@ import type { TaskSpec } from '@luxagents/shared/tasks/schema'
 import { appendRunLog, saveTaskSpec, writeRunSpecSnapshot } from '@luxagents/shared/tasks/storage'
 import {
   TaskRunner,
+  type ConductorSendMessageOptions,
   type ConductorSessionHost,
   type CreateSessionOptions,
   type SessionCompletionEvent,
@@ -45,6 +46,7 @@ function buildSpec(overrides: Partial<TaskSpec> = {}): TaskSpec {
 class FakeConductorSessionHost implements ConductorSessionHost {
   readonly createdSessions: Array<{ id: string; workspaceId: string; options: CreateSessionOptions }> = []
   readonly sentMessages = new Map<string, string[]>()
+  readonly sentOptions = new Map<string, Array<ConductorSendMessageOptions | undefined>>()
   readonly cancelledSessions: string[] = []
   readonly statusUpdates: Array<{ sessionId: string; status: string }> = []
   readonly kanbanUpdates: Array<{ sessionId: string; column: string | null }> = []
@@ -64,10 +66,17 @@ class FakeConductorSessionHost implements ConductorSessionHost {
     return { id }
   }
 
-  async sendMessage(sessionId: string, message: string): Promise<void> {
+  async sendMessage(
+    sessionId: string,
+    message: string,
+    options?: ConductorSendMessageOptions,
+  ): Promise<void> {
     const existing = this.sentMessages.get(sessionId) ?? []
     existing.push(message)
     this.sentMessages.set(sessionId, existing)
+    const optionLog = this.sentOptions.get(sessionId) ?? []
+    optionLog.push(options)
+    this.sentOptions.set(sessionId, optionLog)
   }
 
   async setSessionStatus(sessionId: string, status: string): Promise<void> {
@@ -493,7 +502,7 @@ describe('TaskRunner', () => {
             id: 'architect',
             label: '软件架构师',
             skillSlugs: ['task-skill', 'pdf'],
-            mcpIds: [],
+            mcpIds: ['filesystem', 'browser'],
             channelBindings: [],
             identityMd: 'I am architect',
             soulMd: 'calm',
@@ -508,6 +517,10 @@ describe('TaskRunner', () => {
     expect(message).toContain('<agent_expert id="architect"')
     expect(message).toContain('I am architect')
     expect(message).toContain('draft the task')
+    expect(host.sentOptions.get('session-1')?.[0]).toEqual({
+      mentionedSkills: ['task-skill', 'pdf'],
+      mentionedMcpServers: ['filesystem', 'browser'],
+    })
   })
 
   test('专家缺失时仍派发且无 agent_expert 块', async () => {

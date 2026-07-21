@@ -17,7 +17,8 @@
 | 注入内容 | **身份核**（IDENTITY / SOUL / RULES）+ **skill 引用提示**（与任务 `skills` 去重合并） |
 | 注入落点 | **用户消息 preamble**（对齐现有 `skillsPreamble`），不改 systemPrompt / buildDynamicContext |
 | 实现路径 | **shared 纯函数 + TaskRunnerDeps IO**（方案 1） |
-| 本轮不做 | mcpIds 注入、Skill 全文内联、Code 交互会话、自动化/飞书、蜂群、Bot |
+| 本轮不做 | Skill 全文内联、Code 交互会话、自动化/飞书、蜂群、Bot |
+| ~~mcpIds 注入~~ | **已接入**：专家 `mcpIds` → `sendMessage({ mentionedMcpServers })`（与 `#mcp:` 同路） |
 
 ## 3. 目标行为
 

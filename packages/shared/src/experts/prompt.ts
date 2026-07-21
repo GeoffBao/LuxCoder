@@ -31,6 +31,14 @@ export function mergeSkillSlugs(
   return out
 }
 
+/** 任务侧 MCP 与专家 mcpIds 去重合并（任务在前）；无任务字段时仅专家。 */
+export function mergeMcpIds(
+  taskMcpIds: string[] | undefined,
+  expertMcpIds: string[] | undefined,
+): string[] {
+  return mergeSkillSlugs(taskMcpIds, expertMcpIds)
+}
+
 function escapeAttr(value: string): string {
   return value
     .replace(/&/g, '&amp;')

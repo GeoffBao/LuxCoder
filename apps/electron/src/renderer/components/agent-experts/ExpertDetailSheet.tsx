@@ -251,7 +251,7 @@ function ExpertDetailBody({ expert, onOpenChange, onSaved }: ExpertDetailBodyPro
 
           <ExpertFieldSection
             title="MCP 引用"
-            description="勾选当前工作区 MCP；目前仅持久化到专家包，运行时注入后续接入。"
+            description="勾选当前工作区 MCP；跑 Kanban 任务时经 mentionedMcpServers 注入（与 #mcp: 同路）。"
           >
             <SettingsCard divided={false}>
               {catalogLoading ? (
