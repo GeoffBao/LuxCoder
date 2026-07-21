@@ -254,7 +254,7 @@ interface StartDelegationResult {
 
 interface PiDelegationToolResult {
   delegationId: string
-  effectivePermissionMode: PromaPermissionMode
+  effectivePermissionMode: LuxAgentsPermissionMode
   effectiveModelId?: string
 }
 

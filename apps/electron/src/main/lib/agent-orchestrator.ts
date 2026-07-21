@@ -1646,7 +1646,7 @@ ${workContext}` : '')
         onModelResolved: handleModelResolved,
         onContextWindow: handleContextWindow,
         onRetry: (retry) => {
-          this.eventBus.emit(sessionId, { kind: 'proma_event', event: { type: 'retry', ...retry } })
+          this.eventBus.emit(sessionId, { kind: 'luxagents_event', event: { type: 'retry', ...retry } })
         },
       } : {
         agentRuntime: 'claude',

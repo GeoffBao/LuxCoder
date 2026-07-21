@@ -754,7 +754,7 @@ async function testQwenTokenPlanMessages(
       'anthropic-version': '2023-06-01',
       'content-type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
-      'User-Agent': getPromaUserAgent(pkg.version),
+      'User-Agent': getAppUserAgent(pkg.version),
     },
     body: JSON.stringify({
       model: modelId,
