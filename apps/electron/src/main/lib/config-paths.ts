@@ -396,6 +396,25 @@ export function getDefaultSkillsDir(): string {
 }
 
 /**
+ * 获取 Agent 专家包根目录路径
+ *
+ * 内置与自定义专家包均存放于此目录下的 {id}/ 子目录。
+ * 如果目录不存在则自动创建。
+ *
+ * @returns ~/.luxagents/experts/
+ */
+export function getExpertsDir(): string {
+  const dir = join(getConfigDir(), 'experts')
+
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true })
+    console.log(`[配置] 已创建专家目录: ${dir}`)
+  }
+
+  return dir
+}
+
+/**
  * 从 SKILL.md 的 YAML frontmatter 中解析 version 字段
  *
  * 无 version 字段时返回 '0.0.0'（确保旧 Skill 会被更新）。

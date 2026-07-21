@@ -22,6 +22,7 @@ export { FEISHU_IPC_CHANNELS } from './types/feishu'
 export { DINGTALK_IPC_CHANNELS } from './types/dingtalk'
 export { WECHAT_IPC_CHANNELS } from './types/wechat'
 export { AUTOMATION_IPC_CHANNELS } from './types/automation'
+export { EXPERT_IPC_CHANNELS } from './experts/channels'
 export {
   PROJECT_IPC_CHANNELS,
   TASK_IPC_CHANNELS,

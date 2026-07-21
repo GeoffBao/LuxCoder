@@ -9,7 +9,7 @@ import { join, resolve, sep, dirname } from 'node:path'
 import { existsSync, realpathSync, rmSync, readFileSync, writeFileSync, mkdirSync, statSync } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, MEMORY_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS, isLuxAgentsPermissionMode, normalizePathForCompare } from '@luxagents/shared'
+import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, MEMORY_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS, EXPERT_IPC_CHANNELS, isLuxAgentsPermissionMode, normalizePathForCompare } from '@luxagents/shared'
 import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, SCRATCH_PAD_IPC_CHANNELS, QUICK_TASK_IPC_CHANNELS, VOICE_DICTATION_IPC_CHANNELS, APP_ICON_IPC_CHANNELS, DOCK_BADGE_IPC_CHANNELS, STORAGE_IPC_CHANNELS } from '../types'
 import type {
   QuickTaskSubmitInput,
@@ -111,6 +111,7 @@ import type {
   CreateAutomationInput,
   UpdateAutomationInput,
 } from '@luxagents/shared'
+import type { ExpertManifest, ExpertPackage } from '@luxagents/shared/experts'
 import type { UserProfile, AppSettings } from '../types'
 import { getRuntimeStatus, getGitRepoStatus, reinitializeRuntime } from './lib/runtime-init'
 import { getUnstagedChanges, getFileDiff, getUntrackedContent, revertFile, getDiffContents, listWorktrees, getWorktreeChanges, getMainRepoRoot } from './lib/git-diff-service'
@@ -170,6 +171,12 @@ import {
 } from './lib/automation-manager'
 import { runAutomationNow, broadcastChanged as broadcastAutomationsChanged } from './lib/automation-scheduler'
 import {
+  getExpert,
+  listExperts,
+  updateExpertFiles,
+  updateExpertManifest,
+} from './lib/expert-service'
+import {
   listAgentSessions,
   createAgentSession,
   getAgentSessionMeta,
@@ -188,7 +195,7 @@ import { runAgent, stopAgent, generateAgentTitle, saveFilesToAgentSession, saveF
 import { permissionService } from './lib/agent-permission-service'
 import { askUserService } from './lib/agent-ask-user-service'
 import { exitPlanService } from './lib/agent-exit-plan-service'
-import { getAgentSessionWorkspacePath, getAgentWorkspacesDir, getWorkspaceSkillsDir, getWorkspaceFilesDir, getScratchPadPath } from './lib/config-paths'
+import { getAgentSessionWorkspacePath, getAgentWorkspacesDir, getWorkspaceSkillsDir, getWorkspaceFilesDir, getScratchPadPath, getExpertsDir } from './lib/config-paths'
 import { getAgentWorkspacePath } from './lib/config-paths'
 import { calculateStorageStats, cleanupStorage, cleanupTempFiles } from './lib/storage-service'
 import type { CleanupOptions } from './lib/storage-service'
@@ -4351,5 +4358,46 @@ export function registerIpcHandlers(): void {
       if (!isNonEmptyString(id)) throw new Error('id 必填')
       await runAutomationNow(id)
     }
+  )
+
+  // ===== Agent 专家包 =====
+
+  ipcMain.handle(
+    EXPERT_IPC_CHANNELS.LIST,
+    async (): Promise<ExpertPackage[]> => listExperts(getExpertsDir()),
+  )
+
+  ipcMain.handle(
+    EXPERT_IPC_CHANNELS.GET,
+    async (_, id: string): Promise<ExpertPackage | null> => {
+      if (!isNonEmptyString(id)) throw new Error('id 必填')
+      return getExpert(getExpertsDir(), id)
+    },
+  )
+
+  ipcMain.handle(
+    EXPERT_IPC_CHANNELS.UPDATE_MANIFEST,
+    async (
+      _,
+      id: string,
+      patch: Partial<Pick<ExpertManifest, 'skillSlugs' | 'mcpIds' | 'label'>>,
+    ): Promise<ExpertPackage> => {
+      if (!isNonEmptyString(id)) throw new Error('id 必填')
+      if (!patch || typeof patch !== 'object') throw new Error('patch 必须是对象')
+      return updateExpertManifest(getExpertsDir(), id, patch)
+    },
+  )
+
+  ipcMain.handle(
+    EXPERT_IPC_CHANNELS.UPDATE_FILES,
+    async (
+      _,
+      id: string,
+      files: Partial<{ identityMd: string; soulMd: string; rulesMd: string }>,
+    ): Promise<ExpertPackage> => {
+      if (!isNonEmptyString(id)) throw new Error('id 必填')
+      if (!files || typeof files !== 'object') throw new Error('files 必须是对象')
+      return updateExpertFiles(getExpertsDir(), id, files)
+    },
   )
 }

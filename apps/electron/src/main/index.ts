@@ -86,7 +86,8 @@ import { registerIpcHandlers } from './ipc'
 import { registerTaskHandlers, rehydrateIncompleteTaskRuns, healOrphanedTaskRuns } from './lib/task-handlers'
 import { createTray, destroyTray, getTray } from './tray'
 import { initializeRuntime } from './lib/runtime-init'
-import { seedDefaultSkills } from './lib/config-paths'
+import { seedDefaultSkills, getExpertsDir } from './lib/config-paths'
+import { seedBuiltinExperts } from './lib/expert-service'
 import { upgradeDefaultSkillsInWorkspaces } from './lib/agent-workspace-manager'
 import { stopAllAgents, killOrphanedClaudeSubprocesses, isAgentSessionActive } from './lib/agent-service'
 import { markRunningDelegationsAsInterrupted, markStaleTaskSessionsIdle } from './lib/agent-session-manager'
@@ -500,6 +501,9 @@ async function bootstrap(): Promise<void> {
 
   // 同步默认 Skills 模板到 ~/.luxagents/default-skills/
   safeRun('seedDefaultSkills', seedDefaultSkills)
+
+  // 种子内置 Agent 专家包到 ~/.luxagents/experts/
+  safeRun('seedBuiltinExperts', () => seedBuiltinExperts(getExpertsDir()))
 
   // 升级所有工作区中版本过旧的默认 Skills
   safeRun('upgradeDefaultSkillsInWorkspaces', upgradeDefaultSkillsInWorkspaces)

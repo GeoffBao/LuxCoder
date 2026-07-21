@@ -54,6 +54,9 @@ export * from './wechat'
 // 定时任务（Automation）相关类型
 export * from './automation'
 
+// Agent 专家包 IPC 通道
+export { EXPERT_IPC_CHANNELS } from '../experts/channels'
+
 // Projects 相关类型（仅类型，避免 renderer 引入 Node.js 文件存储实现）
 export type * from '../projects/types'
 
