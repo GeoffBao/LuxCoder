@@ -1,13 +1,13 @@
-@luxagents/**
+/**
  * BuiltinMcpDetailSheet — LuxAgents 内置 MCP 托管详情
- *@luxagents/
+ */
 
 import * as React from 'react'
 import { ArrowLeft, CheckCircle2, Plug, Settings2, XCircle } from 'lucide-react'
-import { Button } from '@@luxagents/components@luxagents/ui@luxagents/button'
-import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@@luxagents/components@luxagents/ui@luxagents/sheet'
-import { cn } from '@@luxagents/lib@luxagents/utils'
-import type { BuiltinMcpServerSummary } from '@proma@luxagents/shared'
+import { Button } from '@/components/ui/button'
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
+import { cn } from '@/lib/utils'
+import type { BuiltinMcpServerSummary } from '@luxagents/shared'
 
 interface BuiltinMcpDetailSheetProps {
   open: boolean
@@ -33,7 +33,7 @@ interface BuiltinMcpConfigInfo {
 function getConfigInfo(server: BuiltinMcpServerSummary): BuiltinMcpConfigInfo {
   if (server.id === 'nano-banana') {
     return {
-      source: 'Chat 工具 @luxagents/ Nano Banana',
+      source: 'Chat 工具 / Nano Banana',
       description: '配置 Gemini API Key、API 地址、模型与开关后，Agent 会话才能注入生图 MCP。',
       actionLabel: '配置生图',
     }
@@ -62,52 +62,52 @@ export function BuiltinMcpDetailSheet({ open, server, onOpenChange, onConfigure 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent hideClose side="right" className="w-[560px] sm:max-w-[560px] p-0 flex flex-col gap-0">
-        <SheetTitle className="sr-only">{server ? `MCP 详情 · ${server.displayName}` : 'MCP 详情'}<@luxagents/SheetTitle>
+        <SheetTitle className="sr-only">{server ? `MCP 详情 · ${server.displayName}` : 'MCP 详情'}</SheetTitle>
         <div className="flex h-full flex-col min-h-0">
-          <div className="shrink-0 border-b border-border@luxagents/60 px-5 pb-4 pt-5">
+          <div className="shrink-0 border-b border-border/60 px-5 pb-4 pt-5">
             <div className="flex items-center gap-3">
               <Button variant="ghost" size="icon" className="h-8 w-8" type="button" onClick={() => onOpenChange(false)}>
-                <ArrowLeft size={18} @luxagents/>
-              <@luxagents/Button>
-              <h3 className="text-lg font-medium text-foreground">MCP 详情<@luxagents/h3>
-            <@luxagents/div>
+                <ArrowLeft size={18} />
+              </Button>
+              <h3 className="text-lg font-medium text-foreground">MCP 详情</h3>
+            </div>
             {server && (
               <div className="mt-4 flex items-start gap-3">
-                <div className="rounded-xl bg-blue-500@luxagents/12 p-2 text-blue-500 shadow-sm shrink-0">
-                  <Plug size={18} @luxagents/>
-                <@luxagents/div>
+                <div className="rounded-xl bg-blue-500/12 p-2 text-blue-500 shadow-sm shrink-0">
+                  <Plug size={18} />
+                </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <h3 className="truncate text-base font-semibold text-foreground">{server.displayName}<@luxagents/h3>
-                    <span className="shrink-0 rounded-md bg-blue-500@luxagents/10 px-1.5 py-0.5 text-[11px] font-medium text-blue-600 dark:text-blue-400">
+                    <h3 className="truncate text-base font-semibold text-foreground">{server.displayName}</h3>
+                    <span className="shrink-0 rounded-md bg-blue-500/10 px-1.5 py-0.5 text-[11px] font-medium text-blue-600 dark:text-blue-400">
                       LuxAgents 内置
-                    <@luxagents/span>
-                  <@luxagents/div>
-                  <div className="mt-0.5 truncate text-xs text-muted-foreground">{server.name}<@luxagents/div>
-                <@luxagents/div>
-              <@luxagents/div>
+                    </span>
+                  </div>
+                  <div className="mt-0.5 truncate text-xs text-muted-foreground">{server.name}</div>
+                </div>
+              </div>
             )}
-          <@luxagents/div>
+          </div>
 
           <div className="flex-1 overflow-y-auto scrollbar-thin p-5">
             {server && configInfo && (
               <div className="flex flex-col gap-6">
-                <SheetDescription>{server.description}<@luxagents/SheetDescription>
+                <SheetDescription>{server.description}</SheetDescription>
 
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <InfoItem label="MCP 名称" value={server.name} @luxagents/>
-                  <InfoItem label="分类" value={CATEGORY_LABELS[server.category]} @luxagents/>
-                  <InfoItem label="注入开关" value={server.enabled ? '允许注入' : '已手动关闭'} tone={server.enabled ? 'success' : 'muted'} @luxagents/>
-                  <InfoItem label="可用状态" value={server.available ? '当前可用' : (server.availabilityReason ?? '不可用')} tone={server.available ? 'success' : 'muted'} @luxagents/>
-                  <InfoItem label="配置来源" value={configInfo.source} @luxagents/>
-                <@luxagents/div>
+                  <InfoItem label="MCP 名称" value={server.name} />
+                  <InfoItem label="分类" value={CATEGORY_LABELS[server.category]} />
+                  <InfoItem label="注入开关" value={server.enabled ? '允许注入' : '已手动关闭'} tone={server.enabled ? 'success' : 'muted'} />
+                  <InfoItem label="可用状态" value={server.available ? '当前可用' : (server.availabilityReason ?? '不可用')} tone={server.available ? 'success' : 'muted'} />
+                  <InfoItem label="配置来源" value={configInfo.source} />
+                </div>
 
-                <section className="rounded-lg bg-muted@luxagents/45 p-3">
+                <section className="rounded-lg bg-muted/45 p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="text-sm font-medium text-foreground">如何配置<@luxagents/div>
-                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{configInfo.description}<@luxagents/p>
-                    <@luxagents/div>
+                      <div className="text-sm font-medium text-foreground">如何配置</div>
+                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{configInfo.description}</p>
+                    </div>
                     {configInfo.actionLabel && onConfigure && (
                       <Button
                         size="sm"
@@ -115,53 +115,53 @@ export function BuiltinMcpDetailSheet({ open, server, onOpenChange, onConfigure 
                         className="shrink-0"
                         onClick={() => onConfigure(server.id)}
                       >
-                        <Settings2 size={14} @luxagents/>
-                        <span>{configInfo.actionLabel}<@luxagents/span>
-                      <@luxagents/Button>
+                        <Settings2 size={14} />
+                        <span>{configInfo.actionLabel}</span>
+                      </Button>
                     )}
-                  <@luxagents/div>
-                <@luxagents/section>
+                  </div>
+                </section>
 
                 <section className="flex flex-col gap-3">
-                  <div className="text-sm font-medium text-foreground">工具<@luxagents/div>
+                  <div className="text-sm font-medium text-foreground">工具</div>
                   <div className="flex flex-col gap-2">
                     {server.tools.map((tool) => (
-                      <div key={tool.name} className="rounded-lg bg-muted@luxagents/45 p-3">
+                      <div key={tool.name} className="rounded-lg bg-muted/45 p-3">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-foreground">{tool.name}<@luxagents/span>
+                          <span className="text-sm font-medium text-foreground">{tool.name}</span>
                           {tool.readOnly && (
-                            <span className="rounded-md bg-foreground@luxagents/5 px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                            <span className="rounded-md bg-foreground/5 px-1.5 py-0.5 text-[11px] text-muted-foreground">
                               只读
-                            <@luxagents/span>
+                            </span>
                           )}
-                        <@luxagents/div>
-                        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{tool.description}<@luxagents/p>
-                      <@luxagents/div>
+                        </div>
+                        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{tool.description}</p>
+                      </div>
                     ))}
-                  <@luxagents/div>
-                <@luxagents/section>
-              <@luxagents/div>
+                  </div>
+                </section>
+              </div>
             )}
-          <@luxagents/div>
-        <@luxagents/div>
-      <@luxagents/SheetContent>
-    <@luxagents/Sheet>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
   )
 }
 
 function InfoItem({ label, value, tone = 'default' }: { label: string; value: string; tone?: 'default' | 'success' | 'muted' }): React.ReactElement {
   return (
-    <div className="rounded-lg bg-muted@luxagents/45 p-3">
-      <div className="text-[11px] font-medium text-muted-foreground">{label}<@luxagents/div>
+    <div className="rounded-lg bg-muted/45 p-3">
+      <div className="text-[11px] font-medium text-muted-foreground">{label}</div>
       <div className={cn(
         'mt-1 flex items-center gap-1.5 text-sm font-medium',
         tone === 'success' && 'text-emerald-600 dark:text-emerald-400',
         tone === 'muted' && 'text-muted-foreground',
       )}>
-        {tone === 'success' && <CheckCircle2 size={14} @luxagents/>}
-        {tone === 'muted' && <XCircle size={14} @luxagents/>}
-        <span>{value}<@luxagents/span>
-      <@luxagents/div>
-    <@luxagents/div>
+        {tone === 'success' && <CheckCircle2 size={14} />}
+        {tone === 'muted' && <XCircle size={14} />}
+        <span>{value}</span>
+      </div>
+    </div>
   )
 }
