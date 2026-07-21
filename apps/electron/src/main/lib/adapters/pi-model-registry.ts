@@ -248,7 +248,7 @@ function normalizePiBaseUrl(baseUrl: string | undefined, provider: ProviderType)
   return baseUrl.trim().replace(/\/$/, '')
 }
 
-export function requiresPromaUserAgent(provider: ProviderType): boolean {
+export function requiresAppUserAgent(provider: ProviderType): boolean {
   return provider === 'kimi-coding'
     || provider === 'xiaomi-token-plan'
     || provider === 'qwen-token-plan'
@@ -257,7 +257,7 @@ export function requiresPromaUserAgent(provider: ProviderType): boolean {
 }
 
 function usesBearerOnlyAnthropicAuth(provider: ProviderType): boolean {
-  return requiresPromaUserAgent(provider) || provider === 'minimax' || provider === 'qwen-anthropic'
+  return requiresAppUserAgent(provider) || provider === 'minimax' || provider === 'qwen-anthropic'
 }
 
 export function buildPiRequestHeaders(provider: ProviderType, apiKey: string): PiRequestHeaders | undefined {
@@ -267,7 +267,7 @@ export function buildPiRequestHeaders(provider: ProviderType, apiKey: string): P
     Authorization: `Bearer ${apiKey}`,
   }
 
-  if (requiresPromaUserAgent(provider)) {
+  if (requiresAppUserAgent(provider)) {
     headers['User-Agent'] = getAppUserAgent()
   }
 
