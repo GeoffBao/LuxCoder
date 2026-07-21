@@ -32,6 +32,16 @@ export function isLegacyCoworkMode(mode: AppMode): boolean {
   return mode === 'cowork'
 }
 
+/** activeView 是否为全屏覆盖视图（非 conversations 主内容） */
+export function isOverlayActiveView(activeView: ActiveView): boolean {
+  return (
+    activeView === 'automations' ||
+    activeView === 'agent-skills' ||
+    activeView === 'projects' ||
+    activeView === 'agent-experts'
+  )
+}
+
 /**
  * agent 模式主区是否渲染 Work 视图（看板 / 项目详情）。
  *

@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import {
   isLegacyCoworkMode,
+  isOverlayActiveView,
   normalizeAppModeForUi,
   shouldShowWorkViewInCode,
 } from '../code-main-view-model'
@@ -49,6 +50,19 @@ describe('shouldShowWorkViewInCode', () => {
     })).toBe(false)
   })
 
+  test('projects / agent-experts 覆盖视图优先，看板让位', () => {
+    expect(shouldShowWorkViewInCode({
+      appMode: 'agent',
+      codeMainView: 'work',
+      activeView: 'projects',
+    })).toBe(false)
+    expect(shouldShowWorkViewInCode({
+      appMode: 'agent',
+      codeMainView: 'work',
+      activeView: 'agent-experts',
+    })).toBe(false)
+  })
+
   test('非 agent 模式不经过此判定（遗留 cowork 由启动迁移处理）', () => {
     expect(shouldShowWorkViewInCode({
       appMode: 'cowork',
@@ -60,5 +74,15 @@ describe('shouldShowWorkViewInCode', () => {
       codeMainView: 'work',
       activeView: 'conversations',
     })).toBe(false)
+  })
+})
+
+describe('isOverlayActiveView', () => {
+  test('isOverlayActiveView 识别四类覆盖视图', () => {
+    expect(isOverlayActiveView('conversations')).toBe(false)
+    expect(isOverlayActiveView('automations')).toBe(true)
+    expect(isOverlayActiveView('agent-skills')).toBe(true)
+    expect(isOverlayActiveView('projects')).toBe(true)
+    expect(isOverlayActiveView('agent-experts')).toBe(true)
   })
 })
