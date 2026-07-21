@@ -458,13 +458,9 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
   const [deletingWorkspaceId, setDeletingWorkspaceId] = React.useState<string | null>(null)
   /** 待迁移会话 ID，非空时显示迁移对话框 */
   const [moveTargetId, setMoveTargetId] = React.useState<string | null>(null)
-<<<<<<< HEAD
-  /** 每个工作区额外展开显示的会话数量（每次点击"显示更多" +10），未点击则为 0 或无值 */
-=======
   /** 待迁移会话所属的工作区 ID（用于对话框排除当前分区） */
   const [moveSourceWorkspaceId, setMoveSourceWorkspaceId] = React.useState<string | undefined>()
-  /** 每个项目额外展开显示的会话数量（每次点击"显示更多" +10），未点击则为 0 或无值 */
->>>>>>> d485ef1d (fix(agent): use session's own workspace for move dialog exclusion filter (#983))
+  /** 每个工作区额外展开显示的会话数量（每次点击"显示更多" +10），未点击则为 0 或无值 */
   const [expandedExtraCountMap, setExpandedExtraCountMap] = React.useState<Map<string, number>>(new Map())
   /** 记录被用户手动折叠的工作区 ID（点击当前工作区标题时折叠/展开）。刻意不持久化：折叠被视为临时查看行为，刷新/重启后恢复默认展开 */
   const [collapsedWorkspaceIds, setCollapsedWorkspaceIds] = React.useState<Set<string>>(new Set())
