@@ -1,7 +1,7 @@
 # Code 壳 Projects + Board 信息架构设计
 
 日期：2026-07-20（2026-07-21 修订：§4.4 左栏模块契约、§4.1 删除已不存在的 ProjectsListPanel、§8/§9 同步）  
-状态：已评审（brainstorming）  
+状态：已评审（brainstorming）— **§4.4「项目 collapsible 展开」已被 `2026-07-21-projects-hub-agent-experts-design.md` 废止**（改为入口行 → 项目中心 Hub）  
 范围：P0 实现边界 + P1/P2 展望
 
 ## 1. 问题
