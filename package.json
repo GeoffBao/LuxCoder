@@ -15,7 +15,9 @@
     "electron:start": "bun run --filter='@luxagents/electron' start",
     "build": "bun run --filter='*' build",
     "typecheck": "bun run --filter='*' typecheck",
-    "test": "bun test"
+    "test": "bun test",
+    "sync:check": "bun scripts/upstream-sync/check.ts",
+    "sync:apply-renames": "bun scripts/upstream-sync/apply-renames.ts"
   },
   "devDependencies": {
     "@rollup/rollup-darwin-x64": "4.56.0",
