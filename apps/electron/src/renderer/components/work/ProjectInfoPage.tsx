@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import type { KanbanProject } from '../app-shell/kanban/types'
 import { buildProjectUpdate, getProjectSessions, type ProjectColumnDraft } from './project-view-model'
+import { BUILTIN_EXPERT_OPTIONS } from './projects-hub-model'
 
 type ProjectTab = 'sessions' | 'assets' | 'memory' | 'settings'
 
@@ -229,6 +230,27 @@ export function ProjectInfoPage({
                 }
                 placeholder="绝对路径；新会话可继承"
               />
+            </label>
+            <label className="block space-y-1.5 text-xs font-medium">
+              默认专家
+              <select
+                value={settingsDraft.defaultExpertId}
+                onChange={(event) =>
+                  setSettingsDraft((current) => ({
+                    ...current,
+                    defaultExpertId: event.target.value,
+                  }))
+                }
+                className="flex h-9 w-full rounded-md border border-border/60 bg-background/40 px-3 py-1 text-sm shadow-xs transition-[border-color,box-shadow,background-color] duration-150 ease-out hover:border-border focus-visible:border-ring focus-visible:bg-background focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/15"
+              >
+                <option value="">未设置</option>
+                {BUILTIN_EXPERT_OPTIONS.map((expert) => (
+                  <option key={expert.id} value={expert.id}>
+                    {expert.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] font-normal text-muted-foreground">将用于任务默认专家（运行时后续接入）</p>
             </label>
             <label className="block space-y-1.5 text-xs font-medium">描述<Input value={settingsDraft.description} onChange={(event) => setSettingsDraft((current) => ({ ...current, description: event.target.value }))} /></label>
             <label className="block space-y-1.5 text-xs font-medium">项目说明<Textarea value={settingsDraft.details} onChange={(event) => setSettingsDraft((current) => ({ ...current, details: event.target.value }))} rows={5} /></label>

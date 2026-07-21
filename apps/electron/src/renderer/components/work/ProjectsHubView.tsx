@@ -31,20 +31,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import type { KanbanProject } from '@/components/app-shell/kanban/types'
 import { CreateProjectDialog } from './CreateProjectDialog'
 import { filterProjects } from './project-view-model'
-import { resolveExpertLabel, type ExpertOption } from './projects-hub-model'
-
-const BUILTIN_EXPERT_OPTIONS: readonly ExpertOption[] = [
-  { id: 'general', label: '通用专家' },
-  { id: 'driver', label: '驱动软件专家' },
-  { id: 'application', label: '应用软件专家' },
-  { id: 'system', label: '系统软件专家' },
-  { id: 'communication', label: '通信软件专家' },
-  { id: 'delivery-manager', label: '软件交付经理' },
-  { id: 'se', label: '软件 SE' },
-  { id: 'architect', label: '软件架构师' },
-  { id: 'qa', label: '软件测试' },
-  { id: 'reviewer', label: '代码审查' },
-]
+import { BUILTIN_EXPERT_OPTIONS, resolveExpertLabel } from './projects-hub-model'
 
 export function ProjectsHubView(): React.ReactElement {
   const workspaces = useAtomValue(agentWorkspacesAtom)
