@@ -5,7 +5,7 @@ export const INBOX_COLUMN_ID = 'inbox'
 
 export type KanbanBoardMode = 'board' | 'list'
 export type KanbanNodeState = 'pending' | 'running' | 'done' | 'failed' | 'cancelled' | 'skipped'
-export type SubtaskRunState = 'done' | 'running' | 'pending' | 'failed'
+export type SubtaskRunState = 'done' | 'running' | 'pending' | 'failed' | 'needs-review'
 
 /** TaskEditor 的创建目标或已绑定会话目标。 */
 export type TaskEditorTarget =

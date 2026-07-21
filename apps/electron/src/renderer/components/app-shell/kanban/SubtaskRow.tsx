@@ -1,4 +1,4 @@
-import { CheckCircle2, Circle, LoaderCircle, XCircle } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Circle, LoaderCircle, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ModelChip } from './ModelChip'
 import type { KanbanSubtask } from './types'
@@ -14,10 +14,23 @@ interface SubtaskRowProps {
 }
 
 function StateIcon({ state }: { state: KanbanSubtask['runState'] }): React.ReactElement {
-  if (state === 'done') return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-  if (state === 'running') return <LoaderCircle className="h-3.5 w-3.5 animate-spin text-amber-500" />
-  if (state === 'failed') return <XCircle className="h-3.5 w-3.5 text-destructive" />
-  return <Circle className="h-3.5 w-3.5 text-muted-foreground" />
+  switch (state) {
+    case 'done':
+      return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+    case 'running':
+      return <LoaderCircle className="h-3.5 w-3.5 animate-spin text-amber-500" />
+    case 'failed':
+      return <XCircle className="h-3.5 w-3.5 text-destructive" />
+    case 'needs-review':
+      return <AlertCircle className="h-3.5 w-3.5 text-violet-500" />
+    case 'pending':
+      return <Circle className="h-3.5 w-3.5 text-muted-foreground" />
+    default: {
+      const _exhaustive: never = state
+      void _exhaustive
+      return <Circle className="h-3.5 w-3.5 text-muted-foreground" />
+    }
+  }
 }
 
 function sameModel(left: string | undefined, right: string | undefined): boolean {
@@ -51,6 +64,7 @@ export function SubtaskRow({
       <span className={cn(
         'min-w-0 flex-1 truncate text-xs',
         subtask.runState === 'done' && 'text-muted-foreground line-through',
+        subtask.runState === 'needs-review' && 'text-violet-700 dark:text-violet-300',
         active && 'font-medium text-foreground',
       )}
       >

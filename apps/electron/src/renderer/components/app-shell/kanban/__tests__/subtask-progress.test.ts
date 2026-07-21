@@ -32,4 +32,8 @@ describe('formatProgressLabel', () => {
   test('有失败时露出 ✓/✗', () => {
     expect(formatProgressLabel(['done', 'failed', 'pending', 'pending', 'pending'])).toBe('1✓1✗/5')
   })
+
+  test('待处理时露出 审', () => {
+    expect(formatProgressLabel(['done', 'needs-review', 'pending'])).toBe('1✓1审/3')
+  })
 })

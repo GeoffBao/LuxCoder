@@ -19,6 +19,14 @@ describe('resolveDagAttention', () => {
     ])).toEqual({ kind: 'has-failed', label: '有失败' })
   })
 
+  test('needs-review 为待处理（优先于未跑完）', () => {
+    expect(resolveDagAttention([
+      row('done', 'a'),
+      row('needs-review', 'b'),
+      row('pending', 'c'),
+    ])).toEqual({ kind: 'needs-review', label: '待处理' })
+  })
+
   test('仅 pending/running 为未跑完', () => {
     expect(resolveDagAttention([row('done', 'a'), row('pending', 'b')], 2))
       .toEqual({ kind: 'incomplete', label: '未跑完' })

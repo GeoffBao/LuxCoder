@@ -79,6 +79,7 @@ export function TaskTile({
         'group cursor-pointer rounded-xl bg-card p-3 shadow-sm ring-1 ring-border/30 transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         live && 'ring-amber-500/40',
         showDoneAttention && dagAttention?.kind === 'has-failed' && 'ring-destructive/35',
+        showDoneAttention && dagAttention?.kind === 'needs-review' && 'ring-violet-500/35',
         showDoneAttention && dagAttention?.kind === 'incomplete' && 'ring-amber-500/35',
         draggable && 'touch-none',
         className,
@@ -114,9 +115,9 @@ export function TaskTile({
             title="列在「已完成」，但任务 DAG 尚未全部成功结束"
             className={cn(
               'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium',
-              dagAttention.kind === 'has-failed'
-                ? 'bg-destructive/10 text-destructive'
-                : 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+              dagAttention.kind === 'has-failed' && 'bg-destructive/10 text-destructive',
+              dagAttention.kind === 'needs-review' && 'bg-violet-500/10 text-violet-700 dark:text-violet-300',
+              dagAttention.kind === 'incomplete' && 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
             )}
           >
             {dagAttention.label}

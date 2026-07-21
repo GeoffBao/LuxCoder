@@ -21,24 +21,41 @@ export function buildProgressSegments(
   return states.slice(0, total)
 }
 
-/** 有失败时露出 ✓/✗，避免「1/5」掩盖已结算的失败节点。 */
+/** 有失败/待处理时露出标记，避免「1/5」掩盖已结算的异常节点。 */
 export function formatProgressLabel(segments: SubtaskRunState[]): string {
   const total = segments.length
   if (total === 0) return '0/0'
   const done = segments.filter((state) => state === 'done').length
   const failed = segments.filter((state) => state === 'failed').length
-  if (failed === 0) return `${done}/${total}`
-  return `${done}✓${failed}✗/${total}`
+  const review = segments.filter((state) => state === 'needs-review').length
+  if (failed === 0 && review === 0) return `${done}/${total}`
+  const parts: string[] = [`${done}✓`]
+  if (failed > 0) parts.push(`${failed}✗`)
+  if (review > 0) parts.push(`${review}审`)
+  return `${parts.join('')}/${total}`
 }
 
 function segmentClass(state: SubtaskRunState): string {
-  if (state === 'done') return 'bg-emerald-500'
-  if (state === 'running') return 'animate-pulse bg-amber-500'
-  if (state === 'failed') return 'bg-destructive'
-  return 'bg-muted-foreground/25'
+  switch (state) {
+    case 'done':
+      return 'bg-emerald-500'
+    case 'running':
+      return 'animate-pulse bg-amber-500'
+    case 'failed':
+      return 'bg-destructive'
+    case 'needs-review':
+      return 'bg-violet-500'
+    case 'pending':
+      return 'bg-muted-foreground/25'
+    default: {
+      const _exhaustive: never = state
+      void _exhaustive
+      return 'bg-muted-foreground/25'
+    }
+  }
 }
 
-/** 分段进度条：每节点一段，一眼看出 running/failed；着色用语义色，不依赖列 accent。 */
+/** 分段进度条：每节点一段；着色用语义色，不依赖列 accent。 */
 export function SubtaskProgress({
   subtasks,
   total: totalProp,
@@ -48,9 +65,10 @@ export function SubtaskProgress({
   if (segments.length === 0) return null
   const done = segments.filter((state) => state === 'done').length
   const failed = segments.filter((state) => state === 'failed').length
+  const review = segments.filter((state) => state === 'needs-review').length
   const total = segments.length
   const label = formatProgressLabel(segments)
-  const settled = done + failed
+  const settled = done + failed + review
 
   return (
     <div className={cn('flex items-center gap-2', className)}>
