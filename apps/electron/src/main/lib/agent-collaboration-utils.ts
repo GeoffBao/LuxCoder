@@ -8,6 +8,7 @@ import {
   LUXAGENTS_DEFAULT_PERMISSION_MODE,
   type AgentDelegationRole,
   type AgentDelegationStatus,
+  type AgentRuntime,
   type AgentSessionMeta,
   type LuxAgentsPermissionMode,
 } from '@luxagents/shared'
@@ -68,7 +69,11 @@ export interface RecoveredDelegationState {
 export function resolveDelegationPermissionMode(
   parentMode: LuxAgentsPermissionMode | undefined,
   requestedMode: LuxAgentsPermissionMode | undefined,
+  agentRuntime?: AgentRuntime,
 ): LuxAgentsPermissionMode {
+  // Pi 子会话目前不支持 Plan 模式下的完整工具集，固定直接执行。
+  if (agentRuntime === 'pi') return 'bypassPermissions'
+
   const parent = parentMode ?? LUXAGENTS_DEFAULT_PERMISSION_MODE
   const requested = requestedMode ?? parent
   return PERMISSION_RANK[requested] <= PERMISSION_RANK[parent] ? requested : parent
