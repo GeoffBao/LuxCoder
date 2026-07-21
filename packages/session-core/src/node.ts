@@ -5,4 +5,5 @@
  * 否则 Vite 会把 node:fs 打进 bundle 导致运行时报错。浏览器侧请用主入口
  * '@luxagents/session-core'（纯函数）。
  */
-export { readSessionMessages } from './read-fs'
+export { readSessionMessages, readFileUtf8Tail, DEFAULT_SESSION_READ_MAX_BYTES } from './read-fs'
+export type { ReadSessionMessagesOptions } from './read-fs'

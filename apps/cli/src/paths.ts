@@ -38,5 +38,9 @@ export function getSessionsDir(opts: PathOptions = {}): string {
 }
 
 export function getSessionMessagesPath(id: string, opts: PathOptions = {}): string {
+  // 路径拼接前再挡一层，避免 join 吃掉含 `..` 的 id
+  if (id.includes('..') || id.includes('/') || id.includes('\\') || id.includes('\0')) {
+    throw new Error(`非法 session id: ${id}`)
+  }
   return join(getSessionsDir(opts), `${id}.jsonl`)
 }

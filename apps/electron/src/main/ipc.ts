@@ -383,11 +383,6 @@ function getAllowedCandidateBasePaths(options?: FileAccessOptions): string[] | u
   return allowed.length > 0 ? allowed : undefined
 }
 
-function getPreviewCandidateBasePaths(options?: FileAccessOptions): string[] | undefined {
-  const bases = options?.candidateBasePaths?.filter((p) => typeof p === 'string' && p.length > 0) ?? []
-  return bases.length > 0 ? bases : undefined
-}
-
 async function getAccessRootMainRepo(root: string): Promise<string | null> {
   if (!existsSync(root)) return null
   let probePath = root
@@ -2889,8 +2884,10 @@ export function registerIpcHandlers(): void {
     async (_, filePath: string, access?: FileAccessOptions | string[]): Promise<{ resolvedPath: string; content: string } | null> => {
       const { resolveAndReadFile, resolveFilePath } = await import('./lib/file-preview-service')
       const options = normalizeFileAccessOptions(access)
-      const resolved = resolveFilePath(filePath, getPreviewCandidateBasePaths(options))
-      if (!resolved) {
+      const allowedBasePaths = getAllowedCandidateBasePaths(options)
+      const resolved = resolveFilePath(filePath, allowedBasePaths)
+      if (!resolved || !isPathAllowed(resolved, options)) {
+        console.warn('[IPC] file:resolve-and-read 拒绝越界路径:', resolved ?? filePath)
         return null
       }
       const result = resolveAndReadFile(resolved)
@@ -2923,7 +2920,11 @@ export function registerIpcHandlers(): void {
     async (_, filePath: string, access?: FileAccessOptions | string[]): Promise<ResolvedFileUrl | null> => {
       const { resolveFilePath } = await import('./lib/file-preview-service')
       const options = normalizeFileAccessOptions(access)
-      const result = resolveFilePath(filePath, getPreviewCandidateBasePaths(options))
+      const result = resolveFilePath(filePath, getAllowedCandidateBasePaths(options))
+      if (result && !isPathAllowed(result, options)) {
+        console.warn('[IPC] file:resolve-path 拒绝越界路径:', result)
+        return null
+      }
       if (!result) return null
       // registerPromaFilePath 对目录路径会抛「不是文件」。渲染端（如悬浮预览解析 markdown
       // 链接）可能传入目录路径，此处优雅降级为 null，而不是让异常冒泡成未捕获的 handler 错误。
@@ -2942,8 +2943,10 @@ export function registerIpcHandlers(): void {
     async (_, filePath: string, access?: FileAccessOptions | string[]): Promise<{ tmpHtmlUrl: string } | null> => {
       const { preparePdfPreview, resolveFilePath } = await import('./lib/file-preview-service')
       const options = normalizeFileAccessOptions(access)
-      const resolved = resolveFilePath(filePath, getPreviewCandidateBasePaths(options))
-      if (!resolved) {
+      const allowedBasePaths = getAllowedCandidateBasePaths(options)
+      const resolved = resolveFilePath(filePath, allowedBasePaths)
+      if (!resolved || !isPathAllowed(resolved, options)) {
+        console.warn('[IPC] file:prepare-pdf-preview 拒绝越界路径:', resolved ?? filePath)
         return null
       }
       const result = await preparePdfPreview(resolved)
@@ -2957,8 +2960,10 @@ export function registerIpcHandlers(): void {
     async (_, filePath: string, access?: FileAccessOptions | string[]): Promise<{ resolvedPath: string; html: string } | null> => {
       const { convertDocxToHtml, resolveFilePath } = await import('./lib/file-preview-service')
       const options = normalizeFileAccessOptions(access)
-      const resolved = resolveFilePath(filePath, getPreviewCandidateBasePaths(options))
-      if (!resolved) {
+      const allowedBasePaths = getAllowedCandidateBasePaths(options)
+      const resolved = resolveFilePath(filePath, allowedBasePaths)
+      if (!resolved || !isPathAllowed(resolved, options)) {
+        console.warn('[IPC] file:docx-to-html 拒绝越界路径:', resolved ?? filePath)
         return null
       }
       const result = await convertDocxToHtml(resolved)
@@ -2972,23 +2977,25 @@ export function registerIpcHandlers(): void {
     async (_, filePath: string, access?: FileAccessOptions | string[]): Promise<import('@luxagents/shared').OfficePreviewResult | null> => {
       const { convertOfficeToHtml, resolveFilePath } = await import('./lib/file-preview-service')
       const options = normalizeFileAccessOptions(access)
-      const resolved = resolveFilePath(filePath, getPreviewCandidateBasePaths(options))
-      if (!resolved) {
+      const allowedBasePaths = getAllowedCandidateBasePaths(options)
+      const resolved = resolveFilePath(filePath, allowedBasePaths)
+      if (!resolved || !isPathAllowed(resolved, options)) {
+        console.warn('[IPC] file:office-to-html 拒绝越界路径:', resolved ?? filePath)
         return null
       }
       return convertOfficeToHtml(resolved)
     }
   )
 
-  // 读取文件为 base64（供内联图片预览等使用）
+  // 读取文件为 base64（带路径校验，供内联图片预览等使用）
   ipcMain.handle(
     'file:read-binary-base64',
     async (_, filePath: string, access?: FileAccessOptions | string[], maxSize?: number): Promise<string | null> => {
       const { readFileSync, statSync } = await import('node:fs')
       const { resolveFilePath } = await import('./lib/file-preview-service')
       const options = normalizeFileAccessOptions(access)
-      const resolved = resolveFilePath(filePath, getPreviewCandidateBasePaths(options))
-      if (!resolved) return null
+      const resolved = resolveFilePath(filePath, getAllowedCandidateBasePaths(options))
+      if (!resolved || !isPathAllowed(resolved, options)) return null
       const st = statSync(resolved)
       if (maxSize && st.size > maxSize) return null
       return readFileSync(resolved).toString('base64')

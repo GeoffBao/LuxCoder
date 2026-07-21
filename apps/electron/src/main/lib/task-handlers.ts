@@ -178,8 +178,9 @@ export function buildSetProjectIdUpdates(
 function mapTaskPermissionMode(mode: string | undefined): AgentSessionMeta['permissionMode'] | undefined {
   if (mode === undefined) return undefined
   if (mode === 'allow-all' || mode === 'bypassPermissions') return 'bypassPermissions'
-  // 历史 safe/ask/auto 统一迁到完全自动（auto 权限模式已移除）
-  if (mode === 'safe' || mode === 'ask' || mode === 'auto') return 'bypassPermissions'
+  // 历史 SDK auto ≈ 完全自动；safe/ask 不得升权，收敛到计划模式
+  if (mode === 'auto') return 'bypassPermissions'
+  if (mode === 'safe' || mode === 'ask') return 'plan'
   if (mode === 'plan') return 'plan'
   return undefined
 }

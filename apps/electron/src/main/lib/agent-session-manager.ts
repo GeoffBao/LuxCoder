@@ -8,7 +8,7 @@
  * 照搬 conversation-manager.ts 的模式。
  */
 
-import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync, unlinkSync, rmSync, renameSync, readdirSync, createReadStream, createWriteStream, type WriteStream } from 'node:fs'
+import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync, unlinkSync, rmSync, renameSync, readdirSync, createReadStream, createWriteStream, openSync, readSync, closeSync, statSync, type WriteStream } from 'node:fs'
 import { createInterface } from 'node:readline'
 import { writeJsonFileAtomic, readJsonFileSafe } from './safe-file'
 import { randomUUID } from 'node:crypto'
@@ -367,6 +367,8 @@ function sanitizeOversizedMessage(msg: SDKMessage, originalLength: number): SDKM
  *
  * 旧格式（有 `role` 字段）会被转换为近似的 SDKMessage。
  * 新格式（有 `type` 字段）直接返回。
+ *
+ * 注意：整文件读取。上下文回填请用 getRecentAgentSessionSDKMessages，避免大会话 OOM。
  */
 export function getAgentSessionSDKMessages(id: string): SDKMessage[] {
   const filePath = getAgentSessionMessagesPath(id)
@@ -381,6 +383,47 @@ export function getAgentSessionSDKMessages(id: string): SDKMessage[] {
     return parseJsonlLenient<unknown>(lines, `读取 SDKMessage (${id})`).map(normalizePersistedSDKMessage)
   } catch (error) {
     console.error(`[Agent 会话] 读取 SDKMessage 失败 (${id}):`, error)
+    return []
+  }
+}
+
+/** 上下文回填默认最多从文件尾部读取的字节数（约覆盖最近数十条消息） */
+export const CONTEXT_BACKFILL_MAX_BYTES = 2 * 1024 * 1024
+
+/**
+ * 仅读取会话 JSONL 尾部并解析，供 buildContextPrompt 等「只要最近 N 条」的场景。
+ * 超过 maxBytes 时丢掉可能被截断的首行，避免整文件进内存。
+ */
+export function getRecentAgentSessionSDKMessages(
+  id: string,
+  maxBytes: number = CONTEXT_BACKFILL_MAX_BYTES,
+): SDKMessage[] {
+  const filePath = getAgentSessionMessagesPath(id)
+  if (!existsSync(filePath)) {
+    return []
+  }
+
+  try {
+    const size = statSync(filePath).size
+    let raw: string
+    if (size <= maxBytes) {
+      raw = readFileSync(filePath, 'utf-8')
+    } else {
+      const fd = openSync(filePath, 'r')
+      try {
+        const buf = Buffer.alloc(maxBytes)
+        readSync(fd, buf, 0, maxBytes, size - maxBytes)
+        const text = buf.toString('utf-8')
+        const nl = text.indexOf('\n')
+        raw = nl >= 0 ? text.slice(nl + 1) : text
+      } finally {
+        closeSync(fd)
+      }
+    }
+    const lines = raw.split('\n').filter((line) => line.trim())
+    return parseJsonlLenient<unknown>(lines, `尾部读取 SDKMessage (${id})`).map(normalizePersistedSDKMessage)
+  } catch (error) {
+    console.error(`[Agent 会话] 尾部读取 SDKMessage 失败 (${id}):`, error)
     return []
   }
 }

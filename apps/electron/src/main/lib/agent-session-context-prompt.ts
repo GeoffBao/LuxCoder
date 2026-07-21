@@ -1,4 +1,4 @@
-import { getAgentSessionMeta, getAgentSessionSDKMessages } from './agent-session-manager'
+import { getAgentSessionMeta, getRecentAgentSessionSDKMessages } from './agent-session-manager'
 import { getBundledCliPath, getConfigDirName } from './config-paths'
 
 /** 最大回填消息条数 */
@@ -27,7 +27,11 @@ function getSessionCleanerSkillName(workspaceSlug?: string): string {
 }
 
 function getSessionCliCommandPrefix(): string {
-  return getBundledCliPath() ? '"$LUXAGENTS_CLI"' : 'luxagents'
+  const bundled = getBundledCliPath()
+  if (!bundled) return 'luxagents'
+  // Windows cmd 不识别 "$LUXAGENTS_CLI"；直接给引号包裹的绝对路径
+  if (process.platform === 'win32') return `"${bundled}"`
+  return '"$LUXAGENTS_CLI"'
 }
 
 function buildSessionCliAccessGuide(sessionId: string, historyPath: string, workspaceSlug?: string): string {
@@ -92,7 +96,8 @@ function extractSDKToolSummary(content: Array<{ type: string; name?: string; inp
  * 让新 SDK 会话保留对话记忆。包含文本内容和工具活动摘要。
  */
 export function buildContextPrompt(sessionId: string, currentUserMessage: string, sessionHint?: SessionPromptHint): string {
-  const allMessages = getAgentSessionSDKMessages(sessionId)
+  // 只读 JSONL 尾部，避免大会话整文件加载导致主进程内存尖峰
+  const allMessages = getRecentAgentSessionSDKMessages(sessionId)
   if (allMessages.length === 0) return currentUserMessage
 
   // 排除最后一条（当前用户消息，刚刚才 append 的）
@@ -138,7 +143,7 @@ export function buildContextPrompt(sessionId: string, currentUserMessage: string
       `恢复时先确认「已经完成了哪些工作、进行到哪一步」，然后从中断处继续，切勿重复执行已完成的步骤。\n</session_info>\n`
     : ''
 
-  console.log(`[Agent 编排] buildContextPrompt: 读取 ${allMessages.length} 条消息，注入 ${lines.length} 条历史${sessionHint ? '（含 session 元信息）' : ''}`)
+  console.log(`[Agent 编排] buildContextPrompt: 尾部解析 ${allMessages.length} 条消息，注入 ${lines.length} 条历史${sessionHint ? '（含 session 元信息）' : ''}`)
   return `<conversation_history>${sessionInfoBlock}\n${lines.join('\n')}\n</conversation_history>\n\n${currentUserMessage}`
 }
 

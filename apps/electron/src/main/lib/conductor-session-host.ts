@@ -271,11 +271,13 @@ function mapPermissionMode(mode: string | undefined): LuxAgentsPermissionMode | 
     case 'allow-all':
     case 'bypassPermissions':
       return 'bypassPermissions'
+    case 'auto':
+      // 历史 SDK auto 审批 ≈ 完全自动
+      return 'bypassPermissions'
     case 'safe':
     case 'ask':
-    case 'auto':
-      // 历史 auto/safe/ask 统一迁到完全自动（auto 权限模式已移除）
-      return 'bypassPermissions'
+      // 历史「需确认」不得静默升权为 bypass；收敛到计划模式
+      return 'plan'
     case 'plan':
       return 'plan'
     default:

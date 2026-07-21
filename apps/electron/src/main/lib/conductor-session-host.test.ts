@@ -149,6 +149,18 @@ describe('LuxAgentsConductorSessionHost', () => {
     }])
   })
 
+  test('历史 safe/ask 权限映射到 plan，不得升权为 bypass', async () => {
+    const askDeps = createDependencies()
+    const askHost = new LuxAgentsConductorSessionHost(askDeps.deps)
+    await askHost.createSession('workspace-1', { permissionMode: 'ask' })
+    expect(askDeps.updates[0]).toMatchObject({ permissionMode: 'plan' })
+
+    const safeDeps = createDependencies()
+    const safeHost = new LuxAgentsConductorSessionHost(safeDeps.deps)
+    await safeHost.createSession('workspace-1', { permissionMode: 'safe' })
+    expect(safeDeps.updates[0]).toMatchObject({ permissionMode: 'plan' })
+  })
+
   test('未知权限模式显式失败且不创建 session', async () => {
     const { deps, created } = createDependencies()
     const host = new LuxAgentsConductorSessionHost(deps)
