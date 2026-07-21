@@ -513,6 +513,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
   // 技能计数派生：入口行徽标 / rail 蓝点共用，避免重复 filter
   const skillsCount = capabilities?.skills.length ?? 0
   const skillsUpdateCount = capabilities?.skills.filter((s) => s.hasUpdate).length ?? 0
+  const [expertsCount, setExpertsCount] = React.useState(0)
   const capabilitiesVersion = useAtomValue(workspaceCapabilitiesVersionAtom)
 
   // Tab 状态
@@ -675,6 +676,16 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
       .then(setCapabilities)
       .catch(console.error)
   }, [currentWorkspaceSlug, mode, activeView, capabilitiesVersion])
+
+  React.useEffect(() => {
+    if (mode !== 'agent') {
+      setExpertsCount(0)
+      return
+    }
+    window.electronAPI.experts.list()
+      .then((list) => setExpertsCount(list.length))
+      .catch(console.error)
+  }, [mode, activeView])
 
   /** 置顶对话列表（仅活跃模式显示，排除 draft） */
   const pinnedConversations = React.useMemo(
@@ -2209,9 +2220,10 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
           <SidebarModule
             icon={Bot}
             title="Agent 专家"
+            count={expertsCount}
             active={activeView === 'agent-experts'}
             onClick={handleOpenAgentExperts}
-            ariaLabel="Agent 专家"
+            ariaLabel={`Agent 专家，${expertsCount} 个角色`}
           />
         </div>
       )}
