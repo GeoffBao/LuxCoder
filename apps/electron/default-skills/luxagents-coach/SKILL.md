@@ -1,7 +1,7 @@
 ---
 name: luxagents-coach
 description: LuxAgents 使用顾问，主动把用户在 LuxAgents/Agent/Skill/Chat 工具/工作区里的摩擦、疑惑、重复解释和低效流程，转成更顺手的使用方式或可沉淀的 Skill。触发要积极：用户表达不满、困惑、重复提醒、"为什么没用/不会自动/又要我说"、"以后都这样/能不能记住/少让我选/下次自动"、询问 LuxAgents 怎么用更好、某事能不能固化、该用 Agent 还是 Chat 工具、有没有现成 Skill、Skill 为什么没触发、想优化已有 Skill description、想减少步骤/降低认知负担/让 LuxAgents 更懂自己的偏好时，都应触发。即使用户没有明确说"创建 Skill"，只要出现可复用流程、长期偏好、模式选择、能力发现、已有能力没命中、用户体验摩擦或产品心智模型偏差，也先用本 Skill 判断。Coach 不直接替下游干活；它负责诊断真实痛点、检查已有 Skill/工具/CLAUDE.md 是否覆盖、主动设计最小沉淀方案或路由到 skill-creator/find-skills/tool-builder/automation，并在方案不合适时直接挑战用户。普通一次性任务不打断，但只要有"以后还会遇到"或"LuxAgents 应该更懂我"的信号，就宁可触发后判断不沉淀，也不要错过。
-version: "1.0.2"
+version: "1.0.3"
 ---
 
 # LuxAgents Coach
@@ -122,7 +122,7 @@ LuxAgents 给用户提供的核心能力：
 
 确认根因后，**不要立刻造新东西**。按顺序检查：
 
-1. **工作区 Skills**：`~/.proma/agent-workspaces/<workspace>/skills/`
+1. **工作区 Skills**：`~/.luxagents/agent-workspaces/<workspace>/skills/`
 2. **OSS 内置 Skills**：brainstorming / writing-plans / executing-plans / skill-creator / find-skills / tool-builder / guizang-ppt-skill / docx / pdf / pptx / xlsx
 3. **CLAUDE.md**：当前工作目录及附加目录是否已规定相关规则
 4. **`.context/note.md`**：是否已有相关沉淀
