@@ -272,7 +272,7 @@ function ProjectHubCard({
         </div>
 
         <Badge variant="secondary" className="mt-1 text-[11px] font-normal">
-          {expertLabel}
+          {expertLabel === '未设置' ? expertLabel : `默认 · ${expertLabel}`}
         </Badge>
       </button>
 

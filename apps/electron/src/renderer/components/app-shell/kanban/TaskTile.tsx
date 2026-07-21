@@ -3,11 +3,14 @@ import { ChevronDown, ExternalLink, GitBranch, Link2, Play } from 'lucide-react'
 import * as React from 'react'
 import { cn } from '@/lib/utils'
 import { ModelChip } from './ModelChip'
+import { ExpertChip } from './ExpertChip'
 import { StatusBadge } from './StatusBadge'
 import { SubtaskProgress } from './SubtaskProgress'
 import { SubtaskRow } from './SubtaskRow'
 import type { KanbanItem } from './types'
 import { resolveTeambitionSyncBadge } from '@/components/work/teambition-view'
+import { useExpertOptions } from '@/components/agent-experts/useExpertOptions'
+import { getTaskExpertOption } from './task-editor-ui-model'
 
 interface TaskTileProps {
   item: KanbanItem
@@ -37,6 +40,10 @@ export function TaskTile({
   const [expanded, setExpanded] = React.useState(
     () => item.subtasks.some((subtask) => subtask.runState === 'running') || item.subtasks.length > 0,
   )
+  const { options: expertOptions } = useExpertOptions()
+  const expertLabel = item.expertId
+    ? getTaskExpertOption(item.expertId, expertOptions).label
+    : null
   const drag = useDraggable({ id: item.id, disabled: !draggable, data: { kind: 'kanban-item' } })
   const teambitionBadge = item.teambition?.syncState
     ? resolveTeambitionSyncBadge(item.teambition.syncState)
@@ -98,6 +105,9 @@ export function TaskTile({
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         <StatusBadge status={item.session.sessionStatus} live={live} />
         <ModelChip model={item.session.modelId} className="max-w-32" />
+        {item.expertId && expertLabel && (
+          <ExpertChip expertId={item.expertId} label={expertLabel} />
+        )}
         {item.session.taskSlug && (
           <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
             <GitBranch className="h-3 w-3" />{item.session.taskSlug}

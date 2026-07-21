@@ -251,7 +251,7 @@ export function ProjectInfoPage({
                   </option>
                 ))}
               </select>
-              <p className="text-[11px] font-normal text-muted-foreground">将用于任务默认专家（运行时后续接入）</p>
+              <p className="text-[11px] font-normal text-muted-foreground">任务未指定专家时，跑节点会注入该专家身份核</p>
             </label>
             <label className="block space-y-1.5 text-xs font-medium">描述<Input value={settingsDraft.description} onChange={(event) => setSettingsDraft((current) => ({ ...current, description: event.target.value }))} /></label>
             <label className="block space-y-1.5 text-xs font-medium">项目说明<Textarea value={settingsDraft.details} onChange={(event) => setSettingsDraft((current) => ({ ...current, details: event.target.value }))} rows={5} /></label>

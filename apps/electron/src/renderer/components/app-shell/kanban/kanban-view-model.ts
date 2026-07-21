@@ -1,4 +1,5 @@
 import type { AgentSessionMeta } from '@luxagents/shared'
+import { resolveExpertId } from '@luxagents/shared/experts'
 import { mergeSubtaskRows, type SpecNodeSummary, type SubtaskChildRow } from './subtask-merge'
 import {
   INBOX_COLUMN_ID,
@@ -28,6 +29,8 @@ export interface BuildKanbanViewModelInput {
   filter: KanbanFilter
   /** taskSlug → DAG nodes；缺省时仅展示 child sessions */
   specNodesBySlug?: Map<string, SpecNodeSummary[]>
+  /** taskSlug → TaskSpec.defaults.expertId */
+  expertIdsBySlug?: Map<string, string>
   fallbackModel?: string
 }
 
@@ -63,6 +66,7 @@ function buildItem(
   children: SubtaskChildRow[],
   specNodes: SpecNodeSummary[] | undefined,
   fallbackModel: string,
+  taskExpertId: string | undefined,
 ): KanbanItem {
   const run = findTaskRun(session, runs)
   const totalNodes = session.taskNodeCount
@@ -72,6 +76,8 @@ function buildItem(
     ? Object.values(run.nodeStates).filter((state) => state === 'done').length
     : 0
   const binding = bindingsBySessionId.get(session.id)
+  const project = session.projectId ? projectsById.get(session.projectId) ?? null : null
+  const expertId = resolveExpertId(taskExpertId, project?.defaultExpertId) ?? undefined
 
   // 有 run 节点状态但还没 child session 时，用 nodeStates 合成行标题，避免卡片只有 0/N 进度条
   const nodesForMerge = specNodes?.length
@@ -98,8 +104,9 @@ function buildItem(
     title: session.title,
     columnId: session.kanbanColumn ?? INBOX_COLUMN_ID,
     session,
-    project: session.projectId ? projectsById.get(session.projectId) ?? null : null,
+    project,
     subtasks,
+    ...(expertId ? { expertId } : {}),
     ...(totalNodes > 0 ? { subtaskTotal: totalNodes } : {}),
     ...(run && totalNodes > 0 ? { taskRun: { completedNodes, totalNodes } } : {}),
     ...(binding
@@ -155,6 +162,7 @@ export function buildKanbanViewModel(input: BuildKanbanViewModelInput): KanbanVi
       childrenByParent.get(session.id) ?? [],
       session.taskSlug ? input.specNodesBySlug?.get(session.taskSlug) : undefined,
       fallbackModel,
+      session.taskSlug ? input.expertIdsBySlug?.get(session.taskSlug) : undefined,
     ))
     .sort((left, right) => right.session.updatedAt - left.session.updatedAt || left.id.localeCompare(right.id))
 

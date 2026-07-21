@@ -10,6 +10,7 @@ import {
 import {
   kanbanItemsAtom,
   kanbanSpecNodesAtom,
+  kanbanTaskExpertIdsAtom,
   serverKanbanRunsAtom,
   serverKanbanSessionsAtom,
   serverTeambitionBindingsAtom,
@@ -50,6 +51,7 @@ export function WorkBoardView(): React.ReactElement {
   const setRuns = useSetAtom(serverKanbanRunsAtom)
   const setBindings = useSetAtom(serverTeambitionBindingsAtom)
   const setSpecNodes = useSetAtom(kanbanSpecNodesAtom)
+  const setTaskExpertIds = useSetAtom(kanbanTaskExpertIdsAtom)
   const kanbanItems = useAtomValue(kanbanItemsAtom)
   const streamStates = useAtomValue(agentStreamingStatesAtom)
   const openSession = useOpenSession()
@@ -71,6 +73,7 @@ export function WorkBoardView(): React.ReactElement {
     setRuns([])
     setBindings([])
     setSpecNodes(new Map())
+    setTaskExpertIds(new Map())
     setWorkspaceRoot(null)
     setError(null)
     if (!workspace) return () => { cancelled = true }
@@ -88,7 +91,7 @@ export function WorkBoardView(): React.ReactElement {
       })
 
     return () => { cancelled = true }
-  }, [setBindings, setRuns, setSpecNodes, workspace])
+  }, [setBindings, setRuns, setSpecNodes, setTaskExpertIds, workspace])
 
   const refreshSessions = React.useCallback(async (): Promise<void> => {
     const sessions = await window.electronAPI.listAgentSessions()
@@ -129,22 +132,30 @@ export function WorkBoardView(): React.ReactElement {
   const refreshSpecNodes = React.useCallback(async (): Promise<void> => {
     if (!workspaceRoot) return
     const slugs = [...new Set(agentSessions.map((session) => session.taskSlug).filter((slug): slug is string => Boolean(slug)))]
-    const entries: Array<[string, SpecNodeSummary[]]> = await Promise.all(slugs.map(async (slug) => {
+    const results = await Promise.all(slugs.map(async (slug) => {
       try {
         const validation = await window.electronAPI.tasks.get(workspaceRoot, slug)
-        if (!validation?.valid || !validation.spec?.nodes) return [slug, []]
+        if (!validation?.valid || !validation.spec?.nodes) {
+          return { slug, nodes: [] as SpecNodeSummary[], expertId: undefined as string | undefined }
+        }
         const nodes: SpecNodeSummary[] = validation.spec.nodes.map((node) => ({
           id: node.id,
           title: node.title ?? node.id,
           ...(node.model ? { model: node.model } : {}),
         }))
-        return [slug, nodes]
+        const expertId = validation.spec.defaults?.expertId?.trim() || undefined
+        return { slug, nodes, expertId }
       } catch {
-        return [slug, []]
+        return { slug, nodes: [] as SpecNodeSummary[], expertId: undefined as string | undefined }
       }
     }))
-    setSpecNodes(new Map(entries))
-  }, [agentSessions, setSpecNodes, workspaceRoot])
+    setSpecNodes(new Map(results.map((entry) => [entry.slug, entry.nodes])))
+    setTaskExpertIds(new Map(
+      results
+        .filter((entry): entry is typeof entry & { expertId: string } => Boolean(entry.expertId))
+        .map((entry) => [entry.slug, entry.expertId]),
+    ))
+  }, [agentSessions, setSpecNodes, setTaskExpertIds, workspaceRoot])
 
   const refreshBindings = React.useCallback(async (): Promise<void> => {
     if (!workspaceRoot) return

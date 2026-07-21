@@ -161,4 +161,39 @@ describe('buildKanbanViewModel', () => {
 
     expect(model.listItems.map((item) => item.id)).toEqual(['visible-session'])
   })
+
+  test('解析任务专家优先于项目默认专家', () => {
+    const model = buildKanbanViewModel({
+      projects: [{ id: 'project-a', name: '项目 A', defaultExpertId: 'general' }],
+      sessions: [createSession({
+        id: 'task-session',
+        projectId: 'project-a',
+        taskSlug: 'release',
+        updatedAt: 20,
+      })],
+      runs: [],
+      bindings: [],
+      filter: { projectId: null },
+      expertIdsBySlug: new Map([['release', 'architect']]),
+    })
+
+    expect(model.listItems[0]?.expertId).toBe('architect')
+  })
+
+  test('任务未设专家时回退项目默认', () => {
+    const model = buildKanbanViewModel({
+      projects: [{ id: 'project-a', name: '项目 A', defaultExpertId: 'driver' }],
+      sessions: [createSession({
+        id: 'task-session',
+        projectId: 'project-a',
+        taskSlug: 'release',
+        updatedAt: 20,
+      })],
+      runs: [],
+      bindings: [],
+      filter: { projectId: null },
+    })
+
+    expect(model.listItems[0]?.expertId).toBe('driver')
+  })
 })

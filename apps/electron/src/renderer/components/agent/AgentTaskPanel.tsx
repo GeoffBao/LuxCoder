@@ -9,16 +9,21 @@ import {
   currentAgentWorkspaceIdAtom,
   type ToolActivity,
 } from '@/atoms/agent-atoms'
-import { kanbanSpecNodesAtom } from '@/atoms/kanban-atoms'
+import { kanbanSpecNodesAtom, kanbanTaskExpertIdsAtom } from '@/atoms/kanban-atoms'
+import { serverKanbanProjectsAtom } from '@/atoms/project-atoms'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { getToolDisplayName } from './tool-utils'
 import { mergeSubtaskRows, type SpecNodeSummary } from '../app-shell/kanban/subtask-merge'
 import { SubtaskProgress } from '../app-shell/kanban/SubtaskProgress'
 import { SubtaskRow } from '../app-shell/kanban/SubtaskRow'
+import { ExpertChip } from '../app-shell/kanban/ExpertChip'
 import { deriveSubtaskRunState } from '../app-shell/kanban/kanban-view-model'
 import type { KanbanSubtask } from '../app-shell/kanban/types'
+import { getTaskExpertOption } from '../app-shell/kanban/task-editor-ui-model'
+import { useExpertOptions } from '@/components/agent-experts/useExpertOptions'
 import { useOpenSession } from '@/hooks/useOpenSession'
+import { resolveExpertId } from '@luxagents/shared/experts'
 
 interface AgentTaskPanelProps {
   sessionId: string
@@ -51,6 +56,9 @@ export function AgentTaskPanel({ sessionId }: AgentTaskPanelProps): React.ReactE
   const sessions = useAtomValue(agentSessionsAtom)
   const streamStates = useAtomValue(agentStreamingStatesAtom)
   const specNodesBySlug = useAtomValue(kanbanSpecNodesAtom)
+  const taskExpertIdsBySlug = useAtomValue(kanbanTaskExpertIdsAtom)
+  const projects = useAtomValue(serverKanbanProjectsAtom)
+  const { options: expertOptions } = useExpertOptions()
   const workspaces = useAtomValue(agentWorkspacesAtom)
   const currentWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
   const openSession = useOpenSession()
@@ -58,6 +66,7 @@ export function AgentTaskPanel({ sessionId }: AgentTaskPanelProps): React.ReactE
   const [expanded, setExpanded] = React.useState(false)
   const [running, setRunning] = React.useState(false)
   const [localNodes, setLocalNodes] = React.useState<SpecNodeSummary[] | null>(null)
+  const [localExpertId, setLocalExpertId] = React.useState<string | undefined>(undefined)
 
   const session = sessions.find((candidate) => candidate.id === sessionId)
   const orchestratorSession = React.useMemo(() => {
@@ -83,8 +92,16 @@ export function AgentTaskPanel({ sessionId }: AgentTaskPanelProps): React.ReactE
   }, [workspace])
 
   React.useEffect(() => {
-    if (!workspaceRoot || !taskSlug) { setLocalNodes(null); return }
-    if (specNodesBySlug.has(taskSlug)) { setLocalNodes(null); return }
+    if (!workspaceRoot || !taskSlug) {
+      setLocalNodes(null)
+      setLocalExpertId(undefined)
+      return
+    }
+    if (specNodesBySlug.has(taskSlug)) {
+      setLocalNodes(null)
+      setLocalExpertId(undefined)
+      return
+    }
     let cancelled = false
     void window.electronAPI.tasks.get(workspaceRoot, taskSlug).then((validation) => {
       if (cancelled || !validation?.valid || !validation.spec?.nodes) return
@@ -93,6 +110,7 @@ export function AgentTaskPanel({ sessionId }: AgentTaskPanelProps): React.ReactE
         title: node.title ?? node.id,
         ...(node.model ? { model: node.model } : {}),
       })))
+      setLocalExpertId(validation.spec.defaults?.expertId?.trim() || undefined)
     }).catch(() => undefined)
     return () => { cancelled = true }
   }, [specNodesBySlug, taskSlug, workspaceRoot])
@@ -129,6 +147,14 @@ export function AgentTaskPanel({ sessionId }: AgentTaskPanelProps): React.ReactE
   const focusStream = focus?.sessionId ? streamStates.get(focus.sessionId) : undefined
   const focusActivity = focusStream?.running
     ? summarizeLiveActivity(focusStream.toolActivities, focusStream.content)
+    : null
+  const projectDefaultExpertId = projects.find((project) => project.id === orchestratorSession.projectId)?.defaultExpertId
+  const appliedExpertId = resolveExpertId(
+    taskExpertIdsBySlug.get(taskSlug) ?? localExpertId,
+    projectDefaultExpertId,
+  )
+  const appliedExpertLabel = appliedExpertId
+    ? getTaskExpertOption(appliedExpertId, expertOptions).label
     : null
 
   const runTask = async (): Promise<void> => {
@@ -179,6 +205,9 @@ export function AgentTaskPanel({ sessionId }: AgentTaskPanelProps): React.ReactE
             <span className="inline-flex items-center gap-1 text-muted-foreground">
               <GitBranch className="h-3 w-3" />{taskSlug}
             </span>
+            {appliedExpertId && appliedExpertLabel && (
+              <ExpertChip expertId={appliedExpertId} label={appliedExpertLabel} />
+            )}
             {total > 0 && (
               <span className="tabular-nums text-muted-foreground">{done}/{total}</span>
             )}
