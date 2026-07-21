@@ -27,6 +27,12 @@ import {
   type RunLogEntry,
   type NodeRunState,
 } from '@luxagents/shared/tasks/storage'
+import type { ExpertPackage } from '@luxagents/shared/experts'
+import {
+  formatExpertPreamble,
+  mergeSkillSlugs,
+  resolveExpertId,
+} from '@luxagents/shared/experts'
 
 // ---------------------------------------------------------------------------
 // 本地类型（替代 OSS 的 protocol dto / SessionManager）
@@ -86,6 +92,10 @@ export interface TaskRunnerDeps {
   genRunId?: () => string;
   /** 冷启动/恢复时判断子会话 Agent 是否仍在跑；缺省视为未在跑 */
   isSessionActive?: (sessionId: string) => boolean;
+  /** 按专家 id 读取包；缺失返回 null；未注入则跳过专家 preamble */
+  getExpert?: (expertId: string) => ExpertPackage | null;
+  /** 解析项目 defaultExpertId；失败返回 null */
+  resolveProjectDefaultExpertId?: (projectId: string) => string | null;
 }
 
 export interface RunOptions {
@@ -358,7 +368,25 @@ class ActiveRun {
 
   private async dispatch(node: TaskNode): Promise<void> {
     try {
-      const prompt = skillsPreamble(this.spec.skills) + (await this.buildPrompt(node));
+      const projectDefault = this.spec.project && this.deps.resolveProjectDefaultExpertId
+        ? this.deps.resolveProjectDefaultExpertId(this.spec.project)
+        : null;
+      const expertId = resolveExpertId(this.spec.defaults?.expertId, projectDefault ?? undefined);
+      let expert: ExpertPackage | null = null;
+      if (expertId && this.deps.getExpert) {
+        try {
+          expert = this.deps.getExpert(expertId);
+          if (!expert) {
+            console.warn(`[TaskRunner] 专家不存在，跳过注入: ${expertId}`);
+          }
+        } catch (cause) {
+          console.warn(`[TaskRunner] 读取专家失败，跳过注入: ${expertId}`, cause);
+          expert = null;
+        }
+      }
+      const mergedSkills = mergeSkillSlugs(this.spec.skills, expert?.skillSlugs);
+      const expertBlock = expert ? formatExpertPreamble(expert) : '';
+      const prompt = skillsPreamble(mergedSkills) + expertBlock + (await this.buildPrompt(node));
       const cwd = (this.opts.orchestratorSessionId ? this.deps.host.getSessionWorkingDirectory(this.opts.orchestratorSessionId) : undefined) ?? this.spec.cwd;
       const options: CreateSessionOptions = {
         parentSessionId: this.opts.orchestratorSessionId,
