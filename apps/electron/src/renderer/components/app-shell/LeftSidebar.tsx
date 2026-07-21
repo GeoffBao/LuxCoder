@@ -771,6 +771,11 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
     setActiveView('agent-skills')
   }, [setActiveView])
 
+  /** 打开 Agent 专家视图 */
+  const handleOpenAgentExperts = React.useCallback((): void => {
+    setActiveView('agent-experts')
+  }, [setActiveView])
+
   /** 打开当前工作区的 MCP 管理页 */
   const handleOpenMcpManagement = React.useCallback((): void => {
     setAgentSkillsTab('mcp')
@@ -2198,14 +2203,23 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
         </div>
       )}
 
-      {(mode === 'agent' || mode === 'cowork') && (
-        <div className="px-3 pb-1 titlebar-no-drag">
-          <SidebarProjectsSection
-            workspaceRoot={workspaceRootForProjects}
-            workspaceSlug={currentWorkspaceSlug}
+      {/* Agent 专家入口：领域角色壳，仅 Agent 模式可见 */}
+      {mode === 'agent' && (
+        <div className="px-3 pb-0.5">
+          <SidebarModule
+            icon={Bot}
+            title="Agent 专家"
+            active={activeView === 'agent-experts'}
+            onClick={handleOpenAgentExperts}
+            ariaLabel="Agent 专家"
           />
         </div>
       )}
+
+      {/* 项目中心入口：Hub 全屏视图，模块区末项 */}
+      <div className="px-3 pb-1 titlebar-no-drag">
+        <SidebarProjectsSection count={currentWorkspaceProjects.length} />
+      </div>
 
       {/* Chat 模式 active 视图：置顶 + 对话历史，结构与 Agent active 视图保持一致 */}
       {mode === 'chat' && viewMode === 'active' ? (
