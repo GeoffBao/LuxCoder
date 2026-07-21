@@ -1,0 +1,96 @@
+# Proma → LuxAgents 周更自动 sync
+#
+# 默认：每周六 15:00（Asia/Shanghai）= 07:00 UTC
+# 也可在 Actions 页手动 workflow_dispatch
+#
+# 行为：
+# 1. 以最新 origin/main 为 base 开新 sync/proma-*-auto 分支
+# 2. cherry-pick LAST_SYNCED_UPSTREAM..upstream/main（first-parent）
+# 3. 每挑成功后 apply-renames；遇冲突带 marker 提交并停
+# 4. push 到 origin/sync/proma-YYYYMMDD-HHMM-auto + 开 Draft PR
+
+name: Proma weekly sync
+
+on:
+  schedule:
+    # 周六 15:00 CST → 07:00 UTC（CST=UTC+8，无夏令时）
+    - cron: '0 7 * * 6'
+  workflow_dispatch:
+    inputs:
+      max_picks:
+        description: '本轮最多 cherry-pick 条数'
+        required: false
+        default: '80'
+      skip_pr:
+        description: '只推分支、不开 Draft PR（true/false）'
+        required: false
+        default: 'false'
+
+concurrency:
+  group: proma-weekly-sync
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    name: sync upstream → origin/sync
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: 检出仓库（含全部历史）
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # 默认 GITHUB_TOKEN 可推同仓分支；若 fork 策略变更可换 PAT
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 安装 Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: 配置 git 身份
+        run: |
+          git config user.name "luxagents-sync-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: 确保 upstream remote
+        run: |
+          if ! git remote get-url upstream >/dev/null 2>&1; then
+            git remote add upstream https://github.com/proma-ai/Proma.git
+          fi
+          git remote -v
+
+      - name: 安装依赖（rename 脚本需要 workspace）
+        run: bun install --frozen-lockfile
+
+      - name: 先 dry-run 看 pending
+        id: dry
+        run: bun run sync:weekly
+        continue-on-error: true
+
+      - name: 执行 sync（apply + push + draft PR）
+        id: apply
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MAX_PICKS: ${{ github.event.inputs.max_picks || '80' }}
+          SKIP_PR: ${{ github.event.inputs.skip_pr || 'false' }}
+        run: |
+          set -euo pipefail
+          ARGS=(--apply --push --max-picks "$MAX_PICKS")
+          if [ "$SKIP_PR" != "true" ]; then
+            ARGS+=(--pr)
+          fi
+          bun run sync:weekly -- "${ARGS[@]}"
+
+      - name: 上传 last-weekly-run.json
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-sync-status
+          path: scripts/upstream-sync/last-weekly-run.json
+          if-no-files-found: ignore
