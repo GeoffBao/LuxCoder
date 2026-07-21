@@ -40,7 +40,8 @@ import { createLuxAgentsConductorSessionHost, type LuxAgentsConductorSessionHost
 import { getAgentSessionMeta, updateAgentSessionMeta } from './agent-session-manager'
 import { isAgentSessionActive } from './agent-service'
 import { getAgentWorkspace, listAgentWorkspaces } from './agent-workspace-manager'
-import { getAgentWorkspacePath } from './config-paths'
+import { getAgentWorkspacePath, getExpertsDir } from './config-paths'
+import { getExpert } from './expert-service'
 import { projectRepository } from './project-repository'
 import { TaskRunner, type RunOptions } from './task-runner'
 import { TeambitionService, type ClaimTeambitionTaskInput, type TeambitionRemoteTask } from './teambition-service'
@@ -89,11 +90,21 @@ async function getRunnerFor(workspaceRoot: string, workspaceId: string): Promise
   const existing = runners.get(workspaceId)
   if (existing) return existing
 
+  const expertsRoot = getExpertsDir()
   const runner = new TaskRunner({
     host: await getSessionHost(),
     workspaceId,
     workspaceRoot,
     isSessionActive: isAgentSessionActive,
+    getExpert: (expertId) => getExpert(expertsRoot, expertId),
+    resolveProjectDefaultExpertId: (projectId) => {
+      try {
+        return projectRepository.getProjectAtRoot(workspaceRoot, projectId)?.config.defaultExpertId ?? null
+      } catch (cause) {
+        console.warn(`[TaskRunner] 读取项目默认专家失败: ${projectId}`, cause)
+        return null
+      }
+    },
   })
   runners.set(workspaceId, runner)
   return runner
