@@ -7,8 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import type { KanbanProject } from '../app-shell/kanban/types'
+import { useExpertOptions } from '@/components/agent-experts/useExpertOptions'
 import { buildProjectUpdate, getProjectSessions, type ProjectColumnDraft } from './project-view-model'
-import { BUILTIN_EXPERT_OPTIONS } from './projects-hub-model'
 
 type ProjectTab = 'sessions' | 'assets' | 'memory' | 'settings'
 
@@ -49,6 +49,7 @@ export function ProjectInfoPage({
   onDeleted,
   onOpenSession,
 }: ProjectInfoPageProps): React.ReactElement {
+  const { options: expertOptions } = useExpertOptions()
   const [tab, setTab] = React.useState<ProjectTab>('sessions')
   const [assets, setAssets] = React.useState<ProjectAssetView[]>([])
   const [memory, setMemory] = React.useState('')
@@ -244,7 +245,7 @@ export function ProjectInfoPage({
                 className="flex h-9 w-full rounded-md border border-border/60 bg-background/40 px-3 py-1 text-sm shadow-xs transition-[border-color,box-shadow,background-color] duration-150 ease-out hover:border-border focus-visible:border-ring focus-visible:bg-background focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/15"
               >
                 <option value="">未设置</option>
-                {BUILTIN_EXPERT_OPTIONS.map((expert) => (
+                {expertOptions.map((expert) => (
                   <option key={expert.id} value={expert.id}>
                     {expert.label}
                   </option>

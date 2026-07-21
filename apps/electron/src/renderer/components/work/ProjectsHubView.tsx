@@ -29,11 +29,13 @@ import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { KanbanProject } from '@/components/app-shell/kanban/types'
+import { useExpertOptions } from '@/components/agent-experts/useExpertOptions'
 import { CreateProjectDialog } from './CreateProjectDialog'
 import { filterProjects } from './project-view-model'
-import { BUILTIN_EXPERT_OPTIONS, resolveExpertLabel } from './projects-hub-model'
+import { resolveExpertLabel, type ExpertOption } from './projects-hub-model'
 
 export function ProjectsHubView(): React.ReactElement {
+  const { options: expertOptions } = useExpertOptions()
   const workspaces = useAtomValue(agentWorkspacesAtom)
   const currentWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
   const workspace = workspaces.find((candidate) => candidate.id === currentWorkspaceId) ?? workspaces[0] ?? null
@@ -195,6 +197,7 @@ export function ProjectsHubView(): React.ReactElement {
                 <ProjectHubCard
                   key={project.id}
                   project={project}
+                  expertOptions={expertOptions}
                   onOpenBoard={() => openBoard(project.id)}
                   onOpenDetail={() => openDetail(project.id)}
                 />
@@ -216,13 +219,14 @@ export function ProjectsHubView(): React.ReactElement {
 
 interface ProjectHubCardProps {
   project: KanbanProject
+  expertOptions: readonly ExpertOption[]
   onOpenBoard: () => void
   onOpenDetail: () => void
 }
 
-function ProjectHubCard({ project, onOpenBoard, onOpenDetail }: ProjectHubCardProps): React.ReactElement {
+function ProjectHubCard({ project, expertOptions, onOpenBoard, onOpenDetail }: ProjectHubCardProps): React.ReactElement {
   const color = project.color ?? 'hsl(var(--muted-foreground))'
-  const expertLabel = resolveExpertLabel(project.defaultExpertId, BUILTIN_EXPERT_OPTIONS)
+  const expertLabel = resolveExpertLabel(project.defaultExpertId, expertOptions)
 
   return (
     <div
