@@ -4,6 +4,7 @@ import type { KanbanSubtask, SubtaskRunState } from './types'
 interface SubtaskProgressProps {
   subtasks: KanbanSubtask[]
   total?: number
+  /** @deprecated 列强调色不再用于进度段填充（无效 CSS var / 浅色列会导致 done 段透明） */
   accent?: string
   className?: string
 }
@@ -30,11 +31,17 @@ export function formatProgressLabel(segments: SubtaskRunState[]): string {
   return `${done}✓${failed}✗/${total}`
 }
 
-/** 分段进度条：每节点一段，一眼看出 running/failed；对齐 craft SubtaskProgress。 */
+function segmentClass(state: SubtaskRunState): string {
+  if (state === 'done') return 'bg-emerald-500'
+  if (state === 'running') return 'animate-pulse bg-amber-500'
+  if (state === 'failed') return 'bg-destructive'
+  return 'bg-muted-foreground/25'
+}
+
+/** 分段进度条：每节点一段，一眼看出 running/failed；着色用语义色，不依赖列 accent。 */
 export function SubtaskProgress({
   subtasks,
   total: totalProp,
-  accent,
   className,
 }: SubtaskProgressProps): React.ReactElement | null {
   const segments = buildProgressSegments(subtasks, totalProp)
@@ -58,19 +65,7 @@ export function SubtaskProgress({
         {segments.map((state, index) => (
           <div
             key={`seg-${index}`}
-            className={cn(
-              'h-full min-w-0 flex-1 rounded-sm transition-colors',
-              state === 'running' && 'animate-pulse',
-              state === 'failed' && 'bg-destructive',
-              state === 'pending' && 'bg-muted-foreground/20',
-              state === 'done' && !accent && 'bg-primary',
-              state === 'running' && !accent && 'bg-amber-500',
-            )}
-            style={
-              (state === 'done' || state === 'running') && accent
-                ? { backgroundColor: accent }
-                : undefined
-            }
+            className={cn('h-full min-w-0 flex-1 rounded-sm transition-colors', segmentClass(state))}
             title={state}
           />
         ))}
