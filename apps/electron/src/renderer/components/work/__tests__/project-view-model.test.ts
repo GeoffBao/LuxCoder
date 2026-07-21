@@ -55,6 +55,7 @@ describe('project detail model', () => {
       details: '细节',
       color: undefined,
       workingDirectory: undefined,
+      defaultExpertId: undefined,
       kanbanColumns: undefined,
     })
   })
@@ -125,6 +126,7 @@ describe('buildProjectUpdate with workingDirectory', () => {
       details: undefined,
       color: undefined,
       workingDirectory: '/tmp/p',
+      defaultExpertId: undefined,
       kanbanColumns: undefined,
     })
 

@@ -58,6 +58,7 @@ export function ProjectInfoPage({
     details: project.details ?? '',
     color: project.color ?? '',
     workingDirectory: project.workingDirectory ?? '',
+    defaultExpertId: project.defaultExpertId ?? '',
   })
   const [columns, setColumns] = React.useState<ProjectColumnDraft[]>(project.kanbanColumns ?? [])
   const projectSessions = getProjectSessions(sessions, project.id)
@@ -70,6 +71,7 @@ export function ProjectInfoPage({
       details: project.details ?? '',
       color: project.color ?? '',
       workingDirectory: project.workingDirectory ?? '',
+      defaultExpertId: project.defaultExpertId ?? '',
     })
     setColumns(project.kanbanColumns ?? [])
   }, [project])
