@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { getToolDisplayName } from './tool-utils'
 import { mergeSubtaskRows, type SpecNodeSummary } from '../app-shell/kanban/subtask-merge'
+import { SubtaskProgress } from '../app-shell/kanban/SubtaskProgress'
 import { SubtaskRow } from '../app-shell/kanban/SubtaskRow'
 import { deriveSubtaskRunState } from '../app-shell/kanban/kanban-view-model'
 import type { KanbanSubtask } from '../app-shell/kanban/types'
@@ -238,37 +239,41 @@ export function AgentTaskPanel({ sessionId }: AgentTaskPanelProps): React.ReactE
         </button>
       )}
       {expanded && subtasks.length > 0 && (
-        <div className="mt-2 space-y-0.5 rounded-lg bg-muted/40 p-1.5">
-          {subtasks.map((subtask) => {
-            const childStream = subtask.sessionId ? streamStates.get(subtask.sessionId) : undefined
-            const activity = childStream?.running
-              ? summarizeLiveActivity(childStream.toolActivities, childStream.content)
-              : null
-            const isCurrent = subtask.sessionId === sessionId
-            return (
-              <div key={subtask.id} className="space-y-0.5">
-                <SubtaskRow
-                  subtask={subtask}
-                  onClick={subtask.sessionId
-                    ? () => {
-                        const child = sessions.find((candidate) => candidate.id === subtask.sessionId)
-                        if (child) openSession('agent', child.id, child.title)
-                      }
-                    : undefined}
-                />
-                {activity && (
-                  <div className={cn(
-                    'ml-6 truncate pb-1 text-[11px] text-muted-foreground',
-                    isCurrent && 'text-amber-600 dark:text-amber-400',
+        <div className="mt-2 space-y-1.5 rounded-lg bg-muted/40 p-1.5">
+          <SubtaskProgress subtasks={subtasks} total={total} className="px-1" />
+          <div className="space-y-0.5">
+            {subtasks.map((subtask) => {
+              const childStream = subtask.sessionId ? streamStates.get(subtask.sessionId) : undefined
+              const activity = childStream?.running
+                ? summarizeLiveActivity(childStream.toolActivities, childStream.content)
+                : null
+              const isCurrent = subtask.sessionId === sessionId
+              return (
+                <div key={subtask.id} className="space-y-0.5">
+                  <SubtaskRow
+                    subtask={subtask}
+                    active={isCurrent}
+                    onClick={subtask.sessionId
+                      ? () => {
+                          const child = sessions.find((candidate) => candidate.id === subtask.sessionId)
+                          if (child) openSession('agent', child.id, child.title)
+                        }
+                      : undefined}
+                  />
+                  {activity && (
+                    <div className={cn(
+                      'ml-6 truncate pb-1 text-[11px] text-muted-foreground',
+                      isCurrent && 'text-amber-600 dark:text-amber-400',
+                    )}
+                    >
+                      <LoaderCircle className="mr-1 inline h-3 w-3 animate-spin" />
+                      {activity}
+                    </div>
                   )}
-                  >
-                    <LoaderCircle className="mr-1 inline h-3 w-3 animate-spin" />
-                    {activity}
-                  </div>
-                )}
-              </div>
-            )
-          })}
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
       {expanded && subtasks.length === 0 && (

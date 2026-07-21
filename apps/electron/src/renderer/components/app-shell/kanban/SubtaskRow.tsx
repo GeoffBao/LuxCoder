@@ -6,6 +6,8 @@ import type { KanbanSubtask } from './types'
 interface SubtaskRowProps {
   subtask: KanbanSubtask
   onClick?: () => void
+  /** 当前正在查看的子任务会话 */
+  active?: boolean
   className?: string
 }
 
@@ -16,16 +18,28 @@ function StateIcon({ state }: { state: KanbanSubtask['runState'] }): React.React
   return <Circle className="h-3.5 w-3.5 text-muted-foreground" />
 }
 
-export function SubtaskRow({ subtask, onClick, className }: SubtaskRowProps): React.ReactElement {
+export function SubtaskRow({ subtask, onClick, active = false, className }: SubtaskRowProps): React.ReactElement {
   return (
     <button
       type="button"
       disabled={!onClick}
       onClick={(event) => { event.stopPropagation(); onClick?.() }}
-      className={cn('flex w-full items-center gap-2 rounded-md py-1 text-left disabled:opacity-100', onClick && 'px-1 hover:bg-muted', className)}
+      className={cn(
+        'flex w-full items-center gap-2 rounded-md py-1 text-left disabled:opacity-100',
+        onClick && 'px-1 hover:bg-muted',
+        active && 'bg-amber-500/10 ring-1 ring-amber-500/30',
+        className,
+      )}
     >
       <StateIcon state={subtask.runState} />
-      <span className={cn('min-w-0 flex-1 truncate text-xs', subtask.runState === 'done' && 'text-muted-foreground line-through')}>{subtask.title}</span>
+      <span className={cn(
+        'min-w-0 flex-1 truncate text-xs',
+        subtask.runState === 'done' && 'text-muted-foreground line-through',
+        active && 'font-medium text-foreground',
+      )}
+      >
+        {subtask.title}
+      </span>
       <ModelChip model={subtask.model} />
     </button>
   )
