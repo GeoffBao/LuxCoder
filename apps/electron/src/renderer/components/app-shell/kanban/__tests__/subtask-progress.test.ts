@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { buildProgressSegments } from '../SubtaskProgress'
+import { buildProgressSegments, formatProgressLabel } from '../SubtaskProgress'
 import type { KanbanSubtask } from '../types'
 
 function row(runState: KanbanSubtask['runState'], id?: string): KanbanSubtask {
@@ -21,5 +21,15 @@ describe('buildProgressSegments', () => {
 
   test('空列表返回空', () => {
     expect(buildProgressSegments([], 0)).toEqual([])
+  })
+})
+
+describe('formatProgressLabel', () => {
+  test('无失败时保持 done/total', () => {
+    expect(formatProgressLabel(['done', 'pending', 'pending'])).toBe('1/3')
+  })
+
+  test('有失败时露出 ✓/✗', () => {
+    expect(formatProgressLabel(['done', 'failed', 'pending', 'pending', 'pending'])).toBe('1✓1✗/5')
   })
 })

@@ -282,6 +282,7 @@ export function AgentTaskPanel({ sessionId }: AgentTaskPanelProps): React.ReactE
                   <SubtaskRow
                     subtask={subtask}
                     active={isCurrent}
+                    hideModelWhen={orchestratorSession.modelId}
                     onClick={subtask.sessionId
                       ? () => {
                           const child = sessions.find((candidate) => candidate.id === subtask.sessionId)

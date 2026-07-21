@@ -20,6 +20,16 @@ export function buildProgressSegments(
   return states.slice(0, total)
 }
 
+/** 有失败时露出 ✓/✗，避免「1/5」掩盖已结算的失败节点。 */
+export function formatProgressLabel(segments: SubtaskRunState[]): string {
+  const total = segments.length
+  if (total === 0) return '0/0'
+  const done = segments.filter((state) => state === 'done').length
+  const failed = segments.filter((state) => state === 'failed').length
+  if (failed === 0) return `${done}/${total}`
+  return `${done}✓${failed}✗/${total}`
+}
+
 /** 分段进度条：每节点一段，一眼看出 running/failed；对齐 craft SubtaskProgress。 */
 export function SubtaskProgress({
   subtasks,
@@ -30,7 +40,10 @@ export function SubtaskProgress({
   const segments = buildProgressSegments(subtasks, totalProp)
   if (segments.length === 0) return null
   const done = segments.filter((state) => state === 'done').length
+  const failed = segments.filter((state) => state === 'failed').length
   const total = segments.length
+  const label = formatProgressLabel(segments)
+  const settled = done + failed
 
   return (
     <div className={cn('flex items-center gap-2', className)}>
@@ -39,8 +52,8 @@ export function SubtaskProgress({
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={total}
-        aria-valuenow={done}
-        aria-label={`子任务进度 ${done}/${total}`}
+        aria-valuenow={settled}
+        aria-label={`子任务进度 ${label}`}
       >
         {segments.map((state, index) => (
           <div
@@ -62,7 +75,7 @@ export function SubtaskProgress({
           />
         ))}
       </div>
-      <span className="text-[11px] tabular-nums text-muted-foreground">{done}/{total}</span>
+      <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{label}</span>
     </div>
   )
 }

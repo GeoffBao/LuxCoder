@@ -8,6 +8,8 @@ interface SubtaskRowProps {
   onClick?: () => void
   /** 当前正在查看的子任务会话 */
   active?: boolean
+  /** 与父任务/编排模型相同时隐藏行内 ModelChip，减少重复噪声 */
+  hideModelWhen?: string
   className?: string
 }
 
@@ -18,7 +20,21 @@ function StateIcon({ state }: { state: KanbanSubtask['runState'] }): React.React
   return <Circle className="h-3.5 w-3.5 text-muted-foreground" />
 }
 
-export function SubtaskRow({ subtask, onClick, active = false, className }: SubtaskRowProps): React.ReactElement {
+function sameModel(left: string | undefined, right: string | undefined): boolean {
+  const a = left?.trim()
+  const b = right?.trim()
+  return Boolean(a && b && a === b)
+}
+
+export function SubtaskRow({
+  subtask,
+  onClick,
+  active = false,
+  hideModelWhen,
+  className,
+}: SubtaskRowProps): React.ReactElement {
+  const showModel = Boolean(subtask.model) && !sameModel(subtask.model, hideModelWhen)
+
   return (
     <button
       type="button"
@@ -40,7 +56,7 @@ export function SubtaskRow({ subtask, onClick, active = false, className }: Subt
       >
         {subtask.title}
       </span>
-      <ModelChip model={subtask.model} />
+      {showModel && <ModelChip model={subtask.model} />}
     </button>
   )
 }

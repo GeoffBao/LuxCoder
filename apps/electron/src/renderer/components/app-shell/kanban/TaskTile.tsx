@@ -145,6 +145,7 @@ export function TaskTile({
                 <SubtaskRow
                   key={subtask.id}
                   subtask={subtask}
+                  hideModelWhen={item.session.modelId}
                   onClick={subtask.sessionId && onOpenSubtask
                     ? () => onOpenSubtask(subtask.sessionId!)
                     : undefined}

@@ -253,28 +253,45 @@ function ProjectHubCard({
         project.archivedAt && 'opacity-70',
       )}
     >
-      <button
-        type="button"
-        onClick={onOpenBoard}
-        className="flex min-h-0 flex-1 flex-col items-start gap-2 text-left"
-      >
-        <div className="flex w-full items-start gap-2">
-          <span
-            className="mt-1 size-2.5 shrink-0 rounded-full"
-            style={{ backgroundColor: color }}
-          />
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-[15px] font-medium text-foreground">{project.name}</div>
-            <div className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-muted-foreground">
-              {project.description || (project.archivedAt ? '已归档' : '暂无描述')}
+      <div className="flex min-h-0 flex-1 flex-col items-start gap-2">
+        <button
+          type="button"
+          onClick={onOpenBoard}
+          className="flex w-full flex-col items-start gap-2 text-left"
+        >
+          <div className="flex w-full items-start gap-2">
+            <span
+              className="mt-1 size-2.5 shrink-0 rounded-full"
+              style={{ backgroundColor: color }}
+            />
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[15px] font-medium text-foreground">{project.name}</div>
+              <div className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-muted-foreground">
+                {project.description || (project.archivedAt ? '已归档' : '暂无描述')}
+              </div>
             </div>
           </div>
-        </div>
+        </button>
 
-        <Badge variant="secondary" className="mt-1 text-[11px] font-normal">
-          {expertLabel === '未设置' ? expertLabel : `默认 · ${expertLabel}`}
-        </Badge>
-      </button>
+        <button
+          type="button"
+          onClick={onOpenDetail}
+          title={expertLabel === '未设置' ? '打开项目详情设置默认专家' : '打开项目详情'}
+          className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Badge
+            variant="secondary"
+            className={cn(
+              'mt-0 text-[11px] font-normal transition-colors',
+              expertLabel === '未设置'
+                ? 'cursor-pointer border border-dashed border-border/70 bg-transparent text-muted-foreground hover:border-foreground/30 hover:text-foreground'
+                : 'cursor-pointer hover:bg-secondary/80',
+            )}
+          >
+            {expertLabel === '未设置' ? '设置默认专家' : `默认 · ${expertLabel}`}
+          </Badge>
+        </button>
+      </div>
 
       <div className="mt-3 flex items-center justify-between gap-2 border-t border-border/40 pt-3">
         <Button
