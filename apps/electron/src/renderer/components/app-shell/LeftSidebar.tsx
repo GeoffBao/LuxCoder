@@ -249,6 +249,10 @@ const PROJECT_SESSION_EXPAND_STEP = 10
 const PINNED_SESSION_VISIBLE_LIMIT = 6
 const PINNED_SESSION_ROW_HEIGHT_PX = 32
 const PINNED_SESSION_MAX_HEIGHT = PINNED_SESSION_VISIBLE_LIMIT * PINNED_SESSION_ROW_HEIGHT_PX
+const SESSION_QUICK_SWITCH_HINT_DELAY_MS = 1000
+const SESSION_QUICK_SWITCH_LIMIT = 9
+const SESSION_QUICK_SWITCH_KEYDOWN_EVENT = 'luxagents:session-quick-switch-keydown'
+const SESSION_QUICK_SWITCH_KEYUP_EVENT = 'luxagents:session-quick-switch-keyup'
 
 const ACTIVE_SESSION_STATUSES: ReadonlySet<SessionIndicatorStatus> = new Set([
   'blocked',
@@ -261,6 +265,67 @@ const ACTIVE_SESSION_STATUS_PRIORITY: Record<SessionIndicatorStatus, number> = {
   running: 1,
   completed: 2,
   idle: 3,
+}
+
+
+interface QuickSwitchTarget {
+  id: string
+  title: string
+  type: SessionMiniMapType
+}
+
+function getPrimaryModifierLabel(isMac: boolean): string {
+  return isMac ? '⌘' : 'Ctrl'
+}
+
+function isPrimaryModifierKey(event: KeyboardEvent, isMac: boolean): boolean {
+  if (isMac) {
+    return event.key === 'Meta' || event.key === 'OS' || event.code === 'MetaLeft' || event.code === 'MetaRight'
+  }
+  return event.key === 'Control' || event.code === 'ControlLeft' || event.code === 'ControlRight'
+}
+
+function hasOnlyPrimaryModifier(event: KeyboardEvent, isMac: boolean): boolean {
+  if (isMac) {
+    return event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey
+  }
+  return event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey
+}
+
+function getQuickSwitchNumber(event: KeyboardEvent): number | null {
+  if (!/^[1-9]$/.test(event.key)) return null
+  return Number(event.key)
+}
+
+function rectsIntersect(a: DOMRect, b: DOMRect): boolean {
+  return a.bottom > b.top && a.top < b.bottom && a.right > b.left && a.left < b.right
+}
+
+function isQuickSwitchRowVisible(row: HTMLElement, root: HTMLElement): boolean {
+  const rowRect = row.getBoundingClientRect()
+  if (rowRect.width <= 0 || rowRect.height <= 0) return false
+  if (!rectsIntersect(rowRect, root.getBoundingClientRect())) return false
+
+  let parent = row.parentElement
+  while (parent && parent !== root) {
+    const style = window.getComputedStyle(parent)
+    if (/(auto|scroll|hidden|clip)/.test(`${style.overflow}${style.overflowY}${style.overflowX}`)) {
+      const parentRect = parent.getBoundingClientRect()
+      if (!rectsIntersect(rowRect, parentRect)) return false
+    }
+    parent = parent.parentElement
+  }
+
+  return true
+}
+
+function SessionQuickSwitchKeycap(): React.ReactElement {
+  return (
+    <span className="session-quick-switch-keycap" aria-hidden="true">
+      <span className="session-quick-switch-modifier" />
+      <span className="session-quick-switch-number" />
+    </span>
+  )
 }
 
 /** 按 updatedAt 将条目分为 今天 / 昨天 / 更早 三组 */
@@ -556,6 +621,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   const automations = useAtomValue(automationsAtom)
   const setAutomations = useSetAtom(automationsAtom)
   const automationCount = automations.length
+  const settingsOpen = useAtomValue(settingsOpenAtom)
   const setSettingsOpen = useSetAtom(settingsOpenAtom)
   const setSettingsTab = useSetAtom(settingsTabAtom)
   const [conversations, setConversations] = useAtom(conversationsAtom)
@@ -641,10 +707,15 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   const openSession = useOpenSession()
   const syncActiveTabSideEffects = useSyncActiveTabSideEffects()
   const store = useStore()
+  const sidebarRootRef = React.useRef<HTMLDivElement>(null)
+  const quickSwitchTargetsRef = React.useRef<QuickSwitchTarget[]>([])
+  const quickSwitchHintTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const processedQuickSwitchEventsRef = React.useRef<WeakSet<KeyboardEvent>>(new WeakSet())
+  const [quickSwitchHintsVisible, setQuickSwitchHintsVisible] = React.useState(false)
 
   // 归档 & 搜索状态
   const [viewMode, setViewMode] = useAtom(sidebarViewModeAtom)
-  const setSearchDialogOpen = useSetAtom(searchDialogOpenAtom)
+  const [searchDialogOpen, setSearchDialogOpen] = useAtom(searchDialogOpenAtom)
 
   const handleOpenSettings = React.useCallback((): void => {
     setSettingsOpen(true)
@@ -1647,6 +1718,186 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     })
   }, [openSession, setActiveView, setUnviewedCompleted])
 
+  const refreshQuickSwitchTargets = React.useCallback((): QuickSwitchTarget[] => {
+    const root = sidebarRootRef.current
+    if (!root) {
+      quickSwitchTargetsRef.current = []
+      return []
+    }
+
+    const rows = Array.from(root.querySelectorAll<HTMLElement>('.session-quick-switch-row'))
+    for (const row of rows) {
+      delete row.dataset.quickSwitchLabel
+      delete row.dataset.quickSwitchIndex
+      row.querySelector<HTMLElement>('.session-quick-switch-modifier')?.replaceChildren()
+      row.querySelector<HTMLElement>('.session-quick-switch-number')?.replaceChildren()
+    }
+
+    const targets: QuickSwitchTarget[] = []
+    const modifierLabel = getPrimaryModifierLabel(isMac)
+    for (const row of rows) {
+      if (targets.length >= SESSION_QUICK_SWITCH_LIMIT) break
+      if (!isQuickSwitchRowVisible(row, root)) continue
+
+      const { sessionSwitchId, sessionSwitchTitle, sessionSwitchType } = row.dataset
+      if (
+        !sessionSwitchId
+        || !sessionSwitchTitle
+        || (sessionSwitchType !== 'chat' && sessionSwitchType !== 'agent')
+      ) {
+        continue
+      }
+
+      const index = targets.length + 1
+      row.dataset.quickSwitchIndex = String(index)
+      row.dataset.quickSwitchLabel = `${modifierLabel}${index}`
+      const modifier = row.querySelector<HTMLElement>('.session-quick-switch-modifier')
+      const number = row.querySelector<HTMLElement>('.session-quick-switch-number')
+      if (modifier) modifier.textContent = modifierLabel
+      if (number) number.textContent = String(index)
+      targets.push({
+        id: sessionSwitchId,
+        title: sessionSwitchTitle,
+        type: sessionSwitchType,
+      })
+    }
+
+    quickSwitchTargetsRef.current = targets
+    return targets
+  }, [isMac])
+
+  React.useEffect(() => {
+    const root = sidebarRootRef.current
+    if (!root) return
+
+    if (!quickSwitchHintsVisible) {
+      const rows = Array.from(root.querySelectorAll<HTMLElement>('.session-quick-switch-row'))
+      for (const row of rows) {
+        delete row.dataset.quickSwitchLabel
+        delete row.dataset.quickSwitchIndex
+        row.querySelector<HTMLElement>('.session-quick-switch-modifier')?.replaceChildren()
+        row.querySelector<HTMLElement>('.session-quick-switch-number')?.replaceChildren()
+      }
+      quickSwitchTargetsRef.current = []
+      return
+    }
+
+    const refresh = (): void => {
+      refreshQuickSwitchTargets()
+    }
+    refresh()
+    root.addEventListener('scroll', refresh, true)
+    window.addEventListener('resize', refresh)
+    return () => {
+      root.removeEventListener('scroll', refresh, true)
+      window.removeEventListener('resize', refresh)
+    }
+  }, [
+    quickSwitchHintsVisible,
+    refreshQuickSwitchTargets,
+    sidebarCollapsed,
+    mode,
+    viewMode,
+    conversations,
+    agentSessions,
+    pinnedConversations,
+    pinnedAgentSessions,
+    conversationGroups,
+    expandedExtraCountMap,
+    collapsedWorkspaceIds,
+    expandedDelegationParentIds,
+    collapsedDelegationParentIds,
+    activeSessionId,
+  ])
+
+  React.useEffect(() => {
+    const clearHintTimer = (): void => {
+      if (quickSwitchHintTimerRef.current !== null) {
+        clearTimeout(quickSwitchHintTimerRef.current)
+        quickSwitchHintTimerRef.current = null
+      }
+    }
+
+    const hideHints = (): void => {
+      clearHintTimer()
+      setQuickSwitchHintsVisible(false)
+    }
+
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (processedQuickSwitchEventsRef.current.has(event)) return
+      processedQuickSwitchEventsRef.current.add(event)
+      if (event.isComposing) return
+      if (settingsOpen || searchDialogOpen) return
+
+      const number = getQuickSwitchNumber(event)
+      if (number !== null && hasOnlyPrimaryModifier(event, isMac)) {
+        const targets = refreshQuickSwitchTargets()
+        const target = targets[number - 1]
+        if (!target) return
+
+        event.preventDefault()
+        event.stopPropagation()
+        if (target.type === 'agent') {
+          handleSelectAgentSession(target.id, target.title)
+        } else {
+          handleSelectConversation(target.id, target.title)
+        }
+        return
+      }
+
+      if (!isPrimaryModifierKey(event, isMac) || event.repeat) return
+      clearHintTimer()
+      quickSwitchHintTimerRef.current = setTimeout(() => {
+        quickSwitchHintTimerRef.current = null
+        if (refreshQuickSwitchTargets().length === 0) return
+        setQuickSwitchHintsVisible(true)
+      }, SESSION_QUICK_SWITCH_HINT_DELAY_MS)
+    }
+
+    const handleKeyUp = (event: KeyboardEvent): void => {
+      if (processedQuickSwitchEventsRef.current.has(event)) return
+      processedQuickSwitchEventsRef.current.add(event)
+      if (isPrimaryModifierKey(event, isMac)) {
+        hideHints()
+      }
+    }
+
+    const handleForwardedKeyDown = (event: Event): void => {
+      const forwarded = event as CustomEvent<{ event?: KeyboardEvent }>
+      const originalEvent = forwarded.detail?.event
+      if (originalEvent) handleKeyDown(originalEvent)
+    }
+
+    const handleForwardedKeyUp = (event: Event): void => {
+      const forwarded = event as CustomEvent<{ event?: KeyboardEvent }>
+      const originalEvent = forwarded.detail?.event
+      if (originalEvent) handleKeyUp(originalEvent)
+    }
+
+    window.addEventListener('keydown', handleKeyDown, true)
+    window.addEventListener('keyup', handleKeyUp, true)
+    window.addEventListener(SESSION_QUICK_SWITCH_KEYDOWN_EVENT, handleForwardedKeyDown)
+    window.addEventListener(SESSION_QUICK_SWITCH_KEYUP_EVENT, handleForwardedKeyUp)
+    window.addEventListener('blur', hideHints)
+    document.addEventListener('visibilitychange', hideHints)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true)
+      window.removeEventListener('keyup', handleKeyUp, true)
+      window.removeEventListener(SESSION_QUICK_SWITCH_KEYDOWN_EVENT, handleForwardedKeyDown)
+      window.removeEventListener(SESSION_QUICK_SWITCH_KEYUP_EVENT, handleForwardedKeyUp)
+      window.removeEventListener('blur', hideHints)
+      document.removeEventListener('visibilitychange', hideHints)
+      clearHintTimer()
+    }
+  }, [
+    isMac,
+    settingsOpen,
+    searchDialogOpen,
+    handleSelectAgentSession,
+    handleSelectConversation,
+    refreshQuickSwitchTargets,
+  ])
+
   /** 重命名工作区名称 */
   const handleWorkspaceRename = React.useCallback(async (workspaceId: string, newName: string): Promise<void> => {
     try {
@@ -2155,6 +2406,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   if (sidebarCollapsed) {
     return (
       <div
+        ref={sidebarRootRef}
+        data-session-switch-hints={quickSwitchHintsVisible ? 'true' : undefined}
         className={cn(
           'relative h-full flex flex-col items-center px-2',
           !noTransition && 'transition-[width] duration-300',
@@ -2398,6 +2651,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   // ===== 展开状态：完整侧边栏 =====
   return (
     <div
+      ref={sidebarRootRef}
+      data-session-switch-hints={quickSwitchHintsVisible ? 'true' : undefined}
       className={cn(
         'relative h-full flex flex-col',
         !noTransition && 'transition-[width] duration-300',
@@ -3042,6 +3297,9 @@ const ConversationItem = React.memo(function ConversationItem({
           ref={preview.setAnchorRef}
           role="button"
           tabIndex={0}
+          data-session-switch-id={conversation.id}
+          data-session-switch-title={conversation.title}
+          data-session-switch-type="chat"
           onClick={() => onSelect(conversation.id, conversation.title)}
           onMouseEnter={preview.handleMouseEnter}
           onMouseLeave={preview.handleMouseLeave}
@@ -3050,7 +3308,7 @@ const ConversationItem = React.memo(function ConversationItem({
             startEdit()
           }}
           className={cn(
-            'group relative w-full flex items-center gap-1.5 rounded-md py-1 pl-2.5 pr-1.5 transition-colors duration-100 titlebar-no-drag text-left',
+            'session-quick-switch-row group relative w-full flex items-center gap-1.5 rounded-md py-1 pl-2.5 pr-1.5 transition-colors duration-100 titlebar-no-drag text-left',
             active && 'session-item-selected',
             streaming
               ? 'text-foreground font-medium hover:bg-foreground/[0.03]'
@@ -3095,16 +3353,19 @@ const ConversationItem = React.memo(function ConversationItem({
 
           {/* 默认显示时间，hover 时显示操作按钮 */}
           {!editing && (
-            <SessionItemActions
-              updatedAt={conversation.updatedAt}
-              relativeTimeNow={relativeTimeNow}
-              pinned={isPinned}
-              archived={!!conversation.archived}
-              onTogglePin={() => onTogglePin(conversation.id)}
-              onToggleArchive={() => onToggleArchive(conversation.id)}
-              onMenuOpenChange={setMenuOpen}
-              menuItems={menuItems}
-            />
+            <>
+              <SessionItemActions
+                updatedAt={conversation.updatedAt}
+                relativeTimeNow={relativeTimeNow}
+                pinned={isPinned}
+                archived={!!conversation.archived}
+                onTogglePin={() => onTogglePin(conversation.id)}
+                onToggleArchive={() => onToggleArchive(conversation.id)}
+                onMenuOpenChange={setMenuOpen}
+                menuItems={menuItems}
+              />
+              <SessionQuickSwitchKeycap />
+            </>
           )}
         </div>
       </ContextMenuTrigger>

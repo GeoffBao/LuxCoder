@@ -163,6 +163,15 @@ function SafeTooltip({ children, content, side = 'top' }: SafeTooltipProps): Rea
  * 列表项右侧操作区：默认显示相对更新时间，hover 时切换为「置顶 / 归档 / 三点菜单」按钮组。
  * 归档需要二次确认；进入确认态后强制保持按钮可见，避免鼠标移开后用户失去反馈。
  */
+function SessionQuickSwitchKeycap(): React.ReactElement {
+  return (
+    <span className="session-quick-switch-keycap" aria-hidden="true">
+      <span className="session-quick-switch-modifier" />
+      <span className="session-quick-switch-number" />
+    </span>
+  )
+}
+
 export function SessionItemActions({
   updatedAt,
   relativeTimeNow,
@@ -226,7 +235,7 @@ export function SessionItemActions({
 
   return (
     <div
-      className="relative flex-shrink-0 h-[18px] w-[58px]"
+      className="session-item-actions relative flex-shrink-0 h-[18px] w-[58px]"
       onClick={(e) => e.stopPropagation()}
     >
       <span
@@ -514,11 +523,14 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
           ref={preview.setAnchorRef}
           role="button"
           tabIndex={0}
+          data-session-switch-id={session.id}
+          data-session-switch-title={session.title}
+          data-session-switch-type="agent"
           onClick={() => onSelect(session.id, session.title)}
           onMouseEnter={preview.handleMouseEnter}
           onMouseLeave={preview.handleMouseLeave}
           className={cn(
-            'group relative w-full flex items-center gap-1.5 rounded-md py-1 pl-2.5 pr-1.5 transition-colors duration-100 titlebar-no-drag text-left',
+            'session-quick-switch-row group relative w-full flex items-center gap-1.5 rounded-md py-1 pl-2.5 pr-1.5 transition-colors duration-100 titlebar-no-drag text-left',
             active && 'agent-session-item-active',
             leftAccent
               ? SESSION_ACCENT_ROW_CLASS[leftAccent]
@@ -615,7 +627,7 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
                       event.stopPropagation()
                       preview.closeNow()
                     }}
-                    className="flex-shrink-0 inline-flex size-6 -my-1 items-center justify-center rounded text-foreground/45 hover:bg-foreground/[0.055] hover:text-foreground/70 transition-colors"
+                    className="session-delegation-toggle flex-shrink-0 inline-flex size-6 -my-1 items-center justify-center rounded text-foreground/45 hover:bg-foreground/[0.055] hover:text-foreground/70 transition-colors"
                   >
                     <ChevronRight
                       size={11}
@@ -637,6 +649,7 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
                 onMenuOpenChange={setMenuOpen}
                 menuItems={menuItems}
               />
+              <SessionQuickSwitchKeycap />
             </>
           )}
         </div>

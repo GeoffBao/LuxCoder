@@ -23,7 +23,7 @@ export interface SidebarProjectSubgroupProps {
   onRequestDelete: (id: string) => void
   onRequestMove: (id: string) => void
   onRename: (id: string, newTitle: string) => Promise<void>
-  onTogglePin: (id: string) => Promise<void>
+  onTogglePin: (id: string, cascade: boolean) => Promise<void>
   onToggleArchive: (id: string) => Promise<void>
 }
 

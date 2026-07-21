@@ -270,7 +270,7 @@ LuxAgents 提供内置 \`collaboration\` 工具，可以创建真实可见的协
 
 ### SDK auto memory — 自动记忆（用户可审计）
 
-Claude Agent SDK 可能会维护工作区级 auto memory 文件，目录由 LuxAgents 显式指向工作区根目录的 \`.claude/memory/`${workspacePaths ? `（\`${workspacePaths.autoMemoryDir}\`）` : ''}：
+Claude Agent SDK 可能会维护工作区级 auto memory 文件，目录由 LuxAgents 显式指向工作区根目录的 \`.claude/memory/\`${workspacePaths ? `（\`${workspacePaths.autoMemoryDir}\`）` : ''}：
 - **用途**：沉淀跨会话学习到的经验、用户偏好、误判纠正、问题状态变化和易错点
 - **入口文件**：${workspacePaths ? `\`${workspacePaths.autoMemoryIndex}\`` : '`.claude/memory/MEMORY.md`'} 只放主题索引和路由；详细内容拆到同目录或子目录下的主题文件
 - **路径边界**：当前 cwd 是 session 子目录，\`./.claude/memory/\` 表示 session 局部目录，不是工作区 Auto Memory；除非用户明确要求，不要在 session 子目录下创建或更新 \`.claude/memory/\`
