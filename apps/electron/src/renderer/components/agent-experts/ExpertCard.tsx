@@ -14,6 +14,7 @@ interface ExpertCardProps {
 
 export function ExpertCard({ expert, onOpen }: ExpertCardProps): React.ReactElement {
   const skillCount = expert.skillSlugs.length
+  const mcpCount = expert.mcpIds.length
 
   return (
     <div
@@ -32,7 +33,7 @@ export function ExpertCard({ expert, onOpen }: ExpertCardProps): React.ReactElem
       )}
     >
       <div className="flex items-start gap-3">
-        <div className="rounded-xl bg-violet-500/12 p-2 text-violet-500 shadow-sm shrink-0">
+        <div className="rounded-xl bg-emerald-500/12 p-2 text-emerald-600 dark:text-emerald-400 shadow-sm shrink-0">
           <Bot size={18} />
         </div>
         <div className="min-w-0 flex-1">
@@ -45,9 +46,12 @@ export function ExpertCard({ expert, onOpen }: ExpertCardProps): React.ReactElem
         {expert.identityMd.split('\n').slice(1).join(' ').trim() || '暂无身份描述'}
       </p>
 
-      <div className="mt-auto flex items-center gap-2">
+      <div className="mt-auto flex flex-wrap items-center gap-2">
         <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
           {skillCount} 个 Skill
+        </span>
+        <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+          {mcpCount} 个 MCP
         </span>
       </div>
     </div>

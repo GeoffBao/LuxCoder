@@ -1,32 +1,31 @@
 /**
  * ExpertDetailSheet — Agent 专家详情右侧抽屉
  *
- * 编辑 IDENTITY / SOUL / RULES 文本与 skillSlugs；mcpIds 只读；渠道绑定占位。
+ * 编辑 IDENTITY / SOUL / RULES；Skills / MCP 多选绑定（写 expert.json 引用）。
  */
 
 import * as React from 'react'
+import { useAtomValue } from 'jotai'
 import { Bot, Save } from 'lucide-react'
 import { toast } from 'sonner'
+import {
+  agentWorkspacesAtom,
+  currentAgentWorkspaceIdAtom,
+} from '@/atoms/agent-atoms'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { SettingsCard } from '@/components/settings/primitives'
 import type { ExpertPackage } from '@luxagents/shared/experts'
+import {
+  mergeReferenceOptions,
+  ReferenceMultiSelect,
+  type ReferenceOption,
+} from './ReferenceMultiSelect'
 
 interface ExpertDetailSheetProps {
   expert: ExpertPackage | null
   onOpenChange: (open: boolean) => void
   onSaved: (expert: ExpertPackage) => void
-}
-
-function parseSkillSlugsInput(input: string): string[] {
-  return input
-    .split(/[\n,]+/)
-    .map((item) => item.trim())
-    .filter((item) => item.length > 0)
-}
-
-function formatSkillSlugsInput(slugs: string[]): string {
-  return slugs.join('\n')
 }
 
 export function ExpertDetailSheet({
@@ -56,11 +55,19 @@ interface ExpertDetailBodyProps {
 }
 
 function ExpertDetailBody({ expert, onOpenChange, onSaved }: ExpertDetailBodyProps): React.ReactElement {
+  const workspaces = useAtomValue(agentWorkspacesAtom)
+  const currentWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
+  const workspaceSlug = workspaces.find((workspace) => workspace.id === currentWorkspaceId)?.slug ?? ''
+
   const [label, setLabel] = React.useState(expert.label)
   const [identityMd, setIdentityMd] = React.useState(expert.identityMd)
   const [soulMd, setSoulMd] = React.useState(expert.soulMd)
   const [rulesMd, setRulesMd] = React.useState(expert.rulesMd)
-  const [skillSlugsInput, setSkillSlugsInput] = React.useState(formatSkillSlugsInput(expert.skillSlugs))
+  const [skillSlugs, setSkillSlugs] = React.useState<string[]>(expert.skillSlugs)
+  const [mcpIds, setMcpIds] = React.useState<string[]>(expert.mcpIds)
+  const [skillCatalog, setSkillCatalog] = React.useState<ReferenceOption[]>([])
+  const [mcpCatalog, setMcpCatalog] = React.useState<ReferenceOption[]>([])
+  const [catalogLoading, setCatalogLoading] = React.useState(false)
   const [saving, setSaving] = React.useState(false)
 
   React.useEffect(() => {
@@ -68,13 +75,71 @@ function ExpertDetailBody({ expert, onOpenChange, onSaved }: ExpertDetailBodyPro
     setIdentityMd(expert.identityMd)
     setSoulMd(expert.soulMd)
     setRulesMd(expert.rulesMd)
-    setSkillSlugsInput(formatSkillSlugsInput(expert.skillSlugs))
+    setSkillSlugs(expert.skillSlugs)
+    setMcpIds(expert.mcpIds)
   }, [expert])
+
+  React.useEffect(() => {
+    let cancelled = false
+    if (!workspaceSlug) {
+      setSkillCatalog([])
+      setMcpCatalog([])
+      setCatalogLoading(false)
+      return
+    }
+    setCatalogLoading(true)
+    void Promise.all([
+      window.electronAPI.getWorkspaceSkills(workspaceSlug),
+      window.electronAPI.getWorkspaceCapabilities(workspaceSlug),
+    ]).then(([skills, capabilities]) => {
+      if (cancelled) return
+      setSkillCatalog(skills.map((skill) => ({
+        id: skill.slug,
+        label: skill.name || skill.slug,
+        hint: skill.enabled === false ? '已禁用' : undefined,
+      })))
+      const mcpOptions: ReferenceOption[] = [
+        ...capabilities.mcpServers.map((server) => ({
+          id: server.name,
+          label: server.name,
+          hint: server.type,
+        })),
+        ...capabilities.builtinMcpServers.map((server) => ({
+          id: server.id,
+          label: server.name || server.id,
+          hint: '内置',
+        })),
+      ]
+      const seen = new Set<string>()
+      setMcpCatalog(mcpOptions.filter((option) => {
+        if (seen.has(option.id)) return false
+        seen.add(option.id)
+        return true
+      }))
+    }).catch((cause) => {
+      console.error('[ExpertDetail] 加载 Skills/MCP 目录失败:', cause)
+      if (!cancelled) {
+        setSkillCatalog([])
+        setMcpCatalog([])
+      }
+    }).finally(() => {
+      if (!cancelled) setCatalogLoading(false)
+    })
+    return () => { cancelled = true }
+  }, [workspaceSlug])
+
+  const skillOptions = React.useMemo(
+    () => mergeReferenceOptions(skillCatalog, skillSlugs),
+    [skillCatalog, skillSlugs],
+  )
+  const mcpOptions = React.useMemo(
+    () => mergeReferenceOptions(mcpCatalog, mcpIds),
+    [mcpCatalog, mcpIds],
+  )
 
   const handleSave = async (): Promise<void> => {
     setSaving(true)
     try {
-      const skillSlugs = parseSkillSlugsInput(skillSlugsInput)
       await window.electronAPI.experts.updateFiles(expert.id, {
         identityMd,
         soulMd,
@@ -83,6 +148,7 @@ function ExpertDetailBody({ expert, onOpenChange, onSaved }: ExpertDetailBodyPro
       const updated = await window.electronAPI.experts.updateManifest(expert.id, {
         label: label.trim() || expert.label,
         skillSlugs,
+        mcpIds,
       })
       onSaved({ ...updated, identityMd, soulMd, rulesMd })
       toast.success('专家配置已保存')
@@ -100,7 +166,7 @@ function ExpertDetailBody({ expert, onOpenChange, onSaved }: ExpertDetailBodyPro
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex shrink-0 items-center justify-between border-b border-border/60 px-6 py-4">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="rounded-xl bg-violet-500/12 p-2 text-violet-500">
+          <div className="rounded-xl bg-emerald-500/12 p-2 text-emerald-600 dark:text-emerald-400">
             <Bot size={20} />
           </div>
           <div className="min-w-0">
@@ -167,24 +233,37 @@ function ExpertDetailBody({ expert, onOpenChange, onSaved }: ExpertDetailBodyPro
 
           <ExpertFieldSection
             title="Skill 引用"
-            description="每行一个 slug，或用英文逗号分隔。完整 Skill 内容仍由 Agent 技能模块管理。"
+            description="勾选当前工作区 Skills；跑 Kanban 任务时会与任务 skills 合并注入。完整内容仍由 Agent 技能模块管理。"
           >
             <SettingsCard divided={false}>
-              <textarea
-                value={skillSlugsInput}
-                onChange={(event) => setSkillSlugsInput(event.target.value)}
-                rows={4}
-                placeholder={'brainstorming\npdf'}
-                className="w-full resize-y rounded-lg border border-border/60 bg-content-area px-3 py-2 font-mono text-[13px] leading-6 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              />
+              {catalogLoading ? (
+                <p className="px-1 py-2 text-[13px] text-muted-foreground">加载 Skills…</p>
+              ) : (
+                <ReferenceMultiSelect
+                  options={skillOptions}
+                  value={skillSlugs}
+                  onChange={setSkillSlugs}
+                  emptyHint={workspaceSlug ? '当前工作区暂无 Skill' : '请先选择工作区后再绑定 Skill'}
+                />
+              )}
             </SettingsCard>
           </ExpertFieldSection>
 
-          <ExpertFieldSection title="MCP 引用" description="只读占位，后续版本支持多选绑定。">
+          <ExpertFieldSection
+            title="MCP 引用"
+            description="勾选当前工作区 MCP；目前仅持久化到专家包，运行时注入后续接入。"
+          >
             <SettingsCard divided={false}>
-              <div className="rounded-lg border border-dashed border-border/60 bg-muted/30 px-3 py-2 text-[13px] text-muted-foreground">
-                {expert.mcpIds.length > 0 ? expert.mcpIds.join(', ') : '暂无 MCP 绑定'}
-              </div>
+              {catalogLoading ? (
+                <p className="px-1 py-2 text-[13px] text-muted-foreground">加载 MCP…</p>
+              ) : (
+                <ReferenceMultiSelect
+                  options={mcpOptions}
+                  value={mcpIds}
+                  onChange={setMcpIds}
+                  emptyHint={workspaceSlug ? '当前工作区暂无 MCP' : '请先选择工作区后再绑定 MCP'}
+                />
+              )}
             </SettingsCard>
           </ExpertFieldSection>
 
