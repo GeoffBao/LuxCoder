@@ -4,6 +4,8 @@ import type { KanbanProject } from './kanban/types'
 export interface SidebarProjectGroup {
   project: KanbanProject
   sessions: AgentSessionMeta[]
+  /** 是否为当前选中的项目（对应 selectedProjectIdAtom，驱动子分组高亮 / 自动展开） */
+  selected: boolean
 }
 
 export interface SidebarProjectGroupsResult {
@@ -17,6 +19,7 @@ export interface SidebarProjectGroupsResult {
 export function buildSidebarProjectGroups(
   sessions: AgentSessionMeta[],
   projects: KanbanProject[],
+  selectedProjectId?: string | null,
 ): SidebarProjectGroupsResult {
   const activeProjects = projects.filter((candidate) => !candidate.archivedAt)
   const activeProjectIds = new Set(activeProjects.map((candidate) => candidate.id))
@@ -41,6 +44,7 @@ export function buildSidebarProjectGroups(
       sessions: (sessionsByProject.get(project.id) ?? [])
         .slice()
         .sort((a, b) => b.updatedAt - a.updatedAt),
+      selected: project.id === selectedProjectId,
     }))
 
   return { projectGroups, unboundSessions }

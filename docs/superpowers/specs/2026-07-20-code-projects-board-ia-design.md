@@ -1,6 +1,6 @@
 # Code 壳 Projects + Board 信息架构设计
 
-日期：2026-07-20  
+日期：2026-07-20（2026-07-21 修订：§4.4 左栏模块契约、§4.1 删除已不存在的 ProjectsListPanel、§8/§9 同步）  
 状态：已评审（brainstorming）  
 范围：P0 实现边界 + P1/P2 展望
 
@@ -27,15 +27,17 @@
 ## 3. 目标信息架构
 
 ```
-顶栏：Chat | Work（过渡入口） | Code
+顶栏：Chat | Code
 
-Code / Work 共用左栏壳：
+Code 左栏壳：
   Sessions（主列表，可按 Project 分组）
   Projects（次级区块：列表 / 搜索 / +）
 
-主区（互斥视图）：
+主区（互斥视图，由 codeMainViewAtom + workViewAtom 决定）：
   Session 对话 | Board(Kanban) | Project 详情
 ```
+
+遗留 `appMode === 'cowork'`：启动时迁移为 `agent` + `codeMainView='work'`；顶栏不再暴露 Work。
 
 ### 3.1 交互语义（混合 C）
 
@@ -63,7 +65,7 @@ craft 的 `CreateProjectDialog` 实际只收集 **name**；cwd / color / details
 
 | 组件 / Atom | 动作 |
 |-------------|------|
-| `ProjectsListPanel` | 抽 `variant="sidebar"`（或新建 `SidebarProjectsSection` 包装）；去右栏 card 壳；`max-h` + 内滚 |
+| ~~`ProjectsListPanel`~~ | **已删除**（P0 完成）；侧边栏唯一实现为 `work/SidebarProjectsSection.tsx`，本表保留此行仅为记录 |
 | `WorkBoardView` | 删除右栏 aside；主区全宽 |
 | `ProjectInfoPage` | 补齐核心字段编辑 |
 | `SidebarProjectSubgroup` | 保留；负责会话归属分组，不替代实体 CRUD |
@@ -71,9 +73,49 @@ craft 的 `CreateProjectDialog` 实际只收集 **name**；cwd / color / details
 
 ### 4.2 新增 / 调整
 
-1. `SidebarProjectsSection`（或等价 variant）挂入 `LeftSidebar`：在「自动任务」与会话列表之间；`appMode === 'cowork' | 'agent'` 时显示。
+1. `SidebarProjectsSection` 挂入 `LeftSidebar`：顺序为 新会话 → 自动任务 → Agent 技能 → **项目** → 会话/工作区列表；`appMode === 'cowork' | 'agent'` 时显示。（已实现，2026-07-21 代码勘查确认）
 2. `CreateProjectDialog`：对齐 `CreateProjectInput` 核心字段（不必抄 craft 仅 name 的极限简版，允许可选快捷字段）。
 3. BDD / 单测覆盖过滤、新建进详情、无右栏、Chat 不显示。
+
+### 4.4 左栏模块契约（2026-07-21 修订，P0+）
+
+**动因**：「项目」需升级为与「Agent 技能」同级的左栏一等模块——"次级"指导航层级次于 Sessions，不是视觉规格降级。代码勘查结论：
+
+- 左栏无共享模块抽象，三套 ad-hoc 实现并存：入口行（`AutomationSidebarEntry` / `SkillsSidebarEntry`，icon + title + badge，不可折叠）、`SidebarProjectsSection`（bespoke 折叠区）、`AgentProjectGroupItem`（会话树组头）。属绿地，无既有抽象需兼容。
+- 视觉语言不一致：entry 行 `py-2 rounded-md text-[13px]`，项目区 header `py-1 text-[12px]`。
+- 项目区折叠态为组件内 `useState`，不持久化；收起态 rail 完全跳过「项目」。
+
+**契约设计** —— 新增 `app-shell/SidebarModule.tsx`：
+
+```ts
+interface SidebarModuleProps {
+  icon: LucideIcon
+  title: string
+  count?: number                        // 徽标；>99 显示 "99+"
+  badgeTone?: 'neutral' | 'accent'      // accent = 有更新（蓝点/蓝徽标）
+  collapsible?: boolean                 // false = 纯入口行（整行点击导航）
+  defaultCollapsed?: boolean
+  headerActions?: ReactNode             // hover 浮现操作（如「+ 新建」）
+  visibleIn: Array<'chat' | 'cowork' | 'agent'>
+  railIcon?: boolean                    // 收起态 rail 是否显示 icon 入口
+  children?: ReactNode                  // collapsible 时的展开体
+}
+```
+
+**迁移映射**：
+
+| 模块 | 形态 | 说明 |
+|------|------|------|
+| 自动任务 | `collapsible: false` 入口行 | 现有 `AutomationSidebarEntry` 逻辑迁入 |
+| Agent 技能 | `collapsible: false` 入口行 | 现有 `SkillsSidebarEntry` 逻辑迁入，仅 `agent` |
+| 项目 | `collapsible: true` 内容模块 | `SidebarProjectsSection` 用 `SidebarModule` 壳重写；atoms 与交互语义（单击过滤 Board、ⓘ 进详情、hover 新建）不变 |
+
+**统一规则**：
+
+1. 视觉规格对齐现有 entry 行（`py-2 rounded-md text-[13px]`）；项目展开体（搜索 / 归档 / 列表）作为 `children` 保持现有布局。
+2. 折叠态持久化到 `settings.json`（遵守"配置文件优于 localStorage"约束），按 `mode + moduleId` 存储。
+3. 收起态 rail：「项目」以 `FolderKanban` icon 呈现（对齐技能的 rail 形态），点击展开左栏并定位到项目区。
+4. `LeftSidebar.tsx` 只保留模块装配，三套私有实现收敛为 `SidebarModule` 实例，降低与 Proma 上游的合并冲突面。
 
 ### 4.3 本轮不做
 
@@ -122,8 +164,9 @@ craft 的 `CreateProjectDialog` 实际只收集 **name**；cwd / color / details
 
 ### P1
 
-- 顶栏 Work 收成 Code 内 Board 入口。
-- Sessions list / board 视图切换（更贴 craft）。
+- 左栏模块契约收敛：新建 `SidebarModule`，迁移自动任务 / Agent 技能 / 项目三个模块（见 §4.4）。
+- ~~顶栏 Work 收成 Code 内 Board 入口~~：**已完成**（ModeSwitcher 仅 Chat|Code；cowork 启动迁移到 `agent` + `codeMainView='work'`）。
+- Sessions list / board 视图切换（更贴 craft）——Code 主区已由 `codeMainViewAtom` 承载。
 
 ### P2
 
@@ -141,15 +184,18 @@ craft 的 `CreateProjectDialog` 实际只收集 **name**；cwd / color / details
 
 | 风险 | 缓解 |
 |------|------|
-| LeftSidebar 拥挤 | max-h + 可折叠 |
-| Work/Code 双入口混乱 | 同一组件 + 同一 atom；Work 仅作 Board 快捷入口 |
+| LeftSidebar 拥挤 | `SidebarModule` 折叠契约 + 折叠态持久化（见 §4.4） |
+| Work/Code 双入口混乱 | 顶栏 Work 已下线；看板统一走 Code `codeMainViewAtom` |
 | 详情字段过多 | P0 只做核心字段；列自定义 P2 |
-| 合入 Proma 冲突 | UI 隔离在 `SidebarProjectsSection`，少改 LeftSidebar 主干 |
+| 合入 Proma 冲突 | UI 收敛到 `SidebarModule` + `SidebarProjectsSection`，LeftSidebar 主干只留装配（见 §4.4） |
+| 遗留 cowork 持久化 | AppShell 启动迁移；MainArea 保留一帧兜底分支 |
 
 ## 9. 预估触点文件
 
-- `apps/electron/src/renderer/components/app-shell/LeftSidebar.tsx`
-- `apps/electron/src/renderer/components/work/ProjectsListPanel.tsx`
+- `apps/electron/src/renderer/components/app-shell/LeftSidebar.tsx`（三套私有实现收敛为 `SidebarModule` 实例）
+- 新建：`apps/electron/src/renderer/components/app-shell/SidebarModule.tsx`（模块契约壳）
+- `apps/electron/src/renderer/components/work/SidebarProjectsSection.tsx`（用契约壳重写，交互语义不变）
+- `apps/electron/src/main/lib/settings-service.ts`（折叠态持久化）
 - `apps/electron/src/renderer/components/work/WorkBoardView.tsx`
 - `apps/electron/src/renderer/components/work/ProjectInfoPage.tsx`
 - 新建：`CreateProjectDialog.tsx`（或同目录等价）
@@ -158,6 +204,7 @@ craft 的 `CreateProjectDialog` 实际只收集 **name**；cwd / color / details
 ## 10. 开放决策（已锁定）
 
 - IA：定案 A — Projects 次级左栏 + Kanban 主区视图；不双左栏并列。
-- 模式显示：Work + Code；Chat 不显示。
+- 模式显示：Chat | Code；Projects 仅 Code（及遗留 cowork 迁移后）显示；Chat 不显示。
 - 单击：留 Board 过滤；新建进详情。
 - 创建厚度：详情为主；创建可带可选快捷字段。
+- 顶栏 Work：已下线（P1）。

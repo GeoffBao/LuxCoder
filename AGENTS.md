@@ -525,3 +525,26 @@ React UI 更新
 - **文件监听**：工作区文件、MCP 配置、Chat 工具实时监控
 - **事件流处理**：SDK 消息流式转换与累积
 - **错误映射**：SDK 错误统一转换为应用错误
+
+## Learned User Preferences
+
+- Prefer Chinese for explanations; keep a terse expert tone
+- Commit only when explicitly asked
+- Work/Kanban task runs should show live tool/stream execution in Code chat, matching craft-agents and normal Code mode
+- Prefer fully aligning Work/Kanban behavior with craft-agents-max rather than inventing parallel UX
+- When changing Code `LeftSidebar`, isolate craft-Project UI (e.g. `SidebarProjectSubgroup`, `SidebarProjectsSection`) to keep Proma LeftSidebar ports merge-friendly
+- Prefer Appearance and Tools settings tabs visible; do not re-hide them in `HIDDEN_TABS` without asking
+- Prefer Project list click to filter Board and stay on board; open detail via secondary affordance; after create, enter Project detail with craft-aligned fields (cwd/color/description)
+- Prefer long-term Code/Work IA: Sessions as left-rail primary, Projects as secondary section, Kanban as main-area Board view — not Projects|Kanban as dual left-rail modules
+
+## Learned Workspace Facts
+
+- Project/Kanban is ported from craft-agents-max (https://github.com/GeoffBao/craft-agents-max); treat that repo as the behavior reference for gaps
+- Task `llmConnection` maps to LuxAgents `channelId` (Channel acts as the connection)
+- Dev config/storage lives under `~/.luxagents-dev/`; packaged builds use `~/.luxagents/`
+- Work/Kanban Conductor must run agents via `runAgentHeadless` so `STREAM_EVENT` reaches the Code renderer
+- Work mode (`cowork`) mounts Project + Task DAG + Kanban (`WorkBoardView`); the old WorkTask/LangGraph path was replaced
+- Code sidebar「工作区」= `AgentWorkspace`; craft「项目」= workspace-internal Project shared by Work board and Code subgroups via `serverKanbanProjectsAtom`
+- `projects:changed` payload `workspaceId` is the workspace root basename (slug), not the workspace UUID
+- P0 Projects IA: Work/Code share compact left-rail Projects (`SidebarProjectsSection`); Work right-rail `ProjectsListPanel` removed; Board is full-width main view filtered by `selectedProjectIdAtom`
+- craft CreateProject is name-first; cwd/color/description thickness belongs on `ProjectInfoPage`, not a heavy create wizard

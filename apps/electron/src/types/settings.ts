@@ -254,6 +254,8 @@ export interface AppSettings {
   autoCleanupArchivedDays?: number
   /** 主窗口状态（大小、位置、是否最大化） */
   mainWindowState?: MainWindowState
+  /** 左栏模块折叠态（key = `${mode}:${moduleId}`，如 `agent:projects`） */
+  sidebarModuleCollapsed?: Record<string, boolean>
 }
 
 /** 主窗口大小、位置和最大化状态 */

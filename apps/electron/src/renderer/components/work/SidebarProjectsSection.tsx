@@ -1,13 +1,18 @@
 import * as React from 'react'
-import { useAtom, useSetAtom } from 'jotai'
-import { ChevronRight, FolderKanban, Info, Plus, Search } from 'lucide-react'
+import { useAtom, useAtomValue, useSetAtom } from 'jotai'
+import { FolderKanban, Info, Plus, Search } from 'lucide-react'
 import { toast } from 'sonner'
+import { activeViewAtom } from '@/atoms/active-view'
 import { appModeAtom } from '@/atoms/app-mode'
 import {
+  codeMainViewAtom,
   selectedProjectIdAtom,
   serverKanbanProjectsAtom,
   workViewAtom,
 } from '@/atoms/project-atoms'
+import { sidebarModuleCollapsedAtomFamily } from '@/atoms/sidebar-module-atoms'
+import { SidebarModule } from '@/components/app-shell/SidebarModule'
+import { sidebarModuleCollapseKey } from '@/components/app-shell/sidebar-module-model'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -20,6 +25,14 @@ export interface SidebarProjectsSectionProps {
   workspaceSlug: string | null
 }
 
+/**
+ * 左栏「项目」模块
+ *
+ * 以 SidebarModule 为壳的可折叠内容模块，头部规格与「自动任务 / Agent 技能」
+ * 入口行一致；折叠态按 `${mode}:projects` 持久化到 settings.json。
+ * 交互语义：单击项目 → 选中并切主区到看板（agent / cowork 同 atom 链路）；
+ * ⓘ / 新建成功 → 项目详情，全程留在当前模式，不再强制跳 cowork。
+ */
 export function SidebarProjectsSection({
   workspaceRoot,
   workspaceSlug,
@@ -27,9 +40,14 @@ export function SidebarProjectsSection({
   const [projects, setProjects] = useAtom(serverKanbanProjectsAtom)
   const [selectedProjectId, setSelectedProjectId] = useAtom(selectedProjectIdAtom)
   const setWorkView = useSetAtom(workViewAtom)
-  const setMode = useSetAtom(appModeAtom)
+  const setCodeMainView = useSetAtom(codeMainViewAtom)
+  const setActiveView = useSetAtom(activeViewAtom)
+  const mode = useAtomValue(appModeAtom)
 
-  const [collapsed, setCollapsed] = React.useState(false)
+  // 折叠态：按模式持久化（agent:projects / cowork:projects）
+  const collapseKey = sidebarModuleCollapseKey(mode, 'projects')
+  const [collapsed, setCollapsed] = useAtom(sidebarModuleCollapsedAtomFamily(collapseKey))
+
   const [query, setQuery] = React.useState('')
   const [showArchived, setShowArchived] = React.useState(false)
   const [createOpen, setCreateOpen] = React.useState(false)
@@ -42,15 +60,23 @@ export function SidebarProjectsSection({
   )
   const visibleProjects = filterProjects(scopedProjects, { query, showArchived })
 
+  /** 进入 Work 主区视图（看板 / 项目详情）：agent 模式切主区，cowork 由顶层分支接管 */
+  const enterWorkMainView = (): void => {
+    setCodeMainView('work')
+    // 点击项目是显式的主区导航，需退出 automations / agent-skills 覆盖视图
+    setActiveView('conversations')
+  }
+
   const handleSelectProject = (projectId: string): void => {
     setSelectedProjectId(projectId)
     setWorkView('board')
+    enterWorkMainView()
   }
 
   const handleOpenProjectDetail = (projectId: string): void => {
     setSelectedProjectId(projectId)
     setWorkView('project')
-    setMode('cowork')
+    enterWorkMainView()
   }
 
   const handleCreateProject = async (
@@ -65,7 +91,7 @@ export function SidebarProjectsSection({
       })
       setSelectedProjectId(project.id)
       setWorkView('project')
-      setMode('cowork')
+      enterWorkMainView()
       setCreateOpen(false)
       toast.success('项目已创建')
     } catch (cause) {
@@ -79,43 +105,31 @@ export function SidebarProjectsSection({
 
   return (
     <section className="titlebar-no-drag">
-      <div className="group/projects relative flex items-center">
-        <button
-          type="button"
-          aria-expanded={!collapsed}
-          aria-controls="sidebar-projects-list"
-          onClick={() => setCollapsed((value) => !value)}
-          className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 py-1 text-left text-foreground/65 transition-[padding,color,background-color] hover:bg-foreground/[0.025] hover:text-foreground/88 group-hover/projects:pr-7"
-        >
-          <FolderKanban size={13} className="flex-shrink-0 text-foreground/40" />
-          <span className="min-w-0 flex-1 truncate text-[12px] font-medium leading-[18px]">项目</span>
-          <span className="flex-shrink-0 text-[10px] tabular-nums text-foreground/30">
-            {scopedProjects.length}
-          </span>
-          <ChevronRight
-            size={12}
-            className={cn(
-              'flex-shrink-0 text-foreground/30 transition-transform duration-150',
-              collapsed ? '-rotate-90' : 'rotate-90',
-            )}
-          />
-        </button>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              aria-label="新建项目"
-              onClick={() => setCreateOpen(true)}
-              className="absolute right-0 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-md text-foreground/30 opacity-0 transition-colors hover:bg-foreground/[0.055] hover:text-foreground/65 group-hover/projects:opacity-100 focus-visible:opacity-100"
-            >
-              <Plus size={12} />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="top">新建项目</TooltipContent>
-        </Tooltip>
-      </div>
-
-      {!collapsed && (
+      <SidebarModule
+        icon={FolderKanban}
+        title="项目"
+        count={scopedProjects.length}
+        ariaLabel={`项目，${scopedProjects.length} 个项目`}
+        collapsible
+        collapsed={collapsed}
+        onCollapsedChange={setCollapsed}
+        bodyId="sidebar-projects-list"
+        headerActions={
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label="新建项目"
+                onClick={() => setCreateOpen(true)}
+                className="flex size-5 items-center justify-center rounded-md text-foreground/30 transition-colors hover:bg-foreground/[0.055] hover:text-foreground/65"
+              >
+                <Plus size={12} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">新建项目</TooltipContent>
+          </Tooltip>
+        }
+      >
         <div className="mt-1 space-y-1.5 px-1">
           <label className="relative block">
             <Search className="absolute left-2 top-2 h-3 w-3 text-foreground/35" />
@@ -135,10 +149,7 @@ export function SidebarProjectsSection({
             />
             显示已归档
           </label>
-          <div
-            id="sidebar-projects-list"
-            className="max-h-[220px] space-y-0.5 overflow-y-auto scrollbar-thin"
-          >
+          <div className="max-h-[220px] space-y-0.5 overflow-y-auto scrollbar-thin">
             {visibleProjects.map((project) => {
               const color = project.color ?? 'hsl(var(--muted-foreground))'
               const selected = selectedProjectId === project.id
@@ -193,7 +204,7 @@ export function SidebarProjectsSection({
             )}
           </div>
         </div>
-      )}
+      </SidebarModule>
 
       <CreateProjectDialog
         open={createOpen}

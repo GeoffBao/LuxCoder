@@ -18,6 +18,7 @@ import {
 import { previewFileMapAtom } from '@/atoms/preview-atoms'
 import { appModeAtom } from '@/atoms/app-mode'
 import { activeViewAtom } from '@/atoms/active-view'
+import { codeMainViewAtom } from '@/atoms/project-atoms'
 import { automationFormAtom } from '@/atoms/automation-atoms'
 import { currentConversationIdAtom } from '@/atoms/chat-atoms'
 import {
@@ -38,6 +39,7 @@ export function useOpenSession(): OpenSessionFn {
   const setAutomationForm = useSetAtom(automationFormAtom)
   const setCurrentConversationId = useSetAtom(currentConversationIdAtom)
   const setCurrentAgentSessionId = useSetAtom(currentAgentSessionIdAtom)
+  const setCodeMainView = useSetAtom(codeMainViewAtom)
   const agentSessions = useAtomValue(agentSessionsAtom)
   const setCurrentAgentWorkspaceId = useSetAtom(currentAgentWorkspaceIdAtom)
   const setUnviewedCompleted = useSetAtom(unviewedCompletedSessionIdsAtom)
@@ -64,6 +66,8 @@ export function useOpenSession(): OpenSessionFn {
       } else if (type === 'agent' || type === 'preview') {
         setAppMode('agent')
         setCurrentAgentSessionId(sessionId)
+        // 打开会话即回到会话视图（看板卡片 / 左栏会话行等所有入口统一在此收敛）
+        setCodeMainView('session')
 
         // 用户打开查看后只清除未读角标；是否完成由用户通过对勾确认。
         setUnviewedCompleted((prev) => {
@@ -87,6 +91,6 @@ export function useOpenSession(): OpenSessionFn {
         setCurrentAgentSessionId(null)
       }
     },
-    [tabs, setTabs, setActiveTabId, setAutomationForm, setActiveView, setAppMode, setCurrentConversationId, setCurrentAgentSessionId, agentSessions, setCurrentAgentWorkspaceId, setUnviewedCompleted],
+    [tabs, setTabs, setActiveTabId, setAutomationForm, setActiveView, setAppMode, setCurrentConversationId, setCurrentAgentSessionId, setCodeMainView, agentSessions, setCurrentAgentWorkspaceId, setUnviewedCompleted],
   )
 }

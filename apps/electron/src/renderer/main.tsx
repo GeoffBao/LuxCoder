@@ -58,6 +58,10 @@ import {
   markdownFontSizeAtom,
   initializeMarkdownFontSize,
 } from './atoms/markdown-font-size'
+import {
+  sidebarModuleCollapsedMapAtom,
+  initializeSidebarModuleCollapsed,
+} from './atoms/sidebar-module-atoms'
 import { useGlobalAgentListeners } from './hooks/useGlobalAgentListeners'
 import { useGlobalChatListeners } from './hooks/useGlobalChatListeners'
 import { tabsAtom, activeTabIdAtom, ensureScratchPadTab, getPersistableTabState, scratchPadContentAtom, scratchPadLoadedAtom, SCRATCH_PAD_ID } from './atoms/tab-atoms'
@@ -450,6 +454,21 @@ function MarkdownFontSizeInitializer(): null {
   useEffect(() => {
     initializeMarkdownFontSize(setMarkdownFontSize)
   }, [setMarkdownFontSize])
+
+  return null
+}
+
+/**
+ * 左栏模块折叠态初始化组件
+ *
+ * 从主进程加载 settings.json 中的 sidebarModuleCollapsed 映射并写入 atom。
+ */
+function SidebarModuleInitializer(): null {
+  const setCollapsedMap = useSetAtom(sidebarModuleCollapsedMapAtom)
+
+  useEffect(() => {
+    void initializeSidebarModuleCollapsed(setCollapsedMap)
+  }, [setCollapsedMap])
 
   return null
 }
@@ -912,6 +931,7 @@ if (isQuickTaskWindow) {
       <DockBadgeInitializer />
       <UiPreferencesInitializer />
       <MarkdownFontSizeInitializer />
+      <SidebarModuleInitializer />
       <ChatListenersInitializer />
       <AgentListenersInitializer />
       <ChatToolInitializer />

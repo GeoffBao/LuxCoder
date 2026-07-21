@@ -11,7 +11,7 @@
 import * as React from 'react'
 import { useAtom, useSetAtom, useAtomValue, useStore } from 'jotai'
 import { toast } from 'sonner'
-import { Pin, PinOff, Settings, Plus, Trash2, Pencil, PanelLeftClose, PanelLeftOpen, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MessageSquare, MoreHorizontal, FolderOpen, GripVertical, Clock, AlarmClock, ChevronRight, Blocks, GitBranch } from 'lucide-react'
+import { Pin, PinOff, Settings, Plus, Trash2, Pencil, PanelLeftClose, PanelLeftOpen, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MessageSquare, MoreHorizontal, FolderOpen, FolderKanban, GripVertical, Clock, AlarmClock, ChevronRight, Blocks, GitBranch } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { ModeSwitcher } from './ModeSwitcher'
@@ -75,7 +75,7 @@ import {
   sessionViewStateMapAtom,
 } from '@/atoms/tab-atoms'
 import { userProfileAtom } from '@/atoms/user-profile'
-import { selectedProjectIdAtom, serverKanbanProjectsAtom, workViewAtom } from '@/atoms/project-atoms'
+import { selectedProjectIdAtom, serverKanbanProjectsAtom, workViewAtom, codeMainViewAtom } from '@/atoms/project-atoms'
 import { sidebarViewModeAtom } from '@/atoms/sidebar-atoms'
 import { searchDialogOpenAtom } from '@/atoms/search-atoms'
 import { hasUpdateAtom } from '@/atoms/updater'
@@ -127,93 +127,9 @@ import type { KanbanProject } from './kanban/types'
 import { buildProjectColorMap, buildSidebarProjectGroups } from './sidebar-project-groups'
 import { SidebarProjectSubgroup } from './SidebarProjectSubgroup'
 import { SidebarProjectsSection } from '@/components/work/SidebarProjectsSection'
+import { SidebarModule } from './SidebarModule'
+import { formatSidebarModuleCount } from './sidebar-module-model'
 import { AgentSessionItem, getSessionLeftAccent, SessionItemActions } from './AgentSessionItem'
-
-function formatAutomationCount(count: number): string {
-  return count > 99 ? '99+' : String(count)
-}
-
-interface AutomationSidebarEntryProps {
-  count: number
-  active: boolean
-  onClick: () => void
-}
-
-function AutomationSidebarEntry({ count, active, onClick }: AutomationSidebarEntryProps): React.ReactElement {
-  return (
-    <button
-      type="button"
-      aria-label={`自动任务，${count} 个任务已创建`}
-      onClick={onClick}
-      className={cn(
-        'group w-full flex items-center justify-between px-3 py-2 rounded-md text-[13px] transition-colors duration-100 titlebar-no-drag automation-entry',
-        active
-          ? 'automation-entry-selected bg-accent-foreground/[0.10] text-foreground shadow-[0_1px_2px_0_rgba(0,0,0,0.05)]'
-          : 'text-foreground/60 hover:bg-accent-foreground/[0.08] hover:text-foreground',
-      )}
-    >
-      <span className="flex items-center gap-3 min-w-0">
-        <span className={cn('flex-shrink-0 w-[18px] h-[18px] automation-entry-icon', active ? 'text-accent-foreground' : 'text-foreground/45')}>
-          <AlarmClock size={16} className="block" />
-        </span>
-        <span className="truncate">自动任务</span>
-      </span>
-      <span
-        className={cn(
-          'ml-2 flex h-5 min-w-[22px] flex-shrink-0 items-center justify-center rounded-full px-1.5 text-[11px] font-medium tabular-nums automation-entry-badge',
-          active
-            ? 'bg-accent-foreground/[0.26] text-primary-foreground'
-            : 'bg-foreground/[0.045] text-foreground/[0.42] group-hover:text-foreground/65',
-        )}
-      >
-        {formatAutomationCount(count)}
-      </span>
-    </button>
-  )
-}
-
-interface SkillsSidebarEntryProps {
-  count: number
-  updateCount: number
-  active: boolean
-  onClick: () => void
-}
-
-function SkillsSidebarEntry({ count, updateCount, active, onClick }: SkillsSidebarEntryProps): React.ReactElement {
-  const hasUpdate = updateCount > 0
-  return (
-    <button
-      type="button"
-      aria-label={`Agent 技能，${count} 个能力${hasUpdate ? `，${updateCount} 个可更新` : ''}`}
-      onClick={onClick}
-      className={cn(
-        'group w-full flex items-center justify-between px-3 py-2 rounded-md text-[13px] transition-colors duration-100 titlebar-no-drag',
-        active
-          ? 'bg-accent-foreground/[0.10] text-foreground shadow-[0_1px_2px_0_rgba(0,0,0,0.05)]'
-          : 'text-foreground/60 hover:bg-accent-foreground/[0.08] hover:text-foreground',
-      )}
-    >
-      <span className="flex items-center gap-3 min-w-0">
-        <span className={cn('flex-shrink-0 w-[18px] h-[18px]', active ? 'text-accent-foreground' : 'text-foreground/45')}>
-          <Blocks size={16} className="block" />
-        </span>
-        <span className="truncate">Agent 技能</span>
-      </span>
-      <span
-        className={cn(
-          'ml-2 flex h-5 min-w-[22px] flex-shrink-0 items-center justify-center rounded-full px-1.5 text-[11px] font-medium tabular-nums',
-          hasUpdate
-            ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400'
-            : active
-              ? 'bg-accent-foreground/[0.26] text-primary-foreground'
-              : 'bg-foreground/[0.045] text-foreground/[0.42] group-hover:text-foreground/65',
-        )}
-      >
-        {formatAutomationCount(count)}
-      </span>
-    </button>
-  )
-}
 
 export interface LeftSidebarProps {
   /** 可选固定宽度，默认使用 CSS 响应式宽度 */
@@ -588,11 +504,15 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
 
   // craft Project 状态（Work 看板同源）：侧边栏项目子分组 / 色条 / 详情跳转用
   const kanbanProjects = useAtomValue(serverKanbanProjectsAtom)
-  const setSelectedProjectId = useSetAtom(selectedProjectIdAtom)
+  const [selectedProjectId, setSelectedProjectId] = useAtom(selectedProjectIdAtom)
   const setWorkView = useSetAtom(workViewAtom)
+  const setCodeMainView = useSetAtom(codeMainViewAtom)
 
   // 当前工作区能力（MCP + Skill 计数）
   const [capabilities, setCapabilities] = React.useState<WorkspaceCapabilities | null>(null)
+  // 技能计数派生：入口行徽标 / rail 蓝点共用，避免重复 filter
+  const skillsCount = capabilities?.skills.length ?? 0
+  const skillsUpdateCount = capabilities?.skills.filter((s) => s.hasUpdate).length ?? 0
   const capabilitiesVersion = useAtomValue(workspaceCapabilitiesVersionAtom)
 
   // Tab 状态
@@ -1135,12 +1055,14 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
     }
   }, [setAgentSessions])
 
-  /** Code 侧边栏打开项目详情：跳 Work 模式的 ProjectInfoPage */
+  /** Code 侧边栏打开项目详情：留在当前模式，主区切到项目详情（Work 视图） */
   const handleOpenProjectDetail = React.useCallback((projectId: string): void => {
     setSelectedProjectId(projectId)
     setWorkView('project')
-    setMode('cowork')
-  }, [setMode, setSelectedProjectId, setWorkView])
+    setCodeMainView('work')
+    // 显式主区导航，需退出 automations / agent-skills 覆盖视图
+    setActiveView('conversations')
+  }, [setActiveView, setCodeMainView, setSelectedProjectId, setWorkView])
 
   /** 切换当前工作区；点击当前已选中工作区标题时则折叠/展开其会话列表 */
   const handleSelectProject = React.useCallback((workspaceId: string): void => {
@@ -1747,9 +1669,12 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
     setViewMode('active')
     if (targetMode === mode) return
 
-    // cowork 暂无会话，直接切换
+    // 遗留顶栏 Work：并入 Code 主区看板视图
     if (targetMode === 'cowork') {
-      setMode('cowork')
+      setMode('agent')
+      setCodeMainView('work')
+      setWorkView('board')
+      setActiveView('conversations')
       return
     }
 
@@ -1789,6 +1714,9 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
     openSession,
     setMode,
     setViewMode,
+    setCodeMainView,
+    setWorkView,
+    setActiveView,
   ])
 
   const railRecentItems = React.useMemo(() => {
@@ -2081,7 +2009,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
                         : 'bg-primary text-primary-foreground',
                     )}
                   >
-                    {formatAutomationCount(automationCount)}
+                    {formatSidebarModuleCount(automationCount)}
                   </span>
                 )}
               </button>
@@ -2106,12 +2034,29 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
                   )}
                 >
                   <Blocks size={16} />
-                  {(capabilities?.skills.filter((s) => s.hasUpdate).length ?? 0) > 0 && (
+                  {skillsUpdateCount > 0 && (
                     <span className="absolute -top-1 -right-1 size-2.5 rounded-full bg-blue-500" />
                   )}
                 </button>
               </TooltipTrigger>
               <TooltipContent side="right">Agent 技能</TooltipContent>
+            </Tooltip>
+          )}
+
+          {/* 项目模块 rail 入口：点击展开侧边栏定位到项目区（agent / cowork 模式） */}
+          {(mode === 'agent' || mode === 'cowork') && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="项目"
+                  onClick={() => setSidebarCollapsed(false)}
+                  className="relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag border border-border/45 bg-foreground/[0.025] text-foreground/45 hover:border-border/70 hover:bg-foreground/[0.045] hover:text-primary"
+                >
+                  <FolderKanban size={16} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">项目（展开侧边栏查看）</TooltipContent>
             </Tooltip>
           )}
         </div>
@@ -2223,21 +2168,32 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
 
       {/* 自动任务入口：作为任务中心入口放在置顶区上方，不参与置顶列表层级。 */}
       <div className="px-3 pt-2 pb-0.5">
-        <AutomationSidebarEntry
+        <SidebarModule
+          icon={AlarmClock}
+          title="自动任务"
           count={automationCount}
           active={activeView === 'automations'}
           onClick={handleOpenAutomations}
+          ariaLabel={`自动任务，${automationCount} 个任务已创建`}
+          classNames={{
+            row: cn('automation-entry', activeView === 'automations' && 'automation-entry-selected'),
+            icon: 'automation-entry-icon',
+            badge: 'automation-entry-badge',
+          }}
         />
       </div>
 
       {/* Agent 技能入口：Skills / MCP 能力中心，仅 Agent 模式可见 */}
       {mode === 'agent' && (
         <div className="px-3 pb-0.5">
-          <SkillsSidebarEntry
-            count={capabilities?.skills.length ?? 0}
-            updateCount={capabilities?.skills.filter((s) => s.hasUpdate).length ?? 0}
+          <SidebarModule
+            icon={Blocks}
+            title="Agent 技能"
+            count={skillsCount}
+            badgeTone={skillsUpdateCount > 0 ? 'accent' : 'neutral'}
             active={activeView === 'agent-skills'}
             onClick={handleOpenSkills}
+            ariaLabel={`Agent 技能，${skillsCount} 个能力${skillsUpdateCount > 0 ? `，${skillsUpdateCount} 个可更新` : ''}`}
           />
         </div>
       )}
@@ -2474,6 +2430,7 @@ export function LeftSidebar({ width }: LeftSidebarProps): React.ReactElement {
                     onRequestDeleteWorkspace={isAuto ? noopVoid : handleRequestDeleteWorkspace}
                     canDeleteWorkspace={isAuto ? false : canDeleteWorkspace(group.workspace)}
                     projects={!isAuto && group.workspace.id === currentWorkspaceId ? currentWorkspaceProjects : EMPTY_PROJECTS}
+                    selectedProjectId={selectedProjectId}
                     onNewSessionInProject={createAgentSessionInProject}
                     onOpenProjectDetail={handleOpenProjectDetail}
                     onMoveToProject={handleMoveToProject}
@@ -2903,6 +2860,8 @@ interface AgentProjectGroupItemProps {
   canDeleteWorkspace: boolean
   /** 当前工作区的 craft Project 列表；非当前工作区组传 [] */
   projects: KanbanProject[]
+  /** 当前选中的 craft Project ID（驱动子分组高亮 / 自动展开 / 滚动） */
+  selectedProjectId: string | null
   onNewSessionInProject: (projectId: string) => Promise<void>
   onOpenProjectDetail: (projectId: string) => void
   onMoveToProject: (sessionId: string, projectId?: string) => void | Promise<void>
@@ -2944,6 +2903,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
   onRequestDeleteWorkspace,
   canDeleteWorkspace,
   projects,
+  selectedProjectId,
   onNewSessionInProject,
   onOpenProjectDetail,
   onMoveToProject,
@@ -3005,8 +2965,8 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
   // craft Project 子分组：绑定项目的会话进入各自子分组（始终全量展示），
   // 未绑定会话沿用原有树形 + 折叠预览逻辑。
   const { projectGroups, unboundSessions } = React.useMemo(
-    () => buildSidebarProjectGroups(group.sessions, projects),
-    [group.sessions, projects],
+    () => buildSidebarProjectGroups(group.sessions, projects, selectedProjectId),
+    [group.sessions, projects, selectedProjectId],
   )
   const treeItems = buildAgentSessionTrees(unboundSessions)
   /** 项目 ID → 主题色映射（归档项目的会话回退到未绑定列表，但 projectId 仍在，继续显示其项目色） */

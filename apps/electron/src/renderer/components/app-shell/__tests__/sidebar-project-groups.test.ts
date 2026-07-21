@@ -53,4 +53,38 @@ describe('buildSidebarProjectGroups', () => {
     expect(result.projectGroups.map((g) => g.project.id)).toEqual(['p2', 'p1'])
     expect(result.projectGroups[1]!.sessions.map((s) => s.id)).toEqual(['new', 'old'])
   })
+
+  test('selectedProjectId 命中的分组标记 selected，其余为 false', () => {
+    const result = buildSidebarProjectGroups(
+      [],
+      [project('p1'), project('p2')],
+      'p2',
+    )
+    expect(result.projectGroups.map((g) => [g.project.id, g.selected])).toEqual([
+      ['p1', false],
+      ['p2', true],
+    ])
+  })
+
+  test('不传 selectedProjectId 时全部分组 selected = false', () => {
+    const result = buildSidebarProjectGroups([], [project('p1')])
+    expect(result.projectGroups[0]!.selected).toBe(false)
+  })
+
+  test('selectedProjectId = null（取消选中）时全部分组 selected = false', () => {
+    const result = buildSidebarProjectGroups([], [project('p1'), project('p2')], null)
+    expect(result.projectGroups.every((g) => !g.selected)).toBe(true)
+  })
+
+  test('selectedProjectId 指向不存在 / 已归档的项目时不产生误选中', () => {
+    const ghost = buildSidebarProjectGroups([], [project('p1')], 'ghost')
+    expect(ghost.projectGroups.every((g) => !g.selected)).toBe(true)
+
+    const archived = buildSidebarProjectGroups(
+      [],
+      [project('p1', { archivedAt: 123 })],
+      'p1',
+    )
+    expect(archived.projectGroups).toEqual([])
+  })
 })
