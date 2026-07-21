@@ -197,11 +197,11 @@ function main(): void {
   printStepResult(results[results.length - 1])
   if (!results[results.length - 1].success) return printSummary(results)
 
-  // ── 步骤 4: 编译 proma CLI 二进制 ──
+  // ── 步骤 4: 编译 luxagents CLI 二进制 ──
   step++
-  printStepStart(step, totalSteps, '编译 proma CLI (bun --compile)')
+  printStepStart(step, totalSteps, '编译 luxagents CLI (bun --compile)')
   results.push(
-    runStep('编译 proma CLI', 'bun', ['run', 'build:cli'], { verbose: opts.verbose })
+    runStep('编译 luxagents CLI', 'bun', ['run', 'build:cli'], { verbose: opts.verbose })
   )
   printStepResult(results[results.length - 1])
   if (!results[results.length - 1].success) return printSummary(results)
