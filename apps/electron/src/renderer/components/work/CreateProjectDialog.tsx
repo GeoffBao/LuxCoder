@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { WorkingDirectoryField } from '@/components/app-shell/kanban/WorkingDirectoryField'
 import { buildCreateProjectInput, type CreateProjectDraft } from './project-view-model'
 
 export interface CreateProjectDialogProps {
@@ -62,14 +63,14 @@ export function CreateProjectDialog({
               placeholder="可选"
             />
           </label>
-          <label className="block space-y-1.5 text-xs font-medium">
-            工作目录
-            <Input
+          <div className="space-y-1.5 text-xs font-medium">
+            <span>工作目录</span>
+            <WorkingDirectoryField
               value={draft.workingDirectory}
-              onChange={(e) => setDraft((d) => ({ ...d, workingDirectory: e.target.value }))}
-              placeholder="可选，绝对路径"
+              onChange={(path) => setDraft((d) => ({ ...d, workingDirectory: path }))}
             />
-          </label>
+            <p className="text-[11px] font-normal text-muted-foreground">可选，从本地选择文件夹</p>
+          </div>
           <label className="block space-y-1.5 text-xs font-medium">
             强调色
             <Input
