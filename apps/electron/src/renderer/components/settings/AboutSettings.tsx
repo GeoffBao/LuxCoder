@@ -44,6 +44,8 @@ function UpdateCard(): React.ReactElement | null {
   const hasFallbackPackage = status.status === 'downloaded' && !!status.packagePath
   const canQuitAndInstall = status.status === 'downloaded' && !status.packagePath
   const canOpenPackage = hasFallbackPackage
+  // 主进程未显式声明不支持时默认支持应用内安装（未签名 macOS 为 false）
+  const installSupported = status.installSupported !== false
 
   const handleCheck = async (): Promise<void> => {
     setChecking(true)
