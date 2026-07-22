@@ -51,7 +51,7 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
           <div className="mb-10 text-center">
             <h1 className="text-4xl font-bold mb-3">欢迎使用 LuxCoder</h1>
             <p className="text-base text-muted-foreground max-w-md">
-              面向研发组织的 AI Agent 工作台，整合 Chat、Code、Work 三种工作模式
+              面向研发组织的 AI Agent 工作台，整合 Chat、Code 两种工作模式
             </p>
           </div>
 
@@ -67,7 +67,7 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
               <div className="flex-1">
                 <h3 className="text-sm font-semibold text-foreground">查看使用指南</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  了解三种工作模式、Skills 系统、团队配置分发等核心功能
+                  了解 Chat / Code 模式、项目管理、任务编排、Skills 系统等核心功能
                 </p>
               </div>
               <ChevronRight size={16} className="text-muted-foreground/50 flex-shrink-0" />

@@ -974,9 +974,9 @@ function UserInputMessage({ message }: { message: SDKUserMessage }): React.React
 
   return (
     <Message from="user">
-      <div className="mb-2 flex items-start gap-2.5">
+      <div className="mb-2 flex flex-row-reverse items-start gap-2.5">
         <UserAvatar avatar={userProfile.avatar} size={30} />
-        <div className="flex h-[30px] flex-col justify-between py-px">
+        <div className="flex h-[30px] flex-col items-end justify-between py-px">
           <span className="text-[13px] font-medium text-foreground/65 leading-none">{userProfile.userName}</span>
           {(meta.createdAt || isScheduledRun) && (
             <span className="flex items-center gap-2 leading-none">
@@ -1034,7 +1034,7 @@ function UserInputMessage({ message }: { message: SDKUserMessage }): React.React
         />
       )}
       {text && (
-        <MessageActions className="mt-0.5 pl-[40px]">
+        <MessageActions className="mt-0.5">
           <CopyButton content={text} />
         </MessageActions>
       )}

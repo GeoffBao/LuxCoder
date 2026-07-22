@@ -74,7 +74,7 @@ export function TutorialBanner(): React.ReactElement | null {
           </div>
           <div>
             <h3 className="text-sm font-semibold text-foreground">LuxCoder 使用指南</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">了解三种工作模式、Skills 系统和最佳实践</p>
+            <p className="text-xs text-muted-foreground mt-0.5">了解 Chat / Code 模式、项目管理、任务编排等核心功能</p>
           </div>
         </div>
 
@@ -99,7 +99,7 @@ export function TutorialBanner(): React.ReactElement | null {
 
         {/* 提示文字 */}
         <p className="text-[11px] text-muted-foreground/60 mt-3 text-center">
-          可随时在顶栏「指南」标签或设置中重新打开
+          可随时在设置中重新打开
         </p>
       </div>
     </div>

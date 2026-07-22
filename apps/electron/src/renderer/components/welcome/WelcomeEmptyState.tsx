@@ -9,10 +9,10 @@
 
 import * as React from 'react'
 import { useAtomValue, useAtom } from 'jotai'
-import { Lightbulb, MessageSquare, Bot, StickyNote, Users, Code2 } from 'lucide-react'
+import { Lightbulb, MessageSquare, Code2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { userProfileAtom } from '@/atoms/user-profile'
-import { appModeAtom, type AppMode } from '@/atoms/app-mode'
+import { appModeAtom } from '@/atoms/app-mode'
 import { themeStyleAtom } from '@/atoms/theme'
 import { normalizeAppModeForUi } from '@/components/app-shell/code-main-view-model'
 import { getRandomTip, getPlatform, type Tip } from '@/lib/tips'
@@ -25,12 +25,10 @@ function getGreeting(hour: number): string {
   return '晚上好'
 }
 
-/** 模式配置 */
-const MODE_CONFIG: Record<AppMode, { icon: React.ReactNode; label: string }> = {
+/** UI 实际展示的模式配置（cowork/scratch 已退役） */
+const MODE_CONFIG: Record<'chat' | 'agent', { icon: React.ReactNode; label: string }> = {
   chat: { icon: <MessageSquare size={15} />, label: 'Chat' },
-  cowork: { icon: <Users size={15} />, label: 'Work' },
   agent: { icon: <Code2 size={15} />, label: 'Code' },
-  scratch: { icon: <StickyNote size={15} />, label: 'Scratch Pad' },
 }
 
 export function WelcomeEmptyState(): React.ReactElement {
