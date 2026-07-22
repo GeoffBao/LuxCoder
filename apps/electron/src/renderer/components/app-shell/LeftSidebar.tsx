@@ -85,6 +85,7 @@ import { hasEnvironmentIssuesAtom } from '@/atoms/environment'
 import { promptConfigAtom, selectedPromptIdAtom, conversationPromptIdAtom } from '@/atoms/system-prompt-atoms'
 import { interfaceVariantAtom } from '@/atoms/theme'
 import { useOpenSession } from '@/hooks/useOpenSession'
+import { useCreateSession } from '@/hooks/useCreateSession'
 import { useSyncActiveTabSideEffects } from '@/hooks/useSyncActiveTabSideEffects'
 import { CollapsedWorkspacePopover } from '@/components/agent/CollapsedWorkspacePopover'
 import { MoveSessionDialog } from '@/components/agent/MoveSessionDialog'
@@ -705,6 +706,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   const activeSessionId = useAtomValue(activeSessionIdAtom)
   const [sidebarCollapsed, setSidebarCollapsed] = useAtom(sidebarCollapsedAtom)
   const openSession = useOpenSession()
+  const { createAgent } = useCreateSession()
   const syncActiveTabSideEffects = useSyncActiveTabSideEffects()
   const store = useStore()
   const sidebarRootRef = React.useRef<HTMLDivElement>(null)
@@ -1234,97 +1236,36 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     }
   }
 
-  /** 在指定工作区中创建 Agent 会话；未指定时使用当前工作区 */
+  /** 在指定工作区中创建 Agent Draft 会话；未指定时使用当前工作区 */
   const createAgentSessionInWorkspace = React.useCallback(async (workspaceId?: string): Promise<void> => {
-    try {
-      const targetWorkspaceId = workspaceId ?? currentWorkspaceId ?? undefined
-      if (targetWorkspaceId && targetWorkspaceId !== currentWorkspaceId) {
-        setCurrentWorkspaceId(targetWorkspaceId)
-        window.electronAPI.updateSettings({ agentWorkspaceId: targetWorkspaceId }).catch(console.error)
-      }
-      const meta = await window.electronAPI.createAgentSession(
-        undefined,
-        agentChannelId || undefined,
-        targetWorkspaceId,
-        agentModelId || undefined,
-      )
-      if (targetWorkspaceId) {
-        setCollapsedWorkspaceIds((prev) => deleteSetEntry(prev, targetWorkspaceId))
-      }
-      setAgentSessions((prev) => [meta, ...prev])
-      // 从全局默认值初始化 per-session 渠道/模型配置
-      if (agentChannelId) {
-        setSessionChannelMap((prev) => {
-          const map = new Map(prev)
-          map.set(meta.id, agentChannelId)
-          return map
-        })
-      }
-      if (agentModelId) {
-        setSessionModelMap((prev) => {
-          const map = new Map(prev)
-          map.set(meta.id, agentModelId)
-          return map
-        })
-      }
-      // 打开新标签页
-      openSession('agent', meta.id, meta.title)
-      setActiveView('conversations')
-    } catch (error) {
-      console.error('[侧边栏] 创建 Agent 会话失败:', error)
+    const targetWorkspaceId = workspaceId ?? currentWorkspaceId ?? undefined
+    if (targetWorkspaceId) {
+      setCollapsedWorkspaceIds((prev) => deleteSetEntry(prev, targetWorkspaceId))
     }
-  }, [agentChannelId, agentModelId, currentWorkspaceId, openSession, setActiveView, setAgentSessions, setCurrentWorkspaceId, setSessionChannelMap, setSessionModelMap])
+    await createAgent({
+      draft: true,
+      workspaceId: targetWorkspaceId,
+      channelId: agentChannelId || undefined,
+      modelId: agentModelId || undefined,
+    })
+  }, [agentChannelId, agentModelId, createAgent, currentWorkspaceId])
 
-  /** 创建新 Agent 会话 */
+  /** 创建新 Agent Draft 会话 */
   const handleNewAgentSession = React.useCallback(async (): Promise<void> => {
     setActiveView('conversations')
     await createAgentSessionInWorkspace()
   }, [createAgentSessionInWorkspace, setActiveView])
 
-  /** 在指定项目中新建会话：建会话 → set_project_id（主进程自动继承项目 workingDirectory） */
+  /** 在指定项目中新建 Draft 会话（绑定 projectId + effectiveCwd） */
   const createAgentSessionInProject = React.useCallback(async (projectId: string): Promise<void> => {
-    // 两阶段失败处理：创建失败 → 整体失败直接返回；
-    // 创建成功但绑定项目失败 → 会话已落盘，仍入列并打开（避免产生列表外的孤儿会话），仅提示绑定失败。
-    let session: AgentSessionMeta
-    try {
-      session = await window.electronAPI.createAgentSession(
-        undefined,
-        agentChannelId || undefined,
-        currentWorkspaceId ?? undefined,
-      )
-    } catch (error) {
-      console.error('[侧边栏] 在项目中新建会话失败:', error)
-      toast.error('新建会话失败')
-      return
-    }
-
-    try {
-      session = await window.electronAPI.sendSessionCommand(session.id, { kind: 'set_project_id', projectId })
-    } catch (error) {
-      console.error('[侧边栏] 新会话绑定项目失败:', error)
-      toast.error('已创建会话，但绑定项目失败')
-    }
-
-    setAgentSessions((prev) => [session, ...prev.filter((s) => s.id !== session.id)])
-    // 从全局默认值初始化 per-session 渠道/模型配置（与 createAgentSessionInWorkspace 一致）
-    if (agentChannelId) {
-      setSessionChannelMap((prev) => {
-        const map = new Map(prev)
-        map.set(session.id, agentChannelId)
-        return map
-      })
-    }
-    if (agentModelId) {
-      setSessionModelMap((prev) => {
-        const map = new Map(prev)
-        map.set(session.id, agentModelId)
-        return map
-      })
-    }
-    // 打开新会话（复用 createAgentSessionInWorkspace 的打开逻辑）
-    openSession('agent', session.id, session.title)
-    setActiveView('conversations')
-  }, [agentChannelId, agentModelId, currentWorkspaceId, openSession, setActiveView, setAgentSessions, setSessionChannelMap, setSessionModelMap])
+    await createAgent({
+      draft: true,
+      projectId,
+      workspaceId: currentWorkspaceId ?? undefined,
+      channelId: agentChannelId || undefined,
+      modelId: agentModelId || undefined,
+    })
+  }, [agentChannelId, agentModelId, createAgent, currentWorkspaceId])
 
   /** 迁移会话进/出项目 */
   const handleMoveToProject = React.useCallback(async (sessionId: string, projectId?: string): Promise<void> => {
