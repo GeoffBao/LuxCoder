@@ -8,8 +8,6 @@
 import * as React from 'react'
 import { useAtom } from 'jotai'
 import { Camera, ImagePlus, Volume2 } from 'lucide-react'
-import Picker from '@emoji-mart/react'
-import data from '@emoji-mart/data'
 import {
   SettingsSection,
   SettingsCard,
@@ -46,18 +44,9 @@ import {
   updateStickyUserMessageEnabled,
 } from '@/atoms/ui-preferences'
 import { cn } from '@/lib/utils'
+import { BUILTIN_AVATARS } from '@/lib/builtin-avatars'
 import { Button } from '../ui/button'
 import type { NotificationSoundId, NotificationSoundType, NotificationSoundSettings } from '@/types/settings'
-
-/** emoji-mart 选择回调的 emoji 对象类型 */
-interface EmojiMartEmoji {
-  id: string
-  name: string
-  native: string
-  unified: string
-  keywords: string[]
-  shortcodes: string
-}
 
 export function GeneralSettings(): React.ReactElement {
   const [userProfile, setUserProfile] = useAtom(userProfileAtom)
@@ -69,7 +58,7 @@ export function GeneralSettings(): React.ReactElement {
   const [richTextRenderingEnabled, setRichTextRenderingEnabled] = useAtom(richTextRenderingEnabledAtom)
   const [isEditingName, setIsEditingName] = React.useState(false)
   const [nameInput, setNameInput] = React.useState(userProfile.userName)
-  const [showEmojiPicker, setShowEmojiPicker] = React.useState(false)
+  const [showAvatarPicker, setShowAvatarPicker] = React.useState(false)
   const [archiveAfterDays, setArchiveAfterDays] = React.useState<number>(7)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
@@ -96,7 +85,7 @@ export function GeneralSettings(): React.ReactElement {
     try {
       const updated = await window.electronAPI.updateUserProfile({ avatar })
       setUserProfile(updated)
-      setShowEmojiPicker(false)
+      setShowAvatarPicker(false)
     } catch (error) {
       console.error('[通用设置] 更新头像失败:', error)
     }
@@ -149,8 +138,8 @@ export function GeneralSettings(): React.ReactElement {
       >
         <SettingsCard>
           <div className="flex items-center gap-5 px-4 py-4">
-            {/* 头像 + Popover emoji 选择器 */}
-            <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
+            {/* 头像 + 内置头像选择器 */}
+            <Popover open={showAvatarPicker} onOpenChange={setShowAvatarPicker}>
               <PopoverTrigger asChild>
                 <div className="relative group/avatar cursor-pointer">
                   <UserAvatar avatar={userProfile.avatar} size={64} />
@@ -169,20 +158,32 @@ export function GeneralSettings(): React.ReactElement {
                 side="right"
                 align="start"
                 sideOffset={12}
-                className="w-auto p-0 border-none shadow-xl"
+                className="w-[336px] p-4 shadow-xl"
               >
-                <Picker
-                  data={data}
-                  onEmojiSelect={(emoji: EmojiMartEmoji) => handleAvatarChange(emoji.native)}
-                  locale="zh"
-                  theme="auto"
-                  previewPosition="none"
-                  skinTonePosition="search"
-                  perLine={8}
-                />
+                <p className="mb-3 text-sm font-medium text-foreground">选择默认头像</p>
+                <div className="grid grid-cols-6 gap-2">
+                  {BUILTIN_AVATARS.map((avatar) => (
+                    <button
+                      key={avatar.id}
+                      type="button"
+                      title={avatar.label}
+                      aria-label={`选择${avatar.label}头像`}
+                      onClick={() => handleAvatarChange(avatar.id)}
+                      className={cn(
+                        'aspect-square overflow-hidden rounded-xl transition-all hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                        userProfile.avatar === avatar.id
+                          ? 'ring-2 ring-primary ring-offset-2 ring-offset-background'
+                          : 'hover:bg-foreground/[0.06]'
+                      )}
+                    >
+                      <img src={avatar.src} alt="" className="size-full object-cover" />
+                    </button>
+                  ))}
+                </div>
                 {/* 上传自定义图片 */}
-                <div className="px-3 p-2">
+                <div className="mt-4 border-t border-border pt-3">
                   <button
+                    type="button"
                     onClick={() => fileInputRef.current?.click()}
                     className={cn(
                       'w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-[13px]',

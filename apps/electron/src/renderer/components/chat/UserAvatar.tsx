@@ -1,8 +1,7 @@
 /**
  * UserAvatar - 用户头像组件
  *
- * 对标 Cherry Studio 的 EmojiAvatar 设计：
- * - 支持 emoji 字符串（直接渲染文字）
+ * - 支持内置头像与自定义图片
  * - 支持 data:image/* URL（渲染为图片）
  * - 可配置大小
  * - 圆角 20%，柔和边框
@@ -10,9 +9,10 @@
 
 import * as React from 'react'
 import { cn } from '@/lib/utils'
+import { getBuiltinAvatarSrc } from '@/lib/builtin-avatars'
 
 interface UserAvatarProps {
-  /** 头像内容（emoji 字符串 或 data:image/* URL） */
+  /** 头像内容（内置头像 ID 或 data:image/* URL） */
   avatar: string
   /** 尺寸（像素），默认 35 */
   size?: number
@@ -31,9 +31,10 @@ export function UserAvatar({
   className,
   onClick,
 }: UserAvatarProps): React.ReactElement {
-  const fontSize = Math.round(size * 0.5)
+  const builtinAvatarSrc = getBuiltinAvatarSrc(avatar)
+  const imageSrc = builtinAvatarSrc ?? (isImageUrl(avatar) ? avatar : undefined)
 
-  if (isImageUrl(avatar)) {
+  if (imageSrc) {
     return (
       <div
         className={cn(
@@ -45,7 +46,7 @@ export function UserAvatar({
         onClick={onClick}
       >
         <img
-          src={avatar}
+          src={imageSrc}
           alt="用户头像"
           className="size-full object-cover"
         />
@@ -53,7 +54,8 @@ export function UserAvatar({
     )
   }
 
-  // emoji 渲染
+  // 兼容旧配置中的 emoji 头像。
+  const fontSize = Math.round(size * 0.5)
   return (
     <div
       className={cn(

@@ -63,8 +63,6 @@
     "@anthropic-ai/claude-agent-sdk-win32-arm64": "0.3.201"
   },
   "devDependencies": {
-    "@emoji-mart/data": "^1.2.1",
-    "@emoji-mart/react": "^1.1.1",
     "@larksuiteoapi/node-sdk": "^1.65.0",
     "@luxcoder/core": "workspace:*",
     "@luxcoder/session-core": "workspace:*",

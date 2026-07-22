@@ -109,6 +109,9 @@ import MiniMaxLogo from '@/assets/models/minimax.png'
 // Xiaomi / MiMo
 import XiaomiLogo from '@/assets/models/xiaomi.png'
 
+// OpenRouter
+import OpenRouterLogo from '@/assets/models/openrouter.svg'
+
 // LuxCoder
 import LuxCoderLogo from '@/assets/models/luxcoder.png'
 
@@ -255,7 +258,7 @@ const PROVIDER_LOGO_MAP: Record<ProviderType, string> = {
   xiaomi: XiaomiLogo,
   'xiaomi-token-plan': XiaomiLogo,
   'openai-codex': OpenAILogo,
-  openrouter: DefaultLogo,
+  openrouter: OpenRouterLogo,
   custom: DefaultLogo,
 }
 

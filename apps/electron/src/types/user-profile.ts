@@ -4,8 +4,8 @@
  * 用户名、头像、IPC 通道等定义。
  */
 
-/** 默认用户头像 emoji */
-export const DEFAULT_USER_AVATAR = '🧑‍💻'
+/** 默认内置用户头像 */
+export const DEFAULT_USER_AVATAR = 'builtin:check'
 
 /** 默认用户名 */
 export const DEFAULT_USER_NAME = '用户'
@@ -14,7 +14,7 @@ export const DEFAULT_USER_NAME = '用户'
 export interface UserProfile {
   /** 用户名 */
   userName: string
-  /** 头像（emoji 字符串 或 data:image/* base64 URL） */
+  /** 头像（内置头像 ID 或 data:image/* base64 URL） */
   avatar: string
 }
 

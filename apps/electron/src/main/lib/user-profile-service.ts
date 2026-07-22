@@ -28,9 +28,10 @@ export function getUserProfile(): UserProfile {
   try {
     const raw = readFileSync(filePath, 'utf-8')
     const data = JSON.parse(raw) as Partial<UserProfile>
+    const avatar = data.avatar === '🧑‍💻' ? DEFAULT_USER_AVATAR : data.avatar || DEFAULT_USER_AVATAR
     return {
       userName: data.userName || DEFAULT_USER_NAME,
-      avatar: data.avatar || DEFAULT_USER_AVATAR,
+      avatar,
     }
   } catch (error) {
     console.error('[用户档案] 读取失败:', error)
