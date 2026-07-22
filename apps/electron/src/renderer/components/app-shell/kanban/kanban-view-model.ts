@@ -1,5 +1,5 @@
-import type { AgentSessionMeta } from '@luxagents/shared'
-import { resolveExpertId } from '@luxagents/shared/experts'
+import type { AgentSessionMeta } from '@luxcoder/shared'
+import { resolveExpertId } from '@luxcoder/shared/experts'
 import { mergeSubtaskRows, type SpecNodeSummary, type SubtaskChildRow } from './subtask-merge'
 import {
   INBOX_COLUMN_ID,

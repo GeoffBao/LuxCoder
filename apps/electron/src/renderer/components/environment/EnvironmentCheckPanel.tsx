@@ -108,7 +108,7 @@ export function EnvironmentCheckPanel({
         <div>
           <h3 className="text-sm font-semibold">Windows 环境检测</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            LuxAgents 在 Windows 上需要 Git Bash 或 WSL 才能运行 Agent
+            LuxCoder 在 Windows 上需要 Git Bash 或 WSL 才能运行 Agent
           </p>
         </div>
         <Button

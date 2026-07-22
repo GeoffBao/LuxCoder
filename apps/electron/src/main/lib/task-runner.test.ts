@@ -2,8 +2,8 @@ import { afterEach, describe, expect, test } from 'bun:test'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { TaskSpec } from '@luxagents/shared/tasks/schema'
-import { appendRunLog, saveTaskSpec, writeRunSpecSnapshot } from '@luxagents/shared/tasks/storage'
+import type { TaskSpec } from '@luxcoder/shared/tasks/schema'
+import { appendRunLog, saveTaskSpec, writeRunSpecSnapshot } from '@luxcoder/shared/tasks/storage'
 import {
   TaskRunner,
   type ConductorSendMessageOptions,
@@ -15,7 +15,7 @@ import {
 const tempRoots: string[] = []
 
 function createTempWorkspaceRoot(): string {
-  const root = mkdtempSync(join(tmpdir(), 'luxagents-task-runner-'))
+  const root = mkdtempSync(join(tmpdir(), 'luxcoder-task-runner-'))
   tempRoots.push(root)
   return root
 }

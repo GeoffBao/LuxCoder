@@ -1,19 +1,19 @@
 /**
- * LuxAgents 内置 MCP 单一事实源加载层
+ * LuxCoder 内置 MCP 单一事实源加载层
  *
  * 唯一从 default-mcp.json 读取内置 MCP 定义的地方。注入器、UI catalog、
  * 系统提示词全部通过这里取 name / displayName / 约束，杜绝多处手写漂移。
  *
  * default-mcp.json 随构建编译进包（参考 channel-manager / agent-orchestrator
  * 的 `import pkg from 'package.json' with { type: 'json' }` 模式），
- * LuxAgents 每次发布即覆盖升级，无需运行时同步到用户目录。
+ * LuxCoder 每次发布即覆盖升级，无需运行时同步到用户目录。
  */
 
-import type { BuiltinMcpCategory, McpToolSummary } from '@luxagents/shared'
+import type { BuiltinMcpCategory, McpToolSummary } from '@luxcoder/shared'
 import manifest from './default-mcp.json' with { type: 'json' }
 
 export interface BuiltinMcpDefinition {
-  /** 设置 / 凭据键，历史值，向后兼容（如 'luxagents-cloud'、'nano-banana'） */
+  /** 设置 / 凭据键，历史值，向后兼容（如 'luxcoder-cloud'、'nano-banana'） */
   id: string
   /** 运行时真实 server 名，下划线安全（= prompt = 注入 = UI 真实名） */
   name: string
@@ -26,7 +26,7 @@ export interface BuiltinMcpDefinition {
   deletable: boolean
   /** 默认是否向 Agent 注入（如 mem/nano-banana 需用户手动开启） */
   defaultEnabled: boolean
-  /** 是否提供开关（基础设施型如 luxagents-cloud 置 false） */
+  /** 是否提供开关（基础设施型如 luxcoder-cloud 置 false） */
   toggleable: boolean
   tools: McpToolSummary[]
 }

@@ -1,15 +1,15 @@
 #!/usr/bin/env bun
 /**
- * luxagents — LuxAgents 命令行工具入口。
+ * luxcoder — LuxCoder 命令行工具入口。
  *
  * 用法：
- *   luxagents <command> [subcommand] [args] [--flags]
- *   luxagents session list|info|outline|search|export ...
+ *   luxcoder <command> [subcommand] [args] [--flags]
+ *   luxcoder session list|info|outline|search|export ...
  *
  * 全局 flag：
  *   --json            输出机器可读 JSON
- *   --config-dir DIR  指定 LuxAgents 配置目录（默认 ~/.luxagents，LUXAGENTS_DEV=1 → ~/.luxagents-dev）
- *   --dev             使用 ~/.luxagents-dev
+ *   --config-dir DIR  指定 LuxCoder 配置目录（默认 ~/.luxcoder，LUXCODER_DEV=1 → ~/.luxcoder-dev）
+ *   --dev             使用 ~/.luxcoder-dev
  *
  * 设计：命令注册表驱动（registry.ts）。`session` 是一个命名空间，
  * 其下的 list/info/outline/search/export 各自在 commands/ 注册。扩面只加文件。
@@ -27,8 +27,8 @@ import './commands/search'
 import './commands/export'
 
 function printHelp(): void {
-  info('luxagents — LuxAgents 会话渐进式读取 CLI\n')
-  info('用法: luxagents session <command> [args] [--flags]\n')
+  info('luxcoder — LuxCoder 会话渐进式读取 CLI\n')
+  info('用法: luxcoder session <command> [args] [--flags]\n')
   info('命令:')
   for (const c of allCommands()) {
     info(`  ${c.usage.padEnd(64)} ${c.summary}`)
@@ -44,7 +44,7 @@ async function main(): Promise<number> {
     return EXIT_OK
   }
 
-  // 命名空间：当前只有 session，支持 `luxagents session <cmd>` 与直接 `luxagents <cmd>`
+  // 命名空间：当前只有 session，支持 `luxcoder session <cmd>` 与直接 `luxcoder <cmd>`
   let rest = argv
   if (argv[0] === 'session') rest = argv.slice(1)
 
@@ -73,7 +73,7 @@ async function main(): Promise<number> {
   } catch (err) {
     if (err instanceof UsageError) {
       errorLine(err.message)
-      info(`用法: luxagents ${command.usage}`)
+      info(`用法: luxcoder ${command.usage}`)
       return EXIT_USAGE
     }
     errorLine(err instanceof Error ? err.message : String(err))

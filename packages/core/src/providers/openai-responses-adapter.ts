@@ -6,7 +6,7 @@
  * - Pi-Agent 模式通过 pi-model-registry 注册为 `openai-responses` 协议
  */
 
-import type { ProviderType } from '@luxagents/shared'
+import type { ProviderType } from '@luxcoder/shared'
 import type {
   ContinuationMessage,
   ImageAttachmentData,

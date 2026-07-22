@@ -6,7 +6,7 @@
  * - 各列独立 StickToBottom 滚动
  * - ChatMessageItem 以 isParallelMode={true} 渲染
  *
- * 移植自 LuxAgents 前版本 的 parallel-chat-messages.tsx。
+ * 移植自 LuxCoder 前版本 的 parallel-chat-messages.tsx。
  */
 
 import { Fragment, useMemo, useRef, useEffect } from 'react'
@@ -30,7 +30,7 @@ import {
 } from '@/components/ai-elements/reasoning'
 import { streamingModelAtom, channelsAtom } from '@/atoms/chat-atoms'
 import { getModelLogo, resolveModelProvider } from '@/lib/model-logo'
-import type { ChatMessage } from '@luxagents/shared'
+import type { ChatMessage } from '@luxcoder/shared'
 
 /** 消息段落（按分隔线分割） */
 interface MessageSegment {

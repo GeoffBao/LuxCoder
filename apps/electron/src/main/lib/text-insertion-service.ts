@@ -152,7 +152,7 @@ async function triggerSystemPaste(): Promise<void> {
 
 async function triggerMacPaste(): Promise<void> {
   if (!systemPreferences.isTrustedAccessibilityClient(true)) {
-    throw new Error('需要在 macOS 系统设置中允许 LuxAgents 使用辅助功能')
+    throw new Error('需要在 macOS 系统设置中允许 LuxCoder 使用辅助功能')
   }
 
   await execFileAsync(

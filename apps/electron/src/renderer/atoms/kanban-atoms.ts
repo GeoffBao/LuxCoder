@@ -1,5 +1,5 @@
 import { atom } from 'jotai'
-import type { AgentSessionMeta } from '@luxagents/shared'
+import type { AgentSessionMeta } from '@luxcoder/shared'
 import { buildKanbanViewModel } from '@/components/app-shell/kanban/kanban-view-model'
 import type { SpecNodeSummary } from '@/components/app-shell/kanban/subtask-merge'
 import {

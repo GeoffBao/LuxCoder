@@ -42,7 +42,7 @@
 
 ```ts
 import { describe, expect, test } from 'bun:test'
-import type { AgentSessionMeta } from '@luxagents/shared'
+import type { AgentSessionMeta } from '@luxcoder/shared'
 import type { KanbanProject } from '../kanban/types'
 import { buildSidebarProjectGroups } from '../sidebar-project-groups'
 
@@ -107,7 +107,7 @@ Expected: FAIL（模块不存在）
 - [ ] **Step 4: 实现 `sidebar-project-groups.ts`**
 
 ```ts
-import type { AgentSessionMeta } from '@luxagents/shared'
+import type { AgentSessionMeta } from '@luxcoder/shared'
 import type { KanbanProject } from './kanban/types'
 
 export interface SidebarProjectGroup {
@@ -323,7 +323,7 @@ git commit -m "refactor: Work 视图状态提升为 workViewAtom"
 ```tsx
 import * as React from 'react'
 import { ChevronRight, Info, Plus } from 'lucide-react'
-import type { AgentSessionMeta } from '@luxagents/shared'
+import type { AgentSessionMeta } from '@luxcoder/shared'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { AgentSessionItem } from './LeftSidebar'

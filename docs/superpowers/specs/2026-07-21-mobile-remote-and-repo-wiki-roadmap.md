@@ -11,7 +11,7 @@
 
 ### 1.1 手机端远程编程（类 Cursor Remote / 移动续跑）
 
-1. 现网是 **Electron 桌面 + 本地优先**（`~/.luxagents[-dev]/`）；离开工位无法看编排 live、批权限、续跑会话。  
+1. 现网是 **Electron 桌面 + 本地优先**（`~/.luxcoder[-dev]/`）；离开工位无法看编排 live、批权限、续跑会话。  
 2. 「手机当 thin client」需要：鉴权、会话/流式桥、权限/AskUser 移动 UI、与桌面单写者冲突策略——现网 IPC 模型未覆盖。  
 3. 若只做只读看板/通知，价值有限；若做完整编程，范围会膨胀到远程 cwd / 终端 / 文件编辑。
 
@@ -86,7 +86,7 @@
 | 能力 | 可能挂钩 | 备注 |
 |------|----------|------|
 | 手机远程 | Agent 会话 / 全局 IPC 监听 / 权限排队 / Kanban Conductor | 执行面仍在桌面宿主 |
-| Repo Wiki | 项目中心 Hub、`ProjectConfig`、专家 skill 引用模式、TaskRunner preamble | 文件布局须对齐 `~/.luxagents*` 或项目 `workingDirectory` |
+| Repo Wiki | 项目中心 Hub、`ProjectConfig`、专家 skill 引用模式、TaskRunner preamble | 文件布局须对齐 `~/.luxcoder*` 或项目 `workingDirectory` |
 
 ---
 
@@ -94,7 +94,7 @@
 
 1. 手机端 MVP：只读监控 vs 权限+续跑 vs 轻量发消息？  
 2. 多设备同时打开同一会话：单写者锁还是 OT/CRDT（预判：单写者）？  
-3. Wiki 根目录：全局 `~/.luxagents/wiki` vs 每项目 `workingDirectory/wiki` vs 二者兼有？  
+3. Wiki 根目录：全局 `~/.luxcoder/wiki` vs 每项目 `workingDirectory/wiki` vs 二者兼有？  
 4. Wiki 生成：手动编辑为主，还是允许 Agent 定期维护指定页面？  
 5. 「类 Qoder」要对齐的是产品概念（仓库知识层）还是具体交互（需对照竞品再锁）？
 

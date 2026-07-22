@@ -1,4 +1,4 @@
-import type { Channel, ChannelPlanQuotaResult, ProviderType } from '@luxagents/shared'
+import type { Channel, ChannelPlanQuotaResult, ProviderType } from '@luxcoder/shared'
 
 const PLAN_QUOTA_PROVIDERS = new Set<ProviderType>([
   'deepseek',

@@ -10,7 +10,7 @@ import {
 const tempRoots: string[] = []
 
 function makeTempRoot(): string {
-  const root = mkdtempSync(join(tmpdir(), 'luxagents-fork-copy-'))
+  const root = mkdtempSync(join(tmpdir(), 'luxcoder-fork-copy-'))
   tempRoots.push(root)
   return root
 }

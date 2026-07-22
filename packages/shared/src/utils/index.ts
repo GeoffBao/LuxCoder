@@ -1,5 +1,5 @@
 /**
- * Shared utility functions for LuxAgents
+ * Shared utility functions for LuxCoder
  */
 
 // Placeholder - will be expanded as needed

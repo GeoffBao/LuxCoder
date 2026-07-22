@@ -4,7 +4,7 @@ import {
   injectOpenAIThinkingLevel,
   withCodexFastModeServiceTier,
 } from './pi-codex-request-settings'
-import { isOpenAIReasoningSupportedModel } from '@luxagents/shared'
+import { isOpenAIReasoningSupportedModel } from '@luxcoder/shared'
 
 describe('Pi Codex request settings', () => {
   test('Given OpenAI model IDs When checking reasoning support Then excludes non-reasoning GPT-4 models', () => {

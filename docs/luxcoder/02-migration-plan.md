@@ -1,4 +1,4 @@
-# LuxAgents Migration Plan
+# LuxCoder Migration Plan
 
 > Derived from Proma (ErlichLiu/Proma)  
 > Target: Enterprise AI R&D Workbench for Luxshare internal use
@@ -34,7 +34,7 @@ proma-v2/
 ### 本地数据目录（原 Proma）
 
 ```
-~/.luxagents/
+~/.luxcoder/
 ├── conversations/
 │   └── {conversation-id}.jsonl
 ├── agent-sessions.json
@@ -51,14 +51,14 @@ proma-v2/
 
 ---
 
-## 2. LuxAgents 目标结构
+## 2. LuxCoder 目标结构
 
 ```
-luxagents/
+luxcoder/
 ├── packages/
 │   ├── shared/       # 改造：重命名 namespace，增加企业类型
 │   ├── core/         # 改造：增加 Hermes provider（Phase 2）
-│   ├── ui/           # 改造：LuxAgents 主题、三模式组件
+│   ├── ui/           # 改造：LuxCoder 主题、三模式组件
 │   └── connectors/   # 新增：Teambition、Git、RAG、spec-kit
 └── apps/
     └── electron/
@@ -67,8 +67,8 @@ luxagents/
             ├── renderer/
             │   ├── atoms/  # 改造：增加 WorkItem、Artifact atoms
             │   ├── modes/  # 新增：Chat / Code / Work 模式
-            │   └── components/ # 改造：LuxAgents 组件库
-            └── preload/    # 改造：增加 LuxAgents IPC channels
+            │   └── components/ # 改造：LuxCoder 组件库
+            └── preload/    # 改造：增加 LuxCoder IPC channels
 ```
 
 ---
@@ -77,16 +77,16 @@ luxagents/
 
 | 阶段 | 名称 | 分支 | 目标 | 预估周期 |
 |---|---|---|---|---|---|
-| Phase 0 | Baseline | `luxagents/bootstrap` | 跑通 Proma，建立代码地图 | 1 周 |
-| Phase 1a | Branding | `luxagents/branding` | 品牌字符串 + 主题 + 数据目录 + 三模式 Tab + 完整品牌替换清单 | 1 周 |
-| Phase 1b | Namespace | `luxagents/namespace` | `@proma/*` → `@luxagents/*` 包名替换（300+ import） | 1 周 |
-| Phase 2 | Chat Mode | `luxagents/chat` | Chat 模式保持现有 provider（anthropic），和 Agent 共用；后续 Phase 接入 Hermes | 1 周 |
-| Phase 3 | Work Mode | `luxagents/cowork` | TB API(MCP) + 六阶段看板 + 双向同步 + TaskOrchestrator | 4 周 |
-| Phase 4 | Code Mode | `luxagents/code` | Agent 模式重命名为 Code（不改功能），ModeSwitcher 标签替换 | 0.5 周 |
-| Phase 5 | Enterprise | `luxagents/enterprise` | SSO、RBAC、Model Gateway、审计、Cost Dashboard | 4 周 |
+| Phase 0 | Baseline | `luxcoder/bootstrap` | 跑通 Proma，建立代码地图 | 1 周 |
+| Phase 1a | Branding | `luxcoder/branding` | 品牌字符串 + 主题 + 数据目录 + 三模式 Tab + 完整品牌替换清单 | 1 周 |
+| Phase 1b | Namespace | `luxcoder/namespace` | `@proma/*` → `@luxcoder/*` 包名替换（300+ import） | 1 周 |
+| Phase 2 | Chat Mode | `luxcoder/chat` | Chat 模式保持现有 provider（anthropic），和 Agent 共用；后续 Phase 接入 Hermes | 1 周 |
+| Phase 3 | Work Mode | `luxcoder/cowork` | TB API(MCP) + 六阶段看板 + 双向同步 + TaskOrchestrator | 4 周 |
+| Phase 4 | Code Mode | `luxcoder/code` | Agent 模式重命名为 Code（不改功能），ModeSwitcher 标签替换 | 0.5 周 |
+| Phase 5 | Enterprise | `luxcoder/enterprise` | SSO、RBAC、Model Gateway、审计、Cost Dashboard | 4 周 |
 
 > **模式顺序**：Chat → Work → Code（与 Claude Desktop App 一致）
-> **架构决策**：P2 Runtime Adapters 已取消。Hermes 作为 Agent SDK 的 provider 接入，部署在企业内网服务端，用户只需安装 LuxAgents。
+> **架构决策**：P2 Runtime Adapters 已取消。Hermes 作为 Agent SDK 的 provider 接入，部署在企业内网服务端，用户只需安装 LuxCoder。
 > Phase 1 拆分原因：包名 namespace 替换影响 300+ 文件 import，与品牌字符串替换独立进行，降低单次 PR 风险。
 > 术语统一：全项目使用「Claude Agent SDK」替代「Claude Code SDK」。
 
@@ -96,7 +96,7 @@ luxagents/
 
 ### 目标
 
-确认 Proma 原版可以在本地稳定运行，建立 LuxAgents 改造基线。
+确认 Proma 原版可以在本地稳定运行，建立 LuxCoder 改造基线。
 
 ### 任务清单
 
@@ -107,11 +107,11 @@ luxagents/
 - [ ] Skills 配置可见
 - [ ] MCP 配置可见
 - [ ] Provider 配置可见
-- [ ] 记录本地数据目录结构 `~/.luxagents/`
+- [ ] 记录本地数据目录结构 `~/.luxcoder/`
 - [ ] 完成 `00-baseline.md`
 - [ ] 完成 `01-code-map.md`
-- [ ] 建立 GitHub 仓库 LuxAgents
-- [ ] 推送 `luxagents/bootstrap` 分支
+- [ ] 建立 GitHub 仓库 LuxCoder
+- [ ] 推送 `luxcoder/bootstrap` 分支
 
 ### 验收标准
 
@@ -123,7 +123,7 @@ Proma 原版可以正常运行，文档齐全，GitHub 仓库已建立。
 
 ### 目标
 
-把 Proma 视觉上变成 LuxAgents，建立三模式 Tab 框架，迁移数据目录。不改核心功能，不改包名。
+把 Proma 视觉上变成 LuxCoder，建立三模式 Tab 框架，迁移数据目录。不改核心功能，不改包名。
 
 ### 改造范围
 
@@ -131,12 +131,12 @@ Proma 原版可以正常运行，文档齐全，GitHub 仓库已建立。
 
 | 原 | 改 |
 |---|---|
-| `Proma` | `LuxAgents` |
-| `proma` | `luxagents` |
-| `~/.luxagents` | `~/.luxagents` |
-| `proma-file://` 协议注册 | `luxagents-file://` |
-| `ai.proma.app` / `com.proma.app` | `com.luxshare.luxagents` |
-| `.luxagents-backup` / `.luxagents-share` 文件扩展名 | `.luxagents-backup` / `.luxagents-share` |
+| `Proma` | `LuxCoder` |
+| `proma` | `luxcoder` |
+| `~/.luxcoder` | `~/.luxcoder` |
+| `proma-file://` 协议注册 | `luxcoder-file://` |
+| `ai.proma.app` / `com.proma.app` | `com.luxshare.luxcoder` |
+| `.luxcoder-backup` / `.luxcoder-share` 文件扩展名 | `.luxcoder-backup` / `.luxcoder-share` |
 
 > ⚠️ 注意：IPC channel 常量（`AGENT_IPC_CHANNELS` 等）的字符串值**无 `proma:` 前缀**，无需替换。真正需要替换的是 `proma-file://` 自定义协议（`apps/electron/src/main/index.ts:33`）。
 
@@ -158,7 +158,7 @@ Proma 原版可以正常运行，文档齐全，GitHub 仓库已建立。
 
 #### 5.3 App Shell 改造
 
-- [ ] 窗口标题：Proma → LuxAgents
+- [ ] 窗口标题：Proma → LuxCoder
 - [ ] macOS traffic lights 保留
 - [ ] 顶部新增三模式 Tab：Chat / Code / Work
 - [ ] Sidebar logo 替换
@@ -168,27 +168,27 @@ Proma 原版可以正常运行，文档齐全，GitHub 仓库已建立。
 
 #### 5.4 数据目录迁移
 
-- [ ] 找到所有 `~/.luxagents` 引用：`rg "\.proma" apps/ packages/`
-- [ ] 统一改为 `~/.luxagents`（修改 `config-paths.ts`）
-- [ ] 在 `migration-service.ts` 实现首次启动自动迁移：`~/.luxagents → ~/.luxagents`
+- [ ] 找到所有 `~/.luxcoder` 引用：`rg "\.proma" apps/ packages/`
+- [ ] 统一改为 `~/.luxcoder`（修改 `config-paths.ts`）
+- [ ] 在 `migration-service.ts` 实现首次启动自动迁移：`~/.luxcoder → ~/.luxcoder`
 - [ ] 确认 `agent-sessions.json`、`conversations/`、`agent-workspaces/` 路径全部更新
 
 ### 任务清单
 
 - [ ] 全局替换字符串 `Proma` / `proma`（品牌字符串，不含包名）
-- [ ] 替换 `proma-file://` 协议注册 → `luxagents-file://`
-- [ ] 数据目录改为 `~/.luxagents`（`config-paths.ts`）
-- [ ] 在 `migration-service.ts` 实现 `~/.luxagents → ~/.luxagents` 迁移逻辑
-- [ ] 新增 LuxAgents CSS 主题 tokens
+- [ ] 替换 `proma-file://` 协议注册 → `luxcoder-file://`
+- [ ] 数据目录改为 `~/.luxcoder`（`config-paths.ts`）
+- [ ] 在 `migration-service.ts` 实现 `~/.luxcoder → ~/.luxcoder` 迁移逻辑
+- [ ] 新增 LuxCoder CSS 主题 tokens
 - [ ] 顶部三模式 Tab 框架（暂时只是 UI，不切换功能）
 - [ ] App icon 占位
-- [ ] `shared/src/config/index.ts` 改 `APP_NAME = 'LuxAgents'`
+- [ ] `shared/src/config/index.ts` 改 `APP_NAME = 'LuxCoder'`
 - [ ] `electron-builder.yml` 改 `appId`、`productName`、文件扩展名
 - [ ] 验证 `bun run dev` 仍然正常
 
 ### 验收标准
 
-1. 启动后显示 LuxAgents，不再出现 Proma
+1. 启动后显示 LuxCoder，不再出现 Proma
 2. 三模式 Tab 可见（功能暂为占位）
 3. 原有 Chat / Agent 功能不受影响
 4. 数据目录已切换，老数据自动迁移
@@ -199,16 +199,16 @@ Proma 原版可以正常运行，文档齐全，GitHub 仓库已建立。
 
 ### 目标
 
-将 `@proma/*` 包名全部替换为 `@luxagents/*`，统一 monorepo namespace。
+将 `@proma/*` 包名全部替换为 `@luxcoder/*`，统一 monorepo namespace。
 
 ### 改造范围
 
 | 原 | 改 |
 |---|---|
-| `@proma/electron` | `@luxagents/electron` |
-| `@proma/shared` | `@luxagents/shared` |
-| `@proma/core` | `@luxagents/core` |
-| `@proma/ui` | `@luxagents/ui` |
+| `@proma/electron` | `@luxcoder/electron` |
+| `@proma/shared` | `@luxcoder/shared` |
+| `@proma/core` | `@luxcoder/core` |
+| `@proma/ui` | `@luxcoder/ui` |
 
 ### 任务清单
 
@@ -232,7 +232,7 @@ Proma 原版可以正常运行，文档齐全，GitHub 仓库已建立。
 
 ### 目标
 
-将 Proma 原有 Chat 改造为 LuxAgents Chat 模式，底层接 HermesAdapter。
+将 Proma 原有 Chat 改造为 LuxCoder Chat 模式，底层接 HermesAdapter。
 
 ### 改造范围
 
@@ -429,14 +429,14 @@ Code 模式暂与现有 Agent 模式保持一致。ModeSwitcher 中 "Agent" → 
 | `apps/electron/package.json` | 重命名 app name / bundle ID | Phase 1a |
 | `apps/electron/electron-builder.yml` | appId、productName、文件扩展名 | Phase 1a |
 | `packages/shared/src/config/index.ts` | `APP_NAME` 常量 | Phase 1a |
-| `apps/electron/src/main/lib/config-paths.ts` | `~/.luxagents` → `~/.luxagents` | Phase 1a |
-| `apps/electron/src/main/lib/migration-service.ts` | 新增 proma→luxagents 目录迁移 | Phase 1a |
+| `apps/electron/src/main/lib/config-paths.ts` | `~/.luxcoder` → `~/.luxcoder` | Phase 1a |
+| `apps/electron/src/main/lib/migration-service.ts` | 新增 proma→luxcoder 目录迁移 | Phase 1a |
 | `apps/electron/src/main/index.ts` | 协议注册、窗口标题、菜单 | Phase 1a |
-| `packages/*/package.json`（全部） | namespace `@proma/*` → `@luxagents/*` | Phase 1b |
+| `packages/*/package.json`（全部） | namespace `@proma/*` → `@luxcoder/*` | Phase 1b |
 | `apps/electron/src/renderer/atoms/` | 新增 WorkItem / Artifact atoms | Phase 2 |
 | `packages/shared/src/` | namespace 替换、新增企业类型 | Phase 1b |
 | `packages/core/src/` | 新增 Hermes provider（扩 provider 注册表） | Phase 2 |
-| `packages/ui/src/` | LuxAgents 主题 tokens | Phase 1a |
+| `packages/ui/src/` | LuxCoder 主题 tokens | Phase 1a |
 | `apps/electron/src/renderer/modes/` | 三模式 UI（全新） | Phase 2-4 |
 | `packages/connectors/` | Teambition/Git/RAG（全新） | Phase 4 |
 
@@ -460,12 +460,12 @@ Code 模式暂与现有 Agent 模式保持一致。ModeSwitcher 中 "Agent" → 
 
 | 风险 | 影响 | 应对 |
 |---|---|---|
-| `~/.luxagents` 路径改名影响已有数据 | 用户数据丢失 | `migration-service.ts` 首次启动自动迁移 |
+| `~/.luxcoder` 路径改名影响已有数据 | 用户数据丢失 | `migration-service.ts` 首次启动自动迁移 |
 | Hermes 集成复杂度 | Chat MVP 延迟 | 先用 stub，再逐步接真实 Hermes |
 | Claude Agent SDK 权限事件不完整 | 安全风险 | `PermissionBroker` 统一拦截（沿用现有 agent-permission-service） |
 | Teambition API 权限受限 | Work 闭环受阻 | 先只读同步 + 手动回写 |
 | 全局字符串替换遗漏 | 品牌不一致 | 用 `rg "proma\|Proma"` 验证 |
-| Jotai atoms 命名冲突 | 状态异常 | 新增 atoms 统一加 `luxagents` 前缀 |
+| Jotai atoms 命名冲突 | 状态异常 | 新增 atoms 统一加 `luxcoder` 前缀 |
 | Phase 1b 包名替换引入构建错误 | 开发中断 | 单独分支，typecheck 通过后合并 |
 
 ---

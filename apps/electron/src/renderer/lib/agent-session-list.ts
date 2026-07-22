@@ -1,4 +1,4 @@
-import type { AgentSessionMeta } from '@luxagents/shared'
+import type { AgentSessionMeta } from '@luxcoder/shared'
 
 interface AgentSessionTreeLike {
   session: Pick<AgentSessionMeta, 'id'>

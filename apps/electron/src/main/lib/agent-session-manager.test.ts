@@ -8,7 +8,7 @@ type AgentSessionManager = typeof import('./agent-session-manager')
 let manager: AgentSessionManager
 let tempHome: string
 const originalHome = process.env.HOME
-const originalLuxagentsDev = process.env.LUXAGENTS_DEV
+const originalLuxcoderDev = process.env.LUXCODER_DEV
 const originalPromaDev = process.env.PROMA_DEV
 const originalClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR
 
@@ -43,13 +43,13 @@ function jsonl(rows: string[]): string {
 }
 
 function writeAgentSessionJsonl(sessionId: string, rows: string[]): void {
-  const dir = join(tempHome, '.luxagents', 'agent-sessions')
+  const dir = join(tempHome, '.luxcoder', 'agent-sessions')
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, `${sessionId}.jsonl`), jsonl(rows), 'utf-8')
 }
 
 function writeSdkSessionJsonl(sdkSessionId: string, rows: string[]): void {
-  const dir = join(tempHome, '.luxagents', 'sdk-config', 'projects', 'test-project')
+  const dir = join(tempHome, '.luxcoder', 'sdk-config', 'projects', 'test-project')
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, `${sdkSessionId}.jsonl`), jsonl(rows), 'utf-8')
 }
@@ -61,7 +61,7 @@ function writeAgentSessionsIndex(sessions: Array<{
   createdAt: number
   updatedAt: number
 }>): void {
-  const dir = join(tempHome, '.luxagents')
+  const dir = join(tempHome, '.luxcoder')
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, 'agent-sessions.json'), JSON.stringify({ version: 1, sessions }), 'utf-8')
 }
@@ -77,9 +77,9 @@ function createIndexedSessions(count: number) {
 }
 
 beforeAll(async () => {
-  tempHome = mkdtempSync(join(os.tmpdir(), 'luxagents-agent-session-manager-'))
+  tempHome = mkdtempSync(join(os.tmpdir(), 'luxcoder-agent-session-manager-'))
   process.env.HOME = tempHome
-  delete process.env.LUXAGENTS_DEV
+  delete process.env.LUXCODER_DEV
   delete process.env.PROMA_DEV
   delete process.env.CLAUDE_CONFIG_DIR
   manager = await import('./agent-session-manager')
@@ -91,10 +91,10 @@ afterAll(() => {
   } else {
     process.env.HOME = originalHome
   }
-  if (originalLuxagentsDev === undefined) {
-    delete process.env.LUXAGENTS_DEV
+  if (originalLuxcoderDev === undefined) {
+    delete process.env.LUXCODER_DEV
   } else {
-    process.env.LUXAGENTS_DEV = originalLuxagentsDev
+    process.env.LUXCODER_DEV = originalLuxcoderDev
   }
   if (originalPromaDev === undefined) {
     delete process.env.PROMA_DEV

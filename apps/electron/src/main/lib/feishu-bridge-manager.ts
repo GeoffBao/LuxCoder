@@ -13,7 +13,7 @@ import type {
   FeishuTestResult,
   FeishuBotConfig,
   AgentSessionMeta,
-} from '@luxagents/shared'
+} from '@luxcoder/shared'
 import { FeishuBridge } from './feishu-bridge'
 import { redactSensitiveLogValue } from './bridge-log-redaction'
 import { getFeishuMultiBotConfig, getFeishuBotById } from './feishu-config'
@@ -127,7 +127,7 @@ class FeishuBridgeManager {
     return this.bridges
   }
 
-  /** 为桌面端 LuxAgents Session 创建或恢复飞书镜像群。 */
+  /** 为桌面端 LuxCoder Session 创建或恢复飞书镜像群。 */
   async ensureSessionMirror(session: AgentSessionMeta): Promise<void> {
     const config = getFeishuMultiBotConfig()
     const bot = resolveSessionMirrorBot(getSettings().feishuSessionMirror, config.bots)

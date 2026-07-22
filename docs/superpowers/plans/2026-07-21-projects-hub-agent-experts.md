@@ -4,9 +4,9 @@
 
 **Goal:** Code 左栏「项目中心 / Agent 专家」改为入口行 → 全屏主区（对齐 Agent 技能）；项目可挂 `defaultExpertId`；专家包文件壳可读可写；不做 runtime 注入与 Bot。
 
-**Architecture:** 扩展 `activeViewAtom`（`projects` | `agent-experts`）覆盖主区；看板仍走 `codeMainView='work'`。项目列表从侧栏迁到 `ProjectsHubView`。专家包落在 `~/.luxagents[-dev]/experts/{slug}/`，经主进程 IPC 读写。Skills 仅以 slug 引用写入 `expert.json`。
+**Architecture:** 扩展 `activeViewAtom`（`projects` | `agent-experts`）覆盖主区；看板仍走 `codeMainView='work'`。项目列表从侧栏迁到 `ProjectsHubView`。专家包落在 `~/.luxcoder[-dev]/experts/{slug}/`，经主进程 IPC 读写。Skills 仅以 slug 引用写入 `expert.json`。
 
-**Tech Stack:** React 18、Jotai、Bun test、TypeScript、Electron IPC、`@luxagents/shared` ProjectConfig、Tailwind / 现有 SidebarModule + AgentSkillsView 视觉模式。
+**Tech Stack:** React 18、Jotai、Bun test、TypeScript、Electron IPC、`@luxcoder/shared` ProjectConfig、Tailwind / 现有 SidebarModule + AgentSkillsView 视觉模式。
 
 **Spec:** `docs/superpowers/specs/2026-07-21-projects-hub-agent-experts-design.md`
 
@@ -215,7 +215,7 @@ export function buildProjectUpdate(draft: ProjectSettingsDraft): ProjectUpdatePa
 
 确认 preload `BrowserProject` 已是 `ProjectConfig & { workspaceId }`，字段会自动透传；若 `projects.update` 映射白名单存在，加入 `defaultExpertId`。
 
-Bump `@luxagents/shared` patch。
+Bump `@luxcoder/shared` patch。
 
 - [ ] **Step 4: 跑测试确认通过**
 

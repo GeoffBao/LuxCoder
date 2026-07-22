@@ -114,8 +114,8 @@ import { AgentSessionProvider } from '@/contexts/session-context'
 import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
 import { sendWithCmdEnterAtom } from '@/atoms/shortcut-atoms'
 import { useOpenPreview } from '@/components/diff/preview-opener'
-import type { AgentRuntime, AgentSendInput, AgentPendingFile, AgentThinkingLevel, FileDialogLargeFile, ModelOption, SDKMessage, SDKUserMessage, ProviderType } from '@luxagents/shared'
-import { inferAgentSdkContextWindow, inferContextWindow, isCodexFastModeSupportedModel, isOpenAIReasoningSupportedModel, MAX_ATTACHMENT_SIZE } from '@luxagents/shared'
+import type { AgentRuntime, AgentSendInput, AgentPendingFile, AgentThinkingLevel, FileDialogLargeFile, ModelOption, SDKMessage, SDKUserMessage, ProviderType } from '@luxcoder/shared'
+import { inferAgentSdkContextWindow, inferContextWindow, isCodexFastModeSupportedModel, isOpenAIReasoningSupportedModel, MAX_ATTACHMENT_SIZE } from '@luxcoder/shared'
 import { fileToBase64, formatFileNames, getFileParentPath } from '@/lib/file-utils'
 import { buildQuotedSelectionBlock } from '@/lib/quoted-selection'
 import { createClipboardPendingFile, createClipboardTextDraft, makeUniqueAttachmentName } from '@/lib/clipboard-text-attachment'
@@ -242,7 +242,7 @@ interface CodexThinkingConfig {
 }
 
 interface AgentThinkingPopoverProps {
-  agentThinking: import('@luxagents/shared').ThinkingConfig | undefined
+  agentThinking: import('@luxcoder/shared').ThinkingConfig | undefined
   onToggle: () => void
   codexConfig?: CodexThinkingConfig
 }
@@ -667,9 +667,9 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
 
   // 检查 Agent 渠道列表中是否存在可用的模型（渠道 enabled + 模型 enabled）
   const hasAvailableModel = React.useMemo(() => {
-    // LuxAgents 官方渠道（商业版）：只要 enabled 且有可用模型，直接视为可用
-    const luxagentsOfficial = globalChannels.find((c) => c.id === 'luxagents-official')
-    if (luxagentsOfficial?.enabled && luxagentsOfficial.models.some((m) => m.enabled)) return true
+    // LuxCoder 官方渠道（商业版）：只要 enabled 且有可用模型，直接视为可用
+    const luxcoderOfficial = globalChannels.find((c) => c.id === 'luxcoder-official')
+    if (luxcoderOfficial?.enabled && luxcoderOfficial.models.some((m) => m.enabled)) return true
     // Pi runtime 支持所有协议，任何已启用渠道都可用
     if (sessionAgentRuntime === 'pi') {
       return globalChannels.some((c) => c.enabled && c.models.some((m) => m.enabled))
@@ -2136,7 +2136,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     const localUuid = crypto.randomUUID()
 
     // 1. 立即注入合成用户消息（/compact 气泡立刻可见，与普通发送路径一致）
-    const syntheticMsg: import('@luxagents/shared').SDKMessage = {
+    const syntheticMsg: import('@luxcoder/shared').SDKMessage = {
       type: 'user',
       uuid: localUuid,
       message: {
@@ -2144,7 +2144,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
       },
       parent_tool_use_id: null,
       _createdAt: streamStartedAt,
-    } as unknown as import('@luxagents/shared').SDKMessage
+    } as unknown as import('@luxcoder/shared').SDKMessage
 
     store.set(liveMessagesMapAtom, (prev) => {
       const map = new Map(prev)
@@ -2407,8 +2407,8 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     const handler = (): void => {
       if (streaming) handleStop()
     }
-    window.addEventListener('luxagents:stop-generation', handler)
-    return () => window.removeEventListener('luxagents:stop-generation', handler)
+    window.addEventListener('luxcoder:stop-generation', handler)
+    return () => window.removeEventListener('luxcoder:stop-generation', handler)
   }, [streaming, handleStop])
 
   // 监听快捷键系统分发的 focus-input 事件（Cmd+L）
@@ -2417,8 +2417,8 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
       const proseMirror = document.querySelector('[data-input-mode="agent"] .ProseMirror') as HTMLElement | null
       proseMirror?.focus()
     }
-    window.addEventListener('luxagents:focus-input', handler)
-    return () => window.removeEventListener('luxagents:focus-input', handler)
+    window.addEventListener('luxcoder:focus-input', handler)
+    return () => window.removeEventListener('luxcoder:focus-input', handler)
   }, [])
 
   const allAskUserRequests = useAtomValue(allPendingAskUserRequestsAtom)

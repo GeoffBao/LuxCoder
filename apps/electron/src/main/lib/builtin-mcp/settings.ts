@@ -1,5 +1,5 @@
 /**
- * LuxAgents 内置 MCP 开关设置
+ * LuxCoder 内置 MCP 开关设置
  *
  * 大部分内置 MCP 默认开启，由 builtinMcpDisabledIds 黑名单管理关闭项；
  * 少数内置 MCP（DEFAULT_DISABLED_IDS）默认关闭，由 builtinMcpEnabledIds 白名单

@@ -202,13 +202,13 @@ if (!pinned) {
         message: '仍引用 Codex-agent-sdk',
       })
     }
-    // 旧 @proma 排除应变为 @luxagents
+    // 旧 @proma 排除应变为 @luxcoder
     if (yml.includes('!node_modules/@proma/**')) {
       add({
         severity: 'error',
         check: 'sdk/builder',
         file: 'apps/electron/electron-builder.yml',
-        message: '仍排除 @proma/**，应改为 @luxagents/**',
+        message: '仍排除 @proma/**，应改为 @luxcoder/**',
       })
     }
   }
@@ -357,10 +357,10 @@ function normalizeSkillBody(content: string): string {
   text = text.replace(/^---\s*\n[\s\S]*?\n---\s*/, '')
   // 忽略已知品牌差异
   text = text
-    .replace(/~\/\.proma/g, '~/.luxagents')
-    .replace(/~\/\.luxagents/g, '~/.luxagents')
-    .replace(/@proma\//g, '@luxagents/')
-    .replace(/Proma/g, 'LuxAgents')
+    .replace(/~\/\.proma/g, '~/.luxcoder')
+    .replace(/~\/\.luxcoder/g, '~/.luxcoder')
+    .replace(/@proma\//g, '@luxcoder/')
+    .replace(/Proma/g, 'LuxCoder')
     .replace(/\s+/g, ' ')
     .trim()
   return text

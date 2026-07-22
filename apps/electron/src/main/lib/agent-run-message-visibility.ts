@@ -1,5 +1,5 @@
-import type { SDKAssistantMessage, SDKMessage, SDKSystemMessage } from '@luxagents/shared'
-import { isPersistableSDKSystemMessage } from '@luxagents/shared'
+import type { SDKAssistantMessage, SDKMessage, SDKSystemMessage } from '@luxcoder/shared'
+import { isPersistableSDKSystemMessage } from '@luxcoder/shared'
 
 function isNonEmptyString(value: unknown): boolean {
   return typeof value === 'string' && value.trim().length > 0

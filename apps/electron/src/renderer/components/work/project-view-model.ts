@@ -1,4 +1,4 @@
-import type { AgentSessionMeta } from '@luxagents/shared'
+import type { AgentSessionMeta } from '@luxcoder/shared'
 import type { KanbanProject } from '../app-shell/kanban/types'
 
 export interface ProjectColumnDraft {

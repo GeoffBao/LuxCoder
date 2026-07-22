@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { isSafeSessionId, resolveSession } from './sessions'
 
 describe('CLI resolveSession 路径护栏', () => {
-  const root = mkdtempSync(join(tmpdir(), 'luxagents-cli-sessions-'))
+  const root = mkdtempSync(join(tmpdir(), 'luxcoder-cli-sessions-'))
   const sessionsDir = join(root, 'agent-sessions')
   mkdirSync(sessionsDir, { recursive: true })
   const inside = join(sessionsDir, 'abc.jsonl')

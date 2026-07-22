@@ -17,7 +17,7 @@ import type {
   SDKUserMessage,
   SDKToolUseBlock,
   SDKToolResultBlock,
-} from '@luxagents/shared'
+} from '@luxcoder/shared'
 import { FilePathChip } from '@/components/ai-elements/file-path-chip'
 
 const MUTATING_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit'])

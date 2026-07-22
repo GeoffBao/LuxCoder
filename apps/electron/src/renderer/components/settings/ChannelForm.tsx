@@ -35,7 +35,7 @@ import {
   isAgentCompatibleProvider,
   parseZhipuTeamCredentials,
   parseCodexCredentials,
-} from '@luxagents/shared'
+} from '@luxcoder/shared'
 import type {
   Channel,
   ChannelCreateInput,
@@ -43,8 +43,8 @@ import type {
   ChannelTestResult,
   FetchModelsResult,
   ProviderType,
-} from '@luxagents/shared'
-import { resolveAnthropicMessagesUrl, resolveOpenAIChatCompletionsUrl, resolveOpenAIResponsesUrl } from '@luxagents/core'
+} from '@luxcoder/shared'
+import { resolveAnthropicMessagesUrl, resolveOpenAIChatCompletionsUrl, resolveOpenAIResponsesUrl } from '@luxcoder/core'
 import { getProviderLogo } from '@/lib/model-logo'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {

@@ -37,7 +37,7 @@ import type {
   SDKUserMessage,
   SDKToolResultBlock,
   SDKSystemMessage,
-} from '@luxagents/shared'
+} from '@luxcoder/shared'
 
 // ===== useToolResult Hook =====
 

@@ -11,7 +11,7 @@
 
 ### 1.1 背景
 
-LuxAgents 当前有 Chat / Agent / Scratch 三个模式。Work 模式（`cowork`）目前是空壳，需要改造为支持研发工程师日常工作流的协同看板。
+LuxCoder 当前有 Chat / Agent / Scratch 三个模式。Work 模式（`cowork`）目前是空壳，需要改造为支持研发工程师日常工作流的协同看板。
 
 目标用户：嵌入式 / 芯片领域的研发工程师，日常工作流程包括：
 - 从 Teambition 接收需求 / Bug 任务
@@ -43,7 +43,7 @@ SDD 的核心思想：**先写规格（Spec），再让 AI 写代码**。
 specify → plan → implement → verify
 ```
 
-| SDD 步骤 | 含义 | LuxAgents 技能 |
+| SDD 步骤 | 含义 | LuxCoder 技能 |
 |---------|------|--------------|
 | specify | 探索需求，产出需求文档草稿 | `/brainstorming` |
 | plan | 生成详细实施计划 | `/writing-plans` |
@@ -81,7 +81,7 @@ specify → plan → implement → verify
 - ✅ 九阶段状态机 + 任务类型分流
 - ✅ 新建任务 Dialog
 - ✅ 已完成 / 已取消归档视图
-- ✅ 本地 JSON 持久化（`~/.luxagents/work-tasks.json`）
+- ✅ 本地 JSON 持久化（`~/.luxcoder/work-tasks.json`）
 - ✅ KanbanHeader（统计 + 新建按钮 + TB 连接状态灰显占位）
 - ✅ work-sdd 默认 Skill（需求文档 / 方案设计模板）
 
@@ -241,7 +241,7 @@ projectMappings?: ProjectMapping[]
 ### 5.4 持久化
 
 ```
-~/.luxagents/
+~/.luxcoder/
 └── work-tasks.json     # { version, counter, tasks[] }
 ```
 
@@ -253,7 +253,7 @@ projectMappings?: ProjectMapping[]
 
 ```
 {workspace.cwd}/
-└── .luxagents-tasks/
+└── .luxcoder-tasks/
     └── CB-001/
         ├── requirements.md    ← 需求文档（req-writing 阶段产出）
         ├── design.md          ← 方案设计文档（design-writing 阶段产出）
@@ -414,7 +414,7 @@ Bug / Task 类型只显示相关阶段：
 1. 切换到 Agent 模式
 2. 预填 Agent 输入框，包含：
    - 任务标题 / 类型 / 阶段
-   - 输出路径（`.luxagents-tasks/CB-001/requirements.md`）
+   - 输出路径（`.luxcoder-tasks/CB-001/requirements.md`）
    - 使用 `work-sdd` Skill 中对应的文档模板
 
 ---
@@ -496,7 +496,7 @@ SDD 可视化       SDD 一键触发                SPEC-KIT 进度自动更新
 
 ## 8. work-sdd 默认 Skill
 
-MVP 需要创建 `work-sdd` Skill，作为 default skill 打包进 LuxAgents，用户创建工作区时自动获得。
+MVP 需要创建 `work-sdd` Skill，作为 default skill 打包进 LuxCoder，用户创建工作区时自动获得。
 
 ### 8.1 目录结构
 
@@ -511,9 +511,9 @@ apps/electron/default-skills/
 ### 8.2 SKILL.md 职责
 
 告诉 Agent：
-- 当任务阶段为**需求文档撰写**时：按 `req-template.md` 格式输出，保存到 `.luxagents-tasks/{taskId}/requirements.md`
-- 当任务阶段为**方案设计撰写**时：按 `design-template.md` 格式输出，保存到 `.luxagents-tasks/{taskId}/design.md`
-- 当任务阶段为**经验总结**时：总结本次任务的根因、解法、验证结果，保存到 `.luxagents-tasks/{taskId}/experience.md`
+- 当任务阶段为**需求文档撰写**时：按 `req-template.md` 格式输出，保存到 `.luxcoder-tasks/{taskId}/requirements.md`
+- 当任务阶段为**方案设计撰写**时：按 `design-template.md` 格式输出，保存到 `.luxcoder-tasks/{taskId}/design.md`
+- 当任务阶段为**经验总结**时：总结本次任务的根因、解法、验证结果，保存到 `.luxcoder-tasks/{taskId}/experience.md`
 
 ### 8.3 需求文档模板（req-template.md 主要章节）
 
@@ -550,4 +550,4 @@ apps/electron/default-skills/
 - **组件化**：Work 相关组件全部在 `components/work/` 目录，不污染其他模块
 - **状态隔离**：Work atoms 独立文件，不与 Chat / Agent atoms 耦合
 - **语言**：MVP 全中文 UI，不引入 i18n 框架，国际化独立迭代处理
-- **产出物路径规范**：`.luxagents-tasks/{taskId}/` 统一约定，Skill 和 IPC 服务均遵守此路径
+- **产出物路径规范**：`.luxcoder-tasks/{taskId}/` 统一约定，Skill 和 IPC 服务均遵守此路径

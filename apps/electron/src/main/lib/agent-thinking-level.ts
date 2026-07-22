@@ -1,4 +1,4 @@
-import type { AgentSessionMeta, AgentThinkingLevel, ProviderType } from '@luxagents/shared'
+import type { AgentSessionMeta, AgentThinkingLevel, ProviderType } from '@luxcoder/shared'
 import type { AppSettings } from '../../types'
 
 type ThinkingSettings = Pick<AppSettings, 'agentThinking' | 'agentEffort'>

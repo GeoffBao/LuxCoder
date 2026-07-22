@@ -18,7 +18,7 @@ const NODE_STATE_LABEL: Record<string, string> = {
   skipped: '已跳过',
 }
 
-/** 将运行状态映射为使用 LuxAgents 主题变量的胶囊样式与中文标签。 */
+/** 将运行状态映射为使用 LuxCoder 主题变量的胶囊样式与中文标签。 */
 export function resolveNodeStatePill(state: string): { className: string; label: string | null } {
   return {
     className: NODE_STATE_PILL[state] ?? NEUTRAL_PILL,

@@ -1,5 +1,5 @@
 {
-  "name": "luxagents",
+  "name": "luxcoder",
   "version": "0.1.0",
   "description": "The next gen ai software with general agents",
   "type": "module",
@@ -9,10 +9,10 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "bun run --filter='@luxagents/electron' dev",
-    "electron:dev": "bun run --filter='@luxagents/electron' dev",
-    "electron:build": "bun run --filter='@luxagents/electron' build",
-    "electron:start": "bun run --filter='@luxagents/electron' start",
+    "dev": "bun run --filter='@luxcoder/electron' dev",
+    "electron:dev": "bun run --filter='@luxcoder/electron' dev",
+    "electron:build": "bun run --filter='@luxcoder/electron' build",
+    "electron:start": "bun run --filter='@luxcoder/electron' start",
     "build": "bun run --filter='*' build",
     "typecheck": "bun run --filter='*' typecheck",
     "test": "bun test",

@@ -1,5 +1,5 @@
 /**
- * @luxagents/shared - Shared types, configs and utilities
+ * @luxcoder/shared - Shared types, configs and utilities
  */
 
 export * from './types/index'

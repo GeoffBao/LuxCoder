@@ -5,7 +5,7 @@
  */
 
 import { atom } from 'jotai'
-import type { ProxyConfig } from '@luxagents/shared'
+import type { ProxyConfig } from '@luxcoder/shared'
 
 /**
  * 代理配置 Atom

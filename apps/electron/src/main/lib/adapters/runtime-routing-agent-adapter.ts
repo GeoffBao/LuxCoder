@@ -4,7 +4,7 @@
  * Orchestrator 只依赖 AgentProviderAdapter；这里按每个会话选择 Claude 或 Pi runtime。
  */
 
-import type { AgentProviderAdapter, AgentQueryInput, AgentRuntime, SDKMessage, SDKUserMessageInput, SendQueuedMessageOptions } from '@luxagents/shared'
+import type { AgentProviderAdapter, AgentQueryInput, AgentRuntime, SDKMessage, SDKUserMessageInput, SendQueuedMessageOptions } from '@luxcoder/shared'
 
 export class RuntimeRoutingAgentAdapter implements AgentProviderAdapter {
   private readonly sessionRuntimes = new Map<string, AgentRuntime>()

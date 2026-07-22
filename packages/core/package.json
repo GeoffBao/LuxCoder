@@ -1,8 +1,8 @@
 {
-  "name": "@luxagents/core",
+  "name": "@luxcoder/core",
   "version": "0.1.7",
   "license": "AGPL-3.0-only",
-  "description": "LuxAgents core types,storage and core logic with agents",
+  "description": "LuxCoder core types,storage and core logic with agents",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -14,7 +14,7 @@
     "./highlight": "./src/highlight/index.ts"
   },
   "dependencies": {
-    "@luxagents/shared": "workspace:*",
+    "@luxcoder/shared": "workspace:*",
     "highlight.js": "^11.11.1",
     "shiki": "^3.22.0"
   },

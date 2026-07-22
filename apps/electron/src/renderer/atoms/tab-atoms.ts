@@ -29,7 +29,7 @@ export const SCRATCH_PAD_ID = '__scratch-pad__'
 
 /** 教程 Tab 固定 ID */
 export const TUTORIAL_TAB_ID = '__tutorial__'
-export const TUTORIAL_TAB_TITLE = 'LuxAgents 使用指南'
+export const TUTORIAL_TAB_TITLE = 'LuxCoder 使用指南'
 
 /** 会话预览 Tab 的 ID 前缀：运行时临时入口，不参与持久化 */
 const PREVIEW_TAB_PREFIX = '__preview__:'
@@ -99,7 +99,7 @@ export const sessionViewStateMapAtom = atom<Map<string, SessionViewState>>(new M
 
 /** 侧边栏是否收起（持久化） */
 export const sidebarCollapsedAtom = atomWithStorage<boolean>(
-  'luxagents-sidebar-collapsed',
+  'luxcoder-sidebar-collapsed',
   false,
 )
 

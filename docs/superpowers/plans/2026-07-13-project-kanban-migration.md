@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 将 `craft-agents-max/260705-agent` 的 Projects、Task/Conductor、Kanban 与 Teambition-Kanban 能力迁移为 LuxAgents 中唯一的 Work 实现，并通过冷启动、类型检查、测试和构建验证。
+**Goal:** 将 `craft-agents-max/260705-agent` 的 Projects、Task/Conductor、Kanban 与 Teambition-Kanban 能力迁移为 LuxCoder 中唯一的 Work 实现，并通过冷启动、类型检查、测试和构建验证。
 
 **Architecture:** 以 Agent Workspace 为根，在 Shared 层定义浏览器安全的 DTO、Zod schema 和 IPC 常量；Main 层用 ProjectRepository、TaskRepository、ConductorSessionHost、TaskRunner 和 TeambitionService 负责文件持久化与运行时；Preload 暴露类型安全 API，Renderer 用 Jotai 将 Session、Project、TaskRun 和远端 binding 合并为 Kanban ViewModel。每个阶段保持可运行，所有运行日志追加写入并支持冷启动重建。
 
@@ -47,7 +47,7 @@
 
 - Modify: `apps/electron/src/preload/index.ts` — 暴露 `projects`、`tasks`、`sessions`、`teambition` API 和事件订阅。
 - Create or replace: `apps/electron/src/renderer/atoms/kanban-atoms.ts`, `apps/electron/src/renderer/atoms/project-atoms.ts` — Jotai state 和 optimistic rollback。
-- Create: `apps/electron/src/renderer/components/app-shell/kanban/` — 从 Craft 迁移并适配 LuxAgents 主题的 Board、Column、Tile、TaskEditor、Preview、Filter、子任务组件。
+- Create: `apps/electron/src/renderer/components/app-shell/kanban/` — 从 Craft 迁移并适配 LuxCoder 主题的 Board、Column、Tile、TaskEditor、Preview、Filter、子任务组件。
 - Create: `apps/electron/src/renderer/components/work/ProjectsListPanel.tsx`, `ProjectInfoPage.tsx`, `TeambitionPicker.tsx`。
 - Replace: `apps/electron/src/renderer/components/work/WorkBoardView.tsx` — 接入 App Shell、Project 面板和 Board/List。
 - Create: `apps/electron/src/renderer/components/app-shell/kanban/__tests__/kanban-view-model.test.ts`, `drag-rollback.test.ts`, `task-spec-form.test.ts`。
@@ -85,7 +85,7 @@
 
 - [ ] **Step 2: Add the contract/storage test directories and failing assertions**
 
-  Add tests that import only renderer-safe types from `@luxagents/shared/projects` and `@luxagents/shared/tasks`, assert a duplicate node is invalid, and assert a minimal one-node spec round-trips through YAML. The tests must not import `storage.ts` through the package root.
+  Add tests that import only renderer-safe types from `@luxcoder/shared/projects` and `@luxcoder/shared/tasks`, assert a duplicate node is invalid, and assert a minimal one-node spec round-trips through YAML. The tests must not import `storage.ts` through the package root.
 
 - [ ] **Step 3: Run the focused tests and confirm the new assertions expose missing behavior**
 
@@ -136,7 +136,7 @@
 
   ```bash
   bun test packages/shared/src/projects/__tests__/storage.test.ts
-  bun run --filter='@luxagents/shared' typecheck
+  bun run --filter='@luxcoder/shared' typecheck
   ```
 
   Expected: all Project tests PASS and the shared package typecheck exits 0.
@@ -178,8 +178,8 @@
 - [ ] **Step 4: Verify Shared exports do not pull Node storage into Vite**
 
   ```bash
-  bun run --filter='@luxagents/shared' typecheck
-  bun run --filter='@luxagents/electron' build:renderer
+  bun run --filter='@luxcoder/shared' typecheck
+  bun run --filter='@luxcoder/electron' build:renderer
   ```
 
   Expected: typecheck and renderer build PASS without `fs`, `path`, or `crypto` externalization errors.
@@ -267,8 +267,8 @@
 - [ ] **Step 4: Wire handlers through `ipc.ts` and smoke the commands**
 
   ```bash
-  bun run --filter='@luxagents/electron' typecheck
-  bun run --filter='@luxagents/electron' build:main
+  bun run --filter='@luxcoder/electron' typecheck
+  bun run --filter='@luxcoder/electron' build:main
   ```
 
   Expected: Main bundle and typecheck PASS; no duplicate handler registration is logged during startup.
@@ -322,7 +322,7 @@
   ```bash
   bun test apps/electron/src/main/lib/task-runner.test.ts apps/electron/src/main/lib/conductor-session-host.test.ts
   bun run typecheck
-  bun run --filter='@luxagents/electron' build:main
+  bun run --filter='@luxcoder/electron' build:main
   ```
 
   Expected: all runner tests PASS, typecheck PASS, and main bundle builds.
@@ -370,7 +370,7 @@
 
   ```bash
   bun test apps/electron/src/renderer/components/app-shell/kanban/__tests__
-  bun run --filter='@luxagents/electron' build:renderer
+  bun run --filter='@luxcoder/electron' build:renderer
   ```
 
   Expected: tests PASS and Vite completes without Node built-in externalization errors.
@@ -383,7 +383,7 @@
   git commit -m "feat: expose kanban renderer state"
   ```
 
-### Task 8: Migrate the complete Kanban and Project UI into LuxAgents App Shell
+### Task 8: Migrate the complete Kanban and Project UI into LuxCoder App Shell
 
 **Files:**
 - Create: `apps/electron/src/renderer/components/app-shell/kanban/TaskTile.tsx`, `KanbanBoardContainer.tsx`, `KanbanBoard.tsx`, `KanbanColumn.tsx`, `StatusBadge.tsx`, `SubtaskProgress.tsx`, `SubtaskRow.tsx`, `TaskChatPreview.tsx`, `TaskEditor.tsx`, `NewTaskComposer.tsx`, `KanbanProjectFilter.tsx`, `BoardListToggle.tsx`, `ModelChip.tsx`, `node-state-pill.ts`, `status-column.ts`, `subtask-merge.ts`, `task-spec-form.ts`, `kanban-colors.ts`.
@@ -393,12 +393,12 @@
 - Test: `apps/electron/src/renderer/components/app-shell/kanban/__tests__/task-spec-form.test.ts`, `subtask-merge.test.ts`, `node-state-pill.test.ts`.
 
 **Interfaces:**
-- Consumes: `KanbanViewModel`, atoms, Preload commands, existing LuxAgents theme and Radix primitives.
+- Consumes: `KanbanViewModel`, atoms, Preload commands, existing LuxCoder theme and Radix primitives.
 - Produces: Board/List toggle, Project search/filter, default Inbox/Todo/In Progress/Done columns, custom project columns, drag-and-drop, quick task composer, TaskEditor, child session links, ProjectInfo Sessions/Assets/Memory/Settings tabs, and ordinary Session preview.
 
 - [ ] **Step 1: Port pure UI helpers and their failing tests**
 
-  Port the Craft helper behavior for column grouping, status labels, subtask merge, node state pill, and task form validation. Keep labels and logs Chinese where the codebase already uses Chinese copy; use LuxAgents CSS variables rather than Craft-specific colors.
+  Port the Craft helper behavior for column grouping, status labels, subtask merge, node state pill, and task form validation. Keep labels and logs Chinese where the codebase already uses Chinese copy; use LuxCoder CSS variables rather than Craft-specific colors.
 
 - [ ] **Step 2: Run helper tests**
 
@@ -424,8 +424,8 @@
 
   ```bash
   bun test apps/electron/src/renderer/components/app-shell/kanban/__tests__
-  bun run --filter='@luxagents/electron' typecheck
-  bun run --filter='@luxagents/electron' build:renderer
+  bun run --filter='@luxcoder/electron' typecheck
+  bun run --filter='@luxcoder/electron' build:renderer
   ```
 
   Expected: helper and interaction tests PASS, typecheck PASS, renderer build PASS.
@@ -476,8 +476,8 @@
   ```bash
   bun test apps/electron/src/main/lib/teambition-service.test.ts apps/electron/src/renderer/components/work/__tests__/teambition-view.test.tsx
   bun run typecheck
-  bun run --filter='@luxagents/electron' build:main
-  bun run --filter='@luxagents/electron' build:renderer
+  bun run --filter='@luxcoder/electron' build:main
+  bun run --filter='@luxcoder/electron' build:renderer
   ```
 
   Expected: all tests and builds PASS.
@@ -553,9 +553,9 @@
 - [ ] **Step 1: Start the split development stack**
 
   ```bash
-  bun run --filter='@luxagents/electron' dev:vite -- --host 127.0.0.1 --port 5173
-  bun run --filter='@luxagents/electron' build:main
-  bun run --filter='@luxagents/electron' build:preload
+  bun run --filter='@luxcoder/electron' dev:vite -- --host 127.0.0.1 --port 5173
+  bun run --filter='@luxcoder/electron' build:main
+  bun run --filter='@luxcoder/electron' build:preload
   ```
 
   Expected: Vite binds `127.0.0.1`, main/preload build, and renderer serves the application shell.

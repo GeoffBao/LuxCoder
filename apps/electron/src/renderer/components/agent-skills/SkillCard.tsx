@@ -9,7 +9,7 @@ import { Sparkles, RefreshCw, ShieldCheck, ArrowDownToLine } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
-import type { SkillMeta } from '@luxagents/shared'
+import type { SkillMeta } from '@luxcoder/shared'
 
 interface SkillCardProps {
   skill: SkillMeta

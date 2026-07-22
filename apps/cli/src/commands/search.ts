@@ -1,12 +1,12 @@
 /**
- * luxagents session search — 在会话内子串搜索，返回命中 turn 的下标与片段。
+ * luxcoder session search — 在会话内子串搜索，返回命中 turn 的下标与片段。
  * Agent 据此再用 export --turns 取命中邻域，避免全量读。
  */
 import { register } from '../registry'
 import { resolveSession } from '../sessions'
 import { emitJson, emitText, errorLine, info, EXIT_OK, EXIT_ERROR, UsageError } from '../output'
-import { readSessionMessages } from '@luxagents/session-core/node'
-import { groupIntoTurns, toTranscript, searchTurns } from '@luxagents/session-core'
+import { readSessionMessages } from '@luxcoder/session-core/node'
+import { groupIntoTurns, toTranscript, searchTurns } from '@luxcoder/session-core'
 import { numFlag, boolFlag } from '../args'
 
 register({

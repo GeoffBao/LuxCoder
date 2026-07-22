@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { TaskSpecSchema } from '@luxagents/shared/tasks/schema'
+import { TaskSpecSchema } from '@luxcoder/shared/tasks/schema'
 import {
   buildQuickTaskRequest,
   submitQuickTask,

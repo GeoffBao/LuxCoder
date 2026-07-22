@@ -14,14 +14,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-LuxAgents 是基于 Proma 演化的企业级 AI R&D 工作台，采用 Electron 桌面应用架构。UI 顶层模式：Chat / Code（Agent） / Work（Kanban）。
+LuxCoder 是基于 Proma 演化的企业级 AI R&D 工作台，采用 Electron 桌面应用架构。UI 顶层模式：Chat / Code（Agent） / Work（Kanban）。
 
 ## Monorepo 结构
 
 Bun workspace monorepo：
 
 ```
-luxagents/
+luxcoder/
 ├── packages/
 │   ├── shared/     # 共享类型、IPC 通道常量、配置、工具函数、projects/tasks (v0.1.10)
 │   ├── core/       # AI Provider 适配器、代码高亮服务 (v0.1.0)
@@ -34,29 +34,29 @@ luxagents/
             └── renderer/   # React UI (Vite + Tailwind + Radix UI)
 ```
 
-**包命名规范**：`@luxagents/*` 作用域（`@luxagents/core`、`@luxagents/shared`、`@luxagents/ui`、`@luxagents/electron`）
+**包命名规范**：`@luxcoder/*` 作用域（`@luxcoder/core`、`@luxcoder/shared`、`@luxcoder/ui`、`@luxcoder/electron`）
 
 **依赖管理**：package.json 中使用 `workspace:*` 引用内部包
 
 ### 包职责详解
 
-#### @luxagents/shared (v0.1.10)
+#### @luxcoder/shared (v0.1.10)
 - **导出模块**：`./types`、`./config`、`./utils`、`./constants/permission-rules`、`./projects`、`./tasks`
 - **关键类型**：`AgentMessage`、`ChatMessage`、`Channel`、`PermissionRequest`、`FeishuConfig`、`ProjectConfig`、`LoadedProject`
 - **依赖**：无运行时依赖（仅 TypeScript）
 
-#### @luxagents/core (v0.1.0)
+#### @luxcoder/core (v0.1.0)
 - **导出模块**：`./providers`、`./highlight`、`./types`、`./utils`
 - **关键功能**：Provider 适配器注册表、代码高亮（Shiki）
-- **依赖**：`@luxagents/shared`、`shiki`
+- **依赖**：`@luxcoder/shared`、`shiki`
 - **Peer 依赖**：`@anthropic-ai/claude-agent-sdk`、`@anthropic-ai/sdk`、`@modelcontextprotocol/sdk`
 
-#### @luxagents/ui (v0.1.0)
+#### @luxcoder/ui (v0.1.0)
 - **关键组件**：共享 React UI 组件库
-- **依赖**：`@luxagents/core`、`beautiful-mermaid`、`shiki`、Radix UI
+- **依赖**：`@luxcoder/core`、`beautiful-mermaid`、`shiki`、Radix UI
 - **Peer 依赖**：`react@^18.3.0`、`react-dom@^18.3.0`
 
-#### @luxagents/electron (v0.1.21)
+#### @luxcoder/electron (v0.1.21)
 - **职责**：Electron 桌面应用主体，集成所有包
 - **关键依赖**：
   - `@anthropic-ai/claude-agent-sdk` - Agent SDK
@@ -144,7 +144,7 @@ bun run generate:icons    # 生成应用图标
 
 类型定义 → 主进程处理 → Preload 桥接 → 渲染进程调用：
 
-1. **类型 & 常量**：`@luxagents/shared` 定义 IPC 通道名称常量和请求/响应类型
+1. **类型 & 常量**：`@luxcoder/shared` 定义 IPC 通道名称常量和请求/响应类型
 2. **主进程处理**：`main/ipc.ts`（57KB）注册 `ipcMain.handle()` 处理器，调用 `main/lib/` 服务
 3. **Preload 桥接**：`preload/index.ts` 通过 `contextBridge.exposeInMainWorld` 暴露类型安全的 API
 4. **渲染进程**：通过 `window.electronAPI.*` 调用，Jotai atoms 中封装调用逻辑
@@ -209,7 +209,7 @@ bun run generate:icons    # 生成应用图标
 | 服务 | 职责 |
 |------|------|
 | `runtime-init.ts` | 运行时初始化：Shell 环境、Bun、Git 检测（`bun-finder.ts`、`git-detector.ts`、`shell-env.ts`） |
-| `config-paths.ts` | 配置路径管理：`~/.luxagents/` 目录结构 |
+| `config-paths.ts` | 配置路径管理：`~/.luxcoder/` 目录结构 |
 | `user-profile-service.ts` | 用户档案持久化 |
 | `settings-service.ts` | 应用设置持久化（主题等） |
 | `updater/` | 自动更新：Electron Updater 集成 |
@@ -286,10 +286,10 @@ bun run generate:icons    # 生成应用图标
 | `ProjectsInitializer` | 按当前工作区加载 craft Project 列表进 `serverKanbanProjectsAtom`，订阅 `projects:changed`（按 workspace slug 匹配）；Code/Work 共享 |
 | `UpdaterInitializer` | 订阅主进程推送的自动更新状态变化事件 |
 
-### 本地文件存储（`~/.luxagents/`，开发模式 `~/.luxagents-dev/`）
+### 本地文件存储（`~/.luxcoder/`，开发模式 `~/.luxcoder-dev/`）
 
 ```
-~/.luxagents/
+~/.luxcoder/
 ├── channels.json           # 渠道配置（API Key 经 safeStorage 加密）
 ├── conversations.json      # 对话索引（元数据，轻量）
 ├── conversations/          # 消息存储
@@ -344,7 +344,7 @@ bun run generate:icons    # 生成应用图标
     - node_modules/@anthropic-ai/claude-agent-sdk-darwin-arm64/**/*
     - node_modules/@anthropic-ai/claude-agent-sdk-darwin-x64/**/*
     - node_modules/@anthropic-ai/claude-agent-sdk-win32-x64/**/*
-    - "!node_modules/@luxagents/**"
+    - "!node_modules/@luxcoder/**"
   ```
 - SDK 主包和同级平台子包会被复制到 `app/node_modules/@anthropic-ai/`，Node.js 的模块解析能从 `app/dist/main.cjs` 找到
 - `agent-orchestrator.ts` 中 `resolveSDKCliPath()` 解析到 SDK 主包入口后，沿 `..` 到 `@anthropic-ai/` 同级目录，再拼 `claude-agent-sdk-${platform}-${arch}/{claude|claude.exe}` 得到 binary 路径
@@ -397,7 +397,7 @@ bun run generate:icons    # 生成应用图标
 
 修改任何 `default-skills/<skill>/` 内容时，**必须同步递增该 Skill `SKILL.md` frontmatter 的 `version` 字段**（patch +1）。
 
-**为什么**：`seedDefaultSkills()` 与 `upgradeDefaultSkillsInWorkspaces()` 通过 semver 比较决定是否将 bundle 中的 Skill 同步到老用户的 `~/.luxagents/default-skills/` 与各工作区。**version 不变 = 老用户拿不到新内容**。
+**为什么**：`seedDefaultSkills()` 与 `upgradeDefaultSkillsInWorkspaces()` 通过 semver 比较决定是否将 bundle 中的 Skill 同步到老用户的 `~/.luxcoder/default-skills/` 与各工作区。**version 不变 = 老用户拿不到新内容**。
 
 **早期实现曾用"无条件 cpSync"绕开这个约束**，但每次启动同步 4MB+ 文件会阻塞主进程导致启动卡顿，已恢复为 semver 比较（见 `config-paths.ts:seedDefaultSkills`、`agent-workspace-manager.ts:upgradeDefaultSkillsInWorkspaces`）。
 
@@ -446,7 +446,7 @@ React UI 更新
 ### 关键设计
 
 - **SDK 调用**：`sdk.query({ prompt, options: { apiKey, model, permissionMode, cwd, abortController } })`
-- **事件转换**：`convertSDKMessage()`（`@luxagents/shared`）将 SDK 原始消息转为统一的 `AgentEvent` 类型
+- **事件转换**：`convertSDKMessage()`（`@luxcoder/shared`）将 SDK 原始消息转为统一的 `AgentEvent` 类型
 - **工具匹配**：`packages/shared/src/agent/tool-matching.ts` — 无状态 `ToolIndex` + `extractToolStarts` / `extractToolResults` 解析工具调用
 - **状态管理**：`applyAgentEvent()` 纯函数更新 `AgentStreamState`，支持流式增量更新
 - **全局 IPC 监听**：`useGlobalAgentListeners`（`renderer/hooks/`）在 `main.tsx` 顶层挂载，通过 `useStore()` 直接操作 atoms，永不销毁。确保页面切换（如设置页）时流式输出、权限请求不丢失
@@ -473,7 +473,7 @@ React UI 更新
   - `options.env` 回退为"替换"
   - **SDK 包结构重构**：删除 `cli.js`，改为平台 native binary（通过 `@anthropic-ai/claude-agent-sdk-{platform}-{arch}` optionalDependency 分发），ripgrep 编译进 binary
   - 详见上方"打包配置注意事项"段落
-- `0.2.120`: `query()` 省略 `settingSources` 时默认加载所有来源（LuxAgents 已显式传 `['user', 'project']`，不受影响）
+- `0.2.120`: `query()` 省略 `settingSources` 时默认加载所有来源（LuxCoder 已显式传 `['user', 'project']`，不受影响）
 - `0.3.142`: SDK/headless 默认使用 Task 工具（`TaskCreate` / `TaskUpdate` / `TaskGet` / `TaskList`）替代已废弃的 `TodoWrite`；MCP server 默认后台连接，慢连接会在 `init` 中呈现 `pending`
 - `0.3.143`: `@anthropic-ai/sdk` 与 `@modelcontextprotocol/sdk` 改为 peerDependencies；bun/npm/pnpm 会自动安装
 - `0.3.185`: **会话终止语义改变（重要）**。旧版链路「收到 result → `channel.close()` → SDK `endInput()` 关 stdin → 子进程 EOF 退出 → 输出流自然 yield done」已废弃（`Transport.close` 注释明确 "eliminating need for endInput"）。新版把终止逻辑全部挪进 `Query.cleanup()`，而 `cleanup()` **只在 `iterator.return()` 被调用时触发**（`next()` 仅透传，不会因输入关闭而自动 yield done）。
@@ -481,7 +481,7 @@ React UI 更新
   - **正确做法**：adapter（`claude-agent-adapter.ts`）收到非 keep-open 的 terminal result 后，在 yield 该消息后主动 `break` for-await 循环，触发 SDK `iterator.return()` → `cleanup()`（内部 `Promise.race([waitForExit(), 2s])` 有界等待子进程退出）。配合关闭 `promptSuggestions`（该消息在 result 之后到达，否则 break 会丢它）。
   - orchestrator 的 `RESULT_DRAIN_TIMEOUT_MS` drain timeout 应退化为永不触发的兜底；若日志频繁出现 `drain timeout`，说明 adapter 主动终止路径失效，需排查。
 
-### 共享类型（`@luxagents/shared`）
+### 共享类型（`@luxcoder/shared`）
 
 - `AgentEvent`：Agent 事件（text / tool_start / tool_result / done / error）
 - `AgentSessionMeta`：会话元数据（id / title / channelId / workspaceId）
@@ -499,7 +499,7 @@ React UI 更新
 - **Agent SDK**：@anthropic-ai/claude-agent-sdk（[v1 文档](https://platform.claude.com/docs/en/agent-sdk/typescript)、[v2 文档](https://platform.claude.com/docs/en/agent-sdk/typescript-v2-preview)）
 - **MCP 集成**：Model Context Protocol 用于外部数据源
 - **凭证存储**：AES-256-GCM 加密
-- **配置位置**：`~/.luxagents/`（类似 `~/.craft-agent/`）
+- **配置位置**：`~/.luxcoder/`（类似 `~/.craft-agent/`）
 
 ## 核心特性
 

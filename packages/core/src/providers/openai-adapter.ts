@@ -10,7 +10,7 @@
  * - 认证：Authorization: Bearer
  */
 
-import type { ProviderType } from '@luxagents/shared'
+import type { ProviderType } from '@luxcoder/shared'
 import type {
   ProviderAdapter,
   ProviderRequest,

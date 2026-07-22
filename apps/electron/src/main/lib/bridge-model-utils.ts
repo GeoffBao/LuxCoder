@@ -7,7 +7,7 @@
  * 纯数据逻辑，不耦合任何平台的消息呈现（卡片 / 纯文本由各 Bridge 自行拼装）。
  */
 
-import type { Channel, ChannelModel } from '@luxagents/shared'
+import type { Channel, ChannelModel } from '@luxcoder/shared'
 import { listChannels, getChannelById } from './channel-manager'
 
 /** 取渠道下启用的模型 */

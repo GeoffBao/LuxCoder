@@ -14,7 +14,7 @@
 import { execSync } from 'child_process'
 import { existsSync } from 'fs'
 import { app } from 'electron'
-import type { ShellEnvResult } from '@luxagents/shared'
+import type { ShellEnvResult } from '@luxcoder/shared'
 
 /**
  * Windows PATH 分隔符

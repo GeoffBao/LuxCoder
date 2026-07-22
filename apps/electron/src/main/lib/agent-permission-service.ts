@@ -12,17 +12,17 @@
 
 import { randomUUID } from 'node:crypto'
 import type {
-  LuxAgentsPermissionMode,
+  LuxCoderPermissionMode,
   PermissionRequest,
   DangerLevel,
   AskUserRequest,
-} from '@luxagents/shared'
+} from '@luxcoder/shared'
 import {
   SAFE_TOOLS,
   isSafeBashCommand,
   isDangerousCommand,
   hasDangerousStructure,
-} from '@luxagents/shared'
+} from '@luxcoder/shared'
 
 /** SDK PermissionBehavior */
 type PermissionBehavior = 'allow' | 'deny'

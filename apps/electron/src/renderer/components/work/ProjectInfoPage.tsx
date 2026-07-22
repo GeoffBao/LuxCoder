@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { Archive, ArchiveRestore, FileText, MessageSquare, Plus, Save, Settings, Trash2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
-import type { AgentSessionMeta } from '@luxagents/shared'
+import type { AgentSessionMeta } from '@luxcoder/shared'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'

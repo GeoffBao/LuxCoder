@@ -171,7 +171,7 @@ export function GlobalShortcuts(): null {
   useShortcut(
     'clear-context',
     useCallback(() => {
-      window.dispatchEvent(new CustomEvent('luxagents:clear-context'))
+      window.dispatchEvent(new CustomEvent('luxcoder:clear-context'))
     }, []),
   )
 
@@ -179,7 +179,7 @@ export function GlobalShortcuts(): null {
   useShortcut(
     'focus-input',
     useCallback(() => {
-      window.dispatchEvent(new CustomEvent('luxagents:focus-input'))
+      window.dispatchEvent(new CustomEvent('luxcoder:focus-input'))
     }, []),
   )
 
@@ -187,7 +187,7 @@ export function GlobalShortcuts(): null {
   useShortcut(
     'stop-generation',
     useCallback(() => {
-      window.dispatchEvent(new CustomEvent('luxagents:stop-generation'))
+      window.dispatchEvent(new CustomEvent('luxcoder:stop-generation'))
     }, []),
   )
 
@@ -294,7 +294,7 @@ export function GlobalShortcuts(): null {
           store.set(currentConversationIdAtom, meta.id)
 
           // 处理附件：保存到磁盘，收集 FileAttachment[]
-          const savedAttachments: import('@luxagents/shared').FileAttachment[] = []
+          const savedAttachments: import('@luxcoder/shared').FileAttachment[] = []
           if (data.files && data.files.length > 0) {
             for (const file of data.files) {
               if (!file.base64) {
@@ -339,19 +339,19 @@ export function GlobalShortcuts(): null {
     return cleanup
   }, [store])
 
-  // ===== 语音输入 → 写入当前 LuxAgents 输入框 =====
+  // ===== 语音输入 → 写入当前 LuxCoder 输入框 =====
 
   useEffect(() => {
     const cleanup = window.electronAPI.onVoiceDictationInsertText(({ text }) => {
       const trimmed = text.trim()
       if (!trimmed) return
 
-      const insertedAtCursor = !window.dispatchEvent(new CustomEvent('luxagents:insert-voice-dictation-text', {
+      const insertedAtCursor = !window.dispatchEvent(new CustomEvent('luxcoder:insert-voice-dictation-text', {
         cancelable: true,
         detail: { text: trimmed },
       }))
       if (insertedAtCursor) {
-        window.dispatchEvent(new CustomEvent('luxagents:focus-input'))
+        window.dispatchEvent(new CustomEvent('luxcoder:focus-input'))
         return
       }
 
@@ -384,7 +384,7 @@ export function GlobalShortcuts(): null {
           map.delete(sessionId)
           return map
         })
-        window.dispatchEvent(new CustomEvent('luxagents:focus-input'))
+        window.dispatchEvent(new CustomEvent('luxcoder:focus-input'))
         return
       }
 
@@ -398,7 +398,7 @@ export function GlobalShortcuts(): null {
           map.set(conversationId, current ? `${current}\n${trimmed}` : trimmed)
           return map
         })
-        window.dispatchEvent(new CustomEvent('luxagents:focus-input'))
+        window.dispatchEvent(new CustomEvent('luxcoder:focus-input'))
       }
     })
     return cleanup
