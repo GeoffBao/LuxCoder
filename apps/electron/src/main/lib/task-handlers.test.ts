@@ -196,7 +196,7 @@ describe('task handler Kanban payloads', () => {
     }))
   })
 
-  test('set_project_id 仅在项目有 cwd 时写入 workingDirectory，解绑不清除', () => {
+  test('set_project_id 有有效 cwd 时写入 workingDirectory，解绑不清除', () => {
     const buildUpdates = Reflect.get(taskHandlers, 'buildSetProjectIdUpdates')
     expect(buildUpdates).toBeInstanceOf(Function)
     if (typeof buildUpdates !== 'function') return
@@ -205,7 +205,7 @@ describe('task handler Kanban payloads', () => {
       projectId: 'proj-1',
       workingDirectory: '/repo/app',
     })
-    // 项目无 cwd：不带 workingDirectory 键，保留会话已有目录
+    // 无有效 cwd（不可用外部目录）：不带 workingDirectory 键，保留会话已有目录
     expect(buildUpdates('proj-1', undefined)).toEqual({ projectId: 'proj-1' })
     expect(Object.hasOwn(buildUpdates('proj-1', undefined) as object, 'workingDirectory')).toBe(false)
     // 解绑：清空 projectId，但不写 workingDirectory

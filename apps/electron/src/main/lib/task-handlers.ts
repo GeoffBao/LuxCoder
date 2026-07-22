@@ -162,8 +162,8 @@ export function resolveTaskWorkingDirectory(
 
 /**
  * 构造 set_project_id 的会话更新补丁。
- * 仅当目标项目解析出非空 workingDirectory 时才写入该字段；
- * 解绑或项目无 cwd 时省略，保留会话已有工作目录（避免误清手动附加路径）。
+ * 绑定项目且解析出有效 cwd（外部主目录或托管 workdir）时写入 workingDirectory；
+ * 解绑或 cwd 不可用时省略该字段，保留会话已有工作目录（避免误清手动附加路径）。
  */
 export function buildSetProjectIdUpdates(
   projectId: string | undefined,
