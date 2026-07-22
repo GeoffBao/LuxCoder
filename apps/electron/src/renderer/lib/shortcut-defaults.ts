@@ -91,6 +91,14 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
     category: 'navigation',
   },
   {
+    id: 'browse-project-folder',
+    name: '浏览项目文件夹',
+    description: '在新会话/新任务的项目选择器中打开系统选目录',
+    defaultMac: 'Cmd+O',
+    defaultWin: 'Ctrl+O',
+    category: 'navigation',
+  },
+  {
     id: 'file-find',
     name: '查找',
     description: '在对话中搜索消息，或在文件预览/Diff 面板中查找文件内容',

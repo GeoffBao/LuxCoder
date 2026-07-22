@@ -267,6 +267,14 @@ export interface AppSettings {
   mainWindowState?: MainWindowState
   /** 左栏模块折叠态（key = `${mode}:${moduleId}`，如 `agent:projects`） */
   sidebarModuleCollapsed?: Record<string, boolean>
+  /**
+   * 仓库发现：仅在配置的扫描根下懒扫 `.git`（默认不扫 $HOME）。
+   * maxDepth 默认 3，有效范围 1–5。
+   */
+  projectDiscovery?: {
+    scanRoots: string[]
+    maxDepth?: number
+  }
 }
 
 /** 主窗口大小、位置和最大化状态 */
