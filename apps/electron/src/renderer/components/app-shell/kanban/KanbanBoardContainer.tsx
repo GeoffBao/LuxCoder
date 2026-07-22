@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
-import { CloudDownload, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import type { AgentSessionMeta } from '@luxcoder/shared'
 import {
@@ -21,6 +21,7 @@ import {
   selectedProjectIdAtom,
   serverKanbanProjectsAtom,
 } from '@/atoms/project-atoms'
+import { newTaskProjectFlowOpenAtom } from '@/atoms/project-context-picker'
 import { BoardListToggle } from './BoardListToggle'
 import { consumeFirstNotification } from './board-model'
 import { buildKanbanModelCatalog } from './kanban-model-catalog'
@@ -31,7 +32,6 @@ import { TaskEditor } from './TaskEditor'
 import { resolveKanbanItemOpen } from './task-editor-model'
 import { Button } from '@/components/ui/button'
 import type { KanbanItem, TaskEditorTarget } from './types'
-import { TeambitionPicker } from '@/components/work/TeambitionPicker'
 
 /** 任务创建/运行后回调；`ran` 为 true 时打开编排会话。 */
 export interface TaskCreatedEvent {
@@ -72,9 +72,9 @@ export function KanbanBoardContainer({
   const agentModelId = useAtomValue(agentModelIdAtom)
   const [workspaceRoot, setWorkspaceRoot] = React.useState<string | null>(null)
   const [editorTarget, setEditorTarget] = React.useState<TaskEditorTarget | null>(null)
-  const [teambitionPickerOpen, setTeambitionPickerOpen] = React.useState(false)
   const pendingEditorTarget = useAtomValue(pendingTaskEditorTargetAtom)
   const setPendingEditorTarget = useSetAtom(pendingTaskEditorTargetAtom)
+  const setNewTaskProjectFlowOpen = useSetAtom(newTaskProjectFlowOpenAtom)
 
   const { groups: modelGroups, modelToConnection } = React.useMemo(
     () => buildKanbanModelCatalog(channels),
@@ -184,27 +184,13 @@ export function KanbanBoardContainer({
             disabled={!workspaceRoot || !workspace}
             onClick={() => {
               if (!selectedProjectId) {
-                toast.error('请选择项目')
+                setNewTaskProjectFlowOpen(true)
                 return
               }
               setEditorTarget({ mode: 'create', initialProjectId: selectedProjectId })
             }}
           >
             <Plus className="h-4 w-4" />新增任务
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={!workspaceRoot || !workspace}
-            onClick={() => {
-              if (!selectedProjectId && projects.length === 0) {
-                toast.error('请先创建项目')
-                return
-              }
-              setTeambitionPickerOpen(true)
-            }}
-          >
-            <CloudDownload className="h-4 w-4" />从 Teambition 认领
           </Button>
         </div>
       </header>
@@ -247,19 +233,6 @@ export function KanbanBoardContainer({
         }}
         composer={composer}
       />
-      {workspaceRoot && workspace && (
-        <TeambitionPicker
-          open={teambitionPickerOpen}
-          onOpenChange={setTeambitionPickerOpen}
-          workspaceRoot={workspaceRoot}
-          workspaceId={workspace.id}
-          localProjectId={selectedProjectId ?? undefined}
-          onClaimed={(session) => {
-            onSessionCreated?.(session)
-            void onTaskCreated?.()
-          }}
-        />
-      )}
     </div>
   )
 }

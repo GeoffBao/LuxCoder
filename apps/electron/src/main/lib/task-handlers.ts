@@ -48,6 +48,8 @@ import {
   relocateProjectWorkingDirectory,
   resolveEffectiveCwd,
 } from './project-path-service'
+import { clampDiscoveryDepth, discoverGitRepos } from './repo-discovery-service'
+import { getSettings } from './settings-service'
 import { TaskRunner, type RunOptions } from './task-runner'
 import { TeambitionService, type ClaimTeambitionTaskInput, type TeambitionRemoteTask } from './teambition-service'
 
@@ -424,6 +426,16 @@ export function registerTaskHandlers(window: BrowserWindow): void {
       if (!loaded) throw new Error(`重新定位后无法加载项目: ${projectSlug}`)
       broadcastProjectsChanged(workspaceRoot, workspaceIdFor(workspaceRoot))
       return loaded
+    },
+  )
+
+  ipcMain.handle(
+    PROJECT_IPC_CHANNELS.DISCOVER_REPOS,
+    (_event, options?: { roots?: string[]; maxDepth?: number }) => {
+      const settings = getSettings().projectDiscovery
+      const roots = options?.roots ?? settings?.scanRoots ?? []
+      const maxDepth = clampDiscoveryDepth(options?.maxDepth ?? settings?.maxDepth)
+      return discoverGitRepos({ roots, maxDepth })
     },
   )
 

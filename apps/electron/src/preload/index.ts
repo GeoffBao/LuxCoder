@@ -1257,6 +1257,10 @@ export interface ElectronAPI {
       projectSlug: string,
       newPath: string,
     ) => Promise<BrowserProject>
+    discoverRepos: (options?: {
+      roots?: string[]
+      maxDepth?: number
+    }) => Promise<Array<{ path: string; name: string }>>
     onChanged: (callback: (event: BrowserProjectChangedEvent) => void) => () => void
   }
   tasks: {
@@ -2778,6 +2782,14 @@ const electronAPI: ElectronAPI = {
       )
       return toBrowserProject(project)
     },
+    discoverRepos: (options?: {
+      roots?: string[]
+      maxDepth?: number
+    }): Promise<Array<{ path: string; name: string }>> =>
+      invokeTyped<Array<{ path: string; name: string }>>(
+        PROJECT_IPC_CHANNELS.DISCOVER_REPOS,
+        options,
+      ),
     onChanged: (callback: (event: BrowserProjectChangedEvent) => void): (() => void) => {
       const listener = (_event: unknown, payload: ProjectsChangedEventPayload): void => {
         callback({

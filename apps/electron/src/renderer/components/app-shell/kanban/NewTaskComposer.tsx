@@ -1,11 +1,12 @@
 import * as React from 'react'
-import { useAtomValue } from 'jotai'
+import { useAtomValue, useSetAtom } from 'jotai'
 import { Plus, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { selectedProjectIdAtom, serverKanbanProjectsAtom } from '@/atoms/project-atoms'
+import { newTaskProjectFlowOpenAtom } from '@/atoms/project-context-picker'
 import { submitQuickTask, type QuickTaskDraft } from './quick-task-model'
 
 interface NewTaskComposerProps {
@@ -19,6 +20,7 @@ const EMPTY_DRAFT: QuickTaskDraft = { title: '', goal: '', projectId: '' }
 export function NewTaskComposer({ workspaceRoot, workspaceId, onCreated }: NewTaskComposerProps): React.ReactElement {
   const selectedProjectId = useAtomValue(selectedProjectIdAtom)
   const projects = useAtomValue(serverKanbanProjectsAtom)
+  const setNewTaskProjectFlowOpen = useSetAtom(newTaskProjectFlowOpenAtom)
   const [open, setOpen] = React.useState(false)
   const [draft, setDraft] = React.useState<QuickTaskDraft>(EMPTY_DRAFT)
   const [submitting, setSubmitting] = React.useState(false)
@@ -63,8 +65,8 @@ export function NewTaskComposer({ workspaceRoot, workspaceId, onCreated }: NewTa
         size="sm"
         className="mb-3 w-full border-dashed"
         onClick={() => {
-          if (!selectedProjectId && projects.length === 0) {
-            toast.error('请先创建并选择一个项目')
+          if (!selectedProjectId) {
+            setNewTaskProjectFlowOpen(true)
             return
           }
           setOpen(true)

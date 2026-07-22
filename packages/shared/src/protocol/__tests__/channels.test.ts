@@ -69,6 +69,7 @@ describe('kanban protocol contracts', () => {
       OPEN_OR_CREATE_BY_PATH: 'projects:openOrCreateByPath',
       RESOLVE_EFFECTIVE_CWD: 'projects:resolveEffectiveCwd',
       RELOCATE_WORKING_DIRECTORY: 'projects:relocateWorkingDirectory',
+      DISCOVER_REPOS: 'projects:discoverRepos',
       CHANGED: 'projects:changed',
     });
 

@@ -41,6 +41,11 @@ import {
   selectedModelAtom,
 } from '@/atoms/chat-atoms'
 import { activeViewAtom } from '@/atoms/active-view'
+import {
+  newTaskProjectFlowOpenAtom,
+  projectContextBrowseRequestAtom,
+} from '@/atoms/project-context-picker'
+import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
 import { useCreateSession } from '@/hooks/useCreateSession'
 import { useShortcut } from '@/hooks/useShortcut'
 import { useCloseTab } from '@/hooks/useCloseTab'
@@ -135,6 +140,30 @@ export function GlobalShortcuts(): null {
   useShortcut(
     'global-search',
     useCallback(() => setSearchOpen(true), [setSearchOpen]),
+  )
+
+  // Cmd+O → 在项目选择器上下文中浏览文件夹
+  const setBrowseRequest = useSetAtom(projectContextBrowseRequestAtom)
+  const setNewTaskFlowOpen = useSetAtom(newTaskProjectFlowOpenAtom)
+  const draftSessionIds = useAtomValue(draftSessionIdsAtom)
+  const currentAgentSessionId = useAtomValue(currentAgentSessionIdAtom)
+  useShortcut(
+    'browse-project-folder',
+    useCallback(() => {
+      if (appMode !== 'agent') return
+      const inDraft = currentAgentSessionId != null && draftSessionIds.has(currentAgentSessionId)
+      // 无 Draft 时打开新任务流选择器，便于「浏览」落在同一套 ProjectContextPicker
+      if (!inDraft) {
+        setNewTaskFlowOpen(true)
+      }
+      setBrowseRequest((value) => value + 1)
+    }, [
+      appMode,
+      currentAgentSessionId,
+      draftSessionIds,
+      setBrowseRequest,
+      setNewTaskFlowOpen,
+    ]),
   )
 
   // Cmd+N → 新建对话/会话（根据当前模式）

@@ -79,7 +79,6 @@ import { userProfileAtom } from '@/atoms/user-profile'
 import { selectedProjectIdAtom, serverKanbanProjectsAtom, workViewAtom, codeMainViewAtom } from '@/atoms/project-atoms'
 import { sidebarSessionViewModeAtom } from '@/atoms/sidebar-session-view'
 import { buildRecentSessionList } from './sidebar-session-views'
-import { CreateProjectDialog } from '@/components/work/CreateProjectDialog'
 import { sidebarViewModeAtom } from '@/atoms/sidebar-atoms'
 import { searchDialogOpenAtom } from '@/atoms/search-atoms'
 import { hasUpdateAtom, updateStatusAtom, type UpdateStatus } from '@/atoms/updater'
@@ -87,10 +86,15 @@ import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
 import { hasEnvironmentIssuesAtom } from '@/atoms/environment'
 import { promptConfigAtom, selectedPromptIdAtom, conversationPromptIdAtom } from '@/atoms/system-prompt-atoms'
 import { interfaceVariantAtom } from '@/atoms/theme'
+import {
+  newTaskProjectFlowOpenAtom,
+  projectContextBrowseRequestAtom,
+  showArchivedProjectsAtom,
+} from '@/atoms/project-context-picker'
 import { useOpenSession } from '@/hooks/useOpenSession'
 import { useCreateSession } from '@/hooks/useCreateSession'
-import { useOpenLocalFolder } from '@/hooks/useOpenLocalFolder'
 import { useSyncActiveTabSideEffects } from '@/hooks/useSyncActiveTabSideEffects'
+import { NewTaskProjectFlowDialog } from './NewTaskProjectFlowDialog'
 import { CollapsedWorkspacePopover } from '@/components/agent/CollapsedWorkspacePopover'
 import { MoveSessionDialog } from '@/components/agent/MoveSessionDialog'
 import {
@@ -662,8 +666,6 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   const [creatingProject, setCreatingProject] = React.useState(false)
   const [newProjectName, setNewProjectName] = React.useState('')
   const newProjectInputRef = React.useRef<HTMLInputElement>(null)
-  const [createCraftProjectOpen, setCreateCraftProjectOpen] = React.useState(false)
-  const [creatingCraftProject, setCreatingCraftProject] = React.useState(false)
   const [relativeTimeNow, setRelativeTimeNow] = React.useState(() => Date.now())
   const [userProfile, setUserProfile] = useAtom(userProfileAtom)
   const selectedModel = useAtomValue(selectedModelAtom)
@@ -717,7 +719,9 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   const [sidebarCollapsed, setSidebarCollapsed] = useAtom(sidebarCollapsedAtom)
   const openSession = useOpenSession()
   const { createAgent } = useCreateSession()
-  const openLocalFolder = useOpenLocalFolder()
+  const setNewTaskProjectFlowOpen = useSetAtom(newTaskProjectFlowOpenAtom)
+  const setBrowseRequest = useSetAtom(projectContextBrowseRequestAtom)
+  const [showArchivedProjects, setShowArchivedProjects] = useAtom(showArchivedProjectsAtom)
   const syncActiveTabSideEffects = useSyncActiveTabSideEffects()
   const store = useStore()
   const sidebarRootRef = React.useRef<HTMLDivElement>(null)
@@ -877,10 +881,12 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
    */
   const currentWorkspaceProjects = React.useMemo(() => {
     if (!currentWorkspaceSlug) return EMPTY_PROJECTS
-    return kanbanProjects.filter(
-      (project) => !project.workspaceId || project.workspaceId === currentWorkspaceSlug,
-    )
-  }, [currentWorkspaceSlug, kanbanProjects])
+    return kanbanProjects.filter((project) => {
+      if (project.workspaceId && project.workspaceId !== currentWorkspaceSlug) return false
+      if (!showArchivedProjects && project.archivedAt) return false
+      return true
+    })
+  }, [currentWorkspaceSlug, kanbanProjects, showArchivedProjects])
 
   /** craft Project ID → 主题色映射（置顶区 / 会话行色条；仅当前工作区项目有数据） */
   const kanbanProjectColorMap = React.useMemo(
@@ -1352,32 +1358,35 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     workspaceRootForProjects,
   ])
 
-  /** 侧栏「项目」视图下新建 craft Project */
-  const handleCreateCraftProject = React.useCallback(async (
-    input: Parameters<typeof window.electronAPI.projects.create>[1],
-  ): Promise<void> => {
-    if (!workspaceRootForProjects) {
-      toast.error('请先选择工作空间')
-      return
-    }
-    setCreatingCraftProject(true)
+  /** 侧栏「新任务」：先经项目选择器再开 TaskEditor */
+  const handleNewTask = React.useCallback((): void => {
+    setActiveView('conversations')
+    setNewTaskProjectFlowOpen(true)
+  }, [setActiveView, setNewTaskProjectFlowOpen])
+
+  const handleAddScanRoot = React.useCallback(async (): Promise<void> => {
     try {
-      const project = await window.electronAPI.projects.create(workspaceRootForProjects, input)
-      setKanbanProjects((current) => {
-        const without = current.filter((item) => item.id !== project.id)
-        return [project, ...without]
+      const dialog = await window.electronAPI.openFolderDialog()
+      if (!dialog?.path) return
+      const root = dialog.path
+      const settings = await window.electronAPI.getSettings()
+      const current = settings.projectDiscovery?.scanRoots ?? []
+      if (current.includes(root)) {
+        toast.message('该扫描目录已存在')
+        return
+      }
+      await window.electronAPI.updateSettings({
+        projectDiscovery: {
+          scanRoots: [...current, root],
+          maxDepth: settings.projectDiscovery?.maxDepth ?? 3,
+        },
       })
-      setCreateCraftProjectOpen(false)
-      handleOpenProjectDetail(project.id)
-      toast.success('项目已创建')
-    } catch (cause) {
-      toast.error('创建项目失败', {
-        description: cause instanceof Error ? cause.message : String(cause),
-      })
-    } finally {
-      setCreatingCraftProject(false)
+      toast.success('已添加扫描目录')
+    } catch (error) {
+      console.error('[侧边栏] 添加扫描目录失败:', error)
+      toast.error('添加扫描目录失败')
     }
-  }, [handleOpenProjectDetail, setKanbanProjects, workspaceRootForProjects])
+  }, [])
 
   /** 合成「自动任务」组头部点击：仅折叠/展开，绝不切换当前工作区（它不是真实工作区） */
   const handleToggleGroupCollapse = React.useCallback((groupId: string): void => {
@@ -2542,6 +2551,22 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             </TooltipContent>
           </Tooltip>
 
+          {mode === 'agent' ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="新建任务"
+                  onClick={handleNewTask}
+                  className="size-10 flex items-center justify-center rounded-[12px] text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-150 titlebar-no-drag"
+                >
+                  <Layers size={16} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">新任务</TooltipContent>
+            </Tooltip>
+          ) : null}
+
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -2735,7 +2760,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         </div>
       )}
 
-      {/* 新对话/新会话按钮 + 打开文件夹 + 搜索按钮 + 折叠按钮 */}
+      {/* 新对话/新会话 + 新任务 + 搜索 + 折叠 */}
       <div className="px-3 pt-2 flex items-center gap-1.5">
         <button
           onClick={mode === 'agent' ? handleNewAgentSession : handleNewConversation}
@@ -2745,18 +2770,14 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
           <span>{mode === 'agent' ? '新会话' : '新对话'}</span>
         </button>
         {mode === 'agent' && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => { void openLocalFolder() }}
-                className="flex-shrink-0 size-10 flex items-center justify-center rounded-[10px] text-foreground/40 sidebar-control-surface hover:text-foreground/60 transition-[background-color,color] duration-150 titlebar-no-drag"
-                aria-label="打开文件夹"
-              >
-                <FolderOpen size={14} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">打开文件夹</TooltipContent>
-          </Tooltip>
+          <button
+            type="button"
+            onClick={handleNewTask}
+            className="flex-1 flex items-center gap-2 h-10 px-3 rounded-[10px] text-[13px] font-medium text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-150 titlebar-no-drag"
+          >
+            <Plus size={14} />
+            <span>新任务</span>
+          </button>
         )}
         <Tooltip>
           <TooltipTrigger asChild>
@@ -2989,27 +3010,56 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             </div>
           )}
 
-          {/* 会话投影切换：最近会话｜项目 */}
+          {/* 会话投影切换：最近会话｜项目（仅切换；新建项目只走顶栏两流） */}
           <div className="px-2 pt-2 pb-1 flex items-center gap-1.5 flex-shrink-0 titlebar-no-drag">
             <div className="flex-1 min-w-0">
               <SidebarSessionViewToggle />
             </div>
             {sidebarSessionViewMode === 'projects' ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    onClick={() => setCreateCraftProjectOpen(true)}
                     className="size-7 flex items-center justify-center rounded-md text-foreground/35 hover:bg-foreground/[0.06] hover:text-foreground/60 transition-colors"
-                    aria-label="新建项目"
+                    aria-label="项目管理"
                   >
-                    <Plus size={13} />
+                    <MoreHorizontal size={13} />
                   </button>
-                </TooltipTrigger>
-                <TooltipContent side="top">新建项目</TooltipContent>
-              </Tooltip>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="z-[9999] min-w-[10rem]">
+                  <DropdownMenuItem
+                    onSelect={() => setShowArchivedProjects((value) => !value)}
+                  >
+                    {showArchivedProjects ? '隐藏已归档' : '显示已归档'}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => { void handleAddScanRoot() }}>
+                    添加扫描目录…
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() => setBrowseRequest((value) => value + 1)}
+                  >
+                    浏览文件夹…
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : null}
           </div>
+
+          {mode === 'agent'
+            && sidebarSessionViewMode === 'projects'
+            && kanbanProjects.filter((project) => showArchivedProjects || !project.archivedAt).length === 0 ? (
+            <div className="mx-2 mb-2 rounded-xl bg-foreground/[0.03] px-3 py-3 text-[12px] leading-relaxed text-foreground/55">
+              <p>用「新会话」或「新任务」开始，并在流程中选择或创建项目。</p>
+              <button
+                type="button"
+                className="mt-2 text-[12px] text-primary hover:underline"
+                onClick={() => { void handleAddScanRoot() }}
+              >
+                添加扫描目录…
+              </button>
+            </div>
+          ) : null}
 
           {/* 下区：当前 Workspace 会话投影（不再展示多 Workspace 树标题） */}
           <div className="sidebar-workspace-list flex-1 overflow-y-auto px-2 pb-3 scrollbar-thin min-h-0 titlebar-no-drag">
@@ -3283,12 +3333,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       {projectDeleteDialog}
       {moveDialog}
       <SearchDialog />
-      <CreateProjectDialog
-        open={createCraftProjectOpen}
-        busy={creatingCraftProject}
-        onOpenChange={setCreateCraftProjectOpen}
-        onSubmit={(input) => { void handleCreateCraftProject(input) }}
-      />
+      <NewTaskProjectFlowDialog />
     </div>
   )
 }
