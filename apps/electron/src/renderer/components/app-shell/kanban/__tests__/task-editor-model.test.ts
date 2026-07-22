@@ -7,6 +7,7 @@ import {
   resolveGeneratedTaskEvent,
   resolveKanbanItemOpen,
   taskSpecToEditorDraft,
+  validateTaskDraft,
 } from '../task-editor-model'
 import type { KanbanItem, TaskEditorTarget } from '../types'
 
@@ -42,6 +43,14 @@ describe('resolveKanbanItemOpen', () => {
 })
 
 describe('TaskEditor draft and submission', () => {
+  test('create task 缺少 projectId 时校验失败', () => {
+    expect(validateTaskDraft({
+      title: '发布',
+      projectId: '',
+      subtasks: [{ prompt: '做发布' }],
+    }).ok).toBe(false)
+  })
+
   test('从 spec 预填项目、路由、权限和依赖关系', () => {
     const spec = TaskSpecSchema.parse({
       id: 'release-task',

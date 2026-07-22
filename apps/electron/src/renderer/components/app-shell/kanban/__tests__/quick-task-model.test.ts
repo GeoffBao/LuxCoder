@@ -9,6 +9,7 @@ import {
 const draft: QuickTaskDraft = {
   title: '发布准备',
   goal: '完成构建并验证发布产物',
+  projectId: 'project-a',
 }
 
 describe('buildQuickTaskRequest', () => {
@@ -18,15 +19,17 @@ describe('buildQuickTaskRequest', () => {
 
     expect(spec.id).toBe('quick-42')
     expect(spec.title).toBe('发布准备')
+    expect(spec.project).toBe('project-a')
     expect(spec.goal).toBe('完成构建并验证发布产物')
     expect(spec.nodes).toEqual([
       expect.objectContaining({ id: 'execute', prompt: '完成构建并验证发布产物' }),
     ])
   })
 
-  test('标题或目标为空时拒绝提交', () => {
-    expect(() => buildQuickTaskRequest({ title: ' ', goal: draft.goal }, 'quick-42')).toThrow('请输入任务标题')
-    expect(() => buildQuickTaskRequest({ title: draft.title, goal: ' ' }, 'quick-42')).toThrow('请输入任务目标')
+  test('缺少 projectId / 标题 / 目标时拒绝提交', () => {
+    expect(() => buildQuickTaskRequest({ ...draft, projectId: ' ' }, 'quick-42')).toThrow('请选择项目')
+    expect(() => buildQuickTaskRequest({ ...draft, title: ' ' }, 'quick-42')).toThrow('请输入任务标题')
+    expect(() => buildQuickTaskRequest({ ...draft, goal: ' ' }, 'quick-42')).toThrow('请输入任务目标')
   })
 })
 
@@ -42,7 +45,7 @@ describe('submitQuickTask', () => {
     })
 
     expect(TaskSpecSchema.safeParse(JSON.parse(submittedYaml)).success).toBe(true)
-    expect(result).toEqual({ ok: true, draft: { title: '', goal: '' } })
+    expect(result).toEqual({ ok: true, draft: { title: '', goal: '', projectId: '' } })
   })
 
   test('创建失败时保留用户输入并返回错误', async () => {

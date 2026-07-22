@@ -23,6 +23,7 @@ import {
   createTaskEditorDraft,
   resolveGeneratedTaskEvent,
   taskSpecToEditorDraft,
+  validateTaskDraft,
   type TaskEditorDraft,
 } from './task-editor-model'
 import {
@@ -323,6 +324,7 @@ export function TaskEditor({
   const generate = async (): Promise<void> => {
     const goal = draft.goal.trim() || draft.title.trim()
     if (!goal) { toast.error('请先输入任务目标'); return }
+    if (!draft.projectId.trim()) { toast.error('请选择项目'); return }
     if (generatedDraftRef.current) {
       void window.electronAPI.deleteAgentSession(generatedDraftRef.current).catch(() => undefined)
       generatedDraftRef.current = null
@@ -333,7 +335,7 @@ export function TaskEditor({
       const ack = await window.electronAPI.tasks.generate(workspaceRoot, workspaceId, {
         goal,
         ...(draft.title.trim() ? { title: draft.title.trim() } : {}),
-        ...(draft.projectId ? { projectId: draft.projectId } : {}),
+        projectId: draft.projectId.trim(),
         ...(draft.cwd?.trim() ? { cwd: draft.cwd.trim() } : {}),
       })
       pendingGenerationRef.current = ack.orchestratorSessionId
@@ -357,9 +359,8 @@ export function TaskEditor({
   }
 
   const submit = async (runAfterCreate: boolean): Promise<void> => {
-    if (!draft.title.trim()) { toast.error('请输入任务标题'); return }
-    if (draft.subtasks.length === 0) { toast.error('至少需要一个子任务'); return }
-    if (draft.subtasks.some((subtask) => !subtask.prompt.trim())) { toast.error('每个子任务都需要执行提示'); return }
+    const validation = validateTaskDraft(draft)
+    if (!validation.ok) { toast.error(validation.error); return }
     setBusy(true)
     try {
       const submission = buildTaskEditorSubmission(draft, target, generatedDraftRef.current, modelToConnection)
@@ -469,7 +470,20 @@ export function TaskEditor({
             <label className="block space-y-1.5 text-xs font-medium">目标<Textarea value={draft.goal} onChange={(event) => patchDraft({ goal: event.target.value })} placeholder="说明最终希望达成的结果" rows={4} /></label>
             <label className="block space-y-1.5 text-xs font-medium">验收标准<Textarea value={draft.acceptanceCriteria ?? ''} onChange={(event) => patchDraft({ acceptanceCriteria: event.target.value })} placeholder="可选：如何判断任务完成" rows={3} /></label>
             <div className="grid gap-3 sm:grid-cols-2">
-              <label className="space-y-1.5 text-xs font-medium">项目<select value={draft.projectId} onChange={(event) => patchDraft({ projectId: event.target.value })} className="h-9 w-full rounded-md border border-border/60 bg-background px-2 text-sm"><option value="">无项目</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>
+              <label className="space-y-1.5 text-xs font-medium">
+                项目
+                <select
+                  value={draft.projectId}
+                  disabled={Boolean(initialProjectId)}
+                  onChange={(event) => patchDraft({ projectId: event.target.value })}
+                  className="h-9 w-full rounded-md border border-border/60 bg-background px-2 text-sm disabled:opacity-70"
+                >
+                  <option value="" disabled>请选择项目</option>
+                  {projects.map((project) => (
+                    <option key={project.id} value={project.id}>{project.name}</option>
+                  ))}
+                </select>
+              </label>
               <label className="space-y-1.5 text-xs font-medium">权限<select value={draft.permissionMode ?? 'allow-all'} onChange={(event) => patchDraft({ permissionMode: event.target.value as 'safe' | 'ask' | 'allow-all' })} className="h-9 w-full rounded-md border border-border/60 bg-background px-2 text-sm"><option value="allow-all">自动执行</option><option value="ask">需要确认</option><option value="safe">安全模式</option></select></label>
               <div className="space-y-1.5 text-xs font-medium">
                 <span>编排模型</span>

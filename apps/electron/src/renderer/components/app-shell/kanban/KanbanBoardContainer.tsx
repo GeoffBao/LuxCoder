@@ -182,7 +182,13 @@ export function KanbanBoardContainer({
           <Button
             size="sm"
             disabled={!workspaceRoot || !workspace}
-            onClick={() => setEditorTarget({ mode: 'create', ...(selectedProjectId ? { initialProjectId: selectedProjectId } : {}) })}
+            onClick={() => {
+              if (!selectedProjectId) {
+                toast.error('请选择项目')
+                return
+              }
+              setEditorTarget({ mode: 'create', initialProjectId: selectedProjectId })
+            }}
           >
             <Plus className="h-4 w-4" />新增任务
           </Button>
@@ -190,7 +196,13 @@ export function KanbanBoardContainer({
             size="sm"
             variant="outline"
             disabled={!workspaceRoot || !workspace}
-            onClick={() => setTeambitionPickerOpen(true)}
+            onClick={() => {
+              if (!selectedProjectId && projects.length === 0) {
+                toast.error('请先创建项目')
+                return
+              }
+              setTeambitionPickerOpen(true)
+            }}
           >
             <CloudDownload className="h-4 w-4" />从 Teambition 认领
           </Button>
