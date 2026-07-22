@@ -341,14 +341,14 @@ export function ensureDefaultWorkspace(): AgentWorkspace {
     const now = Date.now()
     defaultWs = {
       id: randomUUID(),
-      name: '默认工作区',
+      name: 'Default Space',
       slug: 'default',
       createdAt: now,
       updatedAt: now,
     }
 
     getAgentWorkspacePath('default')
-    ensurePluginManifest('default', '默认工作区')
+    ensurePluginManifest('default', 'Default Space')
     copyDefaultSkills('default')
 
     index.workspaces.push(defaultWs)

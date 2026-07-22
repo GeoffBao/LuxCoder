@@ -122,6 +122,19 @@ describe('Agent 工作区创建', () => {
   })
 })
 
+describe('ensureDefaultWorkspace', () => {
+  test('新建时名称为 Default Space，不改已有名称', () => {
+    const created = manager.ensureDefaultWorkspace()
+    expect(created.slug).toBe('default')
+    expect(created.name).toBe('Default Space')
+
+    manager.updateAgentWorkspace(created.id, { name: '默认工作区' })
+    const again = manager.ensureDefaultWorkspace()
+    expect(again.id).toBe(created.id)
+    expect(again.name).toBe('默认工作区')
+  })
+})
+
 describe('Agent 工作区 Skill 扫描', () => {
   test('Given Skills 目录包含 broken symlink When 获取工作区 Skills Then 跳过坏条目并继续扫描后续 Skill', () => {
     const workspaceSlug = 'workspace-a'
