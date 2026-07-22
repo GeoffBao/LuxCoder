@@ -90,6 +90,10 @@ echo "📦 Generating icon.ico..."
 magick icon.png -define icon:auto-resize=256,128,96,64,48,32,16 icon.ico
 echo "✅ icon.ico generated"
 
+# 5. Generate alternate LuxCoder logo variants
+echo "📦 Generating LuxCoder logo variants..."
+"$SCRIPT_DIR/generate-logo-variants.sh"
+
 echo ""
 echo "✅ All icons generated successfully!"
 echo ""
@@ -100,3 +104,4 @@ echo "  - icon.ico - Windows app icon"
 echo "  - logos/iconTemplate.png - macOS tray (24x24 @1x)"
 echo "  - logos/iconTemplate@2x.png - macOS tray (48x48 @2x Retina)"
 echo "  - logos/iconTemplate@3x.png - macOS tray (72x72 @3x)"
+echo "  - logos/*.png - LuxCoder alternate app icon variants"
