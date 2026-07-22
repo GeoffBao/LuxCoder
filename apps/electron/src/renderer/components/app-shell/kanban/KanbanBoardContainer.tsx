@@ -1,6 +1,5 @@
 import * as React from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
-import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import type { AgentSessionMeta } from '@luxcoder/shared'
 import {
@@ -21,7 +20,6 @@ import {
   selectedProjectIdAtom,
   serverKanbanProjectsAtom,
 } from '@/atoms/project-atoms'
-import { newTaskProjectFlowOpenAtom } from '@/atoms/project-context-picker'
 import { BoardListToggle } from './BoardListToggle'
 import { consumeFirstNotification } from './board-model'
 import { buildKanbanModelCatalog } from './kanban-model-catalog'
@@ -30,7 +28,6 @@ import { KanbanProjectFilter } from './KanbanProjectFilter'
 import { NewTaskComposer } from './NewTaskComposer'
 import { TaskEditor } from './TaskEditor'
 import { resolveKanbanItemOpen } from './task-editor-model'
-import { Button } from '@/components/ui/button'
 import type { KanbanItem, TaskEditorTarget } from './types'
 
 /** 任务创建/运行后回调；`ran` 为 true 时打开编排会话。 */
@@ -74,7 +71,6 @@ export function KanbanBoardContainer({
   const [editorTarget, setEditorTarget] = React.useState<TaskEditorTarget | null>(null)
   const pendingEditorTarget = useAtomValue(pendingTaskEditorTargetAtom)
   const setPendingEditorTarget = useSetAtom(pendingTaskEditorTargetAtom)
-  const setNewTaskProjectFlowOpen = useSetAtom(newTaskProjectFlowOpenAtom)
 
   const { groups: modelGroups, modelToConnection } = React.useMemo(
     () => buildKanbanModelCatalog(channels),
@@ -179,19 +175,6 @@ export function KanbanBoardContainer({
         <div className="flex items-center gap-2">
           <KanbanProjectFilter projects={projects} value={selectedProjectId} onChange={setSelectedProjectId} />
           <BoardListToggle value={mode} onChange={setMode} />
-          <Button
-            size="sm"
-            disabled={!workspaceRoot || !workspace}
-            onClick={() => {
-              if (!selectedProjectId) {
-                setNewTaskProjectFlowOpen(true)
-                return
-              }
-              setEditorTarget({ mode: 'create', initialProjectId: selectedProjectId })
-            }}
-          >
-            <Plus className="h-4 w-4" />新增任务
-          </Button>
         </div>
       </header>
       <KanbanBoard
