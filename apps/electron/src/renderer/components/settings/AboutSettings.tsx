@@ -465,16 +465,6 @@ export function AboutSettings(): React.ReactElement {
             AGPL-3.0
           </a>
         </SettingsRow>
-        <SettingsRow label="项目地址">
-          <a
-            href="https://github.com/GeoffBao/LuxCoder"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-primary hover:underline"
-          >
-            github.com/GeoffBao/LuxCoder
-          </a>
-        </SettingsRow>
       </SettingsCard>
 
       {/* 自动更新卡片（updater 不可用时不渲染） */}
