@@ -8,8 +8,9 @@
       // 主题初始化脚本（在 React 加载前执行，避免闪烁）
       // 从 localStorage 缓存读取主题模式和特殊风格，立即应用类名
       ;(function() {
-        var mode = localStorage.getItem('proma-theme-mode') || 'dark'
-        var style = localStorage.getItem('proma-theme-style')
+        // 默认跟随系统；缓存键需与 atoms/theme.ts 保持一致（luxcoder-*）
+        var mode = localStorage.getItem('luxcoder-theme-mode') || 'system'
+        var style = localStorage.getItem('luxcoder-theme-style')
         var html = document.documentElement
 
         if (mode === 'special' && style && style !== 'default') {

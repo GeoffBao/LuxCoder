@@ -11,7 +11,7 @@
  */
 
 import { atom } from 'jotai'
-import { DEFAULT_INTERFACE_VARIANT, THEME_STYLES, type InterfaceVariant, type ThemeMode, type ThemeStyle } from '../../types'
+import { DEFAULT_INTERFACE_VARIANT, DEFAULT_THEME_MODE, THEME_STYLES, type InterfaceVariant, type ThemeMode, type ThemeStyle } from '../../types'
 
 /** localStorage 缓存键 */
 const THEME_CACHE_KEY = 'luxcoder-theme-mode'
@@ -30,7 +30,7 @@ function getCachedThemeMode(): ThemeMode {
   } catch {
     // localStorage 不可用时忽略
   }
-  return 'dark'
+  return DEFAULT_THEME_MODE
 }
 
 /**

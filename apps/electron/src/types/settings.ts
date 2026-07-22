@@ -168,8 +168,8 @@ export const THEME_STYLES = [
 /** 特殊风格主题 */
 export type ThemeStyle = (typeof THEME_STYLES)[number]
 
-/** 默认主题模式 */
-export const DEFAULT_THEME_MODE: ThemeMode = 'dark'
+/** 默认主题模式：跟随系统 */
+export const DEFAULT_THEME_MODE: ThemeMode = 'system'
 
 /** 默认特殊风格 */
 export const DEFAULT_THEME_STYLE: ThemeStyle = 'default'
