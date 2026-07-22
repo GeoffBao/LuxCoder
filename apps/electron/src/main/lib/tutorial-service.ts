@@ -105,7 +105,9 @@ export function createWelcomeConversation(): ConversationMeta | null {
       role: 'assistant',
       content: `你好，欢迎使用 LuxCoder。
 
-LuxCoder 是面向研发团队的 AI Agent 工作台，整合了 **Chat**（AI 对话助理）、**Code**（AI 编程工作台）、**Work**（协作看板，即将上线）三种工作模式。
+LuxCoder 是面向研发团队的 AI Agent 工作台，整合了 **Chat**（AI 对话助理）和 **Code**（AI 编程工作台）两种工作模式。
+
+Code 模式内置**项目管理**、**任务编排看板**和**Agent 专家**系统，可以将复杂工作拆解为多个任务，由不同领域的 Agent 专家自动执行。
 
 为了给你推荐最合适的上手路径，想先了解你的情况：
 
