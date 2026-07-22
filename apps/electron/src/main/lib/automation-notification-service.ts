@@ -7,7 +7,7 @@
 import type {
   Automation,
   AutomationRun,
-} from '@luxagents/shared'
+} from '@luxcodex/shared'
 import { getAgentSessionSDKMessages } from './agent-session-manager'
 import { feishuBridgeManager } from './feishu-bridge-manager'
 import {

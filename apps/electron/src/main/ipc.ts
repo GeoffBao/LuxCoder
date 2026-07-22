@@ -9,7 +9,7 @@ import { join, resolve, sep, dirname } from 'node:path'
 import { existsSync, realpathSync, rmSync, readFileSync, writeFileSync, mkdirSync, statSync } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS, EXPERT_IPC_CHANNELS, isLuxAgentsPermissionMode, normalizePathForCompare } from '@luxagents/shared'
+import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS, EXPERT_IPC_CHANNELS, isLuxCodexPermissionMode, normalizePathForCompare } from '@luxcodex/shared'
 import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, SCRATCH_PAD_IPC_CHANNELS, QUICK_TASK_IPC_CHANNELS, VOICE_DICTATION_IPC_CHANNELS, APP_ICON_IPC_CHANNELS, DOCK_BADGE_IPC_CHANNELS, STORAGE_IPC_CHANNELS } from '../types'
 import type {
   QuickTaskSubmitInput,
@@ -74,7 +74,7 @@ import type {
   GitHubRelease,
   GitHubReleaseListOptions,
   PermissionResponse,
-  LuxAgentsPermissionMode,
+  LuxCodexPermissionMode,
   AskUserResponse,
   ExitPlanModeResponse,
   SystemPromptConfig,
@@ -114,8 +114,8 @@ import type {
   Automation,
   CreateAutomationInput,
   UpdateAutomationInput,
-} from '@luxagents/shared'
-import type { ExpertManifest, ExpertPackage } from '@luxagents/shared/experts'
+} from '@luxcodex/shared'
+import type { ExpertManifest, ExpertPackage } from '@luxcodex/shared/experts'
 import type { UserProfile, AppSettings } from '../types'
 import { getRuntimeStatus, getGitRepoStatus, reinitializeRuntime } from './lib/runtime-init'
 import { getUnstagedChanges, getFileDiff, getUntrackedContent, revertFile, getDiffContents, listWorktrees, getWorktreeChanges, getMainRepoRoot } from './lib/git-diff-service'
@@ -133,7 +133,7 @@ import {
   getChannelPlanQuota,
 } from './lib/channel-manager'
 import { loginCodexOAuth, cancelCodexOAuthLogin } from './lib/codex-oauth-service'
-import { serializeCodexCredentials } from '@luxagents/shared'
+import { serializeCodexCredentials } from '@luxcodex/shared'
 import {
   listConversations,
   createConversation,
@@ -312,7 +312,7 @@ function realpathOrResolve(path: string): string {
 function getAuthorizedRoots(options?: FileAccessOptions): string[] {
   const roots: string[] = [
     getAgentWorkspacesDir(),
-    join(tmpdir(), 'luxagents-preview'),
+    join(tmpdir(), 'luxcodex-preview'),
   ]
 
   const workspaceSlugs = new Set<string>()
@@ -411,7 +411,7 @@ function ensurePathAllowed(filePath: string, options?: FileAccessOptions): boole
 /**
  * 在 ensurePathAllowed 基础上，额外放行「已授权仓库的 worktree」。
  *
- * worktree 常被放在主仓库之外（如 ~/luxagents-dev/worktrees/xxx），其路径不在任何
+ * worktree 常被放在主仓库之外（如 ~/luxcodex-dev/worktrees/xxx），其路径不在任何
  * 授权根下，会被 ensurePathAllowed 拒绝。但只要它回溯到的主仓库已被授权，就应放行。
  * 用 git 自身背书（--git-common-dir），避免粗暴跳过安全检查。
  */
@@ -428,7 +428,7 @@ async function ensurePathAllowedWithWorktree(filePath: string, options?: FileAcc
       if (authorizedRoot === targetMainRepo) return true
     }
     for (const workspaceSlug of getWorkspaceSlugsForAccess(options)) {
-      let repos: import('@luxagents/shared').WorkspaceWorktreeRepo[]
+      let repos: import('@luxcodex/shared').WorkspaceWorktreeRepo[]
       try {
         repos = await getWorktreeRepos(workspaceSlug)
       } catch {
@@ -467,7 +467,7 @@ function getBundledResourcesDir(): string {
  * 默认 App 探测结果按文件后缀缓存，避免反复 spawn Swift / 注册表查询。
  * 成功结果会落盘；失败只做短暂内存冷却，避免一次瞬时失败导致整会话都隐藏按钮。
  */
-const defaultAppCache = new Map<string, import('@luxagents/shared').DefaultAppInfo>()
+const defaultAppCache = new Map<string, import('@luxcodex/shared').DefaultAppInfo>()
 const defaultAppFailureCache = new Map<string, number>()
 const DEFAULT_APP_FAILURE_RETRY_MS = 60_000
 
@@ -510,7 +510,7 @@ async function getMacAppIconViaSips(appPath: string): Promise<string> {
   const icnsPath = candidates.find((p) => existsSync(p))
   if (!icnsPath) return ''
 
-  const tmp = mkdtempSync(join(tmpdir(), 'luxagents-icon-'))
+  const tmp = mkdtempSync(join(tmpdir(), 'luxcodex-icon-'))
   const outPath = join(tmp, 'icon.png')
   try {
     const r = await runCmd('sips', ['-s', 'format', 'png', '-Z', '64', icnsPath, '--out', outPath], { timeoutMs: 4000 })
@@ -730,7 +730,7 @@ async function getWindowsDefaultAppInfo(filePath: string): Promise<{ appPath: st
 async function getDefaultAppInfoForFile(
   filePath: string,
   _options?: FileAccessOptions,
-): Promise<import('@luxagents/shared').DefaultAppInfo | null> {
+): Promise<import('@luxcodex/shared').DefaultAppInfo | null> {
   const { resolve } = await import('node:path')
   const absPath = resolve(filePath)
 
@@ -806,7 +806,7 @@ if let appUrl = NSWorkspace.shared.urlForApplication(toOpen: url) {
   console.log('[DefaultApp] iconDataUrl 长度:', iconDataUrl?.length)
   if (!iconDataUrl) return cacheNull(cacheKey)
 
-  const info: import('@luxagents/shared').DefaultAppInfo = { name: appName, appPath, iconDataUrl }
+  const info: import('@luxcodex/shared').DefaultAppInfo = { name: appName, appPath, iconDataUrl }
   defaultAppCache.set(cacheKey, info)
   defaultAppFailureCache.delete(cacheKey)
   saveCachedDefaultAppInfo(cacheKey, info)
@@ -1059,7 +1059,7 @@ export function registerIpcHandlers(): void {
   // 扫描系统中的编辑器应用（仅 macOS）
   ipcMain.handle(
     IPC_CHANNELS.SCAN_EDITORS,
-    async (): Promise<import('@luxagents/shared').EditorApp[]> => {
+    async (): Promise<import('@luxcodex/shared').EditorApp[]> => {
       if (process.platform !== 'darwin') return []
       const { existsSync } = await import('node:fs')
       const { homedir } = await import('node:os')
@@ -1081,7 +1081,7 @@ export function registerIpcHandlers(): void {
   // 查询某个文件在本机的默认打开应用信息（带图标）
   ipcMain.handle(
     IPC_CHANNELS.GET_DEFAULT_APP_FOR_FILE,
-    async (_, filePath: string, access?: FileAccessOptions | string[]): Promise<import('@luxagents/shared').DefaultAppInfo | null> => {
+    async (_, filePath: string, access?: FileAccessOptions | string[]): Promise<import('@luxcodex/shared').DefaultAppInfo | null> => {
       if (!filePath || typeof filePath !== 'string') return null
       try {
         const options = normalizeFileAccessOptions(access)
@@ -1169,7 +1169,7 @@ export function registerIpcHandlers(): void {
   // 查询订阅 Plan 额度（用于 Agent Context 圆环 hover 信息）
   ipcMain.handle(
     CHANNEL_IPC_CHANNELS.GET_PLAN_QUOTA,
-    async (_, channelId: string): Promise<import('@luxagents/shared').ChannelPlanQuotaResult> => {
+    async (_, channelId: string): Promise<import('@luxcodex/shared').ChannelPlanQuotaResult> => {
       return getChannelPlanQuota(channelId)
     }
   )
@@ -1179,7 +1179,7 @@ export function registerIpcHandlers(): void {
   // apiKey 传给 create/update，channel-manager 加密后存储——与现有 apiKey 明文回传模式一致。
   ipcMain.handle(
     CHANNEL_IPC_CHANNELS.CODEX_OAUTH_LOGIN,
-    async (): Promise<import('@luxagents/shared').CodexOAuthLoginResult> => {
+    async (): Promise<import('@luxcodex/shared').CodexOAuthLoginResult> => {
       try {
         const credentials = await loginCodexOAuth()
         return {
@@ -2093,7 +2093,7 @@ export function registerIpcHandlers(): void {
   // 测试 MCP 服务器连接
   ipcMain.handle(
     AGENT_IPC_CHANNELS.TEST_MCP_SERVER,
-    async (_, name: string, entry: import('@luxagents/shared').McpServerEntry): Promise<{ success: boolean; message: string }> => {
+    async (_, name: string, entry: import('@luxcodex/shared').McpServerEntry): Promise<{ success: boolean; message: string }> => {
       const { validateMcpServer } = await import('./lib/mcp-validator')
       const result = await validateMcpServer(name, entry)
       return {
@@ -2103,7 +2103,7 @@ export function registerIpcHandlers(): void {
     }
   )
 
-  // 启用或关闭 LuxAgents 内置 MCP
+  // 启用或关闭 LuxCodex 内置 MCP
   ipcMain.handle(
     AGENT_IPC_CHANNELS.SET_BUILTIN_MCP_ENABLED,
     async (_, workspaceSlug: string, id: string, enabled: boolean): Promise<WorkspaceCapabilities> => {
@@ -2152,7 +2152,7 @@ export function registerIpcHandlers(): void {
     }
   )
 
-  // 获取默认 Skills 的 slug 列表（来自 ~/.luxagents/default-skills/）
+  // 获取默认 Skills 的 slug 列表（来自 ~/.luxcodex/default-skills/）
   ipcMain.handle(
     AGENT_IPC_CHANNELS.GET_DEFAULT_SKILL_SLUGS,
     async () => {
@@ -2306,7 +2306,7 @@ export function registerIpcHandlers(): void {
   // 排队发送消息
   ipcMain.handle(
     AGENT_IPC_CHANNELS.QUEUE_MESSAGE,
-    async (event, input: import('@luxagents/shared').AgentQueueMessageInput): Promise<string> => {
+    async (event, input: import('@luxcodex/shared').AgentQueueMessageInput): Promise<string> => {
       return queueAgentMessage(input, event.sender)
     }
   )
@@ -2344,7 +2344,7 @@ export function registerIpcHandlers(): void {
       if (sessionId) {
         event.sender.send(AGENT_IPC_CHANNELS.STREAM_EVENT, {
           sessionId,
-          payload: { kind: 'luxagents_event', event: { type: 'permission_resolved', requestId, behavior } },
+          payload: { kind: 'luxcodex_event', event: { type: 'permission_resolved', requestId, behavior } },
         })
       }
     }
@@ -2370,8 +2370,8 @@ export function registerIpcHandlers(): void {
   // 热切换指定会话的权限模式（运行中生效，不广播）
   ipcMain.handle(
     AGENT_IPC_CHANNELS.UPDATE_SESSION_PERMISSION_MODE,
-    async (_, sessionId: string, mode: LuxAgentsPermissionMode): Promise<void> => {
-      if (!isLuxAgentsPermissionMode(mode)) {
+    async (_, sessionId: string, mode: LuxCodexPermissionMode): Promise<void> => {
+      if (!isLuxCodexPermissionMode(mode)) {
         throw new Error(`无效的权限模式: ${mode}`)
       }
       // 会话不存在时直接抛错（避免 updateAgentSessionMeta 的通用异常被降级为 warn）
@@ -2586,7 +2586,7 @@ export function registerIpcHandlers(): void {
       if (sessionId) {
         event.sender.send(AGENT_IPC_CHANNELS.STREAM_EVENT, {
           sessionId,
-          payload: { kind: 'luxagents_event', event: { type: 'ask_user_resolved', requestId } },
+          payload: { kind: 'luxcodex_event', event: { type: 'ask_user_resolved', requestId } },
         })
       }
     }
@@ -2606,7 +2606,7 @@ export function registerIpcHandlers(): void {
         // 通知渲染进程请求已处理
         event.sender.send(AGENT_IPC_CHANNELS.STREAM_EVENT, {
           sessionId,
-          payload: { kind: 'luxagents_event', event: { type: 'exit_plan_mode_resolved', requestId: response.requestId } },
+          payload: { kind: 'luxcodex_event', event: { type: 'exit_plan_mode_resolved', requestId: response.requestId } },
         })
 
         // 如果用户选择了新的权限模式，通知渲染进程更新 UI
@@ -2622,7 +2622,7 @@ export function registerIpcHandlers(): void {
           }
           event.sender.send(AGENT_IPC_CHANNELS.STREAM_EVENT, {
             sessionId,
-            payload: { kind: 'luxagents_event', event: { type: 'permission_mode_changed', mode: targetMode } },
+            payload: { kind: 'luxcodex_event', event: { type: 'permission_mode_changed', mode: targetMode } },
           })
           console.log(`[IPC] ExitPlanMode 权限模式切换: ${targetMode}`)
         }
@@ -2635,7 +2635,7 @@ export function registerIpcHandlers(): void {
   // 获取所有待处理的交互请求快照（渲染进程重载后恢复状态）
   ipcMain.handle(
     AGENT_IPC_CHANNELS.GET_PENDING_REQUESTS,
-    async (): Promise<import('@luxagents/shared').PendingRequestsSnapshot> => {
+    async (): Promise<import('@luxcodex/shared').PendingRequestsSnapshot> => {
       return {
         permissions: permissionService.getPendingRequests(),
         askUsers: askUserService.getPendingRequests(),
@@ -2836,7 +2836,7 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(
     AGENT_IPC_CHANNELS.ADD_WORKTREE_REPO,
-    async (_, workspaceSlug: string, repo: import('@luxagents/shared').WorkspaceWorktreeRepo) => {
+    async (_, workspaceSlug: string, repo: import('@luxcodex/shared').WorkspaceWorktreeRepo) => {
       return addWorktreeRepo(workspaceSlug, repo)
     }
   )
@@ -2959,7 +2959,7 @@ export function registerIpcHandlers(): void {
       const { existsSync, mkdirSync } = await import('node:fs')
       const { writeFile } = await import('node:fs/promises')
 
-      const tmpDir = join(tmpdir(), 'luxagents-preview')
+      const tmpDir = join(tmpdir(), 'luxcodex-preview')
       if (!existsSync(tmpDir)) {
         mkdirSync(tmpDir, { recursive: true })
       }
@@ -3110,7 +3110,7 @@ export function registerIpcHandlers(): void {
   // XLSX/PPTX 转 HTML（内联预览使用 OOXML 解析）
   ipcMain.handle(
     'file:office-to-html',
-    async (_, filePath: string, access?: FileAccessOptions | string[]): Promise<import('@luxagents/shared').OfficePreviewResult | null> => {
+    async (_, filePath: string, access?: FileAccessOptions | string[]): Promise<import('@luxcodex/shared').OfficePreviewResult | null> => {
       const { convertOfficeToHtml, resolveFilePath } = await import('./lib/file-preview-service')
       const options = normalizeFileAccessOptions(access)
       const allowedBasePaths = getAllowedCandidateBasePaths(options)
@@ -3705,7 +3705,7 @@ export function registerIpcHandlers(): void {
   // 保存单个 Bot 配置
   ipcMain.handle(
     FEISHU_IPC_CHANNELS.SAVE_BOT_CONFIG,
-    async (_, input: import('@luxagents/shared').FeishuBotConfigInput) => {
+    async (_, input: import('@luxcodex/shared').FeishuBotConfigInput) => {
       const saved = saveFeishuBotConfig(input)
       // 配置变更后自动重启或停止（不阻塞保存结果）
       if (saved.enabled && saved.appId && saved.appSecret) {
@@ -3821,7 +3821,7 @@ export function registerIpcHandlers(): void {
         const lark = await import('@larksuiteoapi/node-sdk')
         const QRCode = (await import('qrcode')).default
         const result = await lark.registerApp({
-          source: 'luxagents',
+          source: 'luxcodex',
           signal: abort.signal,
           onQRCodeReady: async (info) => {
             if (event.sender.isDestroyed()) return
@@ -3949,7 +3949,7 @@ export function registerIpcHandlers(): void {
   // 保存单个 Bot 配置
   ipcMain.handle(
     DINGTALK_IPC_CHANNELS.SAVE_BOT_CONFIG,
-    async (_, input: import('@luxagents/shared').DingTalkBotConfigInput) => {
+    async (_, input: import('@luxcodex/shared').DingTalkBotConfigInput) => {
       const saved = saveDingTalkBotConfig(input)
       // 配置变更后自动重启或停止（不阻塞保存结果）
       if (saved.enabled && saved.clientId && saved.clientSecret) {
@@ -4103,7 +4103,7 @@ export function registerIpcHandlers(): void {
 
   // 迁移取消时清理临时解压目录
   ipcMain.handle('migration:cancelImport', async (_, tempDir: string) => {
-    if (tempDir && existsSync(tempDir) && tempDir.includes('luxagents-import-')) {
+    if (tempDir && existsSync(tempDir) && tempDir.includes('luxcodex-import-')) {
       rmSync(tempDir, { recursive: true, force: true })
       console.log(`[迁移] 已清理临时目录: ${tempDir}`)
     }
@@ -4328,7 +4328,7 @@ export function registerIpcHandlers(): void {
     const result = await dialog.showOpenDialog({
       title: '选择迁移文件',
       filters: [
-        { name: 'LuxAgents 迁移文件', extensions: ['luxagents-backup', 'luxagents-share'] },
+        { name: 'LuxCodex 迁移文件', extensions: ['luxcodex-backup', 'luxcodex-share'] },
         { name: '所有文件', extensions: ['*'] },
       ],
       properties: ['openFile'],
@@ -4338,13 +4338,13 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('migration:saveFileDialog', async (_, mode: string) => {
     const { dialog } = await import('electron')
-    const ext = mode === 'personal' ? 'luxagents-backup' : 'luxagents-share'
-    const defaultName = `luxagents-migration-${new Date().toISOString().slice(0, 10)}.${ext}`
+    const ext = mode === 'personal' ? 'luxcodex-backup' : 'luxcodex-share'
+    const defaultName = `luxcodex-migration-${new Date().toISOString().slice(0, 10)}.${ext}`
     const result = await dialog.showSaveDialog({
       title: '保存迁移文件',
       defaultPath: defaultName,
       filters: [
-        { name: mode === 'personal' ? 'LuxAgents 个人备份' : 'LuxAgents 分享包', extensions: [ext] },
+        { name: mode === 'personal' ? 'LuxCodex 个人备份' : 'LuxCodex 分享包', extensions: [ext] },
       ],
     })
     return result.canceled ? null : result.filePath
@@ -4389,7 +4389,7 @@ export function registerIpcHandlers(): void {
   // ===== 定时任务（Automation）=====
 
   // 渲染进程可能被注入内容污染（XSS via markdown / MCP tool output），主进程必须自己校验入参，
-  // 否则 NaN / -Infinity / 越界值会污染 ~/.luxagents/automations.json，无法回滚。
+  // 否则 NaN / -Infinity / 越界值会污染 ~/.luxcodex/automations.json，无法回滚。
   const isNonEmptyString = (v: unknown): v is string => typeof v === 'string' && v.length > 0
   const isNonBlankString = (v: unknown): v is string => typeof v === 'string' && v.trim().length > 0
   const isFiniteInt = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && Number.isInteger(v)

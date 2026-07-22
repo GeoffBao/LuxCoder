@@ -7,8 +7,8 @@
 
 import { atom } from 'jotai'
 import { atomFamily, atomWithStorage } from 'jotai/utils'
-import type { AgentSessionMeta, AgentEvent, AgentWorkspace, AgentPendingFile, RetryAttempt, LuxAgentsPermissionMode, PermissionRequest, AskUserRequest, ExitPlanModeRequest, ThinkingConfig, AgentEffort, SDKMessage, UnstagedChangesResult } from '@luxagents/shared'
-import { LUXAGENTS_DEFAULT_PERMISSION_MODE } from '@luxagents/shared'
+import type { AgentSessionMeta, AgentEvent, AgentWorkspace, AgentPendingFile, RetryAttempt, LuxCodexPermissionMode, PermissionRequest, AskUserRequest, ExitPlanModeRequest, ThinkingConfig, AgentEffort, SDKMessage, UnstagedChangesResult } from '@luxcodex/shared'
+import { LUXCODEX_DEFAULT_PERMISSION_MODE } from '@luxcodex/shared'
 import { calculateDockBadgeCount, countPendingRequests } from '@/lib/dock-badge-count'
 import type { AgentQueuedMessage } from '@/lib/agent-message-queue'
 
@@ -312,10 +312,10 @@ export const workspaceFilesVersionAtom = atom(0)
 // ===== 侧面板 Atoms =====
 
 /** 侧面板是否打开（全局共享，所有会话共用一个状态） */
-export const agentSidePanelOpenAtom = atomWithStorage<boolean>('luxagents-agent-sidepanel-open', true)
+export const agentSidePanelOpenAtom = atomWithStorage<boolean>('luxcodex-agent-sidepanel-open', true)
 
 /** 侧面板宽度（全局共享，用户拖拽后持久化） */
-export const agentSidePanelWidthAtom = atomWithStorage<number>('luxagents-agent-sidepanel-width', 280)
+export const agentSidePanelWidthAtom = atomWithStorage<number>('luxcodex-agent-sidepanel-width', 280)
 
 /** @deprecated 保留以兼容旧代码，但实际所有 session 都读全局 atom */
 export const agentSidePanelOpenMapAtom = atom<Map<string, boolean>>(new Map())
@@ -386,14 +386,14 @@ export const RECENTLY_MODIFIED_TTL_MS = 60_000
 // ===== 权限系统 Atoms =====
 
 /** 新会话默认权限模式 */
-export const agentDefaultPermissionModeAtom = atom<LuxAgentsPermissionMode>(LUXAGENTS_DEFAULT_PERMISSION_MODE)
+export const agentDefaultPermissionModeAtom = atom<LuxCodexPermissionMode>(LUXCODEX_DEFAULT_PERMISSION_MODE)
 
-/** Per-session 权限模式 Map — sessionId → LuxAgentsPermissionMode */
-export const agentPermissionModeMapAtom = atom<Map<string, LuxAgentsPermissionMode>>(new Map())
+/** Per-session 权限模式 Map — sessionId → LuxCodexPermissionMode */
+export const agentPermissionModeMapAtom = atom<Map<string, LuxCodexPermissionMode>>(new Map())
 
 /**
  * 按 sessionId 派生该 session 的持久化权限模式。
- * 返回 `undefined`（session 不存在或未设置）或具体的 LuxAgentsPermissionMode 字符串，
+ * 返回 `undefined`（session 不存在或未设置）或具体的 LuxCodexPermissionMode 字符串，
  * jotai 用 === 比较，只有值真正变化时才通知下游——避免流式中无关字段更新引发 re-render。
  */
 export const sessionPersistedPermissionModeAtom = atomFamily((sessionId: string) =>

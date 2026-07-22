@@ -83,7 +83,7 @@
 | `apps/electron/src/preload/index.ts` | expose `workTask.*` API |
 | `apps/electron/src/renderer/components/tabs/MainArea.tsx` | cowork 模式渲染 `WorkKanbanView` |
 | `apps/electron/src/renderer/components/app-shell/LeftSidebar.tsx` | cowork 模式隐藏会话列表 |
-| `docs/luxagents/03-design-decisions.md` | 更新 Decision 7 MVP 状态 |
+| `docs/luxcodex/03-design-decisions.md` | 更新 Decision 7 MVP 状态 |
 
 ---
 
@@ -101,7 +101,7 @@
 /**
  * Work 模式任务类型定义
  *
- * 六阶段内部状态机（见 docs/luxagents/03-design-decisions.md Decision 7）：
+ * 六阶段内部状态机（见 docs/luxcodex/03-design-decisions.md Decision 7）：
  * pending → designing → tb-reviewing → coding → gerrit-reviewing → pending-writeup → completed
  *
  * 看板展示映射（3 列）：
@@ -468,19 +468,19 @@ export function getWorkTasksPath(): string {
 /**
  * Work 任务持久化服务
  *
- * 存储：~/.luxagents/work-tasks.json（全量 JSON，任务数 < 200 足够）
+ * 存储：~/.luxcodex/work-tasks.json（全量 JSON，任务数 < 200 足够）
  * taskId 计数器持久化在同一文件，格式 { version, counter, tasks }
  */
 import { randomUUID } from 'node:crypto'
 import { readJsonFileSafe, writeJsonFileAtomic } from './safe-file'
 import { getWorkTasksPath } from './config-paths'
-import { generateTaskId } from '@luxagents/shared/utils/work-task-status'
+import { generateTaskId } from '@luxcodex/shared/utils/work-task-status'
 import type {
   WorkTask,
   CreateWorkTaskInput,
   UpdateWorkTaskInput,
   SpecKitStep,
-} from '@luxagents/shared'
+} from '@luxcodex/shared'
 
 interface WorkTasksStore {
   version: number
@@ -585,7 +585,7 @@ export function deleteWorkTask(id: string): void {
 }
 ```
 
-- [ ] **Step 3: 检查 `@luxagents/shared/utils/work-task-status` 导出路径是否已配置**
+- [ ] **Step 3: 检查 `@luxcodex/shared/utils/work-task-status` 导出路径是否已配置**
 
 ```bash
 cat packages/shared/package.json | grep -A 20 '"exports"'
@@ -600,7 +600,7 @@ export * from './work-task-status'
 
 若不存在 utils/index.ts，直接在 `packages/shared/src/index.ts` 追加即可。否则在 service 文件里改用：
 ```typescript
-import { generateTaskId } from '@luxagents/shared'
+import { generateTaskId } from '@luxcodex/shared'
 ```
 
 - [ ] **Step 4: 类型检查**
@@ -638,7 +638,7 @@ import {
   updateWorkTask,
   deleteWorkTask,
 } from './lib/work-task-service'
-import { WORK_TASK_IPC_CHANNELS } from '@luxagents/shared'
+import { WORK_TASK_IPC_CHANNELS } from '@luxcodex/shared'
 ```
 
 - [ ] **Step 2: ipc.ts 注册 handlers**
@@ -670,20 +670,20 @@ import { WORK_TASK_IPC_CHANNELS } from '@luxagents/shared'
 
 顶部 import 区域追加：
 ```typescript
-import { WORK_TASK_IPC_CHANNELS } from '@luxagents/shared'
+import { WORK_TASK_IPC_CHANNELS } from '@luxcodex/shared'
 ```
 
 在 `contextBridge.exposeInMainWorld` 调用的 API 对象末尾追加（注意逗号）：
 
 ```typescript
     workTask: {
-      list: (): Promise<import('@luxagents/shared').WorkTask[]> =>
+      list: (): Promise<import('@luxcodex/shared').WorkTask[]> =>
         ipcRenderer.invoke(WORK_TASK_IPC_CHANNELS.LIST),
-      get: (id: string): Promise<import('@luxagents/shared').WorkTask | null> =>
+      get: (id: string): Promise<import('@luxcodex/shared').WorkTask | null> =>
         ipcRenderer.invoke(WORK_TASK_IPC_CHANNELS.GET, id),
-      create: (input: import('@luxagents/shared').CreateWorkTaskInput): Promise<import('@luxagents/shared').WorkTask> =>
+      create: (input: import('@luxcodex/shared').CreateWorkTaskInput): Promise<import('@luxcodex/shared').WorkTask> =>
         ipcRenderer.invoke(WORK_TASK_IPC_CHANNELS.CREATE, input),
-      update: (input: import('@luxagents/shared').UpdateWorkTaskInput): Promise<import('@luxagents/shared').WorkTask> =>
+      update: (input: import('@luxcodex/shared').UpdateWorkTaskInput): Promise<import('@luxcodex/shared').WorkTask> =>
         ipcRenderer.invoke(WORK_TASK_IPC_CHANNELS.UPDATE, input),
       delete: (id: string): Promise<void> =>
         ipcRenderer.invoke(WORK_TASK_IPC_CHANNELS.DELETE, id),
@@ -720,7 +720,7 @@ git commit -m "feat(ipc): WorkTask CRUD IPC 通道 + Preload 桥接"
  * Work 模式 Jotai 状态管理
  */
 import { atom } from 'jotai'
-import type { WorkTask } from '@luxagents/shared'
+import type { WorkTask } from '@luxcodex/shared'
 
 /** 全量任务列表 */
 export const workTasksAtom = atom<WorkTask[]>([])
@@ -784,7 +784,7 @@ import { useAtom, useAtomValue } from 'jotai'
 import { cn } from '@/lib/utils'
 import { selectedWorkTaskIdAtom } from '@/atoms/work-atoms'
 import { agentStreamingStatesAtom } from '@/atoms/agent-atoms'
-import type { WorkTask } from '@luxagents/shared'
+import type { WorkTask } from '@luxcodex/shared'
 
 const TYPE_COLOR: Record<WorkTask['type'], string> = {
   requirement: 'bg-blue-500/15 text-blue-400 border border-blue-500/30',
@@ -903,7 +903,7 @@ import * as React from 'react'
 import { Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { WorkTaskCard } from './WorkTaskCard'
-import type { WorkTask } from '@luxagents/shared'
+import type { WorkTask } from '@luxcodex/shared'
 
 interface ColumnConfig {
   label: string
@@ -989,7 +989,7 @@ git commit -m "feat(ui): KanbanColumn 看板列容器"
 import * as React from 'react'
 import { Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { SpecKitStep } from '@luxagents/shared'
+import type { SpecKitStep } from '@luxcodex/shared'
 
 const STEP_LABELS: Record<SpecKitStep['key'], string> = {
   rca:       'rca',
@@ -1190,7 +1190,7 @@ git commit -m "feat(ui): KnowledgeChips 知识包注入 chips 组件"
 import * as React from 'react'
 import { Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { TbWritebackStep } from '@luxagents/shared'
+import type { TbWritebackStep } from '@luxcodex/shared'
 
 const STATUS_LABEL: Record<TbWritebackStep['status'], string> = {
   pending: '等待',
@@ -1310,7 +1310,7 @@ import { SpecKitProgress } from './SpecKitProgress'
 import { KnowledgeChips } from './KnowledgeChips'
 import { TbWritebackFlow } from './TbWritebackFlow'
 import { Button } from '@/components/ui/button'
-import type { WorkTask } from '@luxagents/shared'
+import type { WorkTask } from '@luxcodex/shared'
 
 const TYPE_BADGE: Record<WorkTask['type'], string> = {
   requirement: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
@@ -1467,7 +1467,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { WorkTaskType, WorkTaskPriority } from '@luxagents/shared'
+import type { WorkTaskType, WorkTaskPriority } from '@luxcodex/shared'
 
 interface CreateTaskDialogProps {
   open: boolean
@@ -1690,9 +1690,9 @@ import { WorkKanbanHeader } from './WorkKanbanHeader'
 import { KanbanColumn } from './KanbanColumn'
 import { WorkTaskDetailPanel } from './WorkTaskDetailPanel'
 import { CreateTaskDialog } from './CreateTaskDialog'
-import { getKanbanColumn } from '@luxagents/shared'
+import { getKanbanColumn } from '@luxcodex/shared'
 import { cn } from '@/lib/utils'
-import type { WorkTask } from '@luxagents/shared'
+import type { WorkTask } from '@luxcodex/shared'
 
 const COLUMNS = ['todo', 'in-progress', 'pending-writeup'] as const
 
@@ -1775,7 +1775,7 @@ export function WorkKanbanView(): React.ReactElement {
 }
 ```
 
-**注意**：此处 `import { getKanbanColumn } from '@luxagents/shared'` 要确认 `getKanbanColumn` 已从 `packages/shared/src/utils/work-task-status.ts` re-export 到 `@luxagents/shared` 主入口。在 `packages/shared/src/utils/index.ts` 中确认有 `export * from './work-task-status'`，并且 `packages/shared/src/index.ts` 包含 `export * from './utils'`（或类似路径）。
+**注意**：此处 `import { getKanbanColumn } from '@luxcodex/shared'` 要确认 `getKanbanColumn` 已从 `packages/shared/src/utils/work-task-status.ts` re-export 到 `@luxcodex/shared` 主入口。在 `packages/shared/src/utils/index.ts` 中确认有 `export * from './work-task-status'`，并且 `packages/shared/src/index.ts` 包含 `export * from './utils'`（或类似路径）。
 
 - [ ] **Step 2: Commit**
 
@@ -1876,7 +1876,7 @@ git commit -m "feat(shell): Work 模式接入 MainArea 三列看板 + LeftSideba
 
 **Files:**
 - Modify: `apps/electron/package.json`
-- Modify: `docs/luxagents/03-design-decisions.md`
+- Modify: `docs/luxcodex/03-design-decisions.md`
 
 - [ ] **Step 1: 递增版本号**
 
@@ -1884,12 +1884,12 @@ git commit -m "feat(shell): Work 模式接入 MainArea 三列看板 + LeftSideba
 
 - [ ] **Step 2: 更新 Decision 7 文档**
 
-在 `docs/luxagents/03-design-decisions.md` Decision 7 的 MVP 实现状态块更新为：
+在 `docs/luxcodex/03-design-decisions.md` Decision 7 的 MVP 实现状态块更新为：
 
 ```markdown
 **MVP 实现状态（2026-06-29，feature/work-mode-kanban 分支）：**
 - ✅ `WorkTask` 独立实体（CB-xxx 编号 + 六阶段内部状态机 + 3 列看板展示）
-- ✅ 本地 JSON 持久化（`~/.luxagents/work-tasks.json`）
+- ✅ 本地 JSON 持久化（`~/.luxcodex/work-tasks.json`）
 - ✅ 三列看板主视图（待办 | 进行中 | 待回写）
 - ✅ 右侧滑入 Detail Panel（SPEC-KIT 进度 + 知识包 chips + TB 回写流程）
 - ✅ 任务卡片（编号/类型角标/优先级/AI 执行中指示器）
@@ -1901,7 +1901,7 @@ git commit -m "feat(shell): Work 模式接入 MainArea 三列看板 + LeftSideba
 - [ ] **Step 3: Commit**
 
 ```bash
-git add apps/electron/package.json docs/luxagents/03-design-decisions.md
+git add apps/electron/package.json docs/luxcodex/03-design-decisions.md
 git commit -m "chore: v0.9.6 + 更新 Work 模式 MVP 实现状态文档"
 ```
 

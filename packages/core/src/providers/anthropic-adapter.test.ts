@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import type { ProviderType } from '@luxagents/shared'
+import type { ProviderType } from '@luxcodex/shared'
 import { AnthropicAdapter } from './anthropic-adapter.ts'
 import { setAppVersion } from './user-agent.ts'
 
@@ -32,24 +32,24 @@ describe('AnthropicAdapter headers', () => {
     expect(request.headers['User-Agent']).toBeUndefined()
   })
 
-  test('xiaomi token plan keeps bearer authentication with LuxAgents User-Agent', () => {
+  test('xiaomi token plan keeps bearer authentication with LuxCodex User-Agent', () => {
     setAppVersion('9.9.9')
 
     const request = buildRequest('xiaomi-token-plan')
 
     expect(request.headers.Authorization).toBe('Bearer test-key')
-    expect(request.headers['User-Agent']).toBe('LuxAgents/9.9.9 (+https://github.com/GeoffBao/LuxAgents)')
+    expect(request.headers['User-Agent']).toBe('LuxCodex/9.9.9 (+https://github.com/GeoffBao/LuxCodex)')
     expect(request.headers['api-key']).toBeUndefined()
   })
 
-  test('qwen token plan uses the complete Anthropic endpoint with bearer authentication and LuxAgents User-Agent', () => {
+  test('qwen token plan uses the complete Anthropic endpoint with bearer authentication and LuxCodex User-Agent', () => {
     setAppVersion('9.9.9')
 
     const request = buildRequest('qwen-token-plan')
 
     expect(request.url).toBe('https://token-plan.cn-beijing.maas.aliyuncs.com/apps/anthropic/v1/messages')
     expect(request.headers.Authorization).toBe('Bearer test-key')
-    expect(request.headers['User-Agent']).toBe('LuxAgents/9.9.9 (+https://github.com/GeoffBao/LuxAgents)')
+    expect(request.headers['User-Agent']).toBe('LuxCodex/9.9.9 (+https://github.com/GeoffBao/LuxCodex)')
     expect(request.headers['x-api-key']).toBeUndefined()
   })
 
@@ -62,7 +62,7 @@ describe('AnthropicAdapter headers', () => {
     )
 
     expect(request.headers.Authorization).toBe('Bearer model-key')
-    expect(request.headers['User-Agent']).toBe('LuxAgents/9.9.9 (+https://github.com/GeoffBao/LuxAgents)')
+    expect(request.headers['User-Agent']).toBe('LuxCodex/9.9.9 (+https://github.com/GeoffBao/LuxCodex)')
     expect(request.headers['api-key']).toBeUndefined()
   })
 })

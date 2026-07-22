@@ -10,13 +10,13 @@ import {
   inferAgentSdkContextWindow,
   type CodexOAuthCredentials,
   type ProviderType,
-} from '@luxagents/shared'
+} from '@luxcodex/shared'
 import {
   getAppUserAgent,
   normalizeAnthropicBaseUrlForSdk,
   normalizeOpenAIBaseUrlForSdk,
   resolveAnthropicMessagesUrl,
-} from '@luxagents/core'
+} from '@luxcodex/core'
 import type { Api, KnownProvider, Model } from '@earendil-works/pi-ai/compat'
 import type { PiAgentQueryOptions } from './pi-agent-adapter'
 import { supportsPiDeveloperRole } from './pi-provider-compat'

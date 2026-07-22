@@ -1,5 +1,5 @@
 /**
- * BuiltinMcpDetailSheet — LuxAgents 内置 MCP 托管详情
+ * BuiltinMcpDetailSheet — LuxCodex 内置 MCP 托管详情
  */
 
 import * as React from 'react'
@@ -7,7 +7,7 @@ import { ArrowLeft, CheckCircle2, Plug, Settings2, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
-import type { BuiltinMcpServerSummary } from '@luxagents/shared'
+import type { BuiltinMcpServerSummary } from '@luxcodex/shared'
 
 interface BuiltinMcpDetailSheetProps {
   open: boolean
@@ -53,13 +53,13 @@ function getConfigInfo(server: BuiltinMcpServerSummary): BuiltinMcpConfigInfo {
   }
   if (server.id === 'automation') {
     return {
-      source: 'LuxAgents 本地自动任务',
-      description: '自动任务 MCP 直接使用 LuxAgents 本地任务服务，无需填写额外凭据。',
+      source: 'LuxCodex 本地自动任务',
+      description: '自动任务 MCP 直接使用 LuxCodex 本地任务服务，无需填写额外凭据。',
     }
   }
   return {
-    source: 'LuxAgents 运行时',
-    description: '该内置 MCP 由 LuxAgents 运行时托管。',
+    source: 'LuxCodex 运行时',
+    description: '该内置 MCP 由 LuxCodex 运行时托管。',
   }
 }
 
@@ -87,7 +87,7 @@ export function BuiltinMcpDetailSheet({ open, server, onOpenChange, onConfigure 
                   <div className="flex items-center gap-2">
                     <h3 className="truncate text-base font-semibold text-foreground">{server.displayName}</h3>
                     <span className="shrink-0 rounded-md bg-blue-500/10 px-1.5 py-0.5 text-[11px] font-medium text-blue-600 dark:text-blue-400">
-                      LuxAgents 内置
+                      LuxCodex 内置
                     </span>
                   </div>
                   <div className="mt-0.5 truncate text-xs text-muted-foreground">{server.name}</div>

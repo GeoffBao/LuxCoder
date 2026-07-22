@@ -10,8 +10,8 @@
 
 import { existsSync } from 'node:fs'
 import { execSync } from 'node:child_process'
-import { normalizeMcpTransportType } from '@luxagents/shared'
-import type { McpServerEntry } from '@luxagents/shared'
+import { normalizeMcpTransportType } from '@luxcodex/shared'
+import type { McpServerEntry } from '@luxcodex/shared'
 
 /**
  * MCP 验证结果

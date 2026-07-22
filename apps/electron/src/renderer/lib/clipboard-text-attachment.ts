@@ -1,4 +1,4 @@
-import type { AgentPendingFile } from '@luxagents/shared'
+import type { AgentPendingFile } from '@luxcodex/shared'
 
 export interface ClipboardTextDraft {
   filename: string

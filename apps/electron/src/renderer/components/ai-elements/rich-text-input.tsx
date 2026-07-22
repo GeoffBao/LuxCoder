@@ -39,8 +39,8 @@ import {
 
 // ===== 行数计算 =====
 
-const SESSION_QUICK_SWITCH_KEYDOWN_EVENT = 'luxagents:session-quick-switch-keydown'
-const SESSION_QUICK_SWITCH_KEYUP_EVENT = 'luxagents:session-quick-switch-keyup'
+const SESSION_QUICK_SWITCH_KEYDOWN_EVENT = 'luxcodex:session-quick-switch-keydown'
+const SESSION_QUICK_SWITCH_KEYUP_EVENT = 'luxcodex:session-quick-switch-keyup'
 
 function isMacPlatform(): boolean {
   return typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '')

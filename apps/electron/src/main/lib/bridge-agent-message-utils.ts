@@ -1,4 +1,4 @@
-import type { SDKAssistantMessage, SDKMessage } from '@luxagents/shared'
+import type { SDKAssistantMessage, SDKMessage } from '@luxcodex/shared'
 
 /**
  * Pi runtime 的 message_update 会用 _partial 标记预览帧。

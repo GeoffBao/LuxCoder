@@ -10,7 +10,7 @@ import {
   SESSION_COMMAND_CHANNEL,
   TASK_IPC_CHANNELS,
   TEAMBITION_IPC_CHANNELS,
-} from '@luxagents/shared/channels'
+} from '@luxcodex/shared/channels'
 import type {
   CreateProjectInput,
   AgentSessionMeta,
@@ -20,12 +20,12 @@ import type {
   TaskGeneratedEventPayload,
   UpdateProjectInput,
   UploadProjectAssetInput,
-} from '@luxagents/shared'
+} from '@luxcodex/shared'
 import {
   buildGeneratorPrompt,
   buildRepairPrompt,
   extractYaml,
-} from '@luxagents/shared/tasks'
+} from '@luxcodex/shared/tasks'
 import {
   listResumableRuns,
   listTaskSlugs,
@@ -35,8 +35,8 @@ import {
   readRunSpecSnapshot,
   listRunIds,
   saveTaskSpec,
-} from '@luxagents/shared/tasks/storage'
-import { createLuxAgentsConductorSessionHost, type LuxAgentsConductorSessionHost } from './conductor-session-host'
+} from '@luxcodex/shared/tasks/storage'
+import { createLuxCodexConductorSessionHost, type LuxCodexConductorSessionHost } from './conductor-session-host'
 import { getAgentSessionMeta, updateAgentSessionMeta } from './agent-session-manager'
 import { isAgentSessionActive } from './agent-service'
 import { getAgentWorkspace, listAgentWorkspaces } from './agent-workspace-manager'
@@ -50,7 +50,7 @@ const GENERATE_TIMEOUT_MS = 180_000
 
 let handlersRegistered = false
 let mainWindow: BrowserWindow | null = null
-let sessionHostPromise: Promise<LuxAgentsConductorSessionHost> | undefined
+let sessionHostPromise: Promise<LuxCodexConductorSessionHost> | undefined
 
 const runners = new Map<string, TaskRunner>()
 
@@ -81,8 +81,8 @@ export async function stopTaskRun(
   await (await resolveRunner(workspaceRoot, workspaceId)).stop(slug, runId)
 }
 
-function getSessionHost(): Promise<LuxAgentsConductorSessionHost> {
-  sessionHostPromise ??= createLuxAgentsConductorSessionHost()
+function getSessionHost(): Promise<LuxCodexConductorSessionHost> {
+  sessionHostPromise ??= createLuxCodexConductorSessionHost()
   return sessionHostPromise
 }
 
@@ -294,7 +294,7 @@ export function buildTaskValidationPayload(result: ReturnType<typeof parseTaskYa
 
 /** 通过 Host 的完成事件等待一轮生成，避免悬挂监听器和未等待的 Agent 请求。 */
 async function sendGenerationPrompt(
-  host: LuxAgentsConductorSessionHost,
+  host: LuxCodexConductorSessionHost,
   sessionId: string,
   prompt: string,
 ): Promise<string> {

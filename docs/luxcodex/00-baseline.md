@@ -1,8 +1,8 @@
-# LuxAgents Baseline — Codebase Review
+# LuxCodex Baseline — Codebase Review
 
 > Date: 2026-06-28
 > Upstream: Proma v0.13.19 (ErlichLiu/Proma)
-> Branch: luxagents/bootstrap
+> Branch: luxcodex/bootstrap
 
 ## Source
 
@@ -20,7 +20,7 @@ Forked from Proma. Full monorepo preserved.
 ## Monorepo Structure (Actual)
 
 ```
-LuxAgents/
+LuxCodex/
 ├── packages/
 │   ├── shared/     # @proma/shared — types, config, utils, constants
 │   ├── core/       # @proma/core — AI Provider 适配器, Shiki highlight
@@ -50,7 +50,7 @@ LuxAgents/
 │               ├── components/chat/        # Chat UI (ChatView, ChatInput, etc.)
 │               └── components/diff/        # Diff viewer
 ├── docs/
-│   └── luxagents/
+│   └── luxcodex/
 │       ├── 00-baseline.md      ← 本文件
 │       ├── 01-code-map.md      ← 代码地图（品牌改造导航）
 │       ├── 02-migration-plan.md ← 迁移计划
@@ -75,7 +75,7 @@ LuxAgents/
 ## Existing Theme System
 
 - CSS 变量驱动，支持 7 种主题（ocean/forest/slate/terminal × light/dark）
-- `tailwind.config.js` 已预留 `craft-accent: #DA7756`（LuxAgents 品牌色）
+- `tailwind.config.js` 已预留 `craft-accent: #DA7756`（LuxCodex 品牌色）
 - 字体：Inter Variable + JetBrains Mono
 
 ## App Mode System (Current)
@@ -149,20 +149,20 @@ export const appModeAtom = atomWithStorage<AppMode>('proma-app-mode', 'agent')
 
 | # | 原 | 改 | 位置 | 阶段 |
 |---|----|----|------|------|
-| 1 | `APP_NAME = 'Proma'` | `'LuxAgents'` | `packages/shared/src/config/index.ts` | P1a |
-| 2 | `~/.luxagents/` (prod) / `~/.luxagents-dev/` (dev) | `~/.luxagents/` / `~/.luxagents-dev/` | `config-paths.ts` | P1a |
-| 3 | `com.proma.app` / `ai.proma.app` | `com.luxshare.luxagents` | `electron-builder.yml` + `main/index.ts` | P1a |
-| 4 | `Proma` (productName) | `LuxAgents` | `electron-builder.yml` | P1a |
-| 5 | `.luxagents-backup` / `.luxagents-share` | `.luxagents-backup` / `.luxagents-share` | `electron-builder.yml` + `main/index.ts` | P1a |
-| 6 | `proma-file://` 协议 | `luxagents-file://` | `apps/electron/src/main/index.ts` | P1a |
-| 7 | `proma-*` localStorage keys | `luxagents-*` | 所有 `atomWithStorage` 调用 | P1a |
-| 8 | Proma logo 资源 | LuxAgents logo | `resources/proma-logos/` + `renderer/assets/bots/proma-logos/` | P1a |
-| 9 | GPU 加速禁用宏 `proma` | `luxagents` | 待确认 grep | P1a |
-| 10 | GitHub URL `ErlichLiu/Proma` | `GeoffBao/LuxAgents` | `AboutSettings.tsx` | P1a |
-| 11 | `proma-coach` skill | `luxagents-coach` | `default-skills/proma-coach/SKILL.md` | P1a |
+| 1 | `APP_NAME = 'Proma'` | `'LuxCodex'` | `packages/shared/src/config/index.ts` | P1a |
+| 2 | `~/.luxcodex/` (prod) / `~/.luxcodex-dev/` (dev) | `~/.luxcodex/` / `~/.luxcodex-dev/` | `config-paths.ts` | P1a |
+| 3 | `com.proma.app` / `ai.proma.app` | `com.luxshare.luxcodex` | `electron-builder.yml` + `main/index.ts` | P1a |
+| 4 | `Proma` (productName) | `LuxCodex` | `electron-builder.yml` | P1a |
+| 5 | `.luxcodex-backup` / `.luxcodex-share` | `.luxcodex-backup` / `.luxcodex-share` | `electron-builder.yml` + `main/index.ts` | P1a |
+| 6 | `proma-file://` 协议 | `luxcodex-file://` | `apps/electron/src/main/index.ts` | P1a |
+| 7 | `proma-*` localStorage keys | `luxcodex-*` | 所有 `atomWithStorage` 调用 | P1a |
+| 8 | Proma logo 资源 | LuxCodex logo | `resources/proma-logos/` + `renderer/assets/bots/proma-logos/` | P1a |
+| 9 | GPU 加速禁用宏 `proma` | `luxcodex` | 待确认 grep | P1a |
+| 10 | GitHub URL `ErlichLiu/Proma` | `GeoffBao/LuxCodex` | `AboutSettings.tsx` | P1a |
+| 11 | `proma-coach` skill | `luxcodex-coach` | `default-skills/proma-coach/SKILL.md` | P1a |
 | 12 | `PromaLogoSettings.tsx` | Logo 设置页替换 | `renderer/components/settings/` | P1a |
-| 13 | `@proma/shared` 等 4 个包名 | `@luxagents/shared` 等 | 全库 300+ import + package.json + tsconfig | P1b |
-| 14 | `~/.luxagents/` → `~/.luxagents/` 迁移 | 自动迁移脚本 | `migration-service.ts` | P1a |
+| 13 | `@proma/shared` 等 4 个包名 | `@luxcodex/shared` 等 | 全库 300+ import + package.json + tsconfig | P1b |
+| 14 | `~/.luxcodex/` → `~/.luxcodex/` 迁移 | 自动迁移脚本 | `migration-service.ts` | P1a |
 
 ## Notes
 

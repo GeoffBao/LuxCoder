@@ -3,8 +3,8 @@ import type {
   AgentSessionMeta,
   AgentSendInput,
   AgentWorkspace,
-  LuxAgentsPermissionMode,
-} from '@luxagents/shared'
+  LuxCodexPermissionMode,
+} from '@luxcodex/shared'
 import type {
   ConductorSessionHost,
   ConductorSendMessageOptions,
@@ -66,7 +66,7 @@ interface CompletionState {
   sawError: boolean
 }
 
-export class LuxAgentsConductorSessionHost implements ConductorSessionHost {
+export class LuxCodexConductorSessionHost implements ConductorSessionHost {
   private readonly listeners = new Set<(event: SessionCompletionEvent) => void>()
   private readonly completionStates = new Map<string, CompletionState>()
 
@@ -236,7 +236,7 @@ export class LuxAgentsConductorSessionHost implements ConductorSessionHost {
 }
 
 /** 在 Electron 主进程中延迟加载真实服务，避免纯逻辑测试触发 Electron 模块。 */
-export async function createLuxAgentsConductorSessionHost(): Promise<LuxAgentsConductorSessionHost> {
+export async function createLuxCodexConductorSessionHost(): Promise<LuxCodexConductorSessionHost> {
   const [sessionManager, agentService, workspaceManager, configPaths, settingsService] = await Promise.all([
     import('./agent-session-manager'),
     import('./agent-service'),
@@ -244,7 +244,7 @@ export async function createLuxAgentsConductorSessionHost(): Promise<LuxAgentsCo
     import('./config-paths'),
     import('./settings-service'),
   ])
-  return new LuxAgentsConductorSessionHost({
+  return new LuxCodexConductorSessionHost({
     createAgentSession: (title, channelId, workspaceId, modelId) => {
       // Work/Kanban 会话显式跟随全局默认 runtime（与 Code 新建会话一致），避免静默依赖 createAgentSession 默认参数。
       const agentRuntime = settingsService.getSettings().agentRuntime ?? 'pi'
@@ -266,9 +266,9 @@ export async function createLuxAgentsConductorSessionHost(): Promise<LuxAgentsCo
   })
 }
 
-export const createConductorSessionHost = createLuxAgentsConductorSessionHost
+export const createConductorSessionHost = createLuxCodexConductorSessionHost
 
-function mapPermissionMode(mode: string | undefined): LuxAgentsPermissionMode | undefined {
+function mapPermissionMode(mode: string | undefined): LuxCodexPermissionMode | undefined {
   if (mode === undefined) return undefined
 
   switch (mode) {

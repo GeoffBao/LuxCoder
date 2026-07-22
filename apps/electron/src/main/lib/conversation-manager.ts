@@ -2,8 +2,8 @@
  * 对话管理器
  *
  * 负责对话的 CRUD 操作和消息持久化。
- * - 对话索引：~/.luxagents/conversations.json（轻量元数据）
- * - 消息存储：~/.luxagents/conversations/{id}.jsonl（JSONL 格式，逐行追加）
+ * - 对话索引：~/.luxcodex/conversations.json（轻量元数据）
+ * - 消息存储：~/.luxcodex/conversations/{id}.jsonl（JSONL 格式，逐行追加）
  */
 
 import { readFileSync, writeFileSync, appendFileSync, existsSync, unlinkSync, createReadStream } from 'node:fs'
@@ -16,7 +16,7 @@ import {
   getConversationMessagesPath,
 } from './config-paths'
 import { deleteConversationAttachments, deleteAttachment } from './attachment-service'
-import type { ConversationMeta, ChatMessage, RecentMessagesResult, MessageSearchResult } from '@luxagents/shared'
+import type { ConversationMeta, ChatMessage, RecentMessagesResult, MessageSearchResult } from '@luxcodex/shared'
 
 /**
  * 对话索引文件格式

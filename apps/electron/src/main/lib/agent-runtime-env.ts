@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs'
 import { delimiter, dirname, join, win32 } from 'node:path'
-import type { RuntimeStatus } from '@luxagents/shared'
+import type { RuntimeStatus } from '@luxcodex/shared'
 import { getBundledCliPath } from './config-paths'
 
 export type AgentRuntimeShellKind = 'git-bash' | 'wsl'

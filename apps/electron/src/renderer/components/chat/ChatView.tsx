@@ -53,7 +53,7 @@ import type {
   ChatSendInput,
   FileAttachment,
   AttachmentSaveInput,
-} from '@luxagents/shared'
+} from '@luxcodex/shared'
 
 interface ChatViewProps {
   conversationId: string
@@ -473,8 +473,8 @@ function ChatViewInner({ conversationId }: ChatViewProps): React.ReactElement {
     const handler = (): void => {
       if (isStreaming) handleStop()
     }
-    window.addEventListener('luxagents:stop-generation', handler)
-    return () => window.removeEventListener('luxagents:stop-generation', handler)
+    window.addEventListener('luxcodex:stop-generation', handler)
+    return () => window.removeEventListener('luxcodex:stop-generation', handler)
   }, [isStreaming, handleStop])
 
   /** 删除消息 */

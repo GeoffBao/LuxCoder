@@ -1,4 +1,4 @@
-import type { AgentSessionMeta } from '@luxagents/shared'
+import type { AgentSessionMeta } from '@luxcodex/shared'
 import type { AgentStreamState } from '@/atoms/agent-atoms'
 
 export interface ExternalAgentRunTab {

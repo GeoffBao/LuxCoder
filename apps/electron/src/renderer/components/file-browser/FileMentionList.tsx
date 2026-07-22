@@ -16,7 +16,7 @@
 
 import * as React from 'react'
 import { cn } from '@/lib/utils'
-import type { FileIndexEntry } from '@luxagents/shared'
+import type { FileIndexEntry } from '@luxcodex/shared'
 import { FileTypeIcon } from './FileTypeIcon'
 import { ChevronRight, Folder } from 'lucide-react'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'

@@ -2,7 +2,7 @@ import * as React from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { CloudDownload, Plus } from 'lucide-react'
 import { toast } from 'sonner'
-import type { AgentSessionMeta } from '@luxagents/shared'
+import type { AgentSessionMeta } from '@luxcodex/shared'
 import {
   agentModelIdAtom,
   agentWorkspacesAtom,

@@ -12,8 +12,8 @@ import { atomWithStorage } from 'jotai/utils'
 import {
   BUILTIN_DEFAULT_ID,
   BUILTIN_DEFAULT_PROMPT,
-} from '@luxagents/shared'
-import type { SystemPromptConfig, SystemPrompt } from '@luxagents/shared'
+} from '@luxcodex/shared'
+import type { SystemPromptConfig, SystemPrompt } from '@luxcodex/shared'
 import { userProfileAtom } from './user-profile'
 
 /** 提示词编辑侧栏是否打开 */
@@ -28,7 +28,7 @@ export const promptConfigAtom = atom<SystemPromptConfig>({
 
 /** 当前选中的提示词 ID（持久化到 localStorage） */
 export const selectedPromptIdAtom = atomWithStorage<string>(
-  'luxagents-selected-system-prompt-id',
+  'luxcodex-selected-system-prompt-id',
   BUILTIN_DEFAULT_ID
 )
 

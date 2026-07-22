@@ -12,4 +12,4 @@ import { atomWithStorage } from 'jotai/utils'
 export type AppMode = 'chat' | 'cowork' | 'agent' | 'scratch'
 
 /** App 模式，自动持久化到 localStorage */
-export const appModeAtom = atomWithStorage<AppMode>('luxagents-app-mode', 'agent')
+export const appModeAtom = atomWithStorage<AppMode>('luxcodex-app-mode', 'agent')

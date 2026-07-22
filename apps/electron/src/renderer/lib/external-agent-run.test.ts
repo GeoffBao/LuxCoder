@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import type { AgentSessionMeta } from '@luxagents/shared'
+import type { AgentSessionMeta } from '@luxcodex/shared'
 import { buildExternalAgentRunActivation } from './external-agent-run'
 import type { ExternalAgentRunTab } from './external-agent-run'
 

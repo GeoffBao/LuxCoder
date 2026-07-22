@@ -10,7 +10,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import type { TaskGeneratedEventPayload } from '@luxagents/shared'
+import type { TaskGeneratedEventPayload } from '@luxcodex/shared'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'

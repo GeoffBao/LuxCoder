@@ -1,4 +1,4 @@
-import type { RetryAttempt } from '@luxagents/shared'
+import type { RetryAttempt } from '@luxcodex/shared'
 
 export type PiRetryUpdate =
   | { status: 'starting'; attempt: number; maxAttempts: number; delaySeconds: number; reason: string }

@@ -7,7 +7,7 @@
 import type {
   GitHubRelease,
   GitHubReleaseListOptions,
-} from '@luxagents/shared'
+} from '@luxcodex/shared'
 
 /** GitHub API 基础 URL */
 const GITHUB_API_BASE = 'https://api.github.com'
@@ -15,7 +15,7 @@ const GITHUB_API_BASE = 'https://api.github.com'
 /** GitHub 仓库配置（从 electron-builder.yml） */
 const GITHUB_REPO = {
   owner: 'GeoffBao',
-  repo: 'LuxAgents',
+  repo: 'LuxCodex',
 }
 
 /** Release 缓存 */
@@ -54,7 +54,7 @@ async function fetchFromGitHub<T>(endpoint: string): Promise<T> {
   const response = await fetch(url, {
     headers: {
       'Accept': 'application/vnd.github+json',
-      'User-Agent': 'LuxAgents-Desktop-App',
+      'User-Agent': 'LuxCodex-Desktop-App',
     },
   })
 

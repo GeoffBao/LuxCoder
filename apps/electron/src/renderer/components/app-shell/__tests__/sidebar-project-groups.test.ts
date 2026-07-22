@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import type { AgentSessionMeta } from '@luxagents/shared'
+import type { AgentSessionMeta } from '@luxcodex/shared'
 import type { KanbanProject } from '../kanban/types'
 import { buildSidebarProjectGroups } from '../sidebar-project-groups'
 

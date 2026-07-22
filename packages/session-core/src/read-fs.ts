@@ -1,11 +1,11 @@
 /**
- * 文件 IO 层 — 仅供 Node 侧（luxagents CLI / Electron 主进程）使用。
+ * 文件 IO 层 — 仅供 Node 侧（luxcodex CLI / Electron 主进程）使用。
  *
- * 本文件 import 'node:fs'，因此**不能**进入浏览器可达的主 barrel（'@luxagents/session-core'）。
- * 它只通过子路径 '@luxagents/session-core/node' 暴露，避免 Vite 把 node:fs 打进渲染层 bundle。
+ * 本文件 import 'node:fs'，因此**不能**进入浏览器可达的主 barrel（'@luxcodex/session-core'）。
+ * 它只通过子路径 '@luxcodex/session-core/node' 暴露，避免 Vite 把 node:fs 打进渲染层 bundle。
  */
 import { closeSync, openSync, readFileSync, readSync, statSync } from 'node:fs'
-import type { SDKMessage } from '@luxagents/shared'
+import type { SDKMessage } from '@luxcodex/shared'
 import { readSessionMessagesFromString } from './read'
 
 /** 默认单次读取上限：超过则只读尾部，避免大会话 OOM */

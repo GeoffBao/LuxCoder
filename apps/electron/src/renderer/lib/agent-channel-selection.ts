@@ -1,4 +1,4 @@
-import { isAgentCompatibleProvider, type Channel } from '@luxagents/shared'
+import { isAgentCompatibleProvider, type Channel } from '@luxcodex/shared'
 
 /**
  * 没有独立渠道开关时，Claude runtime 的白名单完全由「渠道已启用 + 协议兼容」派生。

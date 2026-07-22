@@ -23,7 +23,7 @@ import type { KanbanSubtask } from '../app-shell/kanban/types'
 import { getTaskExpertOption } from '../app-shell/kanban/task-editor-ui-model'
 import { useExpertOptions } from '@/components/agent-experts/useExpertOptions'
 import { useOpenSession } from '@/hooks/useOpenSession'
-import { resolveExpertId } from '@luxagents/shared/experts'
+import { resolveExpertId } from '@luxcodex/shared/experts'
 
 interface AgentTaskPanelProps {
   sessionId: string

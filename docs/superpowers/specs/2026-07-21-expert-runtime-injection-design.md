@@ -39,7 +39,7 @@ tasks.run
 
 | 单元 | 位置 | 职责 |
 |------|------|------|
-| `resolveExpertId` | `@luxagents/shared/experts` | 任务 id 优先，否则项目 default，否则 `null` |
+| `resolveExpertId` | `@luxcodex/shared/experts` | 任务 id 优先，否则项目 default，否则 `null` |
 | `mergeSkillSlugs` | 同上 | `unique(task ∪ expert)`，任务在前、专家新增在后 |
 | `formatExpertPreamble` | 同上 | 纯函数：转义 + 空段省略 + 截断；无 IO |
 | `TaskRunnerDeps.getExpert?` | electron `task-runner.ts` | 读专家包；缺省视为无专家（测试友好） |
@@ -107,7 +107,7 @@ tasks.run
 2. 仅项目 `defaultExpertId` 有效 → 同效  
 3. 专家缺失 → 任务照跑 + warn  
 4. 无专家配置 → 与现网 `skillsPreamble` 行为一致  
-5. `@luxagents/shared` / `@luxagents/electron` patch +1；`TaskDefaultsSchema.expertId` 注释改为「Kanban TaskRunner 已注入」  
+5. `@luxcodex/shared` / `@luxcodex/electron` patch +1；`TaskDefaultsSchema.expertId` 注释改为「Kanban TaskRunner 已注入」  
 
 ## 10. 风险
 

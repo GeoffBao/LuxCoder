@@ -7,7 +7,7 @@
  */
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
-import type { AgentSessionMeta } from '@luxagents/shared'
+import type { AgentSessionMeta } from '@luxcodex/shared'
 import { getSessionsDir, getSessionsIndexPath, getSessionMessagesPath, type PathOptions } from './paths'
 
 interface AgentSessionsIndex {

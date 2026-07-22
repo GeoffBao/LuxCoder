@@ -3,11 +3,11 @@
  *
  * 基于 Gemini Image Generation API 提供 AI 生图能力。
  * 支持文生图、参考图编辑、多轮连续修改。
- * 凭据存储在 ~/.luxagents/chat-tools.json 的 toolCredentials 中。
+ * 凭据存储在 ~/.luxcodex/chat-tools.json 的 toolCredentials 中。
  */
 
-import type { ToolCall, ToolResult, ToolDefinition } from '@luxagents/core'
-import type { ChatToolMeta, FileAttachment } from '@luxagents/shared'
+import type { ToolCall, ToolResult, ToolDefinition } from '@luxcodex/core'
+import type { ChatToolMeta, FileAttachment } from '@luxcodex/shared'
 import { randomUUID } from 'node:crypto'
 import { getToolCredentials } from '../chat-tool-config'
 import { saveAttachment, readAttachmentAsBase64, isImageAttachment } from '../attachment-service'

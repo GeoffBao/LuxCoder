@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { CloudDownload, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
-import type { AgentSessionMeta } from '@luxagents/shared'
+import type { AgentSessionMeta } from '@luxcodex/shared'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {

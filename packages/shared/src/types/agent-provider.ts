@@ -1,7 +1,7 @@
 /**
  * Agent Provider 适配器接口
  *
- * 定义 LuxAgents 自己的 Agent 接口层，让底层 SDK 可替换。
+ * 定义 LuxCodex 自己的 Agent 接口层，让底层 SDK 可替换。
  * 当前实现：ClaudeAgentAdapter / PiAgentAdapter 双 runtime。
  */
 

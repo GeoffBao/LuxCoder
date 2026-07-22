@@ -12,7 +12,7 @@
  */
 
 import { shell } from 'electron'
-import type { CodexOAuthCredentials } from '@luxagents/shared'
+import type { CodexOAuthCredentials } from '@luxcodex/shared'
 /** Pi 0.80.10 将 OAuth 流程收敛到 ModelRuntime。保持动态 import，避免 Electron 主包将 Pi runtime 内联。 */
 type PiSdk = typeof import('@earendil-works/pi-coding-agent')
 
@@ -26,7 +26,7 @@ function loadPiSdk(): Promise<PiSdk> {
 type OAuthCredential = { type: 'oauth'; access: string; refresh: string; expires: number; [key: string]: unknown }
 
 /**
- * Pi 的 ModelRuntime 只要求 CredentialStore 的结构契约。OAuth 凭据仍由 LuxAgents
+ * Pi 的 ModelRuntime 只要求 CredentialStore 的结构契约。OAuth 凭据仍由 LuxCodex
  * channel-manager 加密持久化；这里使用内存 store，避免 Pi 写入自己的 ~/.pi 配置。
  */
 function createEphemeralCredentialStore(initial?: OAuthCredential) {
@@ -63,7 +63,7 @@ let activeLoginAbort: AbortController | undefined
 
 /**
  * 注意：Pi 0.80.10 的公开 OAuth API 不再接收 fetch 注入。依赖升级补丁会把
- * LuxAgents 的代理 fetch 重新接回该流程；本 service 只负责与公开 ModelRuntime 交互。
+ * LuxCodex 的代理 fetch 重新接回该流程；本 service 只负责与公开 ModelRuntime 交互。
  */
 
 export interface CodexLoginCallbacks {
@@ -95,7 +95,7 @@ export async function loginCodexOAuth(callbacks?: CodexLoginCallbacks): Promise<
     const credentials = await runtime.login('openai-codex', 'oauth', {
       signal: abort.signal,
       prompt: async (prompt) => {
-        // Pi 先要求选择登录方式；LuxAgents v1 固定浏览器授权，回调服务会处理 code。
+        // Pi 先要求选择登录方式；LuxCodex v1 固定浏览器授权，回调服务会处理 code。
         if (prompt.type === 'select') return 'browser'
         return new Promise<string>((_resolve, reject) => {
           prompt.signal?.addEventListener('abort', () => reject(new Error('登录已取消')), { once: true })

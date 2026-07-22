@@ -2,8 +2,8 @@
  * 数据迁移服务
  *
  * 支持两种导出模式：
- * - personal (.luxagents-backup)：个人全量备份，含解密后的 API Key 明文
- * - share (.luxagents-share)：团队分发，自由选择组件，凭据自动剥离
+ * - personal (.luxcodex-backup)：个人全量备份，含解密后的 API Key 明文
+ * - share (.luxcodex-share)：团队分发，自由选择组件，凭据自动剥离
  *
  * 导入时自动检测跨平台差异并提示用户处理路径映射。
  */
@@ -35,7 +35,7 @@ import {
 } from './config-paths'
 import { listAgentWorkspaces, getAgentWorkspace, getAllWorkspaceSkills, getWorkspaceMcpConfig } from './agent-workspace-manager'
 import { listChannels, decryptApiKey } from './channel-manager'
-import type { AgentWorkspace } from '@luxagents/shared'
+import type { AgentWorkspace } from '@luxcodex/shared'
 
 // ─── 类型定义 ────────────────────────────────────────────────────────────────
 
@@ -606,7 +606,7 @@ function _addPersonalFiles(zip: AdmZip) {
 // ─── 导入（解析预览）────────────────────────────────────────────────────────
 
 export async function parseImportFile(filePath: string): Promise<ImportPreview | ImportPreviewV2> {
-  const tempDir = join(tmpdir(), `luxagents-import-${randomUUID()}`)
+  const tempDir = join(tmpdir(), `luxcodex-import-${randomUUID()}`)
   mkdirSync(tempDir, { recursive: true })
 
   const zip = new AdmZip(filePath)
@@ -1361,14 +1361,14 @@ function _safeExtractAll(zip: AdmZip, targetDir: string): void {
 }
 
 /**
- * 数据目录迁移：首次启动时将 ~/.proma/ 迁移到 ~/.luxagents/
+ * 数据目录迁移：首次启动时将 ~/.proma/ 迁移到 ~/.luxcodex/
  *
  * 非破坏性迁移，保留原目录。迁移完成后写入 flag 文件，避免重复执行。
  */
 export function migrateDataDirIfNeeded(): void {
   const home = homedir()
   const oldDir = join(home, '.proma')
-  const newDir = join(home, '.luxagents')
+  const newDir = join(home, '.luxcodex')
   const flagFile = join(newDir, '.migrated-from-proma')
 
   // 新目录已存在且已迁移过 → 跳过
@@ -1383,7 +1383,7 @@ export function migrateDataDirIfNeeded(): void {
   try {
     cpSync(oldDir, newDir, { recursive: true })
     writeFileSync(flagFile, new Date().toISOString(), 'utf-8')
-    console.log(`[迁移] 已将 ~/.proma/ 迁移到 ~/.luxagents/（原目录保留）`)
+    console.log(`[迁移] 已将 ~/.proma/ 迁移到 ~/.luxcodex/（原目录保留）`)
   } catch (err) {
     console.warn('[迁移] 数据迁移失败，将使用全新目录:', err)
   }

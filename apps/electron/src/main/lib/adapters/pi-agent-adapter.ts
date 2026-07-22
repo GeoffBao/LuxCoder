@@ -17,20 +17,20 @@ import type {
   AgentQueryInput,
   ErrorCode,
   JsonSchemaOutputFormat,
-  LuxAgentsPermissionMode,
+  LuxCodexPermissionMode,
   ProviderType,
   RecoveryAction,
   SendQueuedMessageOptions,
   SDKMessage,
   SDKUserMessageInput,
   TypedError,
-} from '@luxagents/shared'
-import { isCodexFastModeSupportedModel, isOpenAIReasoningSupportedModel } from '@luxagents/shared'
+} from '@luxcodex/shared'
+import { isCodexFastModeSupportedModel, isOpenAIReasoningSupportedModel } from '@luxcodex/shared'
 import {
   THINKING_SIGNATURE_ERROR_MESSAGE,
   THINKING_SIGNATURE_ERROR_TITLE,
   isThinkingSignatureError as matchesThinkingSignatureError,
-} from '@luxagents/shared'
+} from '@luxcodex/shared'
 import type { CanUseToolOptions, PermissionResult } from '../agent-permission-service'
 import { TRANSIENT_NETWORK_PATTERN, isMalformedResponseError } from '../error-patterns'
 
@@ -89,7 +89,7 @@ export interface PiAgentQueryOptions extends AgentQueryInput {
   provider: ProviderType
   channelName?: string
   maxTurns?: number
-  permissionMode: LuxAgentsPermissionMode
+  permissionMode: LuxCodexPermissionMode
   canUseTool?: (
     toolName: string,
     input: Record<string, unknown>,
@@ -288,7 +288,7 @@ function createAsyncQueue<T>(): AsyncQueue<T> {
 const FRIENDLY_ERROR_MESSAGES: Array<{ pattern: RegExp; message: string }> = [
   {
     pattern: /api key|unauthorized|invalid.*key|authentication/i,
-    message: '请检查是否选择了正确的 LuxAgents 供应渠道和模型',
+    message: '请检查是否选择了正确的 LuxCodex 供应渠道和模型',
   },
   {
     pattern: /validation|schema/i,
@@ -541,7 +541,7 @@ export function mapSDKErrorToTypedError(errorCode: string, message: string, orig
 
   const meta = ERROR_CODE_META[code] ?? { title: 'Agent 执行失败', canRetry: false }
   // 认证/渠道配置类错误友好化后文案固定，引导用户直接重新选择模型，而非跳转设置
-  const isInvalidChannelOrModel = /请检查是否选择了正确的 LuxAgents 供应渠道和模型/.test(message)
+  const isInvalidChannelOrModel = /请检查是否选择了正确的 LuxCodex 供应渠道和模型/.test(message)
 
   const actions: RecoveryAction[] = [
     isInvalidChannelOrModel
@@ -806,7 +806,7 @@ function buildPromaProductToolDefinitions(sdk: PiSdk, canUseTool: PiAgentQueryOp
     sdk.defineTool({
       name: 'EnterPlanMode',
       label: '进入计划模式',
-      description: '进入 LuxAgents 计划模式。进入后只能调研、整理计划，并等待用户批准后再执行写操作。',
+      description: '进入 LuxCodex 计划模式。进入后只能调研、整理计划，并等待用户批准后再执行写操作。',
       promptSnippet: '进入计划模式，先调研并输出计划，再等待用户确认。',
       parameters: Type.Object({
         reason: Type.Optional(Type.String({ description: '进入计划模式的原因。' })),
@@ -834,7 +834,7 @@ function buildPromaProductToolDefinitions(sdk: PiSdk, canUseTool: PiAgentQueryOp
     sdk.defineTool({
       name: 'AskUserQuestion',
       label: '询问用户',
-      description: '当需要用户选择、补充信息或确认偏好时调用，LuxAgents 会展示可交互问答横幅。',
+      description: '当需要用户选择、补充信息或确认偏好时调用，LuxCodex 会展示可交互问答横幅。',
       promptSnippet: '向用户提出结构化问题并等待回答。',
       parameters: Type.Object({
         questions: Type.Array(Type.Object({

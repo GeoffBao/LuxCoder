@@ -14,7 +14,7 @@
 日常 Proma cherry-pick 细节记这里；整块「其他产品 / 自研」大 feature 分别记：
 
 - [cross-product-feature-ingest.md](./cross-product-feature-ingest.md)
-- [luxagents-native-feature-log.md](./luxagents-native-feature-log.md)
+- [luxcodex-native-feature-log.md](./luxcodex-native-feature-log.md)
 
 ## 周更自动 sync
 

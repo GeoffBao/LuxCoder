@@ -1,5 +1,5 @@
 {
-  "$comment": "Proma → LuxAgents 同步后 rename / 门禁规则。apply-renames 与 sync:check 共用。",
+  "$comment": "Proma → LuxCodex 同步后 rename / 门禁规则。apply-renames 与 sync:check 共用。",
   "skipDirNames": [
     ".git",
     "node_modules",
@@ -58,23 +58,23 @@
     },
     {
       "from": "@proma/",
-      "to": "@luxagents/"
+      "to": "@luxcodex/"
     },
     {
       "from": "~/.proma",
-      "to": "~/.luxagents"
+      "to": "~/.luxcodex"
     },
     {
       "from": ".proma-dev",
-      "to": ".luxagents-dev"
+      "to": ".luxcodex-dev"
     },
     {
       "from": "/.proma/",
-      "to": "/.luxagents/"
+      "to": "/.luxcodex/"
     },
     {
       "from": "\"@proma/",
-      "to": "\"@luxagents/"
+      "to": "\"@luxcodex/"
     },
     {
       "from": "requiresPromaUserAgent",
@@ -90,23 +90,23 @@
     },
     {
       "from": "PromaPermissionMode",
-      "to": "LuxAgentsPermissionMode"
+      "to": "LuxCodexPermissionMode"
     },
     {
       "from": "proma_event",
-      "to": "luxagents_event"
+      "to": "luxcodex_event"
     }
   ],
   "forbiddenPatterns": [
     {
       "id": "pkg-scope",
       "regex": "@proma/",
-      "message": "残留 @proma/ 包作用域，应改为 @luxagents/"
+      "message": "残留 @proma/ 包作用域，应改为 @luxcodex/"
     },
     {
       "id": "home-proma",
       "regex": "~/.proma",
-      "message": "残留 ~/.proma 路径，应改为 ~/.luxagents"
+      "message": "残留 ~/.proma 路径，应改为 ~/.luxcodex"
     },
     {
       "id": "dot-proma",
@@ -126,7 +126,7 @@
     "@anthropic-ai/claude-agent-sdk-win32-arm64"
   ],
   "luxOnlySkills": [
-    "luxagents-coach",
+    "luxcodex-coach",
     "guizang-ppt-skill"
   ]
 }

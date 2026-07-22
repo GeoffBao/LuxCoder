@@ -9,7 +9,7 @@
  */
 
 import type { AgentMessage, AgentToolResult } from '@earendil-works/pi-agent-core'
-import type { JsonSchemaOutputFormat, SDKResultMessage } from '@luxagents/shared'
+import type { JsonSchemaOutputFormat, SDKResultMessage } from '@luxcodex/shared'
 
 export type RuntimeGuardStopReason = 'max_turns' | 'max_budget_usd' | 'output_validation_failed'
 

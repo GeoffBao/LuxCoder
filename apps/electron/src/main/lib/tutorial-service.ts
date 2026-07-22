@@ -10,7 +10,7 @@ import { randomUUID } from 'node:crypto'
 import { app } from 'electron'
 import { createConversation, appendMessage } from './conversation-manager'
 import { getConversationAttachmentsDir } from './config-paths'
-import type { ConversationMeta, FileAttachment, ChatMessage } from '@luxagents/shared'
+import type { ConversationMeta, FileAttachment, ChatMessage } from '@luxcodex/shared'
 
 /**
  * 获取教程文件路径
@@ -67,11 +67,11 @@ export function createWelcomeConversation(): ConversationMeta | null {
 
   try {
     // 1. 创建对话
-    const meta = createConversation('了解 LuxAgents')
+    const meta = createConversation('了解 LuxCodex')
 
     // 2. 保存教程文件为附件
     const attachmentId = randomUUID()
-    const attachmentFilename = 'LuxAgents 使用教程.md'
+    const attachmentFilename = 'LuxCodex 使用教程.md'
     const localPath = `${meta.id}/${attachmentId}.md`
     const dir = getConversationAttachmentsDir(meta.id)
     const fullPath = join(dir, `${attachmentId}.md`)
@@ -93,7 +93,7 @@ export function createWelcomeConversation(): ConversationMeta | null {
     const userMessage: ChatMessage = {
       id: randomUUID(),
       role: 'user',
-      content: '你好，我刚开始使用 LuxAgents，帮我快速了解这个工具。这是完整的使用指南，作为你的参考。',
+      content: '你好，我刚开始使用 LuxCodex，帮我快速了解这个工具。这是完整的使用指南，作为你的参考。',
       createdAt: now,
       attachments: [attachment],
     }
@@ -103,9 +103,9 @@ export function createWelcomeConversation(): ConversationMeta | null {
     const assistantMessage: ChatMessage = {
       id: randomUUID(),
       role: 'assistant',
-      content: `你好，欢迎使用 LuxAgents。
+      content: `你好，欢迎使用 LuxCodex。
 
-LuxAgents 是面向研发团队的 AI Agent 工作台，整合了 **Chat**（AI 对话助理）、**Code**（AI 编程工作台）、**Work**（协作看板，即将上线）三种工作模式。
+LuxCodex 是面向研发团队的 AI Agent 工作台，整合了 **Chat**（AI 对话助理）、**Code**（AI 编程工作台）、**Work**（协作看板，即将上线）三种工作模式。
 
 为了给你推荐最合适的上手路径，想先了解你的情况：
 
@@ -115,7 +115,7 @@ LuxAgents 是面向研发团队的 AI Agent 工作台，整合了 **Chat**（AI 
 
 告诉我你的情况，我会根据你的角色给出**具体的配置步骤**和**最适合你的工作流建议**，帮你最快速度跑通第一个真实任务。`,
       createdAt: now + 1,
-      model: 'LuxAgents',
+      model: 'LuxCodex',
     }
     appendMessage(meta.id, assistantMessage)
 

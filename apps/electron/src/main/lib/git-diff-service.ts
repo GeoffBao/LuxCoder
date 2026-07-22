@@ -8,9 +8,9 @@
 import { spawn } from 'child_process'
 import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from 'fs'
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'path'
-import type { ChangedFileEntry, UnstagedChangesResult, UntrackedFileEntry } from '@luxagents/shared'
-import { normalizePathForCompare } from '@luxagents/shared'
-import type { ChangeSource, ChangedFileStatus } from '@luxagents/shared'
+import type { ChangedFileEntry, UnstagedChangesResult, UntrackedFileEntry } from '@luxcodex/shared'
+import { normalizePathForCompare } from '@luxcodex/shared'
+import type { ChangeSource, ChangedFileStatus } from '@luxcodex/shared'
 
 /** 大文件读取上限：超过则跳过，避免 IPC 序列化撑爆内存 */
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
@@ -551,7 +551,7 @@ export async function revertFile(dirPath: string, filePath: string, gitRoot?: st
  * 对于 worktree，git 的公共目录（--git-common-dir）始终指向主仓库的 .git，
  * 因此其父目录即主仓库根。普通仓库返回自身根目录。非 git 路径返回 null。
  *
- * 用于安全校验：worktree 常被放在主仓库之外（如 ~/luxagents-dev/worktrees/xxx），
+ * 用于安全校验：worktree 常被放在主仓库之外（如 ~/luxcodex-dev/worktrees/xxx），
  * 直接判定其路径会越界；改为校验它回溯到的主仓库是否已授权。
  */
 export async function getMainRepoRoot(somePath: string): Promise<string | null> {
@@ -569,7 +569,7 @@ export async function getMainRepoRoot(somePath: string): Promise<string | null> 
 /**
  * 列出指定仓库的所有 Git Worktree
  */
-export async function listWorktrees(repoPath: string): Promise<import('@luxagents/shared').WorktreeInfo[]> {
+export async function listWorktrees(repoPath: string): Promise<import('@luxcodex/shared').WorktreeInfo[]> {
   const root = await findGitRoot(repoPath)
   if (!root) return []
   const output = await runGitCommand(['worktree', 'list', '--porcelain'], root, { quiet: true })
@@ -577,7 +577,7 @@ export async function listWorktrees(repoPath: string): Promise<import('@luxagent
   const mainRepoRoot = await getMainRepoRoot(root)
   const normalizedMainRoot = mainRepoRoot ? normalizeGitRoot(mainRepoRoot) : normalizeGitRoot(root)
 
-  const worktrees: import('@luxagents/shared').WorktreeInfo[] = []
+  const worktrees: import('@luxcodex/shared').WorktreeInfo[] = []
   const blocks = output.split('\n\n').filter(Boolean)
 
   for (const block of blocks) {
@@ -622,7 +622,7 @@ export async function listWorktrees(repoPath: string): Promise<import('@luxagent
 export async function getWorktreeChanges(
   worktreePath: string,
   baseBranch: string = 'origin/main',
-): Promise<import('@luxagents/shared').UnstagedChangesResult> {
+): Promise<import('@luxcodex/shared').UnstagedChangesResult> {
   if (!existsSync(worktreePath)) {
     return { isGitRepo: false, files: [], untrackedFiles: [], gitRootNames: [] }
   }
@@ -637,8 +637,8 @@ export async function getWorktreeChanges(
   }
 
   const gitRoot = normalizeGitRoot(toplevel)
-  const allFiles: import('@luxagents/shared').ChangedFileEntry[] = []
-  const fileMap = new Map<string, import('@luxagents/shared').ChangedFileEntry>()
+  const allFiles: import('@luxcodex/shared').ChangedFileEntry[] = []
+  const fileMap = new Map<string, import('@luxcodex/shared').ChangedFileEntry>()
 
   // 1. 已 commit 但未合并的改动: git diff baseBranch...HEAD
   const committedStatus = await runGitCommand(['diff', `${baseBranch}...HEAD`, '--name-status'], gitRoot)
@@ -650,7 +650,7 @@ export async function getWorktreeChanges(
       const simpleMatch = line.match(/^([MDAT])\t(.+)$/)
       const renameMatch = line.match(/^([RC])\d*\t([^\t]+)\t(.+)$/)
 
-      let status: import('@luxagents/shared').ChangedFileStatus
+      let status: import('@luxcodex/shared').ChangedFileStatus
       let filePath: string
 
       if (simpleMatch) {
@@ -665,7 +665,7 @@ export async function getWorktreeChanges(
       }
 
       const stats = committedStats.get(filePath) ?? { additions: 0, deletions: 0 }
-      const entry: import('@luxagents/shared').ChangedFileEntry = {
+      const entry: import('@luxcodex/shared').ChangedFileEntry = {
         filePath,
         status,
         additions: stats.additions,
@@ -687,7 +687,7 @@ export async function getWorktreeChanges(
       const simpleMatch = line.match(/^([MDAT])\t(.+)$/)
       const renameMatch = line.match(/^([RC])\d*\t([^\t]+)\t(.+)$/)
 
-      let status: import('@luxagents/shared').ChangedFileStatus
+      let status: import('@luxcodex/shared').ChangedFileStatus
       let filePath: string
 
       if (simpleMatch) {
@@ -722,7 +722,7 @@ export async function getWorktreeChanges(
   allFiles.push(...fileMap.values())
 
   // 3. 新文件（未追踪）
-  const untrackedFiles: import('@luxagents/shared').UntrackedFileEntry[] = []
+  const untrackedFiles: import('@luxcodex/shared').UntrackedFileEntry[] = []
   const untrackedOutput = await runGitCommand(['ls-files', '--others', '--exclude-standard'], gitRoot)
   if (untrackedOutput) {
     for (const rel of untrackedOutput.split('\n').filter(Boolean)) {

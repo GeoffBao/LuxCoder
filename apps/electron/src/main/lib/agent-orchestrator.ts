@@ -20,10 +20,10 @@ import { join, dirname } from 'node:path'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { app } from 'electron'
-import type { AgentRuntime, AgentSendInput, AgentMessage, AgentGenerateTitleInput, AgentProviderAdapter, AgentSessionMeta, CodexOAuthCredentials, TypedError, RetryAttempt, SDKMessage, SDKAssistantMessage, AgentStreamPayload, RewindSessionResult, ProviderType, AgentThinkingLevel } from '@luxagents/shared'
+import type { AgentRuntime, AgentSendInput, AgentMessage, AgentGenerateTitleInput, AgentProviderAdapter, AgentSessionMeta, CodexOAuthCredentials, TypedError, RetryAttempt, SDKMessage, SDKAssistantMessage, AgentStreamPayload, RewindSessionResult, ProviderType, AgentThinkingLevel } from '@luxcodex/shared'
 import {
-  LUXAGENTS_DEFAULT_PERMISSION_MODE,
-  LUXAGENTS_PERMISSION_MODE_CONFIG,
+  LUXCODEX_DEFAULT_PERMISSION_MODE,
+  LUXCODEX_PERMISSION_MODE_CONFIG,
   THINKING_SIGNATURE_ERROR_CODE,
   THINKING_SIGNATURE_ERROR_MESSAGE,
   THINKING_SIGNATURE_ERROR_TITLE,
@@ -32,15 +32,15 @@ import {
   inferAgentSdkContextWindow,
   isOpenAIReasoningSupportedModel,
   isAgentCompatibleProvider,
-} from '@luxagents/shared'
-import type { LuxAgentsPermissionMode, AskUserRequest, ExitPlanModeRequest, SDKSystemMessage } from '@luxagents/shared'
+} from '@luxcodex/shared'
+import type { LuxCodexPermissionMode, AskUserRequest, ExitPlanModeRequest, SDKSystemMessage } from '@luxcodex/shared'
 import type { ClaudeAgentQueryOptions } from './adapters/claude-agent-adapter'
 import { isPromptTooLongError, isThinkingSignatureError, friendlyErrorMessage, mapSDKErrorToTypedError, extractErrorDetails, shouldKeepChannelOpen } from './adapters/claude-agent-adapter'
 import type { PiAgentQueryOptions } from './adapters/pi-agent-adapter'
 import { isTransientNetworkError, isMalformedResponseError, isSessionNotFoundError } from './error-patterns'
 import { AgentEventBus } from './agent-event-bus'
 import { decryptApiKey, getChannelById, listChannels, persistCodexOAuthCredentials, resolveChannelRuntimeApiKey, resolveCodexOAuthCredentials } from './channel-manager'
-import { getAdapter, fetchTitle, normalizeAnthropicBaseUrlForSdk, getAppUserAgent } from '@luxagents/core'
+import { getAdapter, fetchTitle, normalizeAnthropicBaseUrlForSdk, getAppUserAgent } from '@luxcodex/core'
 import pkg from '../../../package.json' with { type: 'json' }
 import { getFetchFn } from './proxy-fetch'
 import { getEffectiveProxyUrl } from './proxy-settings-service'
@@ -56,7 +56,7 @@ import { permissionService } from './agent-permission-service'
 import type { PermissionResult, CanUseToolOptions } from './agent-permission-service'
 import { askUserService } from './agent-ask-user-service'
 import { exitPlanService, type ExitPlanPermissionResult } from './agent-exit-plan-service'
-import { removeLuxAgentsAutoCompactSettings } from './agent-auto-compact-settings'
+import { removeLuxCodexAutoCompactSettings } from './agent-auto-compact-settings'
 import { validateToolInput } from './agent-tool-input-validator'
 import { estimateTokenCount, WRITE_CONTENT_TOKEN_THRESHOLD } from './agent-tool-token-estimator'
 import { injectBuiltinMcpServers } from './builtin-mcp/registry'
@@ -98,8 +98,8 @@ type RecoverableAgentQueryOptions = {
 
 // ===== 工具函数 =====
 
-function sdkPermissionModeForLuxAgentsMode(mode: LuxAgentsPermissionMode): LuxAgentsPermissionMode {
-  return LUXAGENTS_PERMISSION_MODE_CONFIG[mode].sdkMode
+function sdkPermissionModeForLuxCodexMode(mode: LuxCodexPermissionMode): LuxCodexPermissionMode {
+  return LUXCODEX_PERMISSION_MODE_CONFIG[mode].sdkMode
 }
 
 function normalizeAgentRuntime(value: unknown): AgentRuntime {
@@ -257,7 +257,7 @@ function getRetryDelayMs(attempt: number, elapsedRetryDelayMs: number): number {
  * 再沿父目录 `@anthropic-ai/` 找到同级的平台子包。
  *
  * 多种策略降级：createRequire → 全局 require → cwd/node_modules 手动查找
- * 打包环境下：asar 内的路径需要转换为 asar.unpacked 路径（即便 LuxAgents 当前 `asar: false`
+ * 打包环境下：asar 内的路径需要转换为 asar.unpacked 路径（即便 LuxCodex 当前 `asar: false`
  * 兜底不伤人）。
  */
 function resolveSDKCliPath(): string {
@@ -379,7 +379,7 @@ function buildPiAdditionalDirectoriesPrompt(directories: string[]): string {
   return `
 
 <attached_directories>
-这些目录已由 LuxAgents 授权给当前会话，和当前工作目录同属于用户允许访问的范围。
+这些目录已由 LuxCodex 授权给当前会话，和当前工作目录同属于用户允许访问的范围。
 如需读取或修改这些目录中的内容，请直接使用绝对路径，不要先复制到当前工作目录。
 ${directoryLines}
 </attached_directories>`
@@ -399,7 +399,7 @@ export class AgentOrchestrator {
   private stoppedBySessions = new Set<string>()
 
   /** 运行中会话的当前权限模式（支持运行时动态切换） */
-  private sessionPermissionModes = new Map<string, LuxAgentsPermissionMode>()
+  private sessionPermissionModes = new Map<string, LuxCodexPermissionMode>()
 
   constructor(adapter: AgentProviderAdapter, eventBus: AgentEventBus) {
     this.adapter = adapter
@@ -450,12 +450,12 @@ export class AgentOrchestrator {
       ...cleanEnv,
       // 仅 Claude 模型显式提高输出上限；其它兼容模型不注入 max_tokens 覆盖。
       ...(maxOutputTokens ? { CLAUDE_CODE_MAX_OUTPUT_TOKENS: maxOutputTokens } : {}),
-      // 暴露打包进 App 的 luxagents CLI 路径，供 session-cleaner 等 skill / Agent 调用
+      // 暴露打包进 App 的 luxcodex CLI 路径，供 session-cleaner 等 skill / Agent 调用
       // （开发模式无编译二进制，getBundledCliPath 返回 undefined，此处不注入，
       //   skill 回退到源码运行 bun apps/cli/src/index.ts）。
       ...(getBundledCliPath()
         ? {
-            LUXAGENTS_CLI: getBundledCliPath(),
+            LUXCODEX_CLI: getBundledCliPath(),
             PATH: `${dirname(getBundledCliPath()!)}${process.platform === 'win32' ? ';' : ':'}${cleanEnv.PATH ?? ''}`,
           }
         : {}),
@@ -468,7 +468,7 @@ export class AgentOrchestrator {
       // 禁用 Tool Search：Claude 模型连接第一方 Anthropic API 时，SDK CLI 会自动启用
       // Tool Search（optimistic 模式），将外部 MCP 工具标记为 deferred 而非 eager 注册，
       // 导致 HTTP MCP 服务器（如 Nowledge Mem）的工具无法直接调用。
-      // LuxAgents 自行管理工具呈现和 MCP 连接，不依赖此机制。
+      // LuxCodex 自行管理工具呈现和 MCP 连接，不依赖此机制。
       ENABLE_TOOL_SEARCH: 'false',
       // 禁用 attribution block：SDK 默认会在 system prompt 最前面注入一段
       // 文本（含客户端版本号与基于会话内容计算的指纹），且每次请求都变化。
@@ -480,7 +480,7 @@ export class AgentOrchestrator {
     }
 
     // 认证方式按 provider 分支
-    // - Coding Plan / Token Plan：只认 Bearer，通过 ANTHROPIC_CUSTOM_HEADERS 注入 LuxAgents UA
+    // - Coding Plan / Token Plan：只认 Bearer，通过 ANTHROPIC_CUSTOM_HEADERS 注入 LuxCodex UA
     // - MiniMax Coding Plan：Claude Code 场景使用 Bearer（ANTHROPIC_AUTH_TOKEN）
     // - 通过 ANTHROPIC_AUTH_TOKEN 让 SDK 发 Authorization: Bearer
     // - 其它：ANTHROPIC_API_KEY（SDK 内部会同时带上 x-api-key 和 Bearer）
@@ -1104,7 +1104,7 @@ export class AgentOrchestrator {
       console.log(`[Agent 编排] 检测到回退 resume: resumeSessionAt=${rewindResumeAt}`)
     }
 
-    console.log(`[Agent 编排] Resume 状态: sdkSessionId=${existingSdkSessionId || '无'}, luxagents sessionId=${sessionId}`)
+    console.log(`[Agent 编排] Resume 状态: sdkSessionId=${existingSdkSessionId || '无'}, luxcodex sessionId=${sessionId}`)
 
     // 5. 状态初始化
     const accumulatedMessages: SDKMessage[] = []
@@ -1114,7 +1114,7 @@ export class AgentOrchestrator {
     let capturedSdkSessionId = existingSdkSessionId
     let agentCwd: string | undefined
     let workspaceSlug: string | undefined
-    let workspace: import('@luxagents/shared').AgentWorkspace | undefined
+    let workspace: import('@luxcodex/shared').AgentWorkspace | undefined
 
     try {
       const sdk = agentRuntime === 'claude' ? await import('@anthropic-ai/claude-agent-sdk') : undefined
@@ -1137,13 +1137,13 @@ export class AgentOrchestrator {
               key: 'd',
               label: '下载最新安装包',
               action: 'open_external',
-              payload: 'https://luxagents.cool/download',
+              payload: 'https://luxcodex.cool/download',
             },
             {
               key: 'i',
               label: '报告问题',
               action: 'open_external',
-              payload: 'https://github.com/ErlichLiu/LuxAgents/issues/new',
+              payload: 'https://github.com/ErlichLiu/LuxCodex/issues/new',
             },
           ],
           canRetry: false,
@@ -1208,7 +1208,7 @@ export class AgentOrchestrator {
             needsWrite = true
           }
         }
-        if (removeLuxAgentsAutoCompactSettings(sdkProjectSettings)) {
+        if (removeLuxCodexAutoCompactSettings(sdkProjectSettings)) {
           needsWrite = true
         }
         if (needsWrite) {
@@ -1219,7 +1219,7 @@ export class AgentOrchestrator {
 
       // 9.6 直接信任已保存的 sdkSessionId，跳过 listSessions 预验证
       // 原因：listSessions({ dir }) 基于 cwd 路径哈希查找，但 session 级别的 cwd
-      // （如 ~/.luxagents/agent-workspaces/workspace-xxx/sessionId）与 SDK 内部存储的路径哈希可能不匹配，
+      // （如 ~/.luxcodex/agent-workspaces/workspace-xxx/sessionId）与 SDK 内部存储的路径哈希可能不匹配，
       // 导致 listSessions 始终返回 0 个会话，误杀有效的 resume。
       // SDK 本身会优雅处理无效的 resume ID（回退为新会话），无需预验证。
       if (existingSdkSessionId) {
@@ -1244,7 +1244,7 @@ export class AgentOrchestrator {
           workspaceId,
           workspaceSlug,
           agentCwd,
-          permissionMode: permissionModeOverride ?? sessionMeta?.permissionMode ?? LUXAGENTS_DEFAULT_PERMISSION_MODE,
+          permissionMode: permissionModeOverride ?? sessionMeta?.permissionMode ?? LUXCODEX_DEFAULT_PERMISSION_MODE,
           triggeredBy: input.triggeredBy,
           sessionMeta,
         })
@@ -1257,7 +1257,7 @@ export class AgentOrchestrator {
             agentRuntime,
             workspaceId,
             workspaceSlug,
-            permissionMode: permissionModeOverride ?? sessionMeta?.permissionMode ?? LUXAGENTS_DEFAULT_PERMISSION_MODE,
+            permissionMode: permissionModeOverride ?? sessionMeta?.permissionMode ?? LUXCODEX_DEFAULT_PERMISSION_MODE,
             triggeredBy: input.triggeredBy,
           })
           piBuiltinTools = result.tools
@@ -1303,7 +1303,7 @@ export class AgentOrchestrator {
         const toolLines: string[] = ['用户在消息中明确引用了以下工具，请在本次回复中主动调用：']
         for (const slug of mentionedSkills ?? []) {
           const qualifiedName = workspaceSlug
-            ? `luxagents-workspace-${workspaceSlug}:${slug}`
+            ? `luxcodex-workspace-${workspaceSlug}:${slug}`
             : slug
           toolLines.push(`- Skill: ${qualifiedName}（请立即调用此 Skill）`)
         }
@@ -1331,27 +1331,27 @@ export class AgentOrchestrator {
 
       // 12. 读取应用设置并确定权限模式
       // 权限模式只属于当前 session；新会话默认完全自动模式。
-      const initialPermissionMode: LuxAgentsPermissionMode = permissionModeOverride
-        ?? LUXAGENTS_DEFAULT_PERMISSION_MODE
+      const initialPermissionMode: LuxCodexPermissionMode = permissionModeOverride
+        ?? LUXCODEX_DEFAULT_PERMISSION_MODE
       // 注册到 Map，支持运行中动态切换
       this.sessionPermissionModes.set(sessionId, initialPermissionMode)
       console.log(`[Agent 编排] 权限模式: ${initialPermissionMode}${permissionModeOverride ? '（外部覆盖）' : ''}`)
 
       const emitPlanModeChanged = (active: boolean, source: 'initial' | 'tool' | 'permission'): void => {
         this.eventBus.emit(sessionId, {
-          kind: 'luxagents_event',
+          kind: 'luxcodex_event',
           event: { type: 'plan_mode_changed', sessionId, active, source },
         })
       }
 
       // 当初始模式为 plan 时，通知渲染进程展示计划模式 UI（如「Agent 正在规划」横幅）
       if (initialPermissionMode === 'plan') {
-        this.eventBus.emit(sessionId, { kind: 'luxagents_event', event: { type: 'enter_plan_mode', sessionId } })
+        this.eventBus.emit(sessionId, { kind: 'luxcodex_event', event: { type: 'enter_plan_mode', sessionId } })
         emitPlanModeChanged(true, 'initial')
       }
 
       /** 读取当前会话的实时权限模式（支持运行中切换） */
-      const getPermissionMode = (): LuxAgentsPermissionMode =>
+      const getPermissionMode = (): LuxCodexPermissionMode =>
         this.sessionPermissionModes.get(sessionId) ?? initialPermissionMode
 
       // ExitPlanMode 拦截器：plan 模式下走 UI 审批流程
@@ -1361,7 +1361,7 @@ export class AgentOrchestrator {
           toolInput,
           signal,
           (request: ExitPlanModeRequest) => {
-            this.eventBus.emit(sessionId, { kind: 'luxagents_event', event: { type: 'exit_plan_mode_request', request } })
+            this.eventBus.emit(sessionId, { kind: 'luxcodex_event', event: { type: 'exit_plan_mode_request', request } })
           },
         )
       }
@@ -1477,7 +1477,7 @@ export class AgentOrchestrator {
             emitPlanModeChanged(false, 'permission')
             // 同步通知 SDK 侧切换权限模式
             if (this.adapter.setPermissionMode) {
-              this.adapter.setPermissionMode(sessionId, sdkPermissionModeForLuxAgentsMode(result.targetMode)).catch((err: unknown) => {
+              this.adapter.setPermissionMode(sessionId, sdkPermissionModeForLuxCodexMode(result.targetMode)).catch((err: unknown) => {
                 console.warn(`[Agent 编排] SDK 权限模式切换失败:`, err)
               })
             }
@@ -1489,7 +1489,7 @@ export class AgentOrchestrator {
         if (toolName === 'EnterPlanMode') {
           planModeEntered = true
           emitPlanModeChanged(true, 'tool')
-          this.eventBus.emit(sessionId, { kind: 'luxagents_event', event: { type: 'enter_plan_mode', sessionId } })
+          this.eventBus.emit(sessionId, { kind: 'luxcodex_event', event: { type: 'enter_plan_mode', sessionId } })
           return { behavior: 'allow' as const, updatedInput: input }
         }
 
@@ -1498,7 +1498,7 @@ export class AgentOrchestrator {
           return askUserService.handleAskUserQuestion(
             sessionId, input, options.signal,
             (request: AskUserRequest) => {
-              this.eventBus.emit(sessionId, { kind: 'luxagents_event', event: { type: 'ask_user_request', request } })
+              this.eventBus.emit(sessionId, { kind: 'luxcodex_event', event: { type: 'ask_user_request', request } })
             },
           )
         }
@@ -1602,7 +1602,7 @@ ${workContext}` : '')
         // `[1m]` 是 SDK 内部上下文变体，不应泄漏到标题生成或用户可见的模型名。
         resolvedModel = model.replace(/\[1m\]$/i, '')
         console.log(`[Agent 编排] SDK 确认模型: ${resolvedModel}`)
-        this.eventBus.emit(sessionId, { kind: 'luxagents_event', event: { type: 'model_resolved', model: resolvedModel } })
+        this.eventBus.emit(sessionId, { kind: 'luxcodex_event', event: { type: 'model_resolved', model: resolvedModel } })
       }
       const handleContextWindow = (cw: number): void => {
         const inferredWindow = inferAgentSdkContextWindow(modelId, channel.provider)
@@ -1611,7 +1611,7 @@ ${workContext}` : '')
         // result 消息里的真实 contextWindow 透传到 renderer，
         // 覆盖流式过程中按模型名推断的 fallback 值（智谱等端点会把 [1m] 等后缀剥掉，导致 fallback 不准）
         this.eventBus.emit(sessionId, {
-          kind: 'luxagents_event',
+          kind: 'luxcodex_event',
           event: { type: 'context_window', contextWindow },
         })
       }
@@ -1668,7 +1668,7 @@ ${workContext}` : '')
         onModelResolved: handleModelResolved,
         onContextWindow: handleContextWindow,
         onRetry: (retry) => {
-          this.eventBus.emit(sessionId, { kind: 'luxagents_event', event: { type: 'retry', ...retry } })
+          this.eventBus.emit(sessionId, { kind: 'luxcodex_event', event: { type: 'retry', ...retry } })
         },
       } : {
         agentRuntime: 'claude',
@@ -1679,7 +1679,7 @@ ${workContext}` : '')
         sdkCliPath: cliPath!,
         env: sdkEnv,
         ...(maxTurns != null && { maxTurns }),
-        sdkPermissionMode: sdkPermissionModeForLuxAgentsMode(initialPermissionMode),
+        sdkPermissionMode: sdkPermissionModeForLuxCodexMode(initialPermissionMode),
         // permissionMode 负责表达 plan/bypassPermissions。
         // 当提供 canUseTool 回调时这里必须为 false，否则 CLI 同时收到
         // --allow-dangerously-skip-permissions 和 --permission-prompt-tool stdio
@@ -1689,7 +1689,7 @@ ${workContext}` : '')
         allowDangerouslySkipPermissions: !canUseTool,
         canUseTool,
         // claude_code preset 提供基础环境信息（platform/shell/OS/git/model/知识截止日期等）
-        // buildSystemPrompt 追加 LuxAgents 特有指令（角色定义、子 Agent 委派策略、工作区信息等）
+        // buildSystemPrompt 追加 LuxCodex 特有指令（角色定义、子 Agent 委派策略、工作区信息等）
         systemPrompt: {
           type: 'preset',
           preset: 'claude_code',
@@ -1713,8 +1713,8 @@ ${workContext}` : '')
         ...(appSettings.agentMaxBudgetUsd != null && appSettings.agentMaxBudgetUsd > 0 && {
           maxBudgetUsd: appSettings.agentMaxBudgetUsd,
         }),
-        // LuxAgents 统一使用 collaboration 派生子会话承载子 Agent 委派，避免 SDK 临时
-        // Agent/Task 与 LuxAgents 会话体系分裂。
+        // LuxCodex 统一使用 collaboration 派生子会话承载子 Agent 委派，避免 SDK 临时
+        // Agent/Task 与 LuxCodex 会话体系分裂。
         disallowedTools: ['Agent', 'Task'],
         onStderr: (data: string) => {
           stderrChunks.push(data)
@@ -1781,11 +1781,11 @@ ${workContext}` : '')
             // 前 RETRY_VISIBILITY_THRESHOLD 次重试静默进行，避免偶发瞬时波动频繁惊扰用户
             if (retryAttempt > RETRY_VISIBILITY_THRESHOLD) {
               this.eventBus.emit(sessionId, {
-                kind: 'luxagents_event',
+                kind: 'luxcodex_event',
                 event: { type: 'retry', status: 'starting', attempt: retryAttempt, maxAttempts: MAX_AUTO_RETRIES, delaySeconds: delaySec, reason: lastRetryableError ?? '未知错误' },
               })
               this.eventBus.emit(sessionId, {
-                kind: 'luxagents_event',
+                kind: 'luxcodex_event',
                 event: { type: 'retry', status: 'attempt', attemptData },
               })
             }
@@ -1872,7 +1872,7 @@ ${workContext}` : '')
               const sub = msg.type === 'system' ? (msg as { subtype?: string }).subtype : undefined
               if (msg.type === 'assistant' || msg.type === 'user' || sub === 'task_started' || sub === 'task_progress') {
                 awaitingBackgroundWake = false
-                this.eventBus.emit(sessionId, { kind: 'luxagents_event', event: { type: 'run_resumed', sessionId } })
+                this.eventBus.emit(sessionId, { kind: 'luxcodex_event', event: { type: 'run_resumed', sessionId } })
               }
             }
 
@@ -1913,7 +1913,7 @@ ${workContext}` : '')
                 }
 
                 // Thinking signature 不兼容：通常由跨模型 resume 触发。
-                // 先自动清除 SDK resume 关系，改用 LuxAgents 已持久化上下文重跑一次；再失败才展示用户提示。
+                // 先自动清除 SDK resume 关系，改用 LuxCodex 已持久化上下文重跑一次；再失败才展示用户提示。
                 if (
                   typedError.code === THINKING_SIGNATURE_ERROR_CODE &&
                   canTryThinkingSignatureRecovery(attempt)
@@ -1941,7 +1941,7 @@ ${workContext}` : '')
                 }
 
                 // 上下文过长：旧 SDK session 已经处于不可继续的超限状态。
-                // 自动清除 resume 指针，改用 LuxAgents 最近历史回填重跑一次；用于飞书/自动任务等无人值守入口自恢复。
+                // 自动清除 resume 指针，改用 LuxCodex 最近历史回填重跑一次；用于飞书/自动任务等无人值守入口自恢复。
                 if (
                   typedError.code === 'prompt_too_long' &&
                   canTryPromptTooLongRecovery(attempt)
@@ -2015,7 +2015,7 @@ ${workContext}` : '')
                 // 如果之前有可见重试记录，发送 retry_failed
                 if (retryAttemptsScheduled > RETRY_VISIBILITY_THRESHOLD && lastRetryableError) {
                   this.eventBus.emit(sessionId, {
-                    kind: 'luxagents_event',
+                    kind: 'luxcodex_event',
                     event: { type: 'retry', status: 'failed', attemptData: { attempt: retryAttemptsScheduled, timestamp: Date.now(), reason: lastRetryableError, errorMessage: typedError.message, delaySeconds: 0 } },
                   })
                 }
@@ -2170,7 +2170,7 @@ ${workContext}` : '')
 
           // 正常完成 — 如果之前有可见重试，发送 retry_cleared
           if (!wasStoppedByUser && retryAttemptsScheduled > RETRY_VISIBILITY_THRESHOLD) {
-            this.eventBus.emit(sessionId, { kind: 'luxagents_event', event: { type: 'retry', status: 'cleared' } })
+            this.eventBus.emit(sessionId, { kind: 'luxcodex_event', event: { type: 'retry', status: 'cleared' } })
             console.log(`[Agent 编排] 重试成功，已在第 ${attempt} 次尝试后恢复`)
           }
           retrySucceeded = true
@@ -2246,7 +2246,7 @@ ${workContext}` : '')
             continue  // 进入下一次 retry 循环
           }
 
-          // 上下文过长：清除超限 resume 指针，用 LuxAgents 历史回填自动恢复一次。
+          // 上下文过长：清除超限 resume 指针，用 LuxCodex 历史回填自动恢复一次。
           if (catchLooksPromptTooLong && canTryPromptTooLongRecovery(attempt)) {
             promptTooLongRecoveryAttempted = true
             invisibleRecoveryAttempts += 1
@@ -2392,7 +2392,7 @@ ${workContext}` : '')
           // 如果之前有可见重试记录，发送 retry_failed
           if (retryAttemptsScheduled > RETRY_VISIBILITY_THRESHOLD && lastRetryableError) {
             this.eventBus.emit(sessionId, {
-              kind: 'luxagents_event',
+              kind: 'luxcodex_event',
               event: { type: 'retry', status: 'failed', attemptData: { attempt: retryAttemptsScheduled, timestamp: Date.now(), reason: lastRetryableError, errorMessage: userFacingError, delaySeconds: 0 } },
             })
           }
@@ -2403,7 +2403,7 @@ ${workContext}` : '')
           // 此终止分支只会被「非 session-not-found」的错误命中（session 失效已在上文
           // isSessionNotFoundError 分支单独处理并切到恢复模式）。网络断连、服务端 5xx、
           // 未知错误都不代表 SDK 会话本身失效——其完整历史 JSONL 仍保存在
-          // ~/.luxagents/sdk-config/projects/.../{sdkSessionId}.jsonl 中，依旧可 resume。
+          // ~/.luxcodex/sdk-config/projects/.../{sdkSessionId}.jsonl 中，依旧可 resume。
           // 此前这里对 `!apiError`（如普通断连解析不出状态码）一律清除指针，导致下一轮
           // 退化为「仅回填最近 N 条」的冷启动，上下文从满载骤降（#903）。
           if (existingSdkSessionId) {
@@ -2423,7 +2423,7 @@ ${workContext}` : '')
         // 仅当重试曾经对用户可见时才发送 retry_failed 事件
         if (retryAttemptsScheduled > RETRY_VISIBILITY_THRESHOLD) {
           this.eventBus.emit(sessionId, {
-            kind: 'luxagents_event',
+            kind: 'luxcodex_event',
             event: { type: 'retry', status: 'failed', attemptData: { attempt: retryAttemptsScheduled || MAX_AUTO_RETRIES, timestamp: Date.now(), reason: lastRetryableError, errorMessage: retryFailureMessage, delaySeconds: 0 } },
           })
         }
@@ -2480,19 +2480,19 @@ ${workContext}` : '')
   /**
    * 运行中动态切换会话的权限模式
    *
-   * 同时更新 LuxAgents 侧（canUseTool 闭包读取的 Map）和 SDK 侧（query.setPermissionMode）。
+   * 同时更新 LuxCodex 侧（canUseTool 闭包读取的 Map）和 SDK 侧（query.setPermissionMode）。
    * 典型场景：用户在 Agent 运行中通过 PermissionModeSelector 切换模式。
    */
-  async updateSessionPermissionMode(sessionId: string, mode: LuxAgentsPermissionMode): Promise<void> {
+  async updateSessionPermissionMode(sessionId: string, mode: LuxCodexPermissionMode): Promise<void> {
     if (!this.activeSessions.has(sessionId)) return
     this.sessionPermissionModes.set(sessionId, mode)
     this.eventBus.emit(sessionId, {
-      kind: 'luxagents_event',
+      kind: 'luxcodex_event',
       event: { type: 'plan_mode_changed', sessionId, active: mode === 'plan', source: 'permission' },
     })
     // 同步通知 SDK 侧
     if (this.adapter.setPermissionMode) {
-      await this.adapter.setPermissionMode(sessionId, sdkPermissionModeForLuxAgentsMode(mode))
+      await this.adapter.setPermissionMode(sessionId, sdkPermissionModeForLuxCodexMode(mode))
     }
     console.log(`[Agent 编排] 运行中权限模式已切换: sessionId=${sessionId}, mode=${mode}`)
   }
@@ -2503,7 +2503,7 @@ ${workContext}` : '')
    * 回退会话到指定消息点
    *
    * 1. 直接从 SDK JSONL 的 file-history-snapshot 恢复文件到目标时刻的状态
-   * 2. 截断 LuxAgents JSONL 到 assistantMessageUuid（inclusive）
+   * 2. 截断 LuxCodex JSONL 到 assistantMessageUuid（inclusive）
    * 3. 记录 resumeAtMessageUuid，下次发消息时 SDK 从该点分支继续
    *
    * 文件恢复通过解析 SDK JSONL 中的快照完成，无需运行中的 Query。
@@ -2576,7 +2576,7 @@ ${workContext}` : '')
       fileRewindResult = { canRewind: false, error: '无法从 SDK session 中解析 user message UUID' }
     }
 
-    // 2. 截断 LuxAgents JSONL
+    // 2. 截断 LuxCodex JSONL
     const kept = truncateSDKMessages(sessionId, assistantMessageUuid)
 
     // 3. 记录 resumeAtMessageUuid，下次发消息时 SDK 从此点继续
@@ -2646,7 +2646,7 @@ ${workContext}` : '')
       const toolLines: string[] = ['用户在消息中明确引用了以下工具，请在本次回复中主动调用：']
       for (const slug of mentionedSkills ?? []) {
         const qualifiedName = workspaceSlug
-          ? `luxagents-workspace-${workspaceSlug}:${slug}`
+          ? `luxcodex-workspace-${workspaceSlug}:${slug}`
           : slug
         toolLines.push(`- Skill: ${qualifiedName}（请立即调用此 Skill）`)
       }

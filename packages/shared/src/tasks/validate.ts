@@ -5,7 +5,7 @@
  * 环检测、悬空 depends_on、未解析的 ${...} 引用、大小上限
  *
  * 参照 OSS: packages/shared/src/tasks/validate.ts
- * 适配: 替换 OSS config/ 类型为本地定义（LuxAgents 无对应模块）
+ * 适配: 替换 OSS config/ 类型为本地定义（LuxCodex 无对应模块）
  */
 
 import { extractRefs } from './refs.ts';

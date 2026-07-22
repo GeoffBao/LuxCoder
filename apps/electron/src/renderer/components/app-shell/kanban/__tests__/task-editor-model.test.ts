@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import type { AgentSessionMeta, TaskGeneratedEventPayload } from '@luxagents/shared'
-import { TaskSpecSchema } from '@luxagents/shared/tasks/schema'
+import type { AgentSessionMeta, TaskGeneratedEventPayload } from '@luxcodex/shared'
+import { TaskSpecSchema } from '@luxcodex/shared/tasks/schema'
 import {
   buildTaskEditorSubmission,
   createTaskEditorDraft,

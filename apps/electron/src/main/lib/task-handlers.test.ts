@@ -2,7 +2,7 @@ import { describe, expect, mock, test } from 'bun:test'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { PROJECT_IPC_CHANNELS } from '@luxagents/shared/channels'
+import { PROJECT_IPC_CHANNELS } from '@luxcodex/shared/channels'
 import type { BrowserWindow as ElectronBrowserWindow } from 'electron'
 
 type RegisteredHandler = (...args: unknown[]) => unknown
@@ -17,7 +17,7 @@ mock.module('electron', () => ({
       send: (): undefined => undefined,
     }
   },
-  app: { getPath: () => '/tmp/luxagents-test', isPackaged: false },
+  app: { getPath: () => '/tmp/luxcodex-test', isPackaged: false },
   clipboard: {},
   dialog: {},
   globalShortcut: {},
@@ -121,7 +121,7 @@ describe('task handler Kanban payloads', () => {
     expect(updateHandler).toBeInstanceOf(Function)
     if (!createHandler || !updateHandler) return
 
-    const workspaceRoot = mkdtempSync(join(tmpdir(), 'luxagents-project-handler-'))
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'luxcodex-project-handler-'))
     try {
       const created = createHandler(undefined, workspaceRoot, { name: '发布计划' })
       expect(created).toEqual(expect.objectContaining({

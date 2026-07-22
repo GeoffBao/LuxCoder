@@ -101,12 +101,12 @@ function buildTrayMenu(actions: TrayActions): Menu {
     },
     { type: 'separator' },
     {
-      label: '打开 LuxAgents',
+      label: '打开 LuxCodex',
       click: () => actions.showMainWindow(),
     },
     { type: 'separator' },
     {
-      label: '退出 LuxAgents',
+      label: '退出 LuxCodex',
       click: () => {
         app.quit()
       },
@@ -148,7 +148,7 @@ export function createTray(actionsInput?: Partial<TrayActions>): Tray | null {
     tray = new Tray(image)
 
     // 设置 tooltip
-    tray.setToolTip('LuxAgents')
+    tray.setToolTip('LuxCodex')
 
     updateTrayMenu(actions)
 

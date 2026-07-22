@@ -11,7 +11,7 @@ let dingtalkConfig: DingTalkConfigModule
 let configPaths: ConfigPathsModule
 let tempHome: string
 const originalHome = process.env.HOME
-const originalLuxagentsDev = process.env.LUXAGENTS_DEV
+const originalLuxcodexDev = process.env.LUXCODEX_DEV
 const originalPromaDev = process.env.PROMA_DEV
 
 mock.module('electron', () => ({
@@ -32,9 +32,9 @@ mock.module('node:os', () => ({
 }))
 
 beforeAll(async () => {
-  tempHome = mkdtempSync(join(os.tmpdir(), 'luxagents-dingtalk-config-'))
+  tempHome = mkdtempSync(join(os.tmpdir(), 'luxcodex-dingtalk-config-'))
   process.env.HOME = tempHome
-  delete process.env.LUXAGENTS_DEV
+  delete process.env.LUXCODEX_DEV
   process.env.PROMA_DEV = '0'
   configPaths = await import('./config-paths')
   dingtalkConfig = await import('./dingtalk-config')
@@ -52,10 +52,10 @@ afterAll(() => {
   } else {
     process.env.HOME = originalHome
   }
-  if (originalLuxagentsDev === undefined) {
-    delete process.env.LUXAGENTS_DEV
+  if (originalLuxcodexDev === undefined) {
+    delete process.env.LUXCODEX_DEV
   } else {
-    process.env.LUXAGENTS_DEV = originalLuxagentsDev
+    process.env.LUXCODEX_DEV = originalLuxcodexDev
   }
   if (originalPromaDev === undefined) {
     delete process.env.PROMA_DEV

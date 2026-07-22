@@ -637,7 +637,7 @@ Expected: tests PASS; typecheck clean for touched files.
 ```bash
 git add apps/electron/package.json
 git commit -m "$(cat <<'EOF'
-chore: bump @luxagents/electron 0.1.23
+chore: bump @luxcodex/electron 0.1.23
 
 EOF
 )"

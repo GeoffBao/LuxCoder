@@ -8,8 +8,8 @@
  * 提供统一接口获取启用的工具定义和系统提示词。
  */
 
-import type { ToolDefinition, ToolParameterProperty } from '@luxagents/core'
-import type { ChatToolInfo, ChatToolMeta } from '@luxagents/shared'
+import type { ToolDefinition, ToolParameterProperty } from '@luxcodex/core'
+import type { ChatToolInfo, ChatToolMeta } from '@luxcodex/shared'
 import { getChatToolsConfig } from './chat-tool-config'
 import {
   WEB_SEARCH_TOOL_META,

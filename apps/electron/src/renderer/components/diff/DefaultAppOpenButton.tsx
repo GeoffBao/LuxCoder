@@ -7,7 +7,7 @@
  */
 
 import * as React from 'react'
-import type { FileAccessOptions } from '@luxagents/shared'
+import type { FileAccessOptions } from '@luxcodex/shared'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useDefaultAppForFile } from '@/hooks/useDefaultAppForFile'
 import { cn } from '@/lib/utils'

@@ -7,7 +7,7 @@ import type {
   ProjectPromptContext,
   UpdateProjectInput,
   UploadProjectAssetInput,
-} from '@luxagents/shared/projects'
+} from '@luxcodex/shared/projects'
 import {
   createProject as createProjectInStorage,
   deleteProject as deleteProjectInStorage,

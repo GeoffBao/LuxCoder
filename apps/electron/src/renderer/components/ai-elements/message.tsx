@@ -1,7 +1,7 @@
 /**
  * AI Elements - 消息组件原语
  *
- * 简化迁移自 LuxAgents 前版本 的 ai-elements/message.tsx，
+ * 简化迁移自 LuxCodex 前版本 的 ai-elements/message.tsx，
  * 保留核心消息展示组件，适配 Electron + Jotai 架构。
  *
  * 包含：
@@ -35,11 +35,11 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { LoadingIndicator } from '@/components/ui/loading-indicator'
-import { CodeBlock, MermaidBlock } from '@luxagents/ui'
-import { detectLanguage } from '@luxagents/core'
+import { CodeBlock, MermaidBlock } from '@luxcodex/ui'
+import { detectLanguage } from '@luxcodex/core'
 import { FilePathChip, isAbsoluteFilePath, isRelativeFilePath } from './file-path-chip'
 import type { HTMLAttributes, ComponentProps, ReactNode } from 'react'
-import type { FileAttachment } from '@luxagents/shared'
+import type { FileAttachment } from '@luxcodex/shared'
 
 // ===== Message 根容器 =====
 
@@ -595,7 +595,7 @@ export const MessageResponse = React.memo(
           urlTransform={mentionUrlTransform}
           components={components}
         >
-          {normalizeLatexDelimiters(children.replace(/<!--LUXAGENTS_AUTOMATION:[\s\S]*?-->/g, '').trim())}
+          {normalizeLatexDelimiters(children.replace(/<!--LUXCODEX_AUTOMATION:[\s\S]*?-->/g, '').trim())}
         </Markdown>
       </div>
     )

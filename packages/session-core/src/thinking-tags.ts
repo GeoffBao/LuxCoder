@@ -1,4 +1,4 @@
-import type { SDKContentBlock, SDKTextBlock } from '@luxagents/shared'
+import type { SDKContentBlock, SDKTextBlock } from '@luxcodex/shared'
 
 const THINK_OPEN_TAG = '<think>'
 const THINK_CLOSE_TAG = '</think>'

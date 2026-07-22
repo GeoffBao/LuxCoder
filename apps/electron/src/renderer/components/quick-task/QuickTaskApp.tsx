@@ -7,7 +7,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { fileToBase64, formatFileNames } from '@/lib/file-utils'
-import { MAX_ATTACHMENT_SIZE } from '@luxagents/shared'
+import { MAX_ATTACHMENT_SIZE } from '@luxcodex/shared'
 import { toast } from 'sonner'
 
 /** 任务模式 */
@@ -70,7 +70,7 @@ export function QuickTaskApp(): React.ReactElement {
         }
       } else {
         // Chat 模式读取 localStorage 中的 selectedModel
-        const raw = localStorage.getItem('luxagents-selected-model')
+        const raw = localStorage.getItem('luxcodex-selected-model')
         if (raw) {
           try {
             const selected = JSON.parse(raw) as { channelId: string; modelId: string }
@@ -348,7 +348,7 @@ export function QuickTaskApp(): React.ReactElement {
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
-            placeholder={mode === 'agent' ? '向 LuxAgents 描述你的任务，Enter 发送...' : '向 LuxAgents 发送消息，Enter 发送...'}
+            placeholder={mode === 'agent' ? '向 LuxCodex 描述你的任务，Enter 发送...' : '向 LuxCodex 发送消息，Enter 发送...'}
             className="w-full resize-none bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/50 leading-relaxed"
             style={{ minHeight: '60px', maxHeight: '160px' }}
             disabled={isSubmitting}

@@ -11,11 +11,11 @@
 import { Type } from 'typebox'
 import type { ToolDefinition } from '@earendil-works/pi-coding-agent'
 import type { AgentToolResult } from '@earendil-works/pi-agent-core'
-import type { AgentRuntime, LuxAgentsPermissionMode } from '@luxagents/shared'
+import type { AgentRuntime, LuxCodexPermissionMode } from '@luxcodex/shared'
 import type {
   CreateAutomationInput,
   UpdateAutomationInput,
-} from '@luxagents/shared'
+} from '@luxcodex/shared'
 import {
   createAutomation,
   deleteAutomation,
@@ -49,7 +49,7 @@ export interface PiBuiltinToolsContext {
   agentRuntime?: AgentRuntime
   workspaceId?: string
   workspaceSlug?: string
-  permissionMode?: LuxAgentsPermissionMode
+  permissionMode?: LuxCodexPermissionMode
   triggeredBy?: 'user' | 'automation' | 'delegation' | 'work'
 }
 
@@ -90,7 +90,7 @@ function buildWebTools(sdk: PiSdk): ToolDefinition[] {
     sdk.defineTool({
       name: 'WebSearch',
       label: '搜索网页',
-      description: 'Search the web for up-to-date information through LuxAgents Tavily integration. Use for current events, recent data, facts that may be stale, or when the user explicitly asks to search.',
+      description: 'Search the web for up-to-date information through LuxCodex Tavily integration. Use for current events, recent data, facts that may be stale, or when the user explicitly asks to search.',
       promptSnippet: 'WebSearch: search the web for current information and cite source URLs in the final answer.',
       parameters: Type.Object({
         query: Type.String({ description: 'Search query. Keep it concise and avoid including private local file contents, API keys, tokens, or secrets.' }),
@@ -117,7 +117,7 @@ function buildWebTools(sdk: PiSdk): ToolDefinition[] {
     sdk.defineTool({
       name: 'WebFetch',
       label: '抓取网页',
-      description: 'Fetch and extract readable Markdown content from a URL through LuxAgents Tavily integration. Use after WebSearch or when the user gives a URL and asks to inspect page content.',
+      description: 'Fetch and extract readable Markdown content from a URL through LuxCodex Tavily integration. Use after WebSearch or when the user gives a URL and asks to inspect page content.',
       promptSnippet: 'WebFetch: fetch readable webpage content by URL. Use it to inspect source pages and cite URLs.',
       parameters: Type.Object({
         url: Type.String({ description: 'HTTP/HTTPS URL to fetch.' }),
@@ -157,7 +157,7 @@ interface AutomationSummary {
   [key: string]: unknown
 }
 
-function summarizeAutomation(a: import('@luxagents/shared').Automation, includeHistory: boolean): AutomationSummary {
+function summarizeAutomation(a: import('@luxcodex/shared').Automation, includeHistory: boolean): AutomationSummary {
   return {
     id: a.id,
     name: a.name,
@@ -240,7 +240,7 @@ function buildAutomationTools(sdk: PiSdk, ctx: PiBuiltinToolsContext): ToolDefin
     sdk.defineTool({
       name: 'mcp__automation__list_automations',
       label: '列出定时任务',
-      description: '列出 LuxAgents 持久化定时任务。用于查看已有长期反复任务、判断是否需要新建任务、检查运行状态和最近失败情况。',
+      description: '列出 LuxCodex 持久化定时任务。用于查看已有长期反复任务、判断是否需要新建任务、检查运行状态和最近失败情况。',
       parameters: Type.Object({
         active: Type.Optional(Type.Boolean({ description: '只列出启用或暂停任务；不传则列出全部' })),
         includeHistory: Type.Optional(Type.Boolean({ description: '是否包含运行历史，默认 false' })),
@@ -256,7 +256,7 @@ function buildAutomationTools(sdk: PiSdk, ctx: PiBuiltinToolsContext): ToolDefin
     sdk.defineTool({
       name: 'mcp__automation__get_automation',
       label: '查看定时任务',
-      description: '读取单个 LuxAgents 定时任务详情和运行记录。定时任务自动执行中可以省略 id 来读取当前任务，用于自检和自迭代。',
+      description: '读取单个 LuxCodex 定时任务详情和运行记录。定时任务自动执行中可以省略 id 来读取当前任务，用于自检和自迭代。',
       parameters: Type.Object({
         id: Type.Optional(Type.String({ description: '定时任务 ID；定时任务自动执行中可省略以读取当前任务' })),
       }),
@@ -272,7 +272,7 @@ function buildAutomationTools(sdk: PiSdk, ctx: PiBuiltinToolsContext): ToolDefin
     sdk.defineTool({
       name: 'mcp__automation__create_automation',
       label: '创建定时任务',
-      description: '创建 LuxAgents 持久化定时任务。适合无人值守、有稳定价值的场景。纯提醒/闹钟、需要用户实时参与判断、或现在就该做完即终结的事不要创建。',
+      description: '创建 LuxCodex 持久化定时任务。适合无人值守、有稳定价值的场景。纯提醒/闹钟、需要用户实时参与判断、或现在就该做完即终结的事不要创建。',
       parameters: Type.Object({
         name: Type.String({ description: '任务名，简短说明长期反复执行的目标' }),
         prompt: Type.String({ description: '每次触发时发送给 Agent 的完整自然语言指令' }),
@@ -340,7 +340,7 @@ function buildAutomationTools(sdk: PiSdk, ctx: PiBuiltinToolsContext): ToolDefin
     sdk.defineTool({
       name: 'mcp__automation__update_automation',
       label: '修改定时任务',
-      description: '修改 LuxAgents 定时任务，包括名称、执行提示词、频率和启用状态。定时任务自动执行中可以省略 id 来修改当前任务。',
+      description: '修改 LuxCodex 定时任务，包括名称、执行提示词、频率和启用状态。定时任务自动执行中可以省略 id 来修改当前任务。',
       parameters: Type.Object({
         id: Type.Optional(Type.String({ description: '定时任务 ID；定时任务自动执行中可省略以更新当前任务' })),
         name: Type.Optional(Type.String({ description: '新的任务名' })),
@@ -399,7 +399,7 @@ function buildAutomationTools(sdk: PiSdk, ctx: PiBuiltinToolsContext): ToolDefin
     sdk.defineTool({
       name: 'mcp__automation__delete_automation',
       label: '删除定时任务',
-      description: '删除 LuxAgents 定时任务。只在用户明确要求删除，或任务已经长期无价值且用户确认后使用。',
+      description: '删除 LuxCodex 定时任务。只在用户明确要求删除，或任务已经长期无价值且用户确认后使用。',
       parameters: Type.Object({
         id: Type.String({ description: '要删除的定时任务 ID' }),
       }),
@@ -413,7 +413,7 @@ function buildAutomationTools(sdk: PiSdk, ctx: PiBuiltinToolsContext): ToolDefin
     sdk.defineTool({
       name: 'mcp__automation__run_automation_now',
       label: '立即运行定时任务',
-      description: '立即运行 LuxAgents 定时任务。用于用户要求马上验证，或修改任务后需要试跑一次。',
+      description: '立即运行 LuxCodex 定时任务。用于用户要求马上验证，或修改任务后需要试跑一次。',
       parameters: Type.Object({
         id: Type.Optional(Type.String({ description: '要立即运行的定时任务 ID；定时任务自动执行中可省略以运行当前任务' })),
       }),

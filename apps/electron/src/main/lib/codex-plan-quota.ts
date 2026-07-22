@@ -1,4 +1,4 @@
-import type { ChannelPlanQuotaResult, ChannelPlanQuotaWindow } from '@luxagents/shared'
+import type { ChannelPlanQuotaResult, ChannelPlanQuotaWindow } from '@luxcodex/shared'
 
 interface CodexUsageWindow {
   used_percent?: unknown

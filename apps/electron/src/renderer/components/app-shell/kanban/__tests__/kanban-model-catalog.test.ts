@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import type { Channel } from '@luxagents/shared'
+import type { Channel } from '@luxcodex/shared'
 import {
   buildKanbanModelCatalog,
   formatModelChipLabel,

@@ -1,4 +1,4 @@
-import type { AgentSessionMeta } from '@luxagents/shared'
+import type { AgentSessionMeta } from '@luxcodex/shared'
 import type { KanbanProject } from './kanban/types'
 
 export interface SidebarProjectGroup {

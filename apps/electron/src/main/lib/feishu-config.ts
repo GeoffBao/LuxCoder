@@ -3,7 +3,7 @@
  *
  * 支持多个飞书 Bot 的 CRUD 操作、App Secret 加密/解密。
  * 使用 Electron safeStorage 进行加密。
- * 数据持久化到 ~/.luxagents/feishu.json（v2 格式：{ version: 2, bots: [...] }）。
+ * 数据持久化到 ~/.luxcodex/feishu.json（v2 格式：{ version: 2, bots: [...] }）。
  *
  * 向后兼容：自动检测并迁移旧格式（v1 单 Bot）。
  */
@@ -19,7 +19,7 @@ import type {
   FeishuBotConfig,
   FeishuMultiBotConfig,
   FeishuBotConfigInput,
-} from '@luxagents/shared'
+} from '@luxcodex/shared'
 
 // ===== 加密/解密 =====
 

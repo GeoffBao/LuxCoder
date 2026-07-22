@@ -17,4 +17,4 @@
 | Teambition | 任务认领 / Picker | Board 工具栏 · TeambitionPicker | LANDED* | *手测 OAuth/API |
 | Proma（产品能力） | Pi Agent runtime | agentRuntime=pi · adapters/pi-* | LANDED | sync #1170+#1221 |
 | Proma | ChatGPT Codex OAuth + usage | openai-codex · Pi credential store | LANDED | #1188–#1217 |
-| Proma | session-core / CLI | @luxagents/session-core · luxagents CLI | LANDED | early sync batches |
+| Proma | session-core / CLI | @luxcodex/session-core · luxcodex CLI | LANDED | early sync batches |

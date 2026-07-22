@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import type { AgentWorkspace, AgentSessionMeta } from '@luxagents/shared'
+import type { AgentWorkspace, AgentSessionMeta } from '@luxcodex/shared'
 
 interface MoveSessionDialogProps {
   open: boolean

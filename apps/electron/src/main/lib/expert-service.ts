@@ -3,8 +3,8 @@ import { join } from 'node:path'
 import {
   BUILTIN_EXPERT_DEFINITIONS,
   parseExpertJson,
-} from '@luxagents/shared/experts'
-import type { ExpertDefinition, ExpertManifest, ExpertPackage } from '@luxagents/shared/experts'
+} from '@luxcodex/shared/experts'
+import type { ExpertDefinition, ExpertManifest, ExpertPackage } from '@luxcodex/shared/experts'
 
 const EXPERT_JSON = 'expert.json'
 const IDENTITY_MD = 'IDENTITY.md'

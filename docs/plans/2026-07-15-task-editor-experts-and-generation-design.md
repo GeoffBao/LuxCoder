@@ -2,7 +2,7 @@
 
 ## 背景
 
-LuxAgents 已完成 Project、Kanban、TaskEditor 与任务生成链路的主体迁移，但新建完整任务页面仍存在两个体验缺口：
+LuxCodex 已完成 Project、Kanban、TaskEditor 与任务生成链路的主体迁移，但新建完整任务页面仍存在两个体验缺口：
 
 1. 任务定义只提供一次性的“让 Agent 生成任务计划”按钮，没有复刻 Craft Agents 清晰的“手动 / 生成”双模式流程。
 2. 表单暴露了偏底层的 `Orchestrator 模型`，没有面向研发领域的 Agent 专家选择，也没有把领域能力稳定映射到任务 Skills。

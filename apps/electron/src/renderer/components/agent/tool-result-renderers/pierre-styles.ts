@@ -124,7 +124,7 @@ export function createPierreFileCSS(lineNumberStart: number, maxLineNumber: numb
       --diffs-min-number-column-width: ${minWidth};
     }
     [data-gutter] {
-      counter-reset: luxagents-read-line ${safeStart - 1};
+      counter-reset: luxcodex-read-line ${safeStart - 1};
     }
     /* color: transparent 隐藏 Pierre 自带的相对行号；
      * text-shadow: none 阻断 Terminal 主题的 CRT 辉光继承——否则
@@ -134,8 +134,8 @@ export function createPierreFileCSS(lineNumberStart: number, maxLineNumber: numb
       text-shadow: none !important;
     }
     [data-line-number-content]::before {
-      counter-increment: luxagents-read-line;
-      content: counter(luxagents-read-line);
+      counter-increment: luxcodex-read-line;
+      content: counter(luxcodex-read-line);
       color: var(--diffs-fg-number);
     }
   `

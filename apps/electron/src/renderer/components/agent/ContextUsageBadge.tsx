@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { inputToolbarButtonClass } from '@/components/ai-elements/input-toolbar-styles'
 import { cn } from '@/lib/utils'
-import type { ChannelPlanQuotaResult, ChannelPlanQuotaWindow } from '@luxagents/shared'
+import type { ChannelPlanQuotaResult, ChannelPlanQuotaWindow } from '@luxcodex/shared'
 import { fetchChannelPlanQuota } from '@/lib/channel-plan-quota'
 
 /** 压缩阈值比例（SDK 在 ~77.5% 窗口大小时自动压缩） */

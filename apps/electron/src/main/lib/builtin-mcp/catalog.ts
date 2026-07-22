@@ -1,5 +1,5 @@
 /**
- * LuxAgents 内置 MCP 能力目录
+ * LuxCodex 内置 MCP 能力目录
  *
  * 这里只维护可展示的元数据和可用性判断，不负责运行时注入。
  * 元数据本身来自 default-mcp.json（经 baseline 加载），本文件只在其上叠加
@@ -7,7 +7,7 @@
  * 内置 MCP 列表，而不会引入 Agent 编排层循环依赖。
  */
 
-import type { BuiltinMcpServerSummary } from '@luxagents/shared'
+import type { BuiltinMcpServerSummary } from '@luxcodex/shared'
 import { getToolCredentials, getToolState } from '../chat-tool-config'
 import { getBuiltinMcpDefinitions, type BuiltinMcpDefinition } from './baseline'
 import { isBuiltinMcpDefaultDisabled, isBuiltinMcpUserEnabled } from './settings'
@@ -20,7 +20,7 @@ function resolveAvailability(
   item: BuiltinMcpDefinition,
   ctx: BuiltinMcpListContext,
 ): Pick<BuiltinMcpServerSummary, 'enabled' | 'available' | 'availabilityReason'> {
-  // 基础设施型（如 luxagents-cloud）：登录后始终注入，不受用户开关影响
+  // 基础设施型（如 luxcodex-cloud）：登录后始终注入，不受用户开关影响
   if (item.toggleable === false) {
     return { enabled: true, available: true }
   }

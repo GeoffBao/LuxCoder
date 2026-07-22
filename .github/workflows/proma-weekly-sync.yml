@@ -1,4 +1,4 @@
-# Proma → LuxAgents 周更自动 sync
+# Proma → LuxCodex 周更自动 sync
 #
 # 默认：每周六 15:00（Asia/Shanghai）= 07:00 UTC
 # 也可在 Actions 页手动 workflow_dispatch
@@ -55,7 +55,7 @@ jobs:
 
       - name: 配置 git 身份
         run: |
-          git config user.name "luxagents-sync-bot"
+          git config user.name "luxcodex-sync-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: 确保 upstream remote

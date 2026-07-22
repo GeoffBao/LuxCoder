@@ -59,8 +59,8 @@ import { channelsAtom } from '@/atoms/chat-atoms'
 import { previewFileMapAtom } from '@/atoms/preview-atoms'
 import type { NotificationSoundType } from '@/types/settings'
 import { toast } from 'sonner'
-import type { AgentStreamEvent, AgentStreamCompletePayload, AgentEvent, AgentStreamPayload, SDKAssistantMessage, SDKUserMessage, SDKSystemMessage, SDKContentBlock, SDKUserContentBlock, LuxAgentsEvent, AgentSessionMeta, ProviderType } from '@luxagents/shared'
-import { inferAgentSdkContextWindow, inferContextWindow } from '@luxagents/shared'
+import type { AgentStreamEvent, AgentStreamCompletePayload, AgentEvent, AgentStreamPayload, SDKAssistantMessage, SDKUserMessage, SDKSystemMessage, SDKContentBlock, SDKUserContentBlock, LuxCodexEvent, AgentSessionMeta, ProviderType } from '@luxcodex/shared'
+import { inferAgentSdkContextWindow, inferContextWindow } from '@luxcodex/shared'
 import { buildExternalAgentRunActivation } from '@/lib/external-agent-run'
 import { upsertAgentSession, mergeFetchedAgentSessions } from '@/lib/agent-session-list'
 import { getAgentCompletionMarkers } from '@/lib/agent-completion-presence'
@@ -107,7 +107,7 @@ function uniqueTruthyPaths(paths: Array<string | null | undefined>): string[] {
 // ============================================================================
 
 function payloadToLegacyEvents(payload: AgentStreamPayload): AgentEvent[] {
-  if (payload.kind === 'luxagents_event') {
+  if (payload.kind === 'luxcodex_event') {
     const evt = payload.event
     switch (evt.type) {
       case 'permission_request':
@@ -403,7 +403,7 @@ export function useGlobalAgentListeners(): void {
       return sessions.find((s) => s.id === sessionId)?.title ?? '未命名会话'
     }
 
-    const activateExternalAgentRun = (event: Extract<LuxAgentsEvent, { type: 'external_run_started' }>): void => {
+    const activateExternalAgentRun = (event: Extract<LuxCodexEvent, { type: 'external_run_started' }>): void => {
       const applyActivation = (sessions: AgentSessionMeta[]): void => {
         const activation = buildExternalAgentRunActivation({
           tabs: store.get(tabsAtom),
@@ -611,12 +611,12 @@ export function useGlobalAgentListeners(): void {
         unstable_batchedUpdates(() => {
         const { sessionId, payload } = streamEvent
 
-        if (payload.kind === 'luxagents_event' && payload.event.type === 'external_run_started') {
+        if (payload.kind === 'luxcodex_event' && payload.event.type === 'external_run_started') {
           activateExternalAgentRun(payload.event)
         }
 
         // 自动任务会话被用户接管（毕业）：向用户提示，后续定时运行将新建独立会话
-        if (payload.kind === 'luxagents_event' && payload.event.type === 'automation_graduated') {
+        if (payload.kind === 'luxcodex_event' && payload.event.type === 'automation_graduated') {
           toast('已接管自动任务会话，后续定时运行将创建新会话。', { duration: 3000 })
           window.electronAPI.listAgentSessions()
             .then((sessions) => store.set(agentSessionsAtom, (prev) => mergeFetchedAgentSessions(prev, sessions)))
@@ -936,7 +936,7 @@ export function useGlobalAgentListeners(): void {
           } else if (event.type === 'permission_mode_changed') {
             // 权限模式变更（如 Plan 模式退出后切换到完全自动）
             console.log(`[GlobalAgentListeners] 权限模式变更: ${event.mode}`)
-            store.set(agentPermissionModeMapAtom, (prev: Map<string, import('@luxagents/shared').LuxAgentsPermissionMode>) => {
+            store.set(agentPermissionModeMapAtom, (prev: Map<string, import('@luxcodex/shared').LuxCodexPermissionMode>) => {
               const next = new Map(prev)
               next.set(sessionId, event.mode)
               return next

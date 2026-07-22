@@ -2,11 +2,11 @@
  * 联网搜索工具模块（Chat 模式）
  *
  * 基于 Tavily Search API 提供实时联网搜索能力。
- * 凭据存储在 ~/.luxagents/chat-tools.json 的 toolCredentials 中。
+ * 凭据存储在 ~/.luxcodex/chat-tools.json 的 toolCredentials 中。
  */
 
-import type { ToolCall, ToolResult, ToolDefinition } from '@luxagents/core'
-import type { ChatToolMeta } from '@luxagents/shared'
+import type { ToolCall, ToolResult, ToolDefinition } from '@luxcodex/core'
+import type { ChatToolMeta } from '@luxcodex/shared'
 import { getToolCredentials } from '../chat-tool-config'
 import {
   formatSearchResults,

@@ -1,9 +1,9 @@
 /**
- * 该模块实现已迁移至 @luxagents/session-core（headless 核心，纯函数）。
+ * 该模块实现已迁移至 @luxcodex/session-core（headless 核心，纯函数）。
  * 保留此文件为 re-export shim，使既有 `from './thinking-tag-parser'` 导入方零改动。
  */
 export {
   normalizeThinkTagsInContentBlocks,
   parseThinkTagsFromText,
   splitThinkTagsInTextBlock,
-} from '@luxagents/session-core'
+} from '@luxcodex/session-core'

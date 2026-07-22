@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test'
 import { createStore } from 'jotai/vanilla'
-import type { AgentSessionMeta } from '@luxagents/shared'
+import type { AgentSessionMeta } from '@luxcodex/shared'
 import {
   kanbanItemsAtom,
   kanbanNotificationsAtom,
