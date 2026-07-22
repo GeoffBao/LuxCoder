@@ -261,10 +261,10 @@ export function FileDropZone({ workspaceSlug, sessionId, target = 'session', onF
 
   const zoneClass = (side: 'left' | 'right'): string =>
     cn(
-      'flex-1 flex flex-col items-center justify-center gap-1 rounded-lg px-2 py-2.5 transition-colors duration-200 cursor-pointer',
+      'file-drop-zone flex-1 flex flex-col items-center justify-center gap-1 rounded-lg px-2 py-2.5 transition-colors duration-200 cursor-pointer',
       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50',
       isDragOver === side
-        ? 'bg-primary/25 ring-2 ring-primary/50'
+        ? 'file-drop-zone-active bg-primary/25 ring-2 ring-primary/50'
         : 'bg-muted/40 hover:bg-muted/70',
       isUploading && 'pointer-events-none opacity-60',
     )
@@ -277,7 +277,7 @@ export function FileDropZone({ workspaceSlug, sessionId, target = 'session', onF
   }
 
   return (
-    <div className="flex gap-2 px-3 pt-2 pb-1.5 flex-shrink-0">
+    <div className="file-drop-zone-group flex gap-2 px-3 pt-2 pb-1.5 flex-shrink-0">
       {isUploading ? (
         <div className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] text-muted-foreground">
           <Loader2 className="size-3.5 animate-spin" />

@@ -2550,6 +2550,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
   const inputToolbarItems = React.useMemo<ToolbarItem[]>(() => [
     {
       key: 'model',
+      kind: 'context',
       node: (
         <ModelSelector
           filterChannelIds={sessionAgentRuntime === 'pi' ? undefined : agentChannelIds}
@@ -2561,6 +2562,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     },
     ...(isCodexFastModeAvailable ? [{
       key: 'codex-fast-mode',
+      kind: 'context' as const,
       node: (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -2583,6 +2585,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     }] : []),
     {
       key: 'runtime',
+      kind: 'context',
       node: (
         <AgentRuntimeSelector
           runtime={sessionAgentRuntime}
@@ -2591,9 +2594,10 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         />
       ),
     },
-    { key: 'permission-mode', node: <PermissionModeSelector sessionId={sessionId} /> },
+    { key: 'permission-mode', kind: 'context', node: <PermissionModeSelector sessionId={sessionId} /> },
     {
       key: 'thinking',
+      kind: 'context',
       node: (
         <AgentThinkingPopover
           agentThinking={agentThinking}
@@ -2612,9 +2616,10 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         />
       ),
     },
-    { key: 'speech', node: <SpeechButton className={inputToolbarButtonClass} /> },
+    { key: 'speech', kind: 'tool', node: <SpeechButton className={inputToolbarButtonClass} /> },
     {
       key: 'attach-file',
+      kind: 'tool',
       node: (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -2636,6 +2641,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     },
     {
       key: 'attach-folder',
+      kind: 'tool',
       node: (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -2657,6 +2663,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     },
     {
       key: 'context-usage',
+      kind: 'status',
       node: (
         <ContextUsageBadge
           inputTokens={contextStatus.inputTokens}
@@ -2753,7 +2760,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
   return (
     <>
     <AgentSessionProvider sessionId={sessionId}>
-      <div className="flex h-full min-h-0 flex-1 min-w-0 max-w-[min(72rem,100%)] flex-col overflow-hidden mx-auto">
+      <div className="agent-workbench flex h-full min-h-0 flex-1 min-w-0 max-w-[min(72rem,100%)] flex-col overflow-hidden mx-auto">
         {/* Agent Header */}
         <AgentHeader sessionId={sessionId} />
 
@@ -2794,7 +2801,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         <div className="px-2.5 pb-2.5 md:px-[18px] md:pb-[18px]" data-input-mode="agent">
           <div
             className={cn(
-              'rounded-[17px] border-[0.5px] border-border bg-background/70 backdrop-blur-sm transition-all duration-200',
+              'agent-composer-polished rounded-[17px] border-[0.5px] border-border bg-background/70 backdrop-blur-sm transition-all duration-200',
               (isPlanMode || isPermissionPlanMode) && !isDragOver && 'plan-mode-border',
               isDragOver && 'border-[2px] border-dashed border-[#2ecc71] bg-[#2ecc71]/[0.03]'
             )}
@@ -2912,7 +2919,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
             />
 
             {/* Footer 工具栏 — 容器变窄时尾部按钮自动折叠进「更多」Popover */}
-            <InputToolbarOverflow items={inputToolbarItems} trailing={inputTrailingNode} />
+            <InputToolbarOverflow className="agent-input-toolbar" items={inputToolbarItems} trailing={inputTrailingNode} />
           </div>
         </div>
         )}

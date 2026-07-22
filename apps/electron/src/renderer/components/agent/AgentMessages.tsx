@@ -133,13 +133,13 @@ function AssistantLogo({ model }: { model?: string }): React.ReactElement {
       <img
         src={getModelLogo(model, resolveModelProvider(model, channels))}
         alt={model}
-        className="size-[35px] rounded-[25%] object-cover"
+        className="size-[30px] rounded-[9px] object-cover"
       />
     )
   }
   return (
-    <div className="size-[35px] rounded-[25%] bg-primary/10 flex items-center justify-center">
-      <Bot size={18} className="text-primary" />
+    <div className="flex size-[30px] items-center justify-center rounded-[9px] bg-primary/10">
+      <Bot size={16} className="text-primary" />
     </div>
   )
 }
@@ -663,7 +663,7 @@ export function AgentMessages({ sessionId, sessionModelId, messagesLoaded, persi
               {/* 不使用 mt：ConversationContent 的 gap-1(4px) 已提供间距，
                   匹配内部 MessageActions 的 gap-0.5(2px)+mt-0.5(2px)=4px 间距 */}
               {hasLiveAssistantContent && !suppressAgentRunning && (
-                <div className="pl-[56px] min-h-[28px]">
+                <div className="min-h-[28px] pl-[50px]">
                   {retrying && <RetryingNotice retrying={retrying} />}
                   {streaming && <AgentRunningIndicator startedAt={startedAt} />}
                 </div>

@@ -17,6 +17,7 @@ import {
   Trash2,
   RefreshCw,
   ExternalLink,
+  FolderOpen,
   FolderSearch,
   MoreHorizontal,
   FolderInput,
@@ -299,13 +300,14 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, onAddT
   }, [rootPath])
 
   const fileTree = (
-    <div className="file-tree-guide-scope py-1" onClick={handleBackgroundClick}>
+    <div className="inspector-file-tree file-tree-guide-scope py-1" onClick={handleBackgroundClick}>
       {error && (
         <div className="px-3 py-2 text-xs text-destructive">{error}</div>
       )}
       {!error && entries.length === 0 && !loading && !hideEmpty && (
-        <div className="px-3 py-4 text-xs text-muted-foreground text-center">
-          目录为空
+        <div className="file-tree-empty mx-2 flex flex-col items-center gap-1.5 rounded-lg px-3 py-5 text-center text-muted-foreground">
+          <FolderOpen className="size-5 opacity-35" />
+          <span className="text-[11px]">目录为空</span>
         </div>
       )}
       {entries.map((entry) => (

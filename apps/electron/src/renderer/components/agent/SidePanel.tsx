@@ -421,7 +421,7 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
   return (
     <div
       className={cn(
-        'relative z-0 h-full flex-shrink-0 overflow-hidden titlebar-drag-region bg-content-area',
+        'refined-inspector relative z-0 h-full flex-shrink-0 overflow-hidden titlebar-drag-region bg-content-area',
         isClassic && 'rounded-2xl shadow-xl dark:shadow-md',
         shouldAnimate && 'transition-[width] duration-300 ease-in-out',
         isOpen ? '' : '!w-0',
@@ -473,10 +473,10 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
               <div className="flex-1 flex items-center justify-center text-muted-foreground text-xs">等待会话初始化...</div>
             )
           ) : effectiveActiveTab === 'session' ? (
-            <div className="flex-1 min-h-0 flex flex-col pt-0.5 mx-2 mb-2">
+            <div className="inspector-file-panel flex-1 min-h-0 flex flex-col pt-0.5 mx-2 mb-2">
               {sessionPath ? (
                 <>
-                  <div className="flex items-center gap-1 px-2 h-[32px] flex-shrink-0">
+                  <div className="inspector-file-heading flex items-center gap-1 px-2 h-[32px] flex-shrink-0">
                     <FolderOpen className="size-3 text-muted-foreground" />
                     <span className="text-[11px] font-medium text-muted-foreground">会话文件</span>
                     <Tooltip>
@@ -561,8 +561,8 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
             </div>
           ) : (
             <div className="flex-1 min-h-0 flex flex-col pt-0.5">
-              <div className="flex-1 min-h-0 flex flex-col mx-2 mb-2">
-                <div className="flex items-center gap-1 px-2 h-[32px] flex-shrink-0">
+              <div className="inspector-file-panel flex-1 min-h-0 flex flex-col mx-2 mb-2">
+                <div className="inspector-file-heading flex items-center gap-1 px-2 h-[32px] flex-shrink-0">
                   <FolderHeart className="size-3 text-muted-foreground" />
                   <span className="text-[11px] font-medium text-muted-foreground">工作区文件</span>
                   <Tooltip>

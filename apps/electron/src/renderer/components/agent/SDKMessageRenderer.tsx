@@ -132,7 +132,7 @@ function PermissionDeniedNotice({ message }: { message: SDKSystemMessage }): Rea
   const reason = typeof message.decision_reason === 'string' ? message.decision_reason : undefined
 
   return (
-    <div className="my-3 pl-[46px] pr-1">
+    <div className="my-3 pl-[40px] pr-1">
       <div className="flex items-start gap-2.5 rounded-md border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 text-xs text-foreground/80">
         <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-amber-500" />
         <div className="min-w-0 space-y-1">
@@ -189,7 +189,7 @@ function CompactStatusNotice({ message, active = false }: { message: SDKSystemMe
   if (compactStatus === 'failed') {
     const error = typeof message.compact_error === 'string' ? message.compact_error : undefined
     return (
-      <div className="my-3 pl-[46px] pr-1">
+      <div className="my-3 pl-[40px] pr-1">
         <div className="flex items-start gap-2.5 rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2.5 text-xs text-foreground/80">
           <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-destructive" />
           <div className="min-w-0 space-y-1">
@@ -278,13 +278,13 @@ function AssistantLogo({ model }: { model?: string }): React.ReactElement {
       <img
         src={getModelLogo(model, resolveModelProvider(model, channels))}
         alt={model}
-        className="size-[35px] rounded-[25%] object-cover"
+        className="size-[30px] rounded-[9px] object-cover"
       />
     )
   }
   return (
-    <div className="size-[35px] rounded-[25%] bg-primary/10 flex items-center justify-center">
-      <Bot size={18} className="text-primary" />
+    <div className="flex size-[30px] items-center justify-center rounded-[9px] bg-primary/10">
+      <Bot size={16} className="text-primary" />
     </div>
   )
 }
@@ -590,7 +590,7 @@ export function AssistantTurnRenderer({ turn, allMessages, basePath, onFork, onR
         const hasDuration = durationMs != null
         if (!hasDuration && !hasActions && !showStoppedBadge) return null
         return (
-          <MessageActions className="pl-[46px] mt-0.5 min-h-[28px] justify-start">
+          <MessageActions className="mt-0.5 min-h-[28px] justify-start pl-[40px]">
             {hasDuration && <DurationBadge durationMs={durationMs!} usage={usage} />}
             {textContent && <CopyButton content={textContent} />}
             {onFork && lastUuid && (
@@ -974,10 +974,10 @@ function UserInputMessage({ message }: { message: SDKUserMessage }): React.React
 
   return (
     <Message from="user">
-      <div className="flex items-start gap-2.5 mb-2.5">
-        <UserAvatar avatar={userProfile.avatar} size={35} />
-        <div className="flex flex-col justify-between h-[35px]">
-          <span className="text-sm font-semibold text-foreground/60 leading-none">{userProfile.userName}</span>
+      <div className="mb-2 flex items-start gap-2.5">
+        <UserAvatar avatar={userProfile.avatar} size={30} />
+        <div className="flex h-[30px] flex-col justify-between py-px">
+          <span className="text-[13px] font-medium text-foreground/65 leading-none">{userProfile.userName}</span>
           {(meta.createdAt || isScheduledRun) && (
             <span className="flex items-center gap-2 leading-none">
               {meta.createdAt && (
@@ -1034,7 +1034,7 @@ function UserInputMessage({ message }: { message: SDKUserMessage }): React.React
         />
       )}
       {text && (
-        <MessageActions className="pl-[46px] mt-0.5">
+        <MessageActions className="mt-0.5 pl-[40px]">
           <CopyButton content={text} />
         </MessageActions>
       )}
@@ -1295,8 +1295,8 @@ function ErrorMessage({ message, onRetry, onRetryInNewSession, onCompact }: Erro
         model={undefined}
         time={meta.createdAt ? formatMessageTime(meta.createdAt) : undefined}
         logo={
-          <div className="size-[35px] rounded-[25%] bg-destructive/10 flex items-center justify-center">
-            <AlertTriangle size={18} className="text-destructive" />
+          <div className="flex size-[30px] items-center justify-center rounded-[9px] bg-destructive/10">
+            <AlertTriangle size={16} className="text-destructive" />
           </div>
         }
       />
@@ -1309,7 +1309,7 @@ function ErrorMessage({ message, onRetry, onRetryInNewSession, onCompact }: Erro
           standalone
         />
       </MessageContent>
-      <MessageActions className="pl-[46px] mt-0.5">
+      <MessageActions className="mt-0.5 pl-[40px]">
         <CopyButton content={copyText} />
       </MessageActions>
     </Message>

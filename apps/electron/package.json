@@ -1,6 +1,6 @@
 {
   "name": "@luxcoder/electron",
-  "version": "0.1.91",
+  "version": "0.1.92",
   "description": "LuxCoder next gen ai software with general agents - Electron App",
   "main": "dist/main.cjs",
   "author": {

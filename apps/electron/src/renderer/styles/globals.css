@@ -79,8 +79,8 @@
    * 深色态额外加 inset 顶高光来制造"浮起"感（弥补黑底缺乏自然阴影的问题）。
    */
   :root {
-    --radius: 0.375rem;
-    --radius-cap: 6px;
+    --radius: 0.625rem;
+    --radius-cap: 10px;
     --radius-xl-extra: 2px;
     --radius-2xl-extra: 4px;
     --shadow-xs: 0 1px 1px 0 rgb(0 0 0 / 0.04);
@@ -573,7 +573,9 @@
 
 .sidebar-control-surface {
   background-color: hsl(var(--sidebar-control-surface));
-  box-shadow: inset 0 0 0 0.5px hsl(var(--sidebar-control-stroke));
+  box-shadow:
+    inset 0 1px 0 hsl(var(--foreground) / 0.035),
+    0 1px 2px rgb(0 0 0 / 0.035);
 }
 
 .sidebar-control-surface:hover {
@@ -1007,12 +1009,11 @@
 }
 
 .main-tabbar .app-tab-active::after {
-  left: 5px;
-  right: 5px;
-  height: 3px;
-  border-radius: 0;
+  left: 12px;
+  right: 12px;
+  height: 2px;
+  border-radius: 999px;
   background-color: hsl(var(--tab-indicator));
-  box-shadow: 0 0 10px hsl(var(--tab-indicator) / 0.28);
   z-index: 2;
 }
 
@@ -1031,6 +1032,529 @@
 :root:not(.ui-classic) [class*="rounded-3xl"]:not([class*="rounded-full"]),
 :root:not(.ui-classic) [class*="rounded-["]:not([class*="rounded-full"]) {
   border-radius: var(--radius-cap);
+}
+
+/* ===== 现代工作台视觉层级 =====
+ * 主题决定色彩，以下规则只负责材质、空间和交互反馈。
+ * 使用低对比 hairline 与表面高光取代厚重边框，避免主题色被改写。
+ */
+:root:not(.ui-classic) .refined-shell {
+  background: hsl(var(--background));
+}
+
+:root:not(.ui-classic) .refined-sidebar {
+  background: hsl(var(--sidebar-surface) / 0.94);
+  box-shadow: inset -1px 0 0 hsl(var(--foreground) / 0.045);
+}
+
+/* 左栏采用逐级缩进与材质差异建立信息层级，不改变主题色。 */
+:root:not(.ui-classic) .sidebar-module-zone + .sidebar-module-zone {
+  padding-top: 1px;
+}
+
+:root:not(.ui-classic) .sidebar-module-row {
+  min-height: 34px;
+  border-radius: 9px;
+}
+
+:root:not(.ui-classic) .sidebar-module-row:not(.sidebar-module-row-active):not(:hover) {
+  color: hsl(var(--foreground) / 0.62);
+}
+
+:root:not(.ui-classic) .sidebar-section-heading {
+  margin-top: 5px;
+  padding-top: 9px;
+  box-shadow: inset 0 1px 0 hsl(var(--foreground) / 0.045);
+}
+
+:root:not(.ui-classic) .sidebar-section-label {
+  color: hsl(var(--foreground) / 0.42);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+}
+
+:root:not(.ui-classic) .sidebar-workspace-group {
+  padding-block: 2px;
+}
+
+:root:not(.ui-classic) .sidebar-workspace-header > button {
+  min-height: 28px;
+}
+
+:root:not(.ui-classic) .sidebar-workspace-content {
+  position: relative;
+  margin-left: 14px;
+  padding-left: 7px;
+}
+
+:root:not(.ui-classic) .sidebar-workspace-content::before {
+  position: absolute;
+  inset-block: 2px 4px;
+  left: 0;
+  width: 1px;
+  border-radius: 999px;
+  background: hsl(var(--foreground) / 0.055);
+  content: '';
+  pointer-events: none;
+}
+
+:root:not(.ui-classic) .sidebar-project-group + .sidebar-project-group {
+  margin-top: 2px;
+}
+
+:root:not(.ui-classic) .sidebar-project-header > button {
+  min-height: 24px;
+}
+
+:root:not(.ui-classic) .sidebar-project-sessions {
+  margin-top: 1px;
+  margin-left: 9px;
+}
+
+:root:not(.ui-classic) .session-quick-switch-row {
+  min-height: 28px;
+  border-radius: 8px;
+}
+
+:root:not(.ui-classic) .session-quick-switch-row.session-item-selected,
+:root:not(.ui-classic) .session-quick-switch-row.agent-session-item-active {
+  box-shadow:
+    inset 0 0 0 0.5px hsl(var(--foreground) / 0.055),
+    0 1px 2px rgb(0 0 0 / 0.035);
+}
+
+:root:not(.ui-classic) .sidebar-footer {
+  padding-top: 7px;
+  box-shadow: inset 0 1px 0 hsl(var(--foreground) / 0.045);
+}
+
+:root:not(.ui-classic) .sidebar-profile-row {
+  min-height: 44px;
+  background: hsl(var(--foreground) / 0.018);
+}
+
+:root:not(.ui-classic) .refined-content {
+  background: hsl(var(--content-area));
+  box-shadow: inset 0 1px 0 hsl(var(--foreground) / 0.025);
+}
+
+:root:not(.ui-classic) .refined-inspector {
+  background: hsl(var(--sidebar-surface) / 0.88);
+  box-shadow: inset 1px 0 0 hsl(var(--foreground) / 0.045);
+  backdrop-filter: blur(18px) saturate(1.08);
+}
+
+:root:not(.ui-classic) .refined-inspector .inspector-file-panel {
+  border-radius: 10px;
+  background: hsl(var(--content-area) / 0.2);
+}
+
+:root:not(.ui-classic) .refined-inspector .inspector-file-heading {
+  color: hsl(var(--foreground) / 0.62);
+}
+
+:root:not(.ui-classic) .refined-inspector .file-search-container {
+  margin-bottom: 5px;
+}
+
+:root:not(.ui-classic) .refined-inspector .file-search-field {
+  height: 30px;
+  border-radius: 8px;
+  background: hsl(var(--foreground) / 0.035);
+  box-shadow: inset 0 0 0 0.5px hsl(var(--foreground) / 0.04);
+}
+
+:root:not(.ui-classic) .refined-inspector .file-search-field:focus-within {
+  border-color: hsl(var(--ring) / 0.28);
+  background: hsl(var(--content-area) / 0.66);
+  box-shadow:
+    0 0 0 3px hsl(var(--ring) / 0.065),
+    inset 0 0 0 0.5px hsl(var(--foreground) / 0.045);
+}
+
+:root:not(.ui-classic) .refined-inspector .file-search-results {
+  border-color: hsl(var(--foreground) / 0.085);
+  background: hsl(var(--popover) / 0.96);
+  box-shadow:
+    0 14px 34px -18px rgb(0 0 0 / 0.38),
+    0 3px 10px -6px rgb(0 0 0 / 0.2);
+  backdrop-filter: blur(18px) saturate(1.08);
+}
+
+:root:not(.ui-classic) .refined-inspector .inspector-file-tree .file-tree-row {
+  height: 30px;
+}
+
+:root:not(.ui-classic) .refined-inspector .inspector-file-tree .file-tree-row > span:first-child {
+  border-radius: 8px;
+}
+
+:root:not(.ui-classic) .refined-inspector .file-tree-empty {
+  color: hsl(var(--foreground) / 0.38);
+  background: hsl(var(--foreground) / 0.018);
+  box-shadow: inset 0 0 0 0.5px hsl(var(--foreground) / 0.045);
+}
+
+:root:not(.ui-classic) .refined-inspector .file-drop-zone-group {
+  gap: 6px;
+  padding-top: 8px;
+}
+
+:root:not(.ui-classic) .refined-inspector .file-drop-zone {
+  min-width: 0;
+  min-height: 54px;
+  border-radius: 9px;
+  background: hsl(var(--foreground) / 0.024);
+  box-shadow: inset 0 0 0 0.5px hsl(var(--foreground) / 0.055);
+}
+
+:root:not(.ui-classic) .refined-inspector .file-drop-zone:hover {
+  background: hsl(var(--foreground) / 0.045);
+  box-shadow: inset 0 0 0 0.5px hsl(var(--foreground) / 0.085);
+}
+
+:root:not(.ui-classic) .refined-inspector .file-drop-zone.file-drop-zone-active,
+:root:not(.ui-classic) .refined-inspector .file-drop-zone.file-drop-zone-active:hover {
+  background: hsl(var(--primary) / 0.16);
+  box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.34);
+}
+
+:root:not(.ui-classic) .refined-inspector .file-drop-zone > span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:root:not(.ui-classic) .agent-header-polished {
+  background: linear-gradient(
+    to bottom,
+    hsl(var(--content-area) / 0.96),
+    hsl(var(--content-area) / 0.82)
+  );
+  box-shadow: 0 1px 0 hsl(var(--foreground) / 0.045);
+  backdrop-filter: blur(16px) saturate(1.06);
+}
+
+:root:not(.ui-classic) .agent-composer-polished {
+  border-color: hsl(var(--foreground) / 0.09);
+  background: hsl(var(--input-surface) / 0.88) !important;
+  box-shadow:
+    0 12px 30px -18px rgb(0 0 0 / 0.28),
+    0 3px 10px -6px rgb(0 0 0 / 0.16),
+    inset 0 1px 0 hsl(var(--foreground) / 0.045);
+  backdrop-filter: blur(20px) saturate(1.12);
+}
+
+:root:not(.ui-classic) .agent-composer-polished:focus-within {
+  border-color: hsl(var(--ring) / 0.34);
+  box-shadow:
+    0 14px 34px -18px rgb(0 0 0 / 0.32),
+    0 0 0 3px hsl(var(--ring) / 0.08),
+    inset 0 1px 0 hsl(var(--foreground) / 0.055);
+}
+
+:root:not(.ui-classic) .agent-input-toolbar {
+  height: 46px;
+  padding-inline: 9px;
+  box-shadow: inset 0 1px 0 hsl(var(--foreground) / 0.035);
+}
+
+:root:not(.ui-classic) .agent-input-toolbar .input-toolbar-item {
+  position: relative;
+}
+
+:root:not(.ui-classic) .agent-input-toolbar .input-toolbar-item[data-toolbar-group-start='true'] {
+  margin-left: 3px;
+  padding-left: 9px;
+}
+
+:root:not(.ui-classic) .agent-input-toolbar .input-toolbar-item[data-toolbar-group-start='true']::before {
+  position: absolute;
+  top: 7px;
+  bottom: 7px;
+  left: 0;
+  width: 1px;
+  background: hsl(var(--foreground) / 0.07);
+  content: '';
+}
+
+:root:not(.ui-classic) .agent-input-toolbar .input-toolbar-item[data-toolbar-kind='context'] button:not(.input-toolbar-active) {
+  color: hsl(var(--foreground) / 0.68);
+}
+
+:root:not(.ui-classic) .agent-input-toolbar .input-toolbar-item[data-toolbar-kind='tool'] button {
+  color: hsl(var(--foreground) / 0.48);
+}
+
+:root:not(.ui-classic) .agent-input-toolbar .input-toolbar-item[data-toolbar-kind='tool'] button:hover {
+  color: hsl(var(--foreground) / 0.82);
+}
+
+:root:not(.ui-classic) .agent-input-toolbar .input-toolbar-send {
+  border-radius: 10px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  box-shadow:
+    0 3px 8px -4px hsl(var(--primary) / 0.7),
+    inset 0 1px 0 hsl(var(--primary-foreground) / 0.18);
+}
+
+:root:not(.ui-classic) .agent-input-toolbar .input-toolbar-send:hover {
+  background: hsl(var(--primary) / 0.9);
+  color: hsl(var(--primary-foreground));
+}
+
+:root:not(.ui-classic) .agent-input-toolbar .input-toolbar-send-disabled {
+  border-radius: 10px;
+  background: hsl(var(--foreground) / 0.035);
+  color: hsl(var(--foreground) / 0.24);
+}
+
+:root:not(.ui-classic) .agent-input-toolbar .input-toolbar-stop {
+  border-radius: 10px;
+  background: hsl(var(--destructive) / 0.09);
+  box-shadow: inset 0 0 0 0.5px hsl(var(--destructive) / 0.15);
+}
+
+:root:not(.ui-classic) .user-message-bubble {
+  max-width: min(86%, 52rem);
+  color: hsl(var(--foreground) / 0.92);
+  box-shadow:
+    inset 0 0 0 0.5px hsl(var(--foreground) / 0.055),
+    inset 0 1px 0 hsl(var(--foreground) / 0.03);
+}
+
+:root:not(.ui-classic) .message-item.is-assistant {
+  background: transparent;
+}
+
+:root:not(.ui-classic) .message-item:hover .message-time {
+  color: hsl(var(--foreground) / 0.5);
+}
+
+/* 长报告阅读样式：以排版和留白分层，避免块级元素全部卡片化。 */
+:root:not(.ui-classic) .message-response {
+  color: hsl(var(--foreground) / 0.82);
+  font-optical-sizing: auto;
+  text-wrap: pretty;
+}
+
+:root:not(.ui-classic) .message-response :is(h1, h2, h3) {
+  color: hsl(var(--foreground) / 0.94);
+  font-weight: 680;
+  text-wrap: balance;
+}
+
+:root:not(.ui-classic) .message-response h1 {
+  margin-top: 1.55em;
+  margin-bottom: 0.65em;
+  letter-spacing: -0.03em;
+}
+
+:root:not(.ui-classic) .message-response h2 {
+  margin-top: 1.45em;
+  margin-bottom: 0.55em;
+  padding-bottom: 0.32em;
+  border-bottom: 1px solid hsl(var(--foreground) / 0.065);
+}
+
+:root:not(.ui-classic) .message-response h3 {
+  margin-top: 1.25em;
+  margin-bottom: 0.45em;
+}
+
+:root:not(.ui-classic) .message-response p {
+  max-width: 76ch;
+}
+
+:root:not(.ui-classic) .message-response :is(ul, ol) {
+  margin-block: 0.55em;
+  padding-inline-start: 1.45em;
+}
+
+:root:not(.ui-classic) .message-response li::marker {
+  color: hsl(var(--foreground) / 0.38);
+}
+
+:root:not(.ui-classic) .message-response blockquote {
+  margin-block: 1em;
+  padding: 0.15em 0 0.15em 1em;
+  border-left: 2px solid hsl(var(--primary) / 0.42);
+  color: hsl(var(--foreground) / 0.66);
+  font-style: normal;
+}
+
+:root:not(.ui-classic) .message-response blockquote p {
+  margin-block: 0.4em;
+}
+
+:root:not(.ui-classic) .message-response hr {
+  border-color: hsl(var(--foreground) / 0.07);
+}
+
+:root:not(.ui-classic) .message-response .code-block-wrapper {
+  margin-block: 0.9em;
+  border-color: transparent;
+  box-shadow:
+    0 8px 24px -18px rgb(0 0 0 / 0.32),
+    inset 0 0 0 0.5px hsl(var(--foreground) / 0.08);
+}
+
+:root:not(.ui-classic) .message-response .code-block-wrapper > div:first-child {
+  background: hsl(var(--muted) / 0.48);
+  box-shadow: inset 0 -1px 0 hsl(var(--foreground) / 0.055);
+}
+
+:root:not(.ui-classic) .markdown-table-scroll {
+  max-width: 100%;
+  margin-block: 1em;
+  overflow-x: auto;
+  border-radius: 9px;
+  box-shadow: inset 0 0 0 0.5px hsl(var(--foreground) / 0.09);
+  scrollbar-width: thin;
+}
+
+:root:not(.ui-classic) .markdown-table-scroll table {
+  width: 100%;
+  min-width: 32rem;
+  border-collapse: collapse;
+  font-size: 0.9em;
+  line-height: 1.5;
+}
+
+:root:not(.ui-classic) .markdown-table-scroll :is(th, td) {
+  padding: 0.65em 0.8em;
+  border-bottom: 1px solid hsl(var(--foreground) / 0.065);
+  text-align: left;
+  vertical-align: top;
+}
+
+:root:not(.ui-classic) .markdown-table-scroll th {
+  background: hsl(var(--foreground) / 0.025);
+  color: hsl(var(--foreground) / 0.72);
+  font-size: 0.92em;
+  font-weight: 650;
+}
+
+:root:not(.ui-classic) .markdown-table-scroll tr:last-child td {
+  border-bottom: 0;
+}
+
+:root:not(.ui-classic) .message-time {
+  transition: color 140ms ease-out;
+}
+
+@media (prefers-contrast: more) {
+  :root:not(.ui-classic) .user-message-bubble,
+  :root:not(.ui-classic) .process-block-group > button {
+    box-shadow: inset 0 0 0 1px hsl(var(--foreground) / 0.24);
+  }
+}
+
+:root:not(.ui-classic) .mode-switcher-track {
+  box-shadow:
+    inset 0 0 0 0.5px hsl(var(--foreground) / 0.055),
+    inset 0 1px 1px hsl(var(--foreground) / 0.025);
+}
+
+:root:not(.ui-classic) .mode-switcher-track .mode-slider {
+  box-shadow:
+    0 1px 3px rgb(0 0 0 / 0.09),
+    inset 0 1px 0 hsl(var(--foreground) / 0.04);
+}
+
+:root:not(.ui-classic) .primary-view-switcher {
+  height: 40px;
+  background: hsl(var(--tabbar-surface) / 0.72);
+  box-shadow: inset 0 -1px 0 hsl(var(--foreground) / 0.04);
+  backdrop-filter: blur(16px) saturate(1.06);
+}
+
+:root:not(.ui-classic) .view-switcher-control {
+  box-shadow: inset 0 0 0 0.5px hsl(var(--foreground) / 0.06);
+}
+
+:root:not(.ui-classic) .view-switcher-option-active {
+  box-shadow:
+    0 1px 3px rgb(0 0 0 / 0.08),
+    inset 0 1px 0 hsl(var(--foreground) / 0.04);
+}
+
+:root:not(.ui-classic) .workspace-tabbar {
+  background: hsl(var(--tabbar-surface) / 0.42);
+  box-shadow: inset 0 -1px 0 hsl(var(--foreground) / 0.035);
+}
+
+:root:not(.ui-classic) .workspace-tabbar .app-tab-active {
+  background: hsl(var(--content-area) / 0.68);
+}
+
+:root:not(.ui-classic) .inspector-tabbar {
+  background: hsl(var(--sidebar-surface) / 0.58);
+  box-shadow: inset 0 -1px 0 hsl(var(--foreground) / 0.035);
+  backdrop-filter: blur(16px) saturate(1.04);
+}
+
+:root:not(.ui-classic) .inspector-tabbar-control {
+  box-shadow: inset 0 0 0 0.5px hsl(var(--foreground) / 0.055);
+}
+
+:root:not(.ui-classic) .inspector-tabbar .inspector-tab {
+  border-color: transparent !important;
+  color: hsl(var(--muted-foreground) / 0.78);
+}
+
+:root:not(.ui-classic) .inspector-tabbar .inspector-tab.app-tab-active {
+  background: hsl(var(--content-area) / 0.82);
+  color: hsl(var(--foreground) / 0.84);
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.07),
+    inset 0 1px 0 hsl(var(--foreground) / 0.035);
+}
+
+:root:not(.ui-classic) .inspector-tabbar .app-tab-active::after,
+:root:not(.ui-classic) .inspector-tabbar .app-tab-inactive::after {
+  display: none;
+}
+
+:root:not(.ui-classic) .agent-workbench button,
+:root:not(.ui-classic) .refined-sidebar button,
+:root:not(.ui-classic) .refined-inspector button {
+  transition-property: color, background-color, border-color, opacity, box-shadow, transform;
+  transition-duration: 140ms;
+  transition-timing-function: ease-out;
+}
+
+:root:not(.ui-classic) .agent-workbench button:active:not(:disabled),
+:root:not(.ui-classic) .refined-sidebar button:active:not(:disabled),
+:root:not(.ui-classic) .refined-inspector button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not(.ui-classic) .agent-workbench button,
+  :root:not(.ui-classic) .refined-sidebar button,
+  :root:not(.ui-classic) .refined-inspector button {
+    transition-duration: 0ms;
+  }
+
+  :root:not(.ui-classic) .agent-workbench button:active:not(:disabled),
+  :root:not(.ui-classic) .refined-sidebar button:active:not(:disabled),
+  :root:not(.ui-classic) .refined-inspector button:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root:not(.ui-classic) .refined-inspector,
+  :root:not(.ui-classic) .primary-view-switcher,
+  :root:not(.ui-classic) .inspector-tabbar,
+  :root:not(.ui-classic) .agent-header-polished,
+  :root:not(.ui-classic) .agent-composer-polished {
+    backdrop-filter: none;
+  }
 }
 
 /* 经典界面：视觉规则对齐 upstream。 */

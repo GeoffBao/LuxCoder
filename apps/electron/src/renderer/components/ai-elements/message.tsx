@@ -55,7 +55,7 @@ export function Message({ className, from, ...props }: MessageProps): React.Reac
   return (
     <div
       className={cn(
-        'message-item group flex w-full flex-col gap-0.5 rounded-[10px] px-2.5 py-2.5',
+        'message-item group flex w-full flex-col gap-0.5 rounded-[10px] px-2.5 py-3',
         from === 'user' ? 'is-user' : 'is-assistant',
         className
       )}
@@ -87,19 +87,19 @@ export function MessageHeader({
   return (
     <div
       className={cn(
-        'flex items-start gap-2.5 mb-2.5',
+        'message-header flex items-start gap-2.5 mb-2',
         'group-[.is-user]:hidden',
         className
       )}
       {...props}
     >
       {logo && (
-        <div className="flex size-[35px] shrink-0 items-center justify-center overflow-hidden rounded-[25%]">
+        <div className="flex size-[30px] shrink-0 items-center justify-center overflow-hidden rounded-[9px]">
           {logo}
         </div>
       )}
-      <div className="flex flex-col justify-between h-[35px]">
-        {model && <span className="text-sm font-semibold text-foreground/60 leading-none">{model}</span>}
+      <div className="flex h-[30px] flex-col justify-between py-px">
+        {model && <span className="text-[13px] font-medium text-foreground/65 leading-none">{model}</span>}
         {time && <span className="message-time text-[10px] text-foreground/[0.38] leading-none">{time}</span>}
       </div>
       {children}
@@ -113,8 +113,8 @@ type MessageContentProps = HTMLAttributes<HTMLDivElement>
 
 /**
  * 消息内容区域
- * - user 消息：pl-[46px] 与头像对齐 + 浅色气泡背景
- * - assistant 消息：pl-[46px] 与头像对齐
+ * - user 消息：pl-[40px] 与头像对齐 + 浅色气泡背景
+ * - assistant 消息：pl-[40px] 与头像对齐
  */
 export function MessageContent({
   children,
@@ -124,7 +124,7 @@ export function MessageContent({
   return (
     <div
       className={cn(
-        'flex max-w-full min-w-0 flex-col gap-2 overflow-hidden pl-[46px]',
+        'message-body flex max-w-full min-w-0 flex-col gap-2 overflow-hidden pl-[40px]',
         'group-[.is-user]:text-foreground group-[.is-user]:items-start',
         'group-[.is-assistant]:w-full group-[.is-assistant]:text-foreground',
         className
@@ -501,6 +501,18 @@ const MarkdownPre = React.memo(function MarkdownPre({
   return <CodeBlock>{preChildren}</CodeBlock>
 })
 
+/** 表格增加独立横向滚动容器，长报告在窄窗口中不挤压正文。 */
+const MarkdownTable = React.memo(function MarkdownTable({
+  children: tableChildren,
+  ...tableProps
+}: React.TableHTMLAttributes<HTMLTableElement>): React.ReactElement {
+  return (
+    <div className="markdown-table-scroll not-prose">
+      <table {...tableProps}>{tableChildren}</table>
+    </div>
+  )
+})
+
 /** 行内代码 / 文件路径渲染器 */
 const MarkdownInlineCode = React.memo(function MarkdownInlineCode({
   children: codeChildren,
@@ -574,6 +586,7 @@ export const MessageResponse = React.memo(
     const components = React.useMemo(() => ({
       a: MarkdownLink,
       pre: MarkdownPre,
+      table: MarkdownTable,
       code: (props: React.HTMLAttributes<HTMLElement>) => (
         <MarkdownInlineCode {...props} basePath={basePath} basePaths={basePaths} />
       ),
@@ -582,8 +595,11 @@ export const MessageResponse = React.memo(
     return (
       <div
         className={cn(
-          'prose dark:prose-invert max-w-none text-[length:var(--md-preview-font-size,15px)]',
-          'prose-p:my-1.5 prose-p:leading-[1.6] prose-li:leading-[1.6] prose-pre:my-0 prose-headings:my-2 prose-hr:my-3',
+          'message-response prose dark:prose-invert max-w-none text-[length:var(--md-preview-font-size,15px)]',
+          'prose-p:my-1.5 prose-p:leading-[1.65] prose-li:leading-[1.6] prose-pre:my-0 prose-headings:my-3 prose-hr:my-4',
+          'prose-h1:text-[1.7em] prose-h1:leading-[1.15] prose-h1:tracking-[-0.025em]',
+          'prose-h2:text-[1.35em] prose-h2:leading-[1.25] prose-h2:tracking-[-0.015em]',
+          'prose-h3:text-[1.12em] prose-h3:leading-[1.35]',
           '[&_.code-block-wrapper+.code-block-wrapper]:mt-4',
           '[&>*:first-child]:mt-0 [&>*:last-child]:mb-0',
           className
@@ -647,7 +663,7 @@ export const UserMessageContent = React.memo(
     }, [])
 
     return (
-      <div className={cn('relative inline-block max-w-full rounded-[10px] bg-primary/10 px-3.5 py-2.5', className)} {...props}>
+      <div className={cn('user-message-bubble relative inline-block max-w-full rounded-[12px] bg-secondary/75 px-3.5 py-2.5', className)} {...props}>
         <div
           ref={contentRef}
           className={cn(

@@ -71,14 +71,24 @@ export function DiffPanelTabBar({
   }
 
   return (
-    <div className="flex items-end h-[34px] tabbar-bg relative flex-shrink-0">
+    <div className={cn(
+      'relative flex flex-shrink-0 tabbar-bg',
+      isClassic ? 'h-[34px] items-end' : 'inspector-tabbar h-[40px] items-center px-2',
+    )}>
       <div className={cn("absolute inset-0 titlebar-drag-region", isWindows && WINDOW_CONTROLS_INSET_RIGHT)} />
-      <div className="relative flex items-end flex-1 titlebar-no-drag">
+      <div className={cn(
+        'relative flex flex-1 titlebar-no-drag',
+        isClassic
+          ? 'h-[34px] items-end'
+          : 'inspector-tabbar-control h-7 items-stretch rounded-lg bg-foreground/[0.04] p-0.5',
+      )}>
         <button
           type="button"
           onClick={() => onTabChange('session')}
           className={cn(
-            'flex-1 px-3 h-[34px] text-xs transition-colors select-none cursor-pointer whitespace-nowrap overflow-hidden',
+            isClassic
+              ? 'h-[34px] flex-1 overflow-hidden whitespace-nowrap px-3 text-xs transition-colors select-none cursor-pointer'
+              : 'inspector-tab flex-1 overflow-hidden whitespace-nowrap rounded-md px-2 text-[11px] font-medium transition-colors select-none cursor-pointer',
             isClassic ? 'rounded-t-lg' : 'rounded-none',
             'border-t border-l border-r',
             activeTab === 'session'
@@ -96,7 +106,9 @@ export function DiffPanelTabBar({
           type="button"
           onClick={() => onTabChange('workspace')}
           className={cn(
-            'flex-1 px-3 h-[34px] text-xs transition-colors select-none cursor-pointer whitespace-nowrap overflow-hidden',
+            isClassic
+              ? 'h-[34px] flex-1 overflow-hidden whitespace-nowrap px-3 text-xs transition-colors select-none cursor-pointer'
+              : 'inspector-tab flex-1 overflow-hidden whitespace-nowrap rounded-md px-2 text-[11px] font-medium transition-colors select-none cursor-pointer',
             isClassic ? 'rounded-t-lg' : 'rounded-none',
             'border-t border-l border-r',
             activeTab === 'workspace'
@@ -114,7 +126,9 @@ export function DiffPanelTabBar({
           type="button"
           onClick={handleChangesClick}
           className={cn(
-            'flex-1 px-3 h-[34px] text-xs transition-colors select-none cursor-pointer relative whitespace-nowrap overflow-hidden',
+            isClassic
+              ? 'relative h-[34px] flex-1 overflow-hidden whitespace-nowrap px-3 text-xs transition-colors select-none cursor-pointer'
+              : 'inspector-tab relative flex-1 overflow-hidden whitespace-nowrap rounded-md px-2 text-[11px] font-medium transition-colors select-none cursor-pointer',
             isClassic ? 'rounded-t-lg' : 'rounded-none',
             'border-t border-l border-r',
             activeTab === 'changes'
@@ -136,7 +150,9 @@ export function DiffPanelTabBar({
         {showChatTab && (
           <div
             className={cn(
-              'flex-1 h-[34px] text-xs transition-colors select-none relative whitespace-nowrap overflow-hidden',
+              isClassic
+                ? 'relative h-[34px] flex-1 overflow-hidden whitespace-nowrap text-xs transition-colors select-none'
+                : 'inspector-tab relative flex-1 overflow-hidden whitespace-nowrap rounded-md text-[11px] font-medium transition-colors select-none',
               isClassic ? 'rounded-t-lg' : 'rounded-none',
               'border-t border-l border-r',
               activeTab === 'chat'
@@ -176,7 +192,10 @@ export function DiffPanelTabBar({
               <button
                 type="button"
                 onClick={onClose}
-                className="flex items-center justify-center size-[28px] mr-1 mb-[3px] rounded text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors shrink-0"
+                className={cn(
+                  'flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground',
+                  isClassic ? 'mb-[3px] mr-1' : 'ml-1',
+                )}
               >
                 <PanelRightClose className="size-4" />
               </button>

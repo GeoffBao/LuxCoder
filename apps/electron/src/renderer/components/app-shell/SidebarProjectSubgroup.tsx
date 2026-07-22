@@ -64,8 +64,8 @@ export function SidebarProjectSubgroup({
   }, [selected])
 
   return (
-    <div ref={rootRef} className="flex flex-col">
-      <div className="group/subproject relative flex items-center">
+    <div ref={rootRef} className="sidebar-project-group flex flex-col">
+      <div className="sidebar-project-header group/subproject relative flex items-center">
         <button
           type="button"
           aria-expanded={!collapsed}
@@ -130,7 +130,7 @@ export function SidebarProjectSubgroup({
         </Tooltip>
       </div>
       {!collapsed && group.sessions.length > 0 && (
-        <div id={`subproject-sessions-${group.project.id}`} className="ml-3 flex flex-col gap-0.5">
+        <div id={`subproject-sessions-${group.project.id}`} className="sidebar-project-sessions ml-3 flex flex-col gap-0.5">
           {group.sessions.map((session) => {
             const rowStatus = agentIndicatorMap.get(session.id) ?? 'idle'
             return (

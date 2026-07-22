@@ -221,7 +221,7 @@ export function MainArea(): React.ReactElement {
     <>
       <Panel
         variant="grow"
-        className={cn('bg-content-area', isClassic && 'rounded-2xl shadow-xl dark:shadow-sm')}
+        className={cn('refined-content bg-content-area', isClassic && 'rounded-2xl shadow-xl dark:shadow-sm')}
       >
         <div className="flex flex-1 min-h-0 relative overflow-hidden" data-split-container>
           {/* 左侧：TabBar + TabContent（始终保持在同一 DOM 位置，避免 Tab 切换时 unmount）

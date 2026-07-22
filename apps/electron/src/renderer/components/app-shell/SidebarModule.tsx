@@ -130,7 +130,8 @@ export function SidebarModule({
   )
 
   const rowClass = cn(
-    'flex w-full items-center justify-between rounded-md px-3 py-2 text-[13px] transition-colors duration-100 titlebar-no-drag',
+    'sidebar-module-row flex w-full items-center justify-between rounded-md px-3 py-2 text-[13px] transition-colors duration-100 titlebar-no-drag',
+    active && 'sidebar-module-row-active',
     active
       ? 'bg-accent-foreground/[0.10] text-foreground shadow-[0_1px_2px_0_rgba(0,0,0,0.05)]'
       : 'text-foreground/60 hover:bg-accent-foreground/[0.08] hover:text-foreground',

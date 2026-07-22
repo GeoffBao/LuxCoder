@@ -31,6 +31,8 @@ export interface ToolbarItem {
   key: string
   /** 行内渲染的节点（建议是 36px 圆角矩形按钮或带文本的紧凑按钮） */
   node: React.ReactNode
+  /** 视觉分组：只影响工具栏层级，不改变折叠顺序。 */
+  kind?: 'context' | 'tool' | 'status'
 }
 
 interface InputToolbarOverflowProps {
@@ -162,7 +164,7 @@ export function InputToolbarOverflow({
   return (
     <div
       className={cn(
-        'flex items-center justify-between px-2 py-1 h-[48px] gap-4',
+        'input-toolbar flex items-center justify-between px-2 py-1 h-[48px] gap-4',
         className
       )}
     >
@@ -170,8 +172,14 @@ export function InputToolbarOverflow({
         ref={containerRef}
         className="flex items-center gap-1.5 flex-1 min-w-0 overflow-hidden"
       >
-        {visibleItems.map((it) => (
-          <div key={it.key} ref={setItemRef(it.key)} className="shrink-0 flex items-center">
+        {visibleItems.map((it, index) => (
+          <div
+            key={it.key}
+            ref={setItemRef(it.key)}
+            data-toolbar-kind={it.kind}
+            data-toolbar-group-start={index > 0 && it.kind !== visibleItems[index - 1]?.kind ? 'true' : undefined}
+            className="input-toolbar-item shrink-0 flex items-center"
+          >
             {it.node}
           </div>
         ))}
@@ -202,8 +210,13 @@ export function InputToolbarOverflow({
               onOpenAutoFocus={(e) => e.preventDefault()}
             >
               <div className="flex items-center gap-1.5">
-                {overflowItems.map((it) => (
-                  <div key={it.key} className="shrink-0 flex items-center">
+                {overflowItems.map((it, index) => (
+                  <div
+                    key={it.key}
+                    data-toolbar-kind={it.kind}
+                    data-toolbar-group-start={index > 0 && it.kind !== overflowItems[index - 1]?.kind ? 'true' : undefined}
+                    className="input-toolbar-item shrink-0 flex items-center"
+                  >
                     {it.node}
                   </div>
                 ))}

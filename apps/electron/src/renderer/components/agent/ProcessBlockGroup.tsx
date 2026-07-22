@@ -278,12 +278,12 @@ export function ProcessBlockGroup({ blocks, isStreaming, isMessageTail = false, 
     })
 
   return (
-    <div className="space-y-1.5">
+    <div className="process-block-group space-y-1.5">
       <button
         type="button"
         className={cn(
-          'flex max-w-full items-center gap-2 py-0.5 text-left transition-opacity group',
-          'hover:opacity-70',
+          'group flex w-fit max-w-full items-center gap-2 rounded-full bg-muted/35 px-2.5 py-1 text-left',
+          'text-muted-foreground transition-[background-color,color,opacity] hover:bg-muted/60 hover:text-foreground/75',
         )}
         onClick={() => {
           userToggledRef.current = true
@@ -298,7 +298,7 @@ export function ProcessBlockGroup({ blocks, isStreaming, isMessageTail = false, 
             expanded && 'rotate-90',
           )}
         />
-        <span className="min-w-0 truncate text-[14px] text-muted-foreground">{summary}</span>
+        <span className="min-w-0 truncate text-[12px] font-medium">{summary}</span>
         {collapseCountdown !== null && (
           <span className="shrink-0 text-[12px] tabular-nums text-muted-foreground/50">
             （{collapseCountdown}）

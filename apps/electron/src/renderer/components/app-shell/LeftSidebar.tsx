@@ -2419,7 +2419,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         ref={sidebarRootRef}
         data-session-switch-hints={quickSwitchHintsVisible ? 'true' : undefined}
         className={cn(
-          'relative h-full flex flex-col items-center px-2',
+          'refined-sidebar relative h-full flex flex-col items-center px-2',
           !noTransition && 'transition-[width] duration-300',
           isClassic
             ? 'bg-background rounded-2xl shadow-xl dark:shadow-md'
@@ -2665,6 +2665,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       data-session-switch-hints={quickSwitchHintsVisible ? 'true' : undefined}
       className={cn(
         'relative h-full flex flex-col',
+        'refined-sidebar',
         !noTransition && 'transition-[width] duration-300',
         isClassic
           ? 'bg-background rounded-2xl shadow-xl dark:shadow-md'
@@ -2718,7 +2719,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       </div>
 
       {/* 自动任务入口：作为任务中心入口放在置顶区上方，不参与置顶列表层级。 */}
-      <div className="px-3 pt-2 pb-0.5">
+      <div className="sidebar-module-zone px-3 pt-2 pb-0.5">
         <SidebarModule
           icon={AlarmClock}
           title="自动任务"
@@ -2736,7 +2737,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
       {/* Agent 技能入口：Skills / MCP 能力中心，仅 Agent 模式可见 */}
       {mode === 'agent' && (
-        <div className="px-3 pb-0.5">
+        <div className="sidebar-module-zone px-3 pb-0.5">
           <SidebarModule
             icon={Blocks}
             title="Agent 技能"
@@ -2751,7 +2752,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
       {/* Agent 专家入口：领域角色壳，仅 Agent 模式可见 */}
       {mode === 'agent' && (
-        <div className="px-3 pb-0.5">
+        <div className="sidebar-module-zone px-3 pb-0.5">
           <SidebarModule
             icon={Bot}
             title="Agent 专家"
@@ -2764,7 +2765,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       )}
 
       {/* 项目中心入口：Hub 全屏视图，模块区末项 */}
-      <div className="px-3 pb-1 titlebar-no-drag">
+      <div className="sidebar-module-zone px-3 pb-1 titlebar-no-drag">
         <SidebarProjectsSection count={currentWorkspaceProjects.length} />
       </div>
 
@@ -2918,8 +2919,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
           )}
 
           {/* 下区标题：工作区历史 */}
-          <div className="px-2 pt-2 pb-1 flex items-center justify-between flex-shrink-0">
-            <span className="px-1.5 text-[11px] font-medium text-foreground/40 select-none">工作区</span>
+          <div className="sidebar-section-heading px-2 pt-2 pb-1 flex items-center justify-between flex-shrink-0">
+            <span className="sidebar-section-label px-1.5 text-[11px] font-medium text-foreground/40 select-none">工作区</span>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -2936,7 +2937,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
           </div>
 
           {/* 下区：工作区分组历史 */}
-          <div className="flex-1 overflow-y-auto px-2 pb-3 scrollbar-thin min-h-0 titlebar-no-drag">
+          <div className="sidebar-workspace-list flex-1 overflow-y-auto px-2 pb-3 scrollbar-thin min-h-0 titlebar-no-drag">
             {creatingProject && (
               <div className="flex items-center gap-2 px-2 py-1.5 mb-1 rounded-md bg-foreground/[0.04]">
                 <FolderOpen size={14} className="flex-shrink-0 text-foreground/40" />
@@ -3160,8 +3161,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       </div>
 
       {/* 底部：用户资料 + 设置入口 */}
-      <div className="px-3 pb-3">
-        <div className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-foreground/70 transition-colors titlebar-no-drag hover:bg-foreground/[0.04] hover:text-foreground">
+      <div className="sidebar-footer px-3 pb-3">
+        <div className="sidebar-profile-row flex items-center gap-2 rounded-[10px] px-3 py-2 text-foreground/70 transition-colors titlebar-no-drag hover:bg-foreground/[0.04] hover:text-foreground">
           <button
             onClick={handleOpenSettings}
             className="min-w-0 flex flex-1 items-center gap-3 text-left"
@@ -3656,13 +3657,13 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
       onDragLeave={onDragLeave}
       onDrop={(e) => onDrop(e, group.workspace.id)}
       onDragEnd={onDragEnd}
-      className={cn('relative py-0.5 rounded-md transition-opacity', dragging && 'opacity-45')}
+      className={cn('sidebar-workspace-group relative py-0.5 rounded-md transition-opacity', dragging && 'opacity-45')}
     >
       {dropPosition === 'before' && (
         <div className="absolute -top-0.5 left-3 right-3 h-0.5 rounded-full bg-primary z-10" />
       )}
 
-      <div className="group/project relative flex items-center">
+      <div className="sidebar-workspace-header group/project relative flex items-center">
         <span
           draggable
           onDragStart={(e) => onDragStart(e, group.workspace.id)}
@@ -3801,7 +3802,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
         )}
       </div>
 
-      <div id={`project-sessions-${group.workspace.id}`} className="ml-4 mt-px">
+      <div id={`project-sessions-${group.workspace.id}`} className="sidebar-workspace-content ml-4 mt-px">
         {!collapsed ? (
           treeItems.length > 0 || projectGroups.length > 0 ? (
             <div className="flex flex-col gap-0.5">

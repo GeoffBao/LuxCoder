@@ -147,15 +147,15 @@ export function StickyUserMessage({ userMessages }: StickyUserMessageProps): Rea
           : 'opacity-0 -translate-y-2 pointer-events-none'
       )}
     >
-      {/* 复用 ConversationContent(px-8) + Message(px-2.5) 的 padding 链，保证与内容区等宽 */}
-      <div className="mx-8 px-2.5 pt-2">
+      {/* 复用 ConversationContent + Message 的 padding 链，保证与内容区等宽 */}
+      <div className="mx-5 px-2.5 pt-2 md:mx-8">
         <div
-          className="sticky-user-banner ml-[46px] rounded-xl bg-[hsl(var(--input-surface))] shadow-sm cursor-pointer hover:bg-accent/50 transition-colors"
+          className="sticky-user-banner ml-[40px] cursor-pointer rounded-xl bg-[hsl(var(--input-surface))]/90 shadow-md backdrop-blur-xl transition-colors hover:bg-accent/50"
           onClick={scrollToOriginal}
         >
           <div className="px-3.5 py-2.5">
             {/* 头部：头像 + 用户名 + 提示 */}
-            <div className="flex items-center gap-2 mb-1">
+            <div className="mb-1 flex items-center gap-2">
               <UserAvatar avatar={userProfile.avatar} size={18} />
               <span className="text-xs font-medium text-foreground/60">{userProfile.userName}</span>
               <ChevronUp className="size-3 text-muted-foreground ml-auto" />

@@ -219,9 +219,9 @@ export function FileSearchBar({
   if (!hasAnyRoot) return null
 
   return (
-    <div ref={containerRef} className="relative mx-2 flex-shrink-0">
+    <div ref={containerRef} className="file-search-container relative mx-2 flex-shrink-0">
       {/* 搜索输入框 */}
-      <div className="flex items-center gap-1.5 px-2 h-7 rounded-md bg-muted/40 border border-transparent focus-within:border-primary/40 focus-within:bg-muted/70 transition-colors">
+      <div className="file-search-field flex items-center gap-1.5 px-2 h-7 rounded-md bg-muted/40 border border-transparent focus-within:border-primary/40 focus-within:bg-muted/70 transition-colors">
         {searching ? (
           <Loader2 className="size-3 text-muted-foreground flex-shrink-0 animate-spin" />
         ) : (
@@ -244,7 +244,7 @@ export function FileSearchBar({
 
       {/* 结果浮层（绝对定位，不影响布局） */}
       {isOpen && results.length > 0 && (
-        <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-lg border bg-popover shadow-lg overflow-hidden">
+        <div className="file-search-results absolute left-0 right-0 top-full mt-1 z-50 rounded-lg border bg-popover shadow-lg overflow-hidden">
           <div className="max-h-[200px] overflow-y-auto scrollbar-thin">
             {/* 会话文件分组 */}
             {sessionResults.length > 0 && (

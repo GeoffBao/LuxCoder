@@ -35,8 +35,8 @@ export function CodeMainViewSwitcher(): React.ReactElement {
   }
 
   return (
-    <div className="titlebar-drag-region flex h-[34px] flex-shrink-0 items-center px-3">
-      <div className="titlebar-no-drag flex items-center gap-0.5 rounded-lg bg-foreground/[0.05] p-0.5">
+    <div className="primary-view-switcher titlebar-drag-region flex h-[34px] flex-shrink-0 items-center px-3.5">
+      <div className="view-switcher-control titlebar-no-drag flex items-center gap-0.5 rounded-xl bg-foreground/[0.05] p-0.5">
         {OPTIONS.map((option) => (
           <button
             key={option.id}
@@ -44,9 +44,9 @@ export function CodeMainViewSwitcher(): React.ReactElement {
             aria-pressed={mainView === option.id}
             onClick={() => handleSelect(option.id)}
             className={cn(
-              'flex items-center gap-1 rounded-md px-2.5 py-1 text-[12px] transition-colors',
+              'view-switcher-option flex h-7 items-center gap-1.5 rounded-lg px-3 text-[12px] font-medium transition-colors',
               mainView === option.id
-                ? 'bg-background text-foreground shadow-sm'
+                ? 'view-switcher-option-active bg-background text-foreground'
                 : 'text-foreground/50 hover:text-foreground/80',
             )}
           >
