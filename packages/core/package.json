@@ -1,6 +1,6 @@
 {
   "name": "@luxcoder/core",
-  "version": "0.1.8",
+  "version": "0.1.7",
   "license": "AGPL-3.0-only",
   "description": "LuxCoder core types,storage and core logic with agents",
   "type": "module",
