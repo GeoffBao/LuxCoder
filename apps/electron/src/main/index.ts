@@ -336,12 +336,12 @@ function createWindow(): void {
   const isMac = process.platform === 'darwin'
   const isWindows = process.platform === 'win32'
 
+  // 不启用 vibrancy：渲染层全部平涂不透明背景（对齐 Cursor 的 flat 视觉），
+  // 半透明系统材质只会在窗口圆角缝隙处漏出杂色。
   const titleBarOptions = isMac
     ? {
         titleBarStyle: 'hiddenInset' as const,
         trafficLightPosition: { x: 18, y: 18 },
-        vibrancy: 'under-window' as const,
-        visualEffectState: 'followWindow' as const,
       }
     : isWindows
       ? { titleBarStyle: 'hidden' as const }

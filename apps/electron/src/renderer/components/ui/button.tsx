@@ -5,25 +5,26 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  // 基础：更柔顺的圆角、全属性过渡、按下回弹、聚焦双层光晕；保留原 svg 尺寸约定
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-[transform,background-color,box-shadow,border-color,color] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 active:scale-[0.97] [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 select-none",
+  // 基础：扁平安静（对齐 Cursor / macOS：按下只换色不形变、无立体阴影），保留原 svg 尺寸约定
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-[background-color,border-color,color,opacity] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 select-none",
   {
     variants: {
       variant: {
-        // default：顶部 1px 内高光（白色 8% 透明）+ 底部柔阴影 + 1px 暗描边，模拟 Linear/Vercel/Conductor 的"立体片状"按钮质感
+        // default：唯一的实心按钮，纯色平涂，hover/active 仅调不透明度
         default:
-          "bg-primary text-primary-foreground shadow-[inset_0_1px_0_0_hsl(0_0%_100%/0.10),0_1px_2px_0_rgb(0_0_0/0.18),0_0_0_1px_rgb(0_0_0/0.06)] hover:bg-primary/92 hover:shadow-[inset_0_1px_0_0_hsl(0_0%_100%/0.14),0_2px_4px_-1px_rgb(0_0_0/0.22),0_0_0_1px_rgb(0_0_0/0.08)] active:shadow-[inset_0_1px_2px_0_rgb(0_0_0/0.18)]",
+          "bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80",
         destructive:
-          "bg-destructive text-destructive-foreground shadow-[inset_0_1px_0_0_hsl(0_0%_100%/0.12),0_1px_2px_0_rgb(0_0_0/0.18)] hover:bg-destructive/92 hover:shadow-[inset_0_1px_0_0_hsl(0_0%_100%/0.16),0_2px_4px_-1px_rgb(0_0_0/0.22)]",
-        // outline：背景半透明 + hairline 边框 + 极浅阴影，hover 时边框与背景同时加深
+          "bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80",
+        // outline：hairline 描边 + 透明底，hover 时浮出浅墨水填充
         outline:
-          "border border-border/60 bg-background/80 text-foreground shadow-[0_1px_1px_0_rgb(0_0_0/0.04)] hover:bg-accent/80 hover:border-border hover:text-accent-foreground hover:shadow-[0_1px_2px_0_rgb(0_0_0/0.06)]",
+          "border border-foreground/10 bg-transparent text-foreground hover:bg-foreground/[0.05] hover:border-foreground/15",
+        // secondary：浅墨水填充，hover 加深一档
         secondary:
-          "bg-secondary text-secondary-foreground shadow-[inset_0_1px_0_0_hsl(0_0%_100%/0.04),0_1px_1px_0_rgb(0_0_0/0.04)] hover:bg-secondary/80 hover:shadow-[inset_0_1px_0_0_hsl(0_0%_100%/0.06),0_1px_2px_0_rgb(0_0_0/0.06)]",
-        // ghost：无阴影，hover 仅替换背景，避免和实体按钮抢戏
-        ghost: "hover:bg-accent/70 hover:text-accent-foreground",
-        // link：纯文字按钮，关闭 scale 反馈以免视觉错位
-        link: "text-primary underline-offset-4 hover:underline active:scale-100",
+          "bg-foreground/[0.05] text-foreground hover:bg-foreground/[0.08] active:bg-foreground/10",
+        // ghost：无底，hover 仅浮出浅墨水
+        ghost: "hover:bg-foreground/[0.06] hover:text-foreground",
+        // link：纯文字按钮
+        link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
         default: "h-9 px-4 py-2",
