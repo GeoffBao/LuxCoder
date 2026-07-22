@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from 'bun:test'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { getProjectWorkdirPath } from '../../../../../packages/shared/src/projects/storage.ts'
 import { ProjectRepository } from './project-repository'
 
 const tempRoots: string[] = []
@@ -127,10 +128,12 @@ describe('ProjectRepository', () => {
 
   test('AtRoot API 解析 workingDirectory 与 dropStatusId', () => {
     const root = createTempWorkspaceRoot()
+    const external = join(createTempWorkspaceRoot(), 'repo')
+    mkdirSync(external)
     const repository = createRepository({ 'ws-alpha': root })
     const created = repository.createProjectAtRoot(root, {
       name: 'Kanban Proj',
-      workingDirectory: '/repo/app',
+      workingDirectory: external,
     })
     repository.updateProjectAtRoot(root, created.config.slug, {
       kanbanColumns: [
@@ -139,9 +142,37 @@ describe('ProjectRepository', () => {
       ],
     })
 
-    expect(repository.resolveWorkingDirectory(root, created.config.id)).toBe('/repo/app')
+    expect(repository.resolveWorkingDirectory(root, created.config.id)).toBe(external)
+    expect(repository.resolveEffectiveCwdForProject(root, created.config.id)).toEqual({
+      status: 'external',
+      cwd: external,
+      displayPath: external,
+    })
     expect(repository.resolveDropStatusId(root, created.config.id, 'doing')).toBe('coding')
     expect(repository.resolveDropStatusId(root, created.config.id, 'todo')).toBeUndefined()
     expect(repository.buildPromptContext(root, created.config.id)?.name).toBe('Kanban Proj')
+  })
+
+  test('无外部目录时 resolveWorkingDirectory 返回托管 workdir', () => {
+    const root = createTempWorkspaceRoot()
+    const repository = createRepository({ 'ws-alpha': root })
+    const created = repository.createProjectAtRoot(root, { name: 'Managed Only' })
+    const workdir = getProjectWorkdirPath(root, created.config.slug)
+
+    expect(repository.resolveWorkingDirectory(root, created.config.id)).toBe(workdir)
+    expect(repository.resolveEffectiveCwdForProject(root, created.config.id)?.status).toBe('managed')
+  })
+
+  test('外部目录不可用时 resolveWorkingDirectory 为 undefined，requireRunnable 抛错', () => {
+    const root = createTempWorkspaceRoot()
+    const repository = createRepository({ 'ws-alpha': root })
+    const created = repository.createProjectAtRoot(root, {
+      name: 'Missing Ext',
+      workingDirectory: join(root, 'does-not-exist'),
+    })
+
+    expect(repository.resolveWorkingDirectory(root, created.config.id)).toBeUndefined()
+    expect(repository.resolveEffectiveCwdForProject(root, created.config.id)?.status).toBe('unavailable')
+    expect(() => repository.requireRunnableWorkingDirectory(root, created.config.id)).toThrow(/重新定位/)
   })
 })

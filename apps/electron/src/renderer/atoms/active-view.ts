@@ -5,7 +5,7 @@
  * - conversations: 对话视图（Chat/Agent 模式内容）
  * - automations: 定时任务列表视图
  * - agent-skills: Agent 技能（Skills/MCP）全屏管理视图
- * - projects: 项目中心全屏视图
+ * - projects: 遗留值（项目中心已移除；运行时回退到 conversations）
  * - agent-experts: Agent 专家全屏视图
  */
 

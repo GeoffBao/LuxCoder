@@ -66,11 +66,13 @@ describe('projects package contracts', () => {
       'deleteProject',
       'deleteProjectAsset',
       'ensureProjectAssetsDir',
+      'ensureProjectWorkdir',
       'ensureProjectsDir',
       'generateProjectSlug',
       'getProjectAssetsPath',
       'getProjectMemoryPath',
       'getProjectPath',
+      'getProjectWorkdirPath',
       'getWorkspaceProjectsPath',
       'listProjectAssets',
       'loadProject',
@@ -242,5 +244,16 @@ describe('workspace project storage', () => {
     projectStorage.writeProjectMemory(workspaceRoot, project.slug, '# 项目记忆\n第二次');
     expect(projectStorage.readProjectMemory(workspaceRoot, project.slug)).toBe('# 项目记忆\n第二次');
     expect(existsSync(`${projectStorage.getProjectMemoryPath(workspaceRoot, project.slug)}.tmp`)).toBe(false);
+  });
+
+  test('createProject 确保 projects/{slug}/workdir/ 存在且与 assets 分离', () => {
+    const workspaceRoot = createTempWorkspaceRoot();
+    const project = projectStorage.createProject(workspaceRoot, { name: 'AI Dev' });
+    const workdir = projectStorage.getProjectWorkdirPath(workspaceRoot, project.slug);
+    const assets = projectStorage.getProjectAssetsPath(workspaceRoot, project.slug);
+    expect(existsSync(workdir)).toBe(true);
+    expect(workdir.endsWith(`${project.slug}/workdir`)).toBe(true);
+    expect(assets.includes('/assets')).toBe(true);
+    expect(workdir).not.toBe(assets);
   });
 });

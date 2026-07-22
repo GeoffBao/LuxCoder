@@ -96,6 +96,19 @@ export function buildTaskEditorSubmission(
   }
 }
 
+/** Task 创建前校验：必须绑定 Project */
+export function validateTaskDraft(draft: Pick<TaskEditorDraft, 'projectId' | 'title'> & {
+  subtasks?: Array<{ prompt: string }>
+}): { ok: true } | { ok: false; error: string } {
+  if (!draft.projectId?.trim()) return { ok: false, error: '请选择项目' }
+  if (!draft.title?.trim()) return { ok: false, error: '请输入任务标题' }
+  if (draft.subtasks && draft.subtasks.length === 0) return { ok: false, error: '至少需要一个子任务' }
+  if (draft.subtasks?.some((subtask) => !subtask.prompt.trim())) {
+    return { ok: false, error: '每个子任务都需要执行提示' }
+  }
+  return { ok: true }
+}
+
 export function resolveGeneratedTaskEvent(
   event: TaskGeneratedEventPayload,
   workspaceId: string,

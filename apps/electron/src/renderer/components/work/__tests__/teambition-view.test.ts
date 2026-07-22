@@ -1,7 +1,16 @@
 import { describe, expect, test } from 'bun:test'
-import { buildClaimIdempotencyKey, resolveTeambitionSyncBadge } from '../teambition-view'
+import { buildClaimIdempotencyKey, planTeambitionClaim, resolveTeambitionSyncBadge } from '../teambition-view'
 
 describe('Teambition view model', () => {
+  test('Teambition claim 无 localProjectId 时要求选择，取消则不导入', () => {
+    expect(planTeambitionClaim({ localProjectId: undefined, userPicked: null })).toEqual({ kind: 'abort' })
+    expect(planTeambitionClaim({ localProjectId: undefined })).toEqual({ kind: 'need_pick' })
+    expect(planTeambitionClaim({ localProjectId: undefined, userPicked: 'proj-1' })).toEqual({
+      kind: 'proceed',
+      localProjectId: 'proj-1',
+    })
+  })
+
   test('相同 workspace/session/remote task 生成稳定认领幂等键', () => {
     expect(buildClaimIdempotencyKey('workspace-a', 'session-1', 'TW-1')).toBe(
       buildClaimIdempotencyKey('workspace-a', 'session-1', 'TW-1'),

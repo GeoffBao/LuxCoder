@@ -3,6 +3,7 @@ import { TaskSpecSchema } from '@luxcoder/shared/tasks/schema'
 export interface QuickTaskDraft {
   title: string
   goal: string
+  projectId: string
 }
 
 export interface QuickTaskCreateRequest {
@@ -19,7 +20,7 @@ export type SubmitQuickTaskResult =
   | { ok: true; draft: QuickTaskDraft }
   | { ok: false; draft: QuickTaskDraft; error: string }
 
-export const EMPTY_QUICK_TASK_DRAFT: QuickTaskDraft = { title: '', goal: '' }
+export const EMPTY_QUICK_TASK_DRAFT: QuickTaskDraft = { title: '', goal: '', projectId: '' }
 
 function slugify(value: string): string {
   return value
@@ -33,6 +34,8 @@ function slugify(value: string): string {
 export function buildQuickTaskRequest(draft: QuickTaskDraft, fallbackId: string): QuickTaskCreateRequest {
   const title = draft.title.trim()
   const goal = draft.goal.trim()
+  const projectId = draft.projectId.trim()
+  if (!projectId) throw new Error('请选择项目')
   if (!title) throw new Error('请输入任务标题')
   if (!goal) throw new Error('请输入任务目标')
 
@@ -40,6 +43,7 @@ export function buildQuickTaskRequest(draft: QuickTaskDraft, fallbackId: string)
     id: slugify(title) || slugify(fallbackId) || 'quick-task',
     title,
     goal,
+    project: projectId,
     nodes: [{ id: 'execute', title: '执行任务', prompt: goal }],
   })
   // JSON 是 YAML 1.2 的合法子集，避免 renderer 额外引入序列化依赖。

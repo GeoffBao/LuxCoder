@@ -25,6 +25,11 @@ import {
 } from '../../../../../packages/shared/src/projects/storage.ts'
 import { getAgentWorkspace } from './agent-workspace-manager'
 import { getAgentWorkspacePath } from './config-paths'
+import {
+  assertRunnableCwd,
+  resolveEffectiveCwd,
+  type EffectiveCwdResult,
+} from './project-path-service'
 
 const WorkspaceIdSchema = z.string().min(1, 'workspaceId 必填')
 const ProjectSlugSchema = z.string().regex(/^[a-z0-9][a-z0-9-]*$/, 'project slug 必须是 URL-safe slug')
@@ -191,10 +196,30 @@ export class ProjectRepository {
     writeProjectMemoryInStorage(workspaceRoot, this.parseProjectSlug(projectSlug), content)
   }
 
-  /** 解析项目绑定的工作目录；projectId 可为 id 或 slug */
+  /** 解析项目有效工作目录（托管 workdir 或可访问的外部主目录）；不可用时返回 undefined */
   resolveWorkingDirectory(workspaceRoot: string, projectId?: string): string | undefined {
+    const result = this.resolveEffectiveCwdForProject(workspaceRoot, projectId)
+    if (!result || result.status === 'unavailable') return undefined
+    return result.cwd
+  }
+
+  /** 查询 Project 有效 cwd 与路径状态（含 unavailable，供 UI / 运行前校验） */
+  resolveEffectiveCwdForProject(
+    workspaceRoot: string,
+    projectId?: string,
+  ): EffectiveCwdResult | null {
+    if (!projectId) return null
+    const loaded = this.getProjectAtRoot(workspaceRoot, projectId)
+    if (!loaded) return null
+    return resolveEffectiveCwd(workspaceRoot, loaded.config)
+  }
+
+  /** 运行前断言有效 cwd；不可用主目录不静默回退 */
+  requireRunnableWorkingDirectory(workspaceRoot: string, projectId?: string): string | undefined {
     if (!projectId) return undefined
-    return this.getProjectAtRoot(workspaceRoot, projectId)?.config.workingDirectory
+    const result = this.resolveEffectiveCwdForProject(workspaceRoot, projectId)
+    if (!result) return undefined
+    return assertRunnableCwd(result)
   }
 
   /** 解析列拖入时自动应用的 sessionStatus */

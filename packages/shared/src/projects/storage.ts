@@ -125,6 +125,18 @@ export function ensureProjectAssetsDir(workspaceRootPath: string, projectSlug: s
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 }
 
+/** 项目托管 workdir 路径（与 assets / config 分离） */
+export function getProjectWorkdirPath(workspaceRootPath: string, projectSlug: string): string {
+  return join(getProjectPath(workspaceRootPath, projectSlug), 'workdir');
+}
+
+/** 确保项目托管 workdir 存在 */
+export function ensureProjectWorkdir(workspaceRootPath: string, projectSlug: string): string {
+  const dir = getProjectWorkdirPath(workspaceRootPath, projectSlug);
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
 // ============================================================
 // Config CRUD
 // ============================================================
@@ -265,6 +277,7 @@ export function createProject(workspaceRootPath: string, input: CreateProjectInp
 
   saveProjectConfig(workspaceRootPath, config);
   ensureProjectAssetsDir(workspaceRootPath, slug);
+  ensureProjectWorkdir(workspaceRootPath, slug);
   return config;
 }
 

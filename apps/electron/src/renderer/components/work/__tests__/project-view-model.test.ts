@@ -4,7 +4,9 @@ import {
   buildProjectUpdate,
   buildCreateProjectInput,
   filterProjects,
+  formatEffectiveCwdSummary,
   getProjectSessions,
+  PROJECT_HOME_TABS,
 } from '../project-view-model'
 import type { KanbanProject } from '../../app-shell/kanban/types'
 
@@ -17,6 +19,20 @@ const projects: KanbanProject[] = [
 function session(id: string, projectId?: string, archived?: boolean): AgentSessionMeta {
   return { id, title: id, projectId, archived, createdAt: 1, updatedAt: 1 }
 }
+
+describe('PROJECT_HOME_TABS', () => {
+  test('project home tabs 顺序为 overview/sessions/tasks/assets', () => {
+    expect(PROJECT_HOME_TABS.map((t) => t.id)).toEqual([
+      'overview', 'sessions', 'tasks', 'assets',
+    ])
+  })
+
+  test('formatEffectiveCwdSummary 覆盖 managed/external/unavailable', () => {
+    expect(formatEffectiveCwdSummary({ status: 'managed', cwd: '/w/p/workdir' })).toBe('托管目录：/w/p/workdir')
+    expect(formatEffectiveCwdSummary({ status: 'external', displayPath: '~/Repo' })).toBe('主目录：~/Repo')
+    expect(formatEffectiveCwdSummary({ status: 'unavailable', displayPath: '/missing' })).toBe('主目录不可用：/missing')
+  })
+})
 
 describe('filterProjects', () => {
   test('默认隐藏归档项目，并按名称和描述搜索', () => {

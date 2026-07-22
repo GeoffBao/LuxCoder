@@ -20,3 +20,28 @@ export function buildClaimIdempotencyKey(workspaceId: string, sessionId: string,
 export function resolveTeambitionSyncBadge(state: TeambitionSyncState): TeambitionSyncBadge {
   return SYNC_BADGES[state]
 }
+
+export type TeambitionClaimPlan =
+  | { kind: 'proceed'; localProjectId: string }
+  | { kind: 'need_pick' }
+  | { kind: 'abort' }
+
+/**
+ * Teambition 认领必须落到本地 Project。
+ * - 已有 localProjectId → proceed
+ * - userPicked 为非空字符串 → proceed
+ * - userPicked === null 表示用户取消选择 → abort
+ * - 否则需要弹出选择 → need_pick
+ */
+export function planTeambitionClaim(input: {
+  localProjectId?: string
+  userPicked?: string | null
+}): TeambitionClaimPlan {
+  const existing = input.localProjectId?.trim()
+  if (existing) return { kind: 'proceed', localProjectId: existing }
+  if (typeof input.userPicked === 'string' && input.userPicked.trim()) {
+    return { kind: 'proceed', localProjectId: input.userPicked.trim() }
+  }
+  if (input.userPicked === null) return { kind: 'abort' }
+  return { kind: 'need_pick' }
+}

@@ -28,7 +28,6 @@ import { AutomationFormView } from '@/components/automation/AutomationFormView'
 import { AutomationsListView } from '@/components/automation/AutomationsListView'
 import { AgentSkillsView } from '@/components/agent-skills/AgentSkillsView'
 import { AgentExpertsView } from '@/components/agent-experts/AgentExpertsView'
-import { ProjectsHubView } from '@/components/work/ProjectsHubView'
 import { automationFormAtom } from '@/atoms/automation-atoms'
 import { activeViewAtom } from '@/atoms/active-view'
 import { interfaceVariantAtom } from '@/atoms/theme'
@@ -49,6 +48,7 @@ export function MainArea(): React.ReactElement {
   const activeTab = useAtomValue(activeTabAtom)
   const automationFormOpen = useAtomValue(automationFormAtom).open
   const activeView = useAtomValue(activeViewAtom)
+  const setActiveView = useSetAtom(activeViewAtom)
   const appMode = useAtomValue(appModeAtom)
   const codeMainView = useAtomValue(codeMainViewAtom)
   // Code 模式主区是否渲染 Work 视图（看板 / 项目详情），优先级规则见 code-main-view-model
@@ -56,6 +56,11 @@ export function MainArea(): React.ReactElement {
   const interfaceVariant = useAtomValue(interfaceVariantAtom)
   const isClassic = interfaceVariant === 'classic'
   const store = useStore()
+
+  // 项目中心 Hub 已移除：遗留 activeView='projects' 回退到会话主区
+  React.useEffect(() => {
+    if (activeView === 'projects') setActiveView('conversations')
+  }, [activeView, setActiveView])
 
   // Tab 内容渲染降级为非紧急：TabBar 立即高亮新 tab，主区域昂贵渲染（含 PreviewPanel 中
   // DiffTabContent → ProseMirror editor mount + Shiki tokenize）让出主线程，避免点击 tab
@@ -255,9 +260,6 @@ export function MainArea(): React.ReactElement {
             ) : activeView === 'agent-skills' ? (
               // Agent 技能视图：全屏取代 TabBar + TabContent
               <AgentSkillsView />
-            ) : activeView === 'projects' ? (
-              // 项目中心 Hub：全屏取代 TabBar + TabContent
-              <ProjectsHubView />
             ) : activeView === 'agent-experts' ? (
               <AgentExpertsView />
             ) : (
