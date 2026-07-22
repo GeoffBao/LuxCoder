@@ -6,22 +6,22 @@
  */
 
 /** 标签样式 */
-export const LABEL_CLASS = 'text-sm font-medium text-foreground'
+export const LABEL_CLASS = 'text-sm text-foreground/90'
 
 /** 描述文字样式 */
-export const DESCRIPTION_CLASS = 'text-sm text-muted-foreground'
+export const DESCRIPTION_CLASS = 'text-[13px] text-foreground/45'
 
-/** 区块标题样式 */
-export const SECTION_TITLE_CLASS = 'text-base font-semibold text-foreground'
+/** 区块标题样式：层级靠字号，不靠加粗 */
+export const SECTION_TITLE_CLASS = 'text-base font-medium text-foreground/90'
 
 /** 区块描述样式 */
-export const SECTION_DESCRIPTION_CLASS = 'text-sm text-muted-foreground mt-1'
+export const SECTION_DESCRIPTION_CLASS = 'text-[13px] text-foreground/45 mt-1'
 
-/** 卡片容器样式 - 只有默认深色主题用透明，其他都用卡片背景 */
+/** 卡片容器样式：安静分组（极浅墨水填充 + hairline，见 globals.css .settings-card） */
 export const CARD_CLASS = 'rounded-xl overflow-hidden settings-card'
 
 /** 卡片内行样式 */
 export const ROW_CLASS = 'flex items-center justify-between px-4 py-3'
 
-/** 卡片内分隔线样式 */
-export const DIVIDER_CLASS = 'border-border/50'
+/** 卡片内分隔线样式：hairline */
+export const DIVIDER_CLASS = 'border-foreground/[0.06]'

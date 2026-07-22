@@ -824,6 +824,21 @@
   background-color: hsl(var(--input-surface)) !important;
 }
 
+/* Chat/Agent 输入容器统一：不透明平涂 + hairline，无毛玻璃；
+ * :not([class*="border-dashed"]) 保护拖拽悬停时的绿色虚线反馈不被覆盖。 */
+:root:not(.ui-classic) [data-input-mode] > div:first-child {
+  backdrop-filter: none;
+}
+
+:root:not(.ui-classic) [data-input-mode] > div:first-child:not([class*="border-dashed"]) {
+  border-color: hsl(var(--foreground) / 0.10);
+}
+
+:root:not(.ui-classic) [data-input-mode] > div:first-child:not([class*="border-dashed"]):focus-within {
+  border-color: hsl(var(--ring) / 0.40);
+  box-shadow: 0 0 0 3px hsl(var(--ring) / 0.07);
+}
+
 /* 现代界面：保留 rounded-full 的圆形/胶囊语义，只压低卡片、面板、气泡等大圆角。 */
 :root:not(.ui-classic) [class*="rounded-lg"]:not([class*="rounded-full"]),
 :root:not(.ui-classic) [class*="rounded-xl"]:not([class*="rounded-full"]),
