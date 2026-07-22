@@ -74,7 +74,7 @@ interface ChannelFormProps {
 }
 
 /** 所有可选供应商 */
-const PROVIDER_OPTIONS: ProviderType[] = ['anthropic', 'anthropic-compatible', 'openai', 'openai-responses', 'openai-codex', 'deepseek', 'google', 'kimi-api', 'kimi-coding', 'zhipu', 'zhipu-coding', 'zhipu-coding-team', 'ark-coding-plan', 'minimax', 'doubao', 'qwen', 'qwen-anthropic', 'qwen-token-plan', 'xiaomi', 'xiaomi-token-plan', 'custom']
+const PROVIDER_OPTIONS: ProviderType[] = ['anthropic', 'anthropic-compatible', 'openai', 'openai-responses', 'openai-codex', 'deepseek', 'google', 'kimi-api', 'kimi-coding', 'zhipu', 'zhipu-coding', 'zhipu-coding-team', 'ark-coding-plan', 'minimax', 'doubao', 'qwen', 'qwen-anthropic', 'qwen-token-plan', 'xiaomi', 'xiaomi-token-plan', 'openrouter', 'custom']
 
 /** 需要用 messages 端点测试的供应商预设模型 */
 const PROVIDER_TEST_MODEL_PRESETS: Partial<Record<ProviderType, string[]>> = {

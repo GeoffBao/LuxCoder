@@ -45,6 +45,7 @@ const adapterRegistry = new Map<ProviderType, ProviderAdapter>([
   ['qwen-token-plan', new AnthropicAdapter('qwen-token-plan')],     // 通义千问 Token Plan Anthropic 兼容协议
   ['xiaomi', new AnthropicAdapter('xiaomi')],                       // 小米 MiMo API 使用 Anthropic 兼容协议
   ['xiaomi-token-plan', new AnthropicAdapter('xiaomi-token-plan')], // 小米 Token Plan 订阅制（强制 User-Agent）
+  ['openrouter', new OpenAIAdapter('openrouter')], // OpenRouter 使用 OpenAI 兼容协议（baseUrl + /chat/completions）
   ['custom', new OpenAIAdapter('custom')],        // 自定义使用用户填写的完整 OpenAI 兼容请求地址
   ['google', new GoogleAdapter()],
 ])

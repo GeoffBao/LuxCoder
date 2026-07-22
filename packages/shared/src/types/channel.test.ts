@@ -10,7 +10,7 @@ describe('Agent 渠道协议兼容性', () => {
     expect(isAgentCompatibleProvider('anthropic-compatible')).toBe(true)
   })
 
-  test.each(['openai-responses', 'openai-codex'] as const)(
+  test.each(['openai-responses', 'openai-codex', 'openrouter'] as const)(
     'Given %s When 判断 Claude Agent 兼容性 Then 不加入白名单',
     (provider) => {
       expect(isAgentCompatibleProvider(provider)).toBe(false)

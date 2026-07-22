@@ -29,6 +29,7 @@ export type ProviderType =
   | 'xiaomi'
   | 'xiaomi-token-plan'
   | 'openai-codex'
+  | 'openrouter'
   /**
    * OpenAI Chat Completions 的自定义请求地址。
    *
@@ -63,6 +64,7 @@ export const PROVIDER_DEFAULT_URLS: Record<ProviderType, string> = {
   'xiaomi-token-plan': 'https://token-plan-cn.xiaomimimo.com/anthropic',
   // ChatGPT 订阅登录：baseUrl 由 Pi SDK 内部管理（登录后从 OAuth token 派生），无需用户填写。
   'openai-codex': '',
+  openrouter: 'https://openrouter.ai/api/v1',
   custom: '',
 }
 
@@ -90,6 +92,7 @@ export const PROVIDER_LABELS: Record<ProviderType, string> = {
   xiaomi: '小米 MiMo (API)',
   'xiaomi-token-plan': '小米 MiMo Token Plan',
   'openai-codex': 'ChatGPT 订阅 (Codex)',
+  openrouter: 'OpenRouter',
   custom: 'OpenAI Chat Completions（自定义地址）',
 }
 
