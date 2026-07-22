@@ -86,6 +86,7 @@ import { promptConfigAtom, selectedPromptIdAtom, conversationPromptIdAtom } from
 import { interfaceVariantAtom } from '@/atoms/theme'
 import { useOpenSession } from '@/hooks/useOpenSession'
 import { useCreateSession } from '@/hooks/useCreateSession'
+import { useOpenLocalFolder } from '@/hooks/useOpenLocalFolder'
 import { useSyncActiveTabSideEffects } from '@/hooks/useSyncActiveTabSideEffects'
 import { CollapsedWorkspacePopover } from '@/components/agent/CollapsedWorkspacePopover'
 import { MoveSessionDialog } from '@/components/agent/MoveSessionDialog'
@@ -707,6 +708,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   const [sidebarCollapsed, setSidebarCollapsed] = useAtom(sidebarCollapsedAtom)
   const openSession = useOpenSession()
   const { createAgent } = useCreateSession()
+  const openLocalFolder = useOpenLocalFolder()
   const syncActiveTabSideEffects = useSyncActiveTabSideEffects()
   const store = useStore()
   const sidebarRootRef = React.useRef<HTMLDivElement>(null)
