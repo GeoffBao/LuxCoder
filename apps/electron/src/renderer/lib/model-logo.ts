@@ -255,6 +255,7 @@ const PROVIDER_LOGO_MAP: Record<ProviderType, string> = {
   xiaomi: XiaomiLogo,
   'xiaomi-token-plan': XiaomiLogo,
   'openai-codex': OpenAILogo,
+  openrouter: DefaultLogo,
   custom: DefaultLogo,
 }
 

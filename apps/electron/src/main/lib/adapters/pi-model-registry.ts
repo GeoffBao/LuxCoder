@@ -163,6 +163,7 @@ function normalizePiApi(provider: ProviderType): Api {
     case 'zhipu':
     case 'doubao':
     case 'qwen':
+    case 'openrouter':
     case 'custom':
       return 'openai-completions'
     case 'openai-responses':
@@ -199,6 +200,8 @@ function candidatePiProviders(provider: ProviderType): KnownProvider[] {
       return ['xiaomi']
     case 'xiaomi-token-plan':
       return ['xiaomi-token-plan-cn', 'xiaomi-token-plan-sgp', 'xiaomi-token-plan-ams', 'xiaomi']
+    case 'openrouter':
+      return ['openrouter']
     default:
       return []
   }
