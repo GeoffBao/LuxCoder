@@ -1,7 +1,13 @@
 {
+<<<<<<< HEAD
   "name": "@luxcoder/electron",
   "version": "0.3.0",
   "description": "LuxCoder next gen ai software with general agents - Electron App",
+=======
+  "name": "@proma/electron",
+  "version": "0.15.8",
+  "description": "Proma next gen ai software with general agents - Electron App",
+>>>>>>> 915305b8 (fix(tutorial): 恢复跨视图教程跳转 (#1249))
   "main": "dist/main.cjs",
   "author": {
     "name": "GeoffBao",

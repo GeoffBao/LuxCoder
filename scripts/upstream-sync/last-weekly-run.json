@@ -1,0 +1,42 @@
+{
+  "ranAt": "2026-07-24T16:42:12.451Z",
+  "baseRef": "origin/main",
+  "lastSyncedBefore": "79327978dc29a8712fbd780d14346f4124b57422",
+  "lastSyncedAfter": "1c969ed8f2e264a8afdfc24eda65d90135cfc231",
+  "upstreamMain": "1c6e6c99817271ef95684f794b3a29aef6098126",
+  "pendingTotal": 29,
+  "branch": "sync/proma-20260725-0042-auto",
+  "picks": [
+    {
+      "sha": "8a6abe884530698fb2c2d3759e1cbeab4daade25",
+      "subject": "fix(agent): cap Ark GLM-5.2 output tokens (#1243)",
+      "ok": true,
+      "empty": false,
+      "conflict": false
+    },
+    {
+      "sha": "89321a09ead438461e3bbe17451930363fc89301",
+      "subject": "fix(agent): retain quota while refreshing (#1245)",
+      "ok": true,
+      "empty": false,
+      "conflict": false
+    },
+    {
+      "sha": "1c969ed8f2e264a8afdfc24eda65d90135cfc231",
+      "subject": "feat(agent): generate Codex OAuth semantic titles (#1248)",
+      "ok": true,
+      "empty": false,
+      "conflict": false
+    },
+    {
+      "sha": "915305b869e0b93673773a16b1e5580cb7a7bd91",
+      "subject": "fix(tutorial): 恢复跨视图教程跳转 (#1249)",
+      "ok": false,
+      "empty": false,
+      "conflict": true
+    }
+  ],
+  "stoppedOnConflict": true,
+  "pushed": false,
+  "prUrl": null
+}
