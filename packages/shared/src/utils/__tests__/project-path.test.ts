@@ -3,8 +3,8 @@ import { normalizeProjectPathForCompare, displayProjectPath } from '../project-p
 
 describe('project-path', () => {
   test('比较用规范化：绝对化语义由调用方保证；统一斜杠并去尾斜杠', () => {
-    expect(normalizeProjectPathForCompare('/Users/me/Repo/')).toBe('/Users/me/Repo')
-    expect(normalizeProjectPathForCompare('C:\\Users\\me\\Repo\\')).toBe('C:/Users/me/Repo')
+    expect(normalizeProjectPathForCompare('/Users/me/Repo/', 'posix')).toBe('/Users/me/Repo')
+    expect(normalizeProjectPathForCompare('C:\\Users\\me\\Repo\\', 'posix')).toBe('C:/Users/me/Repo')
   })
 
   test('macOS/Linux 比较大小写敏感保留原大小写；Windows 比较小写化', () => {
