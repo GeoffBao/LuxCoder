@@ -116,7 +116,7 @@ import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
 import { sendWithCmdEnterAtom } from '@/atoms/shortcut-atoms'
 import { useOpenPreview } from '@/components/diff/preview-opener'
 import type { AgentRuntime, AgentSendInput, AgentPendingFile, AgentThinkingLevel, FileDialogLargeFile, ModelOption, SDKMessage, SDKUserMessage, ProviderType } from '@luxcoder/shared'
-import { inferAgentSdkContextWindow, inferContextWindow, isCodexFastModeSupportedModel, isOpenAIReasoningSupportedModel, MAX_ATTACHMENT_SIZE } from '@luxcoder/shared'
+import { inferAgentSdkContextWindow, inferContextWindow, isCodexFastModeSupportedModel, isOpenAIReasoningSupportedModel, MAX_ATTACHMENT_SIZE, CLAUDE_RUNTIME_ENABLED } from '@luxcoder/shared'
 import { fileToBase64, formatFileNames, getFileParentPath } from '@/lib/file-utils'
 import { buildQuotedSelectionBlock } from '@/lib/quoted-selection'
 import { createClipboardPendingFile, createClipboardTextDraft, makeUniqueAttachmentName } from '@/lib/clipboard-text-attachment'
@@ -355,7 +355,7 @@ function AgentThinkingPopover({ agentThinking, onToggle, codexConfig }: AgentThi
 }
 
 const AGENT_RUNTIME_OPTIONS: Array<{ value: AgentRuntime; label: string; description: string }> = [
-  { value: 'claude', label: 'Claude', description: '使用 Claude Agent SDK' },
+  ...(CLAUDE_RUNTIME_ENABLED ? [{ value: 'claude' as AgentRuntime, label: 'Claude', description: '使用 Claude Agent SDK' }] : []),
   { value: 'pi', label: 'Pi', description: '使用 Pi Agent SDK' },
 ]
 
@@ -512,9 +512,12 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
   // 已有会话首次打开时，从会话元数据初始化 per-session map。
   // setter 内的 `prev.has(sessionId)` 守卫保证幂等，外层不再订阅 Map atom，
   // 避免 setter 写入 → atom 引用变化 → effect 重跑的自循环（React #185）。
-  const sessionAgentRuntime: AgentRuntime = hasSessionMeta
-    ? sessionMeta?.agentRuntime ?? 'claude'
-    : agentRuntime
+  // Claude 内核默认关闭时，所有会话（含历史）一律使用 Pi。
+  const sessionAgentRuntime: AgentRuntime = !CLAUDE_RUNTIME_ENABLED
+    ? 'pi'
+    : hasSessionMeta
+      ? sessionMeta?.agentRuntime ?? 'claude'
+      : agentRuntime
   // 只有会话元数据尚未加载时，才允许使用全局默认值初始化新会话。
   React.useEffect(() => {
     if (!sessionId) return
@@ -2586,9 +2589,10 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         </Tooltip>
       ),
     }] : []),
-    {
+    // Claude 内核默认关闭时，隐藏内核选择器（仅 Pi）。
+    ...(CLAUDE_RUNTIME_ENABLED ? [{
       key: 'runtime',
-      kind: 'context',
+      kind: 'context' as const,
       node: (
         <AgentRuntimeSelector
           runtime={sessionAgentRuntime}
@@ -2596,7 +2600,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
           onChange={handleAgentRuntimeChange}
         />
       ),
-    },
+    }] : []),
     { key: 'permission-mode', kind: 'context', node: <PermissionModeSelector sessionId={sessionId} /> },
     {
       key: 'thinking',

@@ -10,7 +10,7 @@ import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
-import { PROVIDER_LABELS, isAgentCompatibleProvider } from '@luxcoder/shared'
+import { PROVIDER_LABELS, isAgentCompatibleProvider, CLAUDE_RUNTIME_ENABLED } from '@luxcoder/shared'
 import type { Channel } from '@luxcoder/shared'
 import { getChannelLogo } from '@/lib/model-logo'
 import { getEnabledClaudeAgentChannelIds } from '@/lib/agent-channel-selection'
@@ -311,7 +311,8 @@ function ChannelRow({ channel, onEdit, onDelete, onToggle }: ChannelRowProps): R
 }
 
 function AgentCoreChips({ provider }: Pick<Channel, 'provider'>): React.ReactElement {
-  const supportsClaude = isAgentCompatibleProvider(provider)
+  // Claude 内核默认关闭时，仅展示 Pi 徽章。
+  const supportsClaude = CLAUDE_RUNTIME_ENABLED && isAgentCompatibleProvider(provider)
 
   return (
     <div className="inline-flex items-center gap-1" aria-label="支持的 Agent Core">

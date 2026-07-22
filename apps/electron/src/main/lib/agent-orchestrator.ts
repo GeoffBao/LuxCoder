@@ -32,6 +32,7 @@ import {
   inferAgentSdkContextWindow,
   isOpenAIReasoningSupportedModel,
   isAgentCompatibleProvider,
+  CLAUDE_RUNTIME_ENABLED,
 } from '@luxcoder/shared'
 import type { LuxCoderPermissionMode, AskUserRequest, ExitPlanModeRequest, SDKSystemMessage } from '@luxcoder/shared'
 import type { ClaudeAgentQueryOptions } from './adapters/claude-agent-adapter'
@@ -103,6 +104,8 @@ function sdkPermissionModeForLuxCoderMode(mode: LuxCoderPermissionMode): LuxCode
 }
 
 function normalizeAgentRuntime(value: unknown): AgentRuntime {
+  // Claude 内核默认关闭时，所有执行（含历史会话）强制回落到 Pi。
+  if (!CLAUDE_RUNTIME_ENABLED) return 'pi'
   return value === 'pi' ? 'pi' : 'claude'
 }
 
