@@ -25,8 +25,10 @@ import {
   agentSessionIndicatorMapAtom,
   unviewedCompletedSessionIdsAtom,
 } from '@/atoms/agent-atoms'
+import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
 import { agentSideChatMapAtom } from '@/atoms/chat-atoms'
 import { useSyncActiveTabSideEffects } from '@/hooks/useSyncActiveTabSideEffects'
+import { shouldDiscardDraftOnLeave } from '@/components/agent/draft-session-lifecycle'
 
 interface UseCloseTabReturn {
   /** 请求关闭当前会话入口 */
@@ -42,6 +44,7 @@ export function useCloseTab(): UseCloseTabReturn {
   const store = useStore()
   const setUnviewedCompleted = useSetAtom(unviewedCompletedSessionIdsAtom)
   const setAgentSessions = useSetAtom(agentSessionsAtom)
+  const setDraftSessionIds = useSetAtom(draftSessionIdsAtom)
   const setViewStateMap = useSetAtom(sessionViewStateMapAtom)
   const setSideChatMap = useSetAtom(agentSideChatMapAtom)
 
@@ -128,8 +131,24 @@ export function useCloseTab(): UseCloseTabReturn {
     // 用户主动关闭 idle 的 Agent Tab 时，清除完成提醒状态
     if (closingTab && closingTab.type === 'agent') {
       clearIdleAgentCompletionNotice(closingTab.sessionId)
+
+      // 未发送的 Draft：关闭 Tab 时丢弃，不留空会话
+      const draftIds = store.get(draftSessionIdsAtom)
+      if (shouldDiscardDraftOnLeave({ isDraft: draftIds.has(closingTab.sessionId), hasUserMessage: false })) {
+        const sessionId = closingTab.sessionId
+        setDraftSessionIds((prev) => {
+          if (!prev.has(sessionId)) return prev
+          const next = new Set(prev)
+          next.delete(sessionId)
+          return next
+        })
+        setAgentSessions((prev) => prev.filter((session) => session.id !== sessionId))
+        void window.electronAPI.deleteAgentSession(sessionId).catch((error: unknown) => {
+          console.error('[关闭标签] 丢弃 Draft 会话失败:', error)
+        })
+      }
     }
-  }, [tabs, activeTabId, setTabs, setActiveTabId, setViewStateMap, setSideChatMap, syncActiveTabSideEffects, clearIdleAgentCompletionNotice])
+  }, [tabs, activeTabId, setTabs, setActiveTabId, setViewStateMap, setSideChatMap, syncActiveTabSideEffects, clearIdleAgentCompletionNotice, store, setDraftSessionIds, setAgentSessions])
 
   const requestClose = React.useCallback((tabId: string) => {
     executeClose(tabId)

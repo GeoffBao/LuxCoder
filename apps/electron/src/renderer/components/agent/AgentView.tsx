@@ -27,6 +27,7 @@ import { PermissionBanner } from './PermissionBanner'
 import { PermissionModeSelector } from './PermissionModeSelector'
 import { AskUserBanner } from './AskUserBanner'
 import { ExitPlanModeBanner } from './ExitPlanModeBanner'
+import { DraftProjectPicker } from './DraftProjectPicker'
 import { PlanModeDashedBorder } from './PlanModeDashedBorder'
 import { ModelSelector } from '@/components/chat/ModelSelector'
 import { AttachmentPreviewItem } from '@/components/chat/AttachmentPreviewItem'
@@ -491,6 +492,8 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
   const agentEffort = useAtomValue(agentEffortAtom)
   const setSettingsOpen = useSetAtom(settingsOpenAtom)
   const setDraftSessionIds = useSetAtom(draftSessionIdsAtom)
+  const draftSessionIds = useAtomValue(draftSessionIdsAtom)
+  const isDraftSession = draftSessionIds.has(sessionId)
   const globalWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
   // 从会话元数据派生 workspaceId：会话数据已加载时以自身为准，未加载时回退全局 atom
   const currentWorkspaceId = React.useMemo(() => {
@@ -2810,6 +2813,12 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
             onDrop={handleDrop}
           >
             {(isPlanMode || isPermissionPlanMode) && !isDragOver && <PlanModeDashedBorder />}
+            <DraftProjectPicker
+              sessionId={sessionId}
+              projectId={sessionMeta?.projectId}
+              isDraft={isDraftSession}
+              className="px-3 pt-2.5"
+            />
             {/* 无 Agent 渠道或无可用模型提示 */}
             {(!agentChannelId || !hasAvailableModel) && (
               <div className="flex items-center gap-2 px-4 py-2 text-sm text-amber-600 dark:text-amber-400">
