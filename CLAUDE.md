@@ -14,14 +14,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-LuxCoder 是基于 Proma 演化的企业级 AI R&D 工作台，采用 Electron 桌面应用架构。UI 顶层模式：Chat / Code（Agent） / Work（Kanban）。
+LuxAgents 是基于 Proma 演化的企业级 AI R&D 工作台，采用 Electron 桌面应用架构。UI 顶层模式：Chat / Code（Agent） / Work（Kanban）。
 
 ## Monorepo 结构
 
 Bun workspace monorepo：
 
 ```
-luxcoder/
+luxagents/
 ├── packages/
 │   ├── shared/     # 共享类型、IPC 通道常量、配置、工具函数、projects/tasks (v0.1.10)
 │   ├── core/       # AI Provider 适配器、代码高亮服务 (v0.1.0)
@@ -34,29 +34,29 @@ luxcoder/
             └── renderer/   # React UI (Vite + Tailwind + Radix UI)
 ```
 
-**包命名规范**：`@luxcoder/*` 作用域（`@luxcoder/core`、`@luxcoder/shared`、`@luxcoder/ui`、`@luxcoder/electron`）
+**包命名规范**：`@luxagents/*` 作用域（`@luxagents/core`、`@luxagents/shared`、`@luxagents/ui`、`@luxagents/electron`）
 
 **依赖管理**：package.json 中使用 `workspace:*` 引用内部包
 
 ### 包职责详解
 
-#### @luxcoder/shared (v0.1.10)
+#### @luxagents/shared (v0.1.10)
 - **导出模块**：`./types`、`./config`、`./utils`、`./constants/permission-rules`、`./projects`、`./tasks`
 - **关键类型**：`AgentMessage`、`ChatMessage`、`Channel`、`PermissionRequest`、`FeishuConfig`、`ProjectConfig`、`LoadedProject`
 - **依赖**：无运行时依赖（仅 TypeScript）
 
-#### @luxcoder/core (v0.1.0)
+#### @luxagents/core (v0.1.0)
 - **导出模块**：`./providers`、`./highlight`、`./types`、`./utils`
 - **关键功能**：Provider 适配器注册表、代码高亮（Shiki）
-- **依赖**：`@luxcoder/shared`、`shiki`
+- **依赖**：`@luxagents/shared`、`shiki`
 - **Peer 依赖**：`@anthropic-ai/claude-agent-sdk`、`@anthropic-ai/sdk`、`@modelcontextprotocol/sdk`
 
-#### @luxcoder/ui (v0.1.0)
+#### @luxagents/ui (v0.1.0)
 - **关键组件**：共享 React UI 组件库
-- **依赖**：`@luxcoder/core`、`beautiful-mermaid`、`shiki`、Radix UI
+- **依赖**：`@luxagents/core`、`beautiful-mermaid`、`shiki`、Radix UI
 - **Peer 依赖**：`react@^18.3.0`、`react-dom@^18.3.0`
 
-#### @luxcoder/electron (v0.1.21)
+#### @luxagents/electron (v0.1.21)
 - **职责**：Electron 桌面应用主体，集成所有包
 - **关键依赖**：
   - `@anthropic-ai/claude-agent-sdk` - Agent SDK
@@ -144,7 +144,7 @@ bun run generate:icons    # 生成应用图标
 
 类型定义 → 主进程处理 → Preload 桥接 → 渲染进程调用：
 
-1. **类型 & 常量**：`@luxcoder/shared` 定义 IPC 通道名称常量和请求/响应类型
+1. **类型 & 常量**：`@luxagents/shared` 定义 IPC 通道名称常量和请求/响应类型
 2. **主进程处理**：`main/ipc.ts`（57KB）注册 `ipcMain.handle()` 处理器，调用 `main/lib/` 服务
 3. **Preload 桥接**：`preload/index.ts` 通过 `contextBridge.exposeInMainWorld` 暴露类型安全的 API
 4. **渲染进程**：通过 `window.electronAPI.*` 调用，Jotai atoms 中封装调用逻辑
@@ -286,10 +286,10 @@ bun run generate:icons    # 生成应用图标
 | `ProjectsInitializer` | 按当前工作区加载 craft Project 列表进 `serverKanbanProjectsAtom`，订阅 `projects:changed`（按 workspace slug 匹配）；Code/Work 共享 |
 | `UpdaterInitializer` | 订阅主进程推送的自动更新状态变化事件 |
 
-### 本地文件存储（`~/.luxcoder/`，开发模式 `~/.luxcoder-dev/`）
+### 本地文件存储（`~/.luxagents/`，开发模式 `~/.luxagents-dev/`）
 
 ```
-~/.luxcoder/
+~/.luxagents/
 ├── channels.json           # 渠道配置（API Key 经 safeStorage 加密）
 ├── conversations.json      # 对话索引（元数据，轻量）
 ├── conversations/          # 消息存储
