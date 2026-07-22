@@ -37,7 +37,6 @@ export function isOverlayActiveView(activeView: ActiveView): boolean {
   return (
     activeView === 'automations' ||
     activeView === 'agent-skills' ||
-    activeView === 'projects' ||
     activeView === 'agent-experts'
   )
 }

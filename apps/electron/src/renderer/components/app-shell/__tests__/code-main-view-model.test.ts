@@ -50,7 +50,7 @@ describe('shouldShowWorkViewInCode', () => {
     })).toBe(false)
   })
 
-  test('projects / agent-experts 覆盖视图优先，看板让位', () => {
+  test('projects 不再作为覆盖视图（Hub 已移除）；agent-experts 仍覆盖', () => {
     expect(shouldShowWorkViewInCode({
       appMode: 'agent',
       codeMainView: 'work',
@@ -78,11 +78,11 @@ describe('shouldShowWorkViewInCode', () => {
 })
 
 describe('isOverlayActiveView', () => {
-  test('isOverlayActiveView 识别四类覆盖视图', () => {
+  test('isOverlayActiveView 识别三类覆盖视图（projects Hub 已退役）', () => {
     expect(isOverlayActiveView('conversations')).toBe(false)
     expect(isOverlayActiveView('automations')).toBe(true)
     expect(isOverlayActiveView('agent-skills')).toBe(true)
-    expect(isOverlayActiveView('projects')).toBe(true)
+    expect(isOverlayActiveView('projects')).toBe(false)
     expect(isOverlayActiveView('agent-experts')).toBe(true)
   })
 })

@@ -11,7 +11,7 @@
 import * as React from 'react'
 import { useAtom, useSetAtom, useAtomValue, useStore } from 'jotai'
 import { toast } from 'sonner'
-import { Pin, PinOff, Settings, Plus, Trash2, Pencil, PanelLeftClose, PanelLeftOpen, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MessageSquare, MoreHorizontal, FolderOpen, FolderKanban, GripVertical, Clock, AlarmClock, ChevronRight, Blocks, GitBranch, Download, Loader2, RotateCw } from 'lucide-react'
+import { Pin, PinOff, Settings, Plus, Trash2, Pencil, PanelLeftClose, PanelLeftOpen, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MessageSquare, MoreHorizontal, FolderOpen, GripVertical, Clock, AlarmClock, ChevronRight, Blocks, GitBranch, Download, Loader2, RotateCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { ModeSwitcher } from './ModeSwitcher'
@@ -77,6 +77,9 @@ import {
 } from '@/atoms/tab-atoms'
 import { userProfileAtom } from '@/atoms/user-profile'
 import { selectedProjectIdAtom, serverKanbanProjectsAtom, workViewAtom, codeMainViewAtom } from '@/atoms/project-atoms'
+import { sidebarSessionViewModeAtom } from '@/atoms/sidebar-session-view'
+import { buildRecentSessionList } from './sidebar-session-views'
+import { CreateProjectDialog } from '@/components/work/CreateProjectDialog'
 import { sidebarViewModeAtom } from '@/atoms/sidebar-atoms'
 import { searchDialogOpenAtom } from '@/atoms/search-atoms'
 import { hasUpdateAtom, updateStatusAtom, type UpdateStatus } from '@/atoms/updater'
@@ -131,8 +134,9 @@ import type { ConversationMeta, AgentSessionMeta, AgentWorkspace, WorkspaceCapab
 import type { KanbanProject } from './kanban/types'
 import { buildProjectColorMap, buildSidebarProjectGroups } from './sidebar-project-groups'
 import { SidebarProjectSubgroup } from './SidebarProjectSubgroup'
-import { SidebarProjectsSection } from '@/components/work/SidebarProjectsSection'
 import { SidebarModule } from './SidebarModule'
+import { WorkspaceSwitcher } from './WorkspaceSwitcher'
+import { SidebarSessionViewToggle } from './SidebarSessionViewToggle'
 import { formatSidebarModuleCount } from './sidebar-module-model'
 import { AgentSessionItem, getSessionLeftAccent, SessionItemActions } from './AgentSessionItem'
 
@@ -240,6 +244,7 @@ const AUTOMATION_GROUP_ID = '__automations__'
 /** 供合成组复用 AgentProjectGroupItem 时填充无意义的 workspace 专属回调 */
 const noopVoid = (): void => {}
 const noopAsync = async (): Promise<void> => {}
+const noopDragEvent = (_e: React.DragEvent, _workspaceId?: string): void => {}
 /** 非当前工作区组的空项目列表；模块级常量保证引用稳定，不破坏 React.memo */
 const EMPTY_PROJECTS: KanbanProject[] = []
 
@@ -657,6 +662,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   const [creatingProject, setCreatingProject] = React.useState(false)
   const [newProjectName, setNewProjectName] = React.useState('')
   const newProjectInputRef = React.useRef<HTMLInputElement>(null)
+  const [createCraftProjectOpen, setCreateCraftProjectOpen] = React.useState(false)
+  const [creatingCraftProject, setCreatingCraftProject] = React.useState(false)
   const [relativeTimeNow, setRelativeTimeNow] = React.useState(() => Date.now())
   const [userProfile, setUserProfile] = useAtom(userProfileAtom)
   const selectedModel = useAtomValue(selectedModelAtom)
@@ -688,7 +695,9 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
   // craft Project 状态（Work 看板同源）：侧边栏项目子分组 / 色条 / 详情跳转用
   const kanbanProjects = useAtomValue(serverKanbanProjectsAtom)
+  const setKanbanProjects = useSetAtom(serverKanbanProjectsAtom)
   const [selectedProjectId, setSelectedProjectId] = useAtom(selectedProjectIdAtom)
+  const [sidebarSessionViewMode] = useAtom(sidebarSessionViewModeAtom)
   const setWorkView = useSetAtom(workViewAtom)
   const setCodeMainView = useSetAtom(codeMainViewAtom)
 
@@ -1289,19 +1298,52 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     setActiveView('conversations')
   }, [setActiveView, setCodeMainView, setSelectedProjectId, setWorkView])
 
-  /** 切换当前工作区；点击当前已选中工作区标题时则折叠/展开其会话列表 */
+  /** 切换当前工作区（WorkspaceSwitcher / 组头共用）；同 ID 时不折叠 */
+  const handleSwitchWorkspace = React.useCallback((workspaceId: string): void => {
+    if (workspaceId === currentWorkspaceId) return
+    // 切换期间先清空项目列表，避免闪旧 Workspace 数据
+    setKanbanProjects([])
+    setCurrentWorkspaceId(workspaceId)
+    setActiveView('conversations')
+    setCollapsedWorkspaceIds((prev) => deleteSetEntry(prev, workspaceId))
+    window.electronAPI.updateSettings({ agentWorkspaceId: workspaceId }).catch(console.error)
+  }, [currentWorkspaceId, setCurrentWorkspaceId, setActiveView, setKanbanProjects])
+
+  /** 组头点击：当前工作区则折叠/展开，否则切换 */
   const handleSelectProject = React.useCallback((workspaceId: string): void => {
     if (workspaceId === currentWorkspaceId) {
-      // 点击当前工作区 → 折叠/展开会话列表
       setCollapsedWorkspaceIds((prev) => toggleSetEntry(prev, workspaceId))
       return
     }
-    setCurrentWorkspaceId(workspaceId)
-    setActiveView('conversations')
-    // 切换到新工作区时，自动展开该工作区
-    setCollapsedWorkspaceIds((prev) => deleteSetEntry(prev, workspaceId))
-    window.electronAPI.updateSettings({ agentWorkspaceId: workspaceId }).catch(console.error)
-  }, [currentWorkspaceId, setCurrentWorkspaceId, setActiveView])
+    handleSwitchWorkspace(workspaceId)
+  }, [currentWorkspaceId, handleSwitchWorkspace])
+
+  /** 侧栏「项目」视图下新建 craft Project */
+  const handleCreateCraftProject = React.useCallback(async (
+    input: Parameters<typeof window.electronAPI.projects.create>[1],
+  ): Promise<void> => {
+    if (!workspaceRootForProjects) {
+      toast.error('请先选择 Workspace')
+      return
+    }
+    setCreatingCraftProject(true)
+    try {
+      const project = await window.electronAPI.projects.create(workspaceRootForProjects, input)
+      setKanbanProjects((current) => {
+        const without = current.filter((item) => item.id !== project.id)
+        return [project, ...without]
+      })
+      setCreateCraftProjectOpen(false)
+      handleOpenProjectDetail(project.id)
+      toast.success('项目已创建')
+    } catch (cause) {
+      toast.error('创建项目失败', {
+        description: cause instanceof Error ? cause.message : String(cause),
+      })
+    } finally {
+      setCreatingCraftProject(false)
+    }
+  }, [handleOpenProjectDetail, setKanbanProjects, workspaceRootForProjects])
 
   /** 合成「自动任务」组头部点击：仅折叠/展开，绝不切换当前工作区（它不是真实工作区） */
   const handleToggleGroupCollapse = React.useCallback((groupId: string): void => {
@@ -2525,22 +2567,6 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             </Tooltip>
           )}
 
-          {/* 项目模块 rail 入口：点击展开侧边栏定位到项目区（agent / cowork 模式） */}
-          {(mode === 'agent' || mode === 'cowork') && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="项目"
-                  onClick={() => setSidebarCollapsed(false)}
-                  className="relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag border border-border/45 bg-foreground/[0.025] text-foreground/45 hover:border-border/70 hover:bg-foreground/[0.045] hover:text-primary"
-                >
-                  <FolderKanban size={16} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right">项目（展开侧边栏查看）</TooltipContent>
-            </Tooltip>
-          )}
         </div>
 
         <div className="my-3 h-px w-8 bg-border/70" />
@@ -2628,7 +2654,18 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         <ModeSwitcher />
       </div>
 
-      {/* 新对话/新会话按钮 + 搜索按钮 + 折叠按钮 */}
+      {mode === 'agent' && (
+        <div className="px-3 pt-2 titlebar-no-drag">
+          <WorkspaceSwitcher
+            workspaces={workspaces}
+            currentWorkspaceId={currentWorkspaceId}
+            onSelect={handleSwitchWorkspace}
+            onCreate={handleStartCreateProject}
+          />
+        </div>
+      )}
+
+      {/* 新对话/新会话按钮 + 打开文件夹 + 搜索按钮 + 折叠按钮 */}
       <div className="px-3 pt-2 flex items-center gap-1.5">
         <button
           onClick={mode === 'agent' ? handleNewAgentSession : handleNewConversation}
@@ -2637,6 +2674,20 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
           <Plus size={14} />
           <span>{mode === 'agent' ? '新会话' : '新对话'}</span>
         </button>
+        {mode === 'agent' && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => { void openLocalFolder() }}
+                className="flex-shrink-0 size-10 flex items-center justify-center rounded-[10px] text-foreground/40 sidebar-control-surface hover:text-foreground/60 transition-[background-color,color] duration-150 titlebar-no-drag"
+                aria-label="打开文件夹"
+              >
+                <FolderOpen size={14} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">打开文件夹</TooltipContent>
+          </Tooltip>
+        )}
         <Tooltip>
           <TooltipTrigger asChild>
             <button
@@ -2707,10 +2758,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         </div>
       )}
 
-      {/* 项目中心入口：Hub 全屏视图，模块区末项 */}
-      <div className="sidebar-module-zone px-3 pb-1 titlebar-no-drag">
-        <SidebarProjectsSection count={currentWorkspaceProjects.length} />
-      </div>
+      {/* 项目中心入口已移除：Project 导航改由「最近会话｜项目」投影承担 */}
 
       {/* Chat 模式 active 视图：置顶 + 对话历史，结构与 Agent active 视图保持一致 */}
       {mode === 'chat' && viewMode === 'active' ? (
@@ -2861,25 +2909,29 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             </div>
           )}
 
-          {/* 下区标题：工作区历史 */}
-          <div className="sidebar-section-heading px-2 pt-2 pb-1 flex items-center justify-between flex-shrink-0">
-            <span className="sidebar-section-label px-1.5 text-[11px] font-medium text-foreground/40 select-none">工作区</span>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={handleStartCreateProject}
-                  className="size-6 flex items-center justify-center rounded-md text-foreground/35 hover:bg-foreground/[0.06] hover:text-foreground/60 transition-colors titlebar-no-drag"
-                  aria-label="新建工作区"
-                >
-                  <Plus size={13} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top">新建工作区</TooltipContent>
-            </Tooltip>
+          {/* 会话投影切换：最近会话｜项目 */}
+          <div className="px-2 pt-2 pb-1 flex items-center gap-1.5 flex-shrink-0 titlebar-no-drag">
+            <div className="flex-1 min-w-0">
+              <SidebarSessionViewToggle />
+            </div>
+            {sidebarSessionViewMode === 'projects' ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => setCreateCraftProjectOpen(true)}
+                    className="size-7 flex items-center justify-center rounded-md text-foreground/35 hover:bg-foreground/[0.06] hover:text-foreground/60 transition-colors"
+                    aria-label="新建项目"
+                  >
+                    <Plus size={13} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top">新建项目</TooltipContent>
+              </Tooltip>
+            ) : null}
           </div>
 
-          {/* 下区：工作区分组历史 */}
+          {/* 下区：当前 Workspace 会话投影（不再展示多 Workspace 树标题） */}
           <div className="sidebar-workspace-list flex-1 overflow-y-auto px-2 pb-3 scrollbar-thin min-h-0 titlebar-no-drag">
             {creatingProject && (
               <div className="flex items-center gap-2 px-2 py-1.5 mb-1 rounded-md bg-foreground/[0.04]">
@@ -2893,7 +2945,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                     setCreatingProject(false)
                     setNewProjectName('')
                   }}
-                  placeholder="工作区名称..."
+                  placeholder="Workspace 名称..."
                   className="flex-1 min-w-0 bg-transparent text-[13px] text-foreground border-b border-primary/50 outline-none px-0.5"
                   maxLength={50}
                 />
@@ -2901,34 +2953,45 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             )}
 
             <div className="flex flex-col gap-0.5">
-              {displayProjectGroups.map((group) => {
+              {displayProjectGroups
+                .filter((group) =>
+                  group.workspace.id === AUTOMATION_GROUP_ID
+                  || group.workspace.id === currentWorkspaceId,
+                )
+                .map((group) => {
                 const isAuto = group.workspace.id === AUTOMATION_GROUP_ID
+                const forceRecent = !isAuto && sidebarSessionViewMode === 'recent'
                 return (
                   <AgentProjectGroupItem
                     key={group.workspace.id}
-                    group={group}
+                    group={forceRecent
+                      ? {
+                          ...group,
+                          sessions: buildRecentSessionList(group.sessions),
+                        }
+                      : group}
                     isAutomationGroup={isAuto}
                     workspaceNameMap={isAuto ? workspaceNameMap : undefined}
                     currentWorkspaceId={currentWorkspaceId}
                     expanded={(expandedExtraCountMap.get(group.workspace.id) ?? 0) > 0}
                     extraCount={expandedExtraCountMap.get(group.workspace.id) ?? 0}
-                    collapsed={collapsedWorkspaceIds.has(group.workspace.id)}
+                    collapsed={isAuto ? collapsedWorkspaceIds.has(group.workspace.id) : false}
                     activeSessionId={activeSessionId}
                     agentIndicatorMap={agentIndicatorMap}
                     expandedDelegationParentIds={expandedDelegationParentIds}
                     collapsedDelegationParentIds={collapsedDelegationParentIds}
                     relativeTimeNow={relativeTimeNow}
-                    dragging={dragProjectId === group.workspace.id}
-                    dropPosition={projectDropIndicator?.id === group.workspace.id ? projectDropIndicator.position : null}
+                    dragging={false}
+                    dropPosition={null}
                     onShowMore={handleShowMoreSessions}
                     onCollapseExtra={handleCollapseExtraSessions}
                     onSelectProject={isAuto ? handleToggleGroupCollapse : handleSelectProject}
                     onNewSession={isAuto ? noopAsync : createAgentSessionInWorkspace}
-                    onDragStart={handleProjectDragStart}
-                    onDragOver={handleProjectDragOver}
-                    onDragLeave={handleProjectDragLeave}
-                    onDrop={handleProjectDrop}
-                    onDragEnd={handleProjectDragEnd}
+                    onDragStart={noopDragEvent}
+                    onDragOver={noopDragEvent}
+                    onDragLeave={noopDragEvent}
+                    onDrop={noopDragEvent}
+                    onDragEnd={noopVoid}
                     onConfigureProject={isAuto ? noopVoid : (workspaceId) => {
                       handleSelectProject(workspaceId)
                       handleOpenMcpManagement()
@@ -2936,10 +2999,14 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                     onRenameWorkspace={isAuto ? noopAsync : handleWorkspaceRename}
                     onRequestDeleteWorkspace={isAuto ? noopVoid : handleRequestDeleteWorkspace}
                     canDeleteWorkspace={isAuto ? false : canDeleteWorkspace(group.workspace)}
-                    projects={!isAuto && group.workspace.id === currentWorkspaceId ? currentWorkspaceProjects : EMPTY_PROJECTS}
+                    projects={forceRecent
+                      ? EMPTY_PROJECTS
+                      : (!isAuto && group.workspace.id === currentWorkspaceId ? currentWorkspaceProjects : EMPTY_PROJECTS)}
                     selectedProjectId={selectedProjectId}
-                    onNewSessionInProject={createAgentSessionInProject}
+                    hideWorkspaceHeader={!isAuto}
+                    unboundSectionLabel="未归类会话"
                     onOpenProjectDetail={handleOpenProjectDetail}
+                    onNewSessionInProject={createAgentSessionInProject}
                     onMoveToProject={handleMoveToProject}
                     onSelectSession={handleSelectAgentSession}
                     onRequestDelete={handleRequestDelete}
@@ -3144,6 +3211,12 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       {projectDeleteDialog}
       {moveDialog}
       <SearchDialog />
+      <CreateProjectDialog
+        open={createCraftProjectOpen}
+        busy={creatingCraftProject}
+        onOpenChange={setCreateCraftProjectOpen}
+        onSubmit={(input) => { void handleCreateCraftProject(input) }}
+      />
     </div>
   )
 }
@@ -3440,6 +3513,10 @@ interface AgentProjectGroupItemProps {
   projects: KanbanProject[]
   /** 当前选中的 craft Project ID（驱动子分组高亮 / 自动展开 / 滚动） */
   selectedProjectId: string | null
+  /** 隐藏 Workspace 组头（当前 Workspace 已由顶栏 WorkspaceSwitcher 展示） */
+  hideWorkspaceHeader?: boolean
+  /** 未归类会话分区标题 */
+  unboundSectionLabel?: string
   onNewSessionInProject: (projectId: string) => Promise<void>
   onOpenProjectDetail: (projectId: string) => void
   onMoveToProject: (sessionId: string, projectId?: string) => void | Promise<void>
@@ -3483,6 +3560,8 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
   canDeleteWorkspace,
   projects,
   selectedProjectId,
+  hideWorkspaceHeader = false,
+  unboundSectionLabel,
   onNewSessionInProject,
   onOpenProjectDetail,
   onMoveToProject,
@@ -3606,6 +3685,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
         <div className="absolute -top-0.5 left-3 right-3 h-0.5 rounded-full bg-primary z-10" />
       )}
 
+      {!hideWorkspaceHeader && (
       <div className="sidebar-workspace-header group/project relative flex items-center">
         <span
           draggable
@@ -3744,8 +3824,12 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
         </DropdownMenu>
         )}
       </div>
+      )}
 
-      <div id={`project-sessions-${group.workspace.id}`} className="sidebar-workspace-content ml-4 mt-px">
+      <div
+        id={`project-sessions-${group.workspace.id}`}
+        className={cn('sidebar-workspace-content mt-px', !hideWorkspaceHeader && 'ml-4')}
+      >
         {!collapsed ? (
           treeItems.length > 0 || projectGroups.length > 0 ? (
             <div className="flex flex-col gap-0.5">
@@ -3769,6 +3853,12 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
                   onToggleArchive={onToggleArchive}
                 />
               ))}
+
+              {unboundSectionLabel && sessions.length > 0 && (
+                <div className="px-1.5 pt-1.5 pb-0.5 text-[11px] font-medium text-foreground/40 select-none">
+                  {unboundSectionLabel}
+                </div>
+              )}
 
               {sessions.map((item) => {
                 const childCount = item.childSessions.length
