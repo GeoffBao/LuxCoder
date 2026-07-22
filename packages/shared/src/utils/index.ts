@@ -32,6 +32,11 @@ export {
 } from './thinking-signature-error'
 export { normalizePathForCompare } from './normalize-path'
 export {
+  displayProjectPath,
+  normalizeProjectPathForCompare,
+  type PathPlatform,
+} from './project-path'
+export {
   getSDKCompactStatus,
   isPersistableSDKSystemMessage,
   type SDKCompactStatus,
