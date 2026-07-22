@@ -45,7 +45,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Switch } from '@/components/ui/switch'
 import { Slider } from '@/components/ui/slider'
 import {
   AlertDialog,
@@ -93,8 +92,6 @@ import {
   workspaceAttachedDirectoriesMapAtom,
   workspaceAttachedFilesMapAtom,
   liveMessagesMapAtom,
-  agentThinkingAtom,
-  agentEffortAtom,
   stoppedByUserSessionsAtom,
   agentPlanModeSessionsAtom,
   agentPermissionModeMapAtom,
@@ -109,14 +106,14 @@ import {
 import type { AgentContextStatus } from '@/atoms/agent-atoms'
 import { settingsOpenAtom } from '@/atoms/settings-tab'
 import { longTextPasteAsAttachmentEnabledAtom } from '@/atoms/ui-preferences'
-import { channelsAtom, thinkingExpandedAtom } from '@/atoms/chat-atoms'
+import { channelsAtom } from '@/atoms/chat-atoms'
 import { useOpenSession } from '@/hooks/useOpenSession'
 import { AgentSessionProvider } from '@/contexts/session-context'
 import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
 import { sendWithCmdEnterAtom } from '@/atoms/shortcut-atoms'
 import { useOpenPreview } from '@/components/diff/preview-opener'
 import type { AgentRuntime, AgentSendInput, AgentPendingFile, AgentThinkingLevel, FileDialogLargeFile, ModelOption, SDKMessage, SDKUserMessage, ProviderType } from '@luxcoder/shared'
-import { inferAgentSdkContextWindow, inferContextWindow, isCodexFastModeSupportedModel, isOpenAIReasoningSupportedModel, MAX_ATTACHMENT_SIZE, CLAUDE_RUNTIME_ENABLED } from '@luxcoder/shared'
+import { DEFAULT_AGENT_THINKING_LEVEL, getSessionThinkingLevel, inferAgentSdkContextWindow, inferContextWindow, isCodexFastModeSupportedModel, MAX_ATTACHMENT_SIZE, CLAUDE_RUNTIME_ENABLED } from '@luxcoder/shared'
 import { fileToBase64, formatFileNames, getFileParentPath } from '@/lib/file-utils'
 import { buildQuotedSelectionBlock } from '@/lib/quoted-selection'
 import { createClipboardPendingFile, createClipboardTextDraft, makeUniqueAttachmentName } from '@/lib/clipboard-text-attachment'
@@ -219,11 +216,11 @@ function isStaleAgentQueueError(error: unknown): boolean {
     message.includes('无活跃消息通道可注入队列消息')
 }
 
-// ===== 思考模式 Hover Popover =====
+// ===== 思考深度 Hover Popover（Pi / craft 对齐：会话级 ThinkingLevel） =====
 
-const CODEX_THINKING_LEVELS = ['off', 'low', 'medium', 'high', 'xhigh'] as const satisfies readonly AgentThinkingLevel[]
-type OpenAIThinkingLevel = (typeof CODEX_THINKING_LEVELS)[number]
-const CODEX_THINKING_LABELS: Record<OpenAIThinkingLevel, string> = {
+const PI_THINKING_LEVELS = ['off', 'low', 'medium', 'high', 'xhigh'] as const satisfies readonly AgentThinkingLevel[]
+type PiThinkingLevelOption = (typeof PI_THINKING_LEVELS)[number]
+const PI_THINKING_LABELS: Record<PiThinkingLevelOption, string> = {
   off: '关闭',
   low: '低',
   medium: '中',
@@ -231,31 +228,27 @@ const CODEX_THINKING_LABELS: Record<OpenAIThinkingLevel, string> = {
   xhigh: '极高',
 }
 
-function normalizeOpenAIThinkingLevel(level: AgentThinkingLevel | undefined): OpenAIThinkingLevel {
+function normalizePiThinkingLevel(level: AgentThinkingLevel | undefined): PiThinkingLevelOption {
   if (level === 'minimal') return 'low'
-  return CODEX_THINKING_LEVELS.includes(level as OpenAIThinkingLevel) ? level as OpenAIThinkingLevel : 'off'
+  return PI_THINKING_LEVELS.includes(level as PiThinkingLevelOption) ? level as PiThinkingLevelOption : 'off'
 }
 
-interface CodexThinkingConfig {
+interface SessionThinkingConfig {
   thinkingLevel: AgentThinkingLevel
   disabled: boolean
   onThinkingLevelChange: (level: AgentThinkingLevel) => void
 }
 
 interface AgentThinkingPopoverProps {
-  agentThinking: import('@luxcoder/shared').ThinkingConfig | undefined
-  onToggle: () => void
-  codexConfig?: CodexThinkingConfig
+  config: SessionThinkingConfig
 }
 
-function AgentThinkingPopover({ agentThinking, onToggle, codexConfig }: AgentThinkingPopoverProps): React.ReactElement {
-  const [thinkingExpanded, setThinkingExpanded] = useAtom(thinkingExpandedAtom)
+function AgentThinkingPopover({ config }: AgentThinkingPopoverProps): React.ReactElement {
   const [open, setOpen] = React.useState(false)
   const hoverTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null)
-  const isCodex = Boolean(codexConfig)
-  const normalizedLevel = normalizeOpenAIThinkingLevel(codexConfig?.thinkingLevel)
-  const isEnabled = isCodex ? normalizedLevel !== 'off' : agentThinking?.type === 'adaptive'
-  const sliderPosition = CODEX_THINKING_LEVELS.indexOf(normalizedLevel)
+  const normalizedLevel = normalizePiThinkingLevel(config.thinkingLevel)
+  const isEnabled = normalizedLevel !== 'off'
+  const sliderPosition = PI_THINKING_LEVELS.indexOf(normalizedLevel)
 
   const handleMouseEnter = React.useCallback(() => {
     if (hoverTimeout.current) clearTimeout(hoverTimeout.current)
@@ -272,12 +265,9 @@ function AgentThinkingPopover({ agentThinking, onToggle, codexConfig }: AgentThi
     }
   }, [])
 
+  /** 单击切换开关：开 → off，关 → high；细调靠 hover 滑条 */
   const handleButtonClick = (): void => {
-    if (codexConfig) {
-      codexConfig.onThinkingLevelChange(isEnabled ? 'off' : 'high')
-      return
-    }
-    onToggle()
+    config.onThinkingLevelChange(isEnabled ? 'off' : 'high')
   }
 
   return (
@@ -291,7 +281,10 @@ function AgentThinkingPopover({ agentThinking, onToggle, codexConfig }: AgentThi
           onClick={handleButtonClick}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
-          disabled={codexConfig?.disabled}
+          disabled={config.disabled}
+          aria-pressed={isEnabled}
+          aria-label={isEnabled ? `思考深度：${PI_THINKING_LABELS[normalizedLevel]}` : '思考深度：关闭'}
+          title={isEnabled ? `思考深度：${PI_THINKING_LABELS[normalizedLevel]}（点击关闭）` : '思考深度：关（点击开启）'}
         >
           <Brain className="size-5" />
         </Button>
@@ -300,53 +293,34 @@ function AgentThinkingPopover({ agentThinking, onToggle, codexConfig }: AgentThi
         side="top"
         align="center"
         sideOffset={8}
-        className="w-64 p-3"
+        className="w-72 p-3"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <div className="flex flex-col gap-3">
-          {codexConfig ? (
-            <>
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-xs font-medium text-foreground/80">思考深度</span>
-                  <span className="text-xs tabular-nums text-muted-foreground">
-                    {CODEX_THINKING_LABELS[normalizedLevel]}
-                  </span>
-                </div>
-                <Slider
-                  value={[sliderPosition]}
-                  onValueChange={([position]) => codexConfig.onThinkingLevelChange(CODEX_THINKING_LEVELS[position!]!)}
-                  min={0}
-                  max={CODEX_THINKING_LEVELS.length - 1}
-                  step={1}
-                  disabled={codexConfig.disabled}
-                  aria-label="OpenAI 思考深度"
-                />
-                <div className="flex justify-between text-[10px] text-muted-foreground">
-                  {CODEX_THINKING_LEVELS.map((level) => <span key={level}>{CODEX_THINKING_LABELS[level]}</span>)}
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-xs text-foreground/70">思考模式</span>
-              <Switch
-                checked={isEnabled}
-                onCheckedChange={onToggle}
-                className="h-4 w-7 [&>span]:size-3 [&>span]:data-[state=checked]:translate-x-3"
-              />
+        <div className="space-y-2.5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 space-y-0.5">
+              <span className="text-xs font-medium text-foreground">思考深度</span>
+              <p className="text-[10px] leading-snug text-muted-foreground">
+                本会话生效（对齐 craft）；默认展开思考过程请到「通用设置」
+              </p>
             </div>
-          )}
-          <div className="h-px bg-border" />
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-xs text-foreground/70">展开思考</span>
-            <Switch
-              checked={thinkingExpanded}
-              onCheckedChange={setThinkingExpanded}
-              className="h-4 w-7 [&>span]:size-3 [&>span]:data-[state=checked]:translate-x-3"
-            />
+            <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+              {PI_THINKING_LABELS[normalizedLevel]}
+            </span>
+          </div>
+          <Slider
+            value={[sliderPosition]}
+            onValueChange={([position]) => config.onThinkingLevelChange(PI_THINKING_LEVELS[position!]!)}
+            min={0}
+            max={PI_THINKING_LEVELS.length - 1}
+            step={1}
+            disabled={config.disabled}
+            aria-label="思考深度"
+          />
+          <div className="flex justify-between text-[10px] text-muted-foreground">
+            {PI_THINKING_LEVELS.map((level) => <span key={level}>{PI_THINKING_LABELS[level]}</span>)}
           </div>
         </div>
       </PopoverContent>
@@ -488,8 +462,6 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
   const agentModelId = sessionMetaModelId ?? sessionModelMap.get(sessionId) ?? defaultModelId
   const agentChannelIds = useAtomValue(agentChannelIdsAtom)
   const [agentRuntime, setAgentRuntime] = useAtom(agentRuntimeAtom)
-  const [agentThinking, setAgentThinking] = useAtom(agentThinkingAtom)
-  const agentEffort = useAtomValue(agentEffortAtom)
   const setSettingsOpen = useSetAtom(settingsOpenAtom)
   const setDraftSessionIds = useSetAtom(draftSessionIdsAtom)
   const draftSessionIds = useAtomValue(draftSessionIdsAtom)
@@ -662,14 +634,10 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     && agentChannelProvider === 'openai-codex'
     && isCodexFastModeSupportedModel(agentModelId ?? undefined)
   const codexFastModeEnabled = isCodexFastModeAvailable && sessionMeta?.codexFastMode === true
-  const isOpenAIThinkingAvailable = hasSessionMeta
-    && sessionAgentRuntime === 'pi'
-    && (agentChannelProvider === 'openai-codex' || agentChannelProvider === 'openai-responses')
-    && isOpenAIReasoningSupportedModel(agentModelId ?? undefined)
-  const fallbackOpenAIThinkingLevel: AgentThinkingLevel = agentEffort === 'max'
-    ? 'xhigh'
-    : agentEffort ?? (agentThinking?.type === 'adaptive' ? 'high' : 'off')
-  const openAIThinkingLevel = sessionMeta?.openAIThinkingLevel ?? fallbackOpenAIThinkingLevel
+  /** Pi 会话一律可调思考深度（对齐 craft sticky ThinkingLevel） */
+  const isSessionThinkingAvailable = hasSessionMeta && sessionAgentRuntime === 'pi'
+  const sessionThinkingLevel: AgentThinkingLevel =
+    getSessionThinkingLevel(sessionMeta) ?? DEFAULT_AGENT_THINKING_LEVEL
 
   // 检查 Agent 渠道列表中是否存在可用的模型（渠道 enabled + 模型 enabled）
   const hasAvailableModel = React.useMemo(() => {
@@ -1870,23 +1838,25 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     }
   }, [backgroundWaiting, codexFastModeEnabled, isCodexFastModeAvailable, sessionId, sessionMeta, setAgentSessions, streaming])
 
-  const updateOpenAIThinkingLevel = React.useCallback(async (thinkingLevel: AgentThinkingLevel): Promise<void> => {
-    if (!isOpenAIThinkingAvailable || streaming || backgroundWaiting || !sessionMeta) return
+  const updateSessionThinkingLevel = React.useCallback(async (thinkingLevel: AgentThinkingLevel): Promise<void> => {
+    if (!isSessionThinkingAvailable || streaming || backgroundWaiting || !sessionMeta) return
 
     const previousSessionMeta = sessionMeta
     setAgentSessions((prev) => prev.map((item) => (
-      item.id === sessionId ? { ...item, openAIThinkingLevel: thinkingLevel, updatedAt: Date.now() } : item
+      item.id === sessionId
+        ? { ...item, thinkingLevel, openAIThinkingLevel: thinkingLevel, updatedAt: Date.now() }
+        : item
     )))
 
     try {
-      const updated = await window.electronAPI.updateSessionOpenAIThinkingLevel(sessionId, thinkingLevel)
+      const updated = await window.electronAPI.updateSessionThinkingLevel(sessionId, thinkingLevel)
       setAgentSessions((prev) => prev.map((item) => item.id === sessionId ? updated : item))
     } catch (error) {
-      console.error('[AgentView] 更新 OpenAI 思考深度失败:', error)
+      console.error('[AgentView] 更新思考深度失败:', error)
       setAgentSessions((prev) => prev.map((item) => item.id === sessionId ? previousSessionMeta : item))
       toast.error('思考深度切换失败', { description: getErrorMessage(error) })
     }
-  }, [backgroundWaiting, isOpenAIThinkingAvailable, sessionId, sessionMeta, setAgentSessions, streaming])
+  }, [backgroundWaiting, isSessionThinkingAvailable, sessionId, sessionMeta, setAgentSessions, streaming])
 
   /** 构建 externalSelectedModel 给 ModelSelector */
   const computedSelectedModel = React.useMemo(() => {
@@ -2602,27 +2572,19 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
       ),
     }] : []),
     { key: 'permission-mode', kind: 'context', node: <PermissionModeSelector sessionId={sessionId} /> },
-    {
+    ...(isSessionThinkingAvailable ? [{
       key: 'thinking',
-      kind: 'context',
+      kind: 'context' as const,
       node: (
         <AgentThinkingPopover
-          agentThinking={agentThinking}
-          onToggle={() => {
-            const next = agentThinking?.type === 'adaptive'
-              ? { type: 'disabled' as const }
-              : { type: 'adaptive' as const }
-            setAgentThinking(next)
-            window.electronAPI.updateSettings({ agentThinking: next })
-          }}
-          codexConfig={isOpenAIThinkingAvailable ? {
-            thinkingLevel: openAIThinkingLevel,
+          config={{
+            thinkingLevel: sessionThinkingLevel,
             disabled: streaming || backgroundWaiting,
-            onThinkingLevelChange: (level) => { void updateOpenAIThinkingLevel(level) },
-          } : undefined}
+            onThinkingLevelChange: (level: AgentThinkingLevel) => { void updateSessionThinkingLevel(level) },
+          }}
         />
       ),
-    },
+    }] : []),
     { key: 'speech', kind: 'tool', node: <SpeechButton className={inputToolbarButtonClass} /> },
     {
       key: 'attach-file',
@@ -2695,17 +2657,15 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     isCodexFastModeAvailable,
     codexFastModeEnabled,
     handleCodexFastModeChange,
-    isOpenAIThinkingAvailable,
-    openAIThinkingLevel,
-    updateOpenAIThinkingLevel,
+    isSessionThinkingAvailable,
+    sessionThinkingLevel,
+    updateSessionThinkingLevel,
     agentModelId,
     handleModelSelect,
     sessionAgentRuntime,
     backgroundWaiting,
     handleAgentRuntimeChange,
     sessionId,
-    agentThinking,
-    setAgentThinking,
     handleOpenFileDialog,
     handleAttachFolder,
     contextStatus.inputTokens,

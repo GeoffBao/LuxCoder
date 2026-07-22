@@ -39,13 +39,19 @@ import type {
   AgentSessionReferenceSearchResult,
   AgentRuntime,
 } from '@luxcoder/shared'
-import { migratePermissionMode } from '@luxcoder/shared'
+import {
+  DEFAULT_AGENT_THINKING_LEVEL,
+  getSessionThinkingLevel,
+  migratePermissionMode,
+  sessionThinkingLevelPatch,
+} from '@luxcoder/shared'
 import { getConversationMessages } from './conversation-manager'
 // 旧格式 → SDKMessage 的转换逻辑下沉到 @luxcoder/session-core 作为唯一真源，避免主进程与渲染层各存一份。
 import { convertLegacyMessage } from '@luxcoder/session-core'
 import { clearNanoBananaAgentHistory } from './chat-tools/nano-banana-mcp'
 import { assertEnabledModelForChannel } from './agent-model-selection'
 import { copyForkWorkspaceFiles } from './agent-fork-workspace-copy'
+import { getSettings } from './settings-service'
 
 /**
  * 会话索引文件格式
@@ -147,12 +153,26 @@ function migrateLegacyOpenAIThinkingDefault(index: AgentSessionsIndex): boolean 
   if (index.openAIThinkingDefaultEnabledMigrationCompleted) return false
 
   for (const session of index.sessions) {
-    if (session.openAIThinkingLevel === 'off') {
-      session.openAIThinkingLevel = 'high'
+    if (session.openAIThinkingLevel === 'off' || session.thinkingLevel === 'off') {
+      Object.assign(session, sessionThinkingLevelPatch('high'))
     }
   }
   index.openAIThinkingDefaultEnabledMigrationCompleted = true
   return true
+}
+
+/** 将旧字段 openAIThinkingLevel 同步到 thinkingLevel，保证新读路径一致 */
+function migrateThinkingLevelField(index: AgentSessionsIndex): boolean {
+  let changed = false
+  for (const session of index.sessions) {
+    const level = getSessionThinkingLevel(session)
+    if (!level) continue
+    if (session.thinkingLevel !== level || session.openAIThinkingLevel !== level) {
+      Object.assign(session, sessionThinkingLevelPatch(level))
+      changed = true
+    }
+  }
+  return changed
 }
 
 /**
@@ -164,13 +184,14 @@ function readIndex(): AgentSessionsIndex {
   if (data) {
     const permissionModeMigrated = migrateLegacyPermissionMode(data)
     const thinkingDefaultMigrated = migrateLegacyOpenAIThinkingDefault(data)
-    if (permissionModeMigrated || thinkingDefaultMigrated) {
+    const thinkingFieldMigrated = migrateThinkingLevelField(data)
+    if (permissionModeMigrated || thinkingDefaultMigrated || thinkingFieldMigrated) {
       writeIndex(data)
       if (permissionModeMigrated) {
         console.log('[Agent 会话] 已迁移历史权限模式 auto → bypassPermissions')
       }
       if (thinkingDefaultMigrated) {
-        console.log('[Agent 会话] 已将历史 OpenAI 会话的思考深度默认值升级为高')
+        console.log('[Agent 会话] 已将历史会话的思考深度默认值升级为高')
       }
     }
     return data
@@ -220,6 +241,7 @@ export function createAgentSession(
 ): AgentSessionMeta {
   const index = readIndex()
   const now = Date.now()
+  const defaultLevel = getSettings().defaultThinkingLevel ?? DEFAULT_AGENT_THINKING_LEVEL
 
   const meta: AgentSessionMeta = {
     id: randomUUID(),
@@ -228,8 +250,8 @@ export function createAgentSession(
     modelId,
     workspaceId,
     agentRuntime,
-    // OpenAI 推理配置从创建起归属于会话；默认启用高思考深度。
-    openAIThinkingLevel: 'high',
+    // 思考深度从创建起归属于会话（对齐 craft sticky ThinkingLevel）
+    ...sessionThinkingLevelPatch(defaultLevel),
     createdAt: now,
     updatedAt: now,
   }
@@ -474,7 +496,7 @@ export function getRecentAgentSessionSDKMessages(
 /**
  * 更新会话元数据
  */
-export type AgentSessionMetaUpdates = Partial<Pick<AgentSessionMeta, 'title' | 'channelId' | 'modelId' | 'sdkSessionId' | 'piSessionFile' | 'piEntryBindings' | 'agentRuntime' | 'codexFastMode' | 'openAIThinkingLevel' | 'workspaceId' | 'pinned' | 'starred' | 'archived' | 'attachedDirectories' | 'attachedFiles' | 'forkSourceDir' | 'forkSourceSdkSessionId' | 'resumeAtMessageUuid' | 'stoppedByUser' | 'sessionStatus' | 'permissionMode' | 'completedButUnconfirmed' | 'sourceAutomationId' | 'automationGraduated' | 'parentSessionId' | 'rootSessionId' | 'sourceDelegationId' | 'delegationRole' | 'delegationStatus' | 'delegationDepth' | 'delegationGoal' | 'projectId' | 'workingDirectory' | 'kanbanColumn' | 'taskSlug' | 'taskRunId' | 'taskNodeId' | 'taskNodeCount' | 'taskDraft'>>
+export type AgentSessionMetaUpdates = Partial<Pick<AgentSessionMeta, 'title' | 'channelId' | 'modelId' | 'sdkSessionId' | 'piSessionFile' | 'piEntryBindings' | 'agentRuntime' | 'codexFastMode' | 'thinkingLevel' | 'openAIThinkingLevel' | 'workspaceId' | 'pinned' | 'starred' | 'archived' | 'attachedDirectories' | 'attachedFiles' | 'forkSourceDir' | 'forkSourceSdkSessionId' | 'resumeAtMessageUuid' | 'stoppedByUser' | 'sessionStatus' | 'permissionMode' | 'completedButUnconfirmed' | 'sourceAutomationId' | 'automationGraduated' | 'parentSessionId' | 'rootSessionId' | 'sourceDelegationId' | 'delegationRole' | 'delegationStatus' | 'delegationDepth' | 'delegationGoal' | 'projectId' | 'workingDirectory' | 'kanbanColumn' | 'taskSlug' | 'taskRunId' | 'taskNodeId' | 'taskNodeCount' | 'taskDraft'>>
 
 export function updateAgentSessionMeta(
   id: string,
@@ -494,9 +516,18 @@ export function updateAgentSessionMeta(
   // 非手动归档操作时，若会话已归档则自动恢复为活跃（仅更新 stoppedByUser 或 starred 不触发解归档）
   const isStoppedByUserOnly = updateKeys.every((key) => key === 'stoppedByUser')
   const autoUnarchive = existing.archived && !('archived' in updates) && !isStoppedByUserOnly && !isStarredOnly
+
+  // 思考等级双写：任一字段更新时同步 thinkingLevel ↔ openAIThinkingLevel
+  const thinkingPatch = (() => {
+    const nextLevel = updates.thinkingLevel ?? updates.openAIThinkingLevel
+    if (nextLevel === undefined) return undefined
+    return sessionThinkingLevelPatch(nextLevel)
+  })()
+
   const updated: AgentSessionMeta = {
     ...existing,
     ...updates,
+    ...thinkingPatch,
     ...(autoUnarchive ? { archived: false } : {}),
     updatedAt: isStarredOnly ? existing.updatedAt : Date.now(),
   }
@@ -974,6 +1005,10 @@ async function forkPiAgentSession(sourceMeta: AgentSessionMeta, input: ForkSessi
       : undefined
     : undefined
   const newMeta = createAgentSession(`${sourceMeta.title} (fork)`, sourceMeta.channelId, sourceMeta.workspaceId, forkModelId, 'pi')
+  const sourceThinking = getSessionThinkingLevel(sourceMeta)
+  if (sourceThinking) {
+    updateAgentSessionMeta(newMeta.id, sessionThinkingLevelPatch(sourceThinking))
+  }
   const destDir = sourceMeta.workspaceId && getAgentWorkspace(sourceMeta.workspaceId)
     ? getAgentSessionWorkspacePath(getAgentWorkspace(sourceMeta.workspaceId)!.slug, newMeta.id)
     : undefined

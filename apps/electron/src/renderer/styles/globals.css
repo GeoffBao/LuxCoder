@@ -1284,6 +1284,18 @@
   color: hsl(var(--foreground) / 0.68);
 }
 
+/* 工具栏开关「开」态：--ring 在各主题都是可见强调色；默认 dark 下 primary≈前景，仅换色几乎无对比 */
+.input-toolbar-active {
+  background-color: hsl(var(--ring) / 0.18) !important;
+  color: hsl(var(--ring)) !important;
+}
+
+.input-toolbar-active:hover,
+.input-toolbar-active[data-state='open'] {
+  background-color: hsl(var(--ring) / 0.28) !important;
+  color: hsl(var(--ring)) !important;
+}
+
 :root:not(.ui-classic) .agent-input-toolbar .input-toolbar-item[data-toolbar-kind='tool'] button {
   color: hsl(var(--foreground) / 0.48);
 }

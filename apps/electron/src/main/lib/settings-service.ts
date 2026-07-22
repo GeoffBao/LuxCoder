@@ -32,6 +32,7 @@ export function getSettings(): AppSettings {
       sidebarModuleCollapsed: {},
       agentRuntime: DEFAULT_AGENT_RUNTIME,
       agentThinking: { type: 'adaptive' },
+      defaultThinkingLevel: 'high',
     }
   }
 
@@ -54,6 +55,7 @@ export function getSettings(): AppSettings {
       sidebarModuleCollapsed: data.sidebarModuleCollapsed ?? {},
       agentRuntime: settings.agentRuntime ?? DEFAULT_AGENT_RUNTIME,
       agentThinking: settings.agentThinking ?? { type: 'adaptive' },
+      defaultThinkingLevel: settings.defaultThinkingLevel ?? 'high',
     }
   } catch (error) {
     console.error('[设置] 读取失败:', error)
@@ -70,6 +72,7 @@ export function getSettings(): AppSettings {
       sidebarModuleCollapsed: {},
       agentRuntime: DEFAULT_AGENT_RUNTIME,
       agentThinking: { type: 'adaptive' },
+      defaultThinkingLevel: 'high',
     }
   }
 }

@@ -268,7 +268,7 @@ export const conversationThinkingEnabledAtom = atom<Map<string, boolean>>(new Ma
 /** 每个对话的并排模式 */
 export const conversationParallelModeAtom = atom<Map<string, boolean>>(new Map())
 
-/** 思考块默认展开偏好（持久化到 localStorage） */
+/** 思考块默认展开偏好（展示侧；与思考模式/生成侧开关正交） */
 export const thinkingExpandedAtom = atomWithStorage<boolean>(
   'luxcoder-thinking-expanded',
   false,

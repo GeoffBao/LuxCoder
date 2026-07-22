@@ -43,10 +43,13 @@ import {
   updateRichTextRenderingEnabled,
   updateStickyUserMessageEnabled,
 } from '@/atoms/ui-preferences'
+import { thinkingExpandedAtom } from '@/atoms/chat-atoms'
 import { cn } from '@/lib/utils'
 import { BUILTIN_AVATARS } from '@/lib/builtin-avatars'
 import { Button } from '../ui/button'
 import type { NotificationSoundId, NotificationSoundType, NotificationSoundSettings } from '@/types/settings'
+import type { AgentThinkingLevel } from '@luxcoder/shared'
+import { DEFAULT_AGENT_THINKING_LEVEL } from '@luxcoder/shared'
 
 export function GeneralSettings(): React.ReactElement {
   const [userProfile, setUserProfile] = useAtom(userProfileAtom)
@@ -56,16 +59,19 @@ export function GeneralSettings(): React.ReactElement {
   const [stickyUserMessageEnabled, setStickyUserMessageEnabled] = useAtom(stickyUserMessageEnabledAtom)
   const [longTextPasteAsAttachmentEnabled, setLongTextPasteAsAttachmentEnabled] = useAtom(longTextPasteAsAttachmentEnabledAtom)
   const [richTextRenderingEnabled, setRichTextRenderingEnabled] = useAtom(richTextRenderingEnabledAtom)
+  const [thinkingExpanded, setThinkingExpanded] = useAtom(thinkingExpandedAtom)
+  const [defaultThinkingLevel, setDefaultThinkingLevel] = React.useState<AgentThinkingLevel>(DEFAULT_AGENT_THINKING_LEVEL)
   const [isEditingName, setIsEditingName] = React.useState(false)
   const [nameInput, setNameInput] = React.useState(userProfile.userName)
   const [showAvatarPicker, setShowAvatarPicker] = React.useState(false)
   const [archiveAfterDays, setArchiveAfterDays] = React.useState<number>(7)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
-  // 加载归档天数设置
+  // 加载归档天数 / 默认思考深度
   React.useEffect(() => {
     window.electronAPI.getSettings().then((settings) => {
       setArchiveAfterDays(settings.archiveAfterDays ?? 7)
+      setDefaultThinkingLevel(settings.defaultThinkingLevel ?? DEFAULT_AGENT_THINKING_LEVEL)
     }).catch(console.error)
   }, [])
 
@@ -77,6 +83,17 @@ export function GeneralSettings(): React.ReactElement {
       await window.electronAPI.updateSettings({ archiveAfterDays: days })
     } catch (error) {
       console.error('[通用设置] 更新归档天数失败:', error)
+    }
+  }
+
+  /** 更新新会话默认思考深度 */
+  const handleDefaultThinkingLevelChange = async (value: string): Promise<void> => {
+    const level = value as AgentThinkingLevel
+    setDefaultThinkingLevel(level)
+    try {
+      await window.electronAPI.updateSettings({ defaultThinkingLevel: level })
+    } catch (error) {
+      console.error('[通用设置] 更新默认思考深度失败:', error)
     }
   }
 
@@ -344,6 +361,35 @@ export function GeneralSettings(): React.ReactElement {
               updateRichTextRenderingEnabled(checked)
             }}
           />
+          <SettingsToggle
+            label="默认展开思考过程"
+            description="仅影响消息里 Thinking 块是否默认展开，不改变模型是否思考；本会话思考深度请在输入栏调节"
+            checked={thinkingExpanded}
+            onCheckedChange={setThinkingExpanded}
+          />
+          <SettingsRow
+            label="新会话默认思考深度"
+            description="对齐 craft：仅作为新建会话的初始值，可在输入栏按会话覆盖"
+          >
+            <Select value={defaultThinkingLevel} onValueChange={handleDefaultThinkingLevelChange}>
+              <SelectTrigger className="w-[120px] h-8 text-[13px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {([
+                  ['off', '关闭'],
+                  ['low', '低'],
+                  ['medium', '中'],
+                  ['high', '高'],
+                  ['xhigh', '极高'],
+                ] as const).map(([level, label]) => (
+                  <SelectItem key={level} value={level}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </SettingsRow>
         </SettingsCard>
       </SettingsSection>
     </div>

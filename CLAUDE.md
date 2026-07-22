@@ -27,7 +27,7 @@ luxcoder/
 │   ├── core/       # AI Provider 适配器、代码高亮服务 (v0.1.0)
 │   └── ui/         # 共享 UI 组件 (CodeBlock, MermaidBlock) (v0.1.0)
 └── apps/
-    └── electron/   # Electron 桌面应用 (v0.1.21)
+    └── electron/   # Electron 桌面应用 (v0.1.94)
         └── src/
             ├── main/       # 主进程 + 服务层 (main/lib/)
             ├── preload/    # IPC 上下文桥接
@@ -56,7 +56,7 @@ luxcoder/
 - **依赖**：`@luxcoder/core`、`beautiful-mermaid`、`shiki`、Radix UI
 - **Peer 依赖**：`react@^18.3.0`、`react-dom@^18.3.0`
 
-#### @luxcoder/electron (v0.1.21)
+#### @luxcoder/electron (v0.1.94)
 - **职责**：Electron 桌面应用主体，集成所有包
 - **关键依赖**：
   - `@anthropic-ai/claude-agent-sdk` - Agent SDK
@@ -391,7 +391,12 @@ bun run generate:icons    # 生成应用图标
 
 ## 版本管理
 
-提交代码时始终递增受影响包的 patch 版本（如 `0.1.18` → `0.1.19`），影响多个包则都要递增。
+- **产品 / 发布版本**以 `apps/electron/package.json` 的 `version` 为准（CI release 会校验 git tag 与此一致）。
+- **日常功能 PR 不要改任何包的 `version` 字段**；等显式做 release 时再统一升版本并打 tag。
+- monorepo 内各包（`@luxcoder/shared` / `core` / `ui` / `electron`）各自有独立 `version`，互不自动同步：
+  - `electron`：用户看到的应用版本、安装包与 GitHub Release tag
+  - `shared` / `core` / `ui`：库包自身变更记录用；本仓库用 `workspace:*` 引用，**不单独发 npm**，一般不必随功能 PR  bump
+- 默认 Skills 的 `SKILL.md` `version` 契约仍按下方规则，与应用 package version 无关。
 
 ### 默认 Skills 版本契约（`apps/electron/default-skills/`）
 
