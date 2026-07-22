@@ -8,8 +8,9 @@ import { atom } from 'jotai'
 export const newTaskProjectFlowOpenAtom = atom(false)
 
 /**
- * 递增请求令牌：ProjectContextPicker 监听到变化后执行「浏览…」。
- * GlobalShortcuts ⌘O / 侧栏空态均可触发。
+ * 递增请求令牌：已挂载的 ProjectContextPicker 监听到「相对自身基线」的递增后执行「浏览…」。
+ * 挂载时只同步基线、不回放历史值（避免点新会话/新任务误弹系统选目录）。
+ * 若需先打开对话框再浏览（⌘O 无 Draft / 项目菜单），应在 host 挂载后再递增。
  */
 export const projectContextBrowseRequestAtom = atom(0)
 

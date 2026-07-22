@@ -19,6 +19,7 @@ import type { AgentSessionMeta } from '@luxcoder/shared'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { WorkingDirectoryField } from '@/components/app-shell/kanban/WorkingDirectoryField'
 import {
   Dialog,
   DialogContent,
@@ -590,19 +591,21 @@ export function ProjectInfoPage({
                 />
               </label>
             </div>
-            <label className="block space-y-1.5 text-xs font-medium">
-              工作目录
-              <Input
+            <div className="space-y-1.5 text-xs font-medium">
+              <span>工作目录</span>
+              <WorkingDirectoryField
                 value={settingsDraft.workingDirectory}
-                onChange={(event) =>
+                onChange={(path) =>
                   setSettingsDraft((current) => ({
                     ...current,
-                    workingDirectory: event.target.value,
+                    workingDirectory: path,
                   }))
                 }
-                placeholder="绝对路径；留空则使用托管 workdir"
               />
-            </label>
+              <p className="text-[11px] font-normal text-muted-foreground">
+                可选；留空则使用托管 workdir
+              </p>
+            </div>
             <label className="block space-y-1.5 text-xs font-medium">
               默认专家
               <select

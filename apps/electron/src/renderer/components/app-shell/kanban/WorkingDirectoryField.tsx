@@ -34,7 +34,7 @@ export function WorkingDirectoryField({
         type="button"
         onClick={() => void pickFolder()}
         disabled={picking}
-        title={value || '选择本地文件夹作为任务工作目录'}
+        title={value || '选择本地文件夹作为工作目录'}
         className={cn(
           'inline-flex h-9 min-w-0 flex-1 items-center gap-2 rounded-md border border-border/60 bg-background px-2.5 text-left text-sm',
           'hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-60',
