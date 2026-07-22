@@ -123,15 +123,20 @@ describe('Agent 工作区创建', () => {
 })
 
 describe('ensureDefaultWorkspace', () => {
-  test('新建时名称为 Default Space，不改已有名称', () => {
+  test('新建时名称为默认空间，不改已有自定义名称；Default Space 旧名会迁移', () => {
     const created = manager.ensureDefaultWorkspace()
     expect(created.slug).toBe('default')
-    expect(created.name).toBe('Default Space')
+    expect(created.name).toBe('默认空间')
 
-    manager.updateAgentWorkspace(created.id, { name: '默认工作区' })
+    manager.updateAgentWorkspace(created.id, { name: 'Default Space' })
+    const migrated = manager.ensureDefaultWorkspace()
+    expect(migrated.id).toBe(created.id)
+    expect(migrated.name).toBe('默认空间')
+
+    manager.updateAgentWorkspace(created.id, { name: '我的实验室' })
     const again = manager.ensureDefaultWorkspace()
     expect(again.id).toBe(created.id)
-    expect(again.name).toBe('默认工作区')
+    expect(again.name).toBe('我的实验室')
   })
 })
 

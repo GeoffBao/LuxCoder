@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { ChevronRight, Info, Plus } from 'lucide-react'
+import { ChevronRight, Info, Plus, Trash2 } from 'lucide-react'
 import type { SessionIndicatorStatus } from '@/atoms/agent-atoms'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -17,6 +17,7 @@ export interface SidebarProjectSubgroupProps {
   projects: KanbanProject[]
   onNewSessionInProject: (projectId: string) => Promise<void>
   onOpenProjectDetail: (projectId: string) => void
+  onDeleteProject: (projectId: string) => void | Promise<void>
   onMoveToProject: (sessionId: string, projectId?: string) => void | Promise<void>
   /** 以下透传给 AgentSessionItem，与工作区组内会话行为完全一致 */
   onSelectSession: (id: string, title: string) => void
@@ -29,7 +30,7 @@ export interface SidebarProjectSubgroupProps {
 }
 
 /**
- * 侧边栏项目子分组：分组头（色点 + 名称 + 会话数 + hover「+」/详情）+ 组内会话列表。
+ * 侧边栏项目子分组：分组头（色点 + 名称 + 会话数 + hover「+」/详情/删除）+ 组内会话列表。
  * 独立成文件：LeftSidebar.tsx 是 Proma 移植冲突热点，只留挂载点。
  */
 export function SidebarProjectSubgroup({
@@ -40,6 +41,7 @@ export function SidebarProjectSubgroup({
   projects,
   onNewSessionInProject,
   onOpenProjectDetail,
+  onDeleteProject,
   onMoveToProject,
   onSelectSession,
   onRequestDelete,
@@ -72,7 +74,7 @@ export function SidebarProjectSubgroup({
           aria-controls={`subproject-sessions-${group.project.id}`}
           onClick={() => setCollapsed((value) => !value)}
           className={cn(
-            'flex-1 min-w-0 flex items-center gap-1.5 px-1 py-0.5 rounded-md text-left transition-[padding,color,background-color] titlebar-no-drag group-hover/subproject:pr-11',
+            'flex-1 min-w-0 flex items-center gap-1.5 px-1 py-0.5 rounded-md text-left transition-[padding,color,background-color] titlebar-no-drag group-hover/subproject:pr-[4.25rem]',
             // 选中反馈：左侧 2px 实心色条 + 底色 + 主色文字。
             // 默认深色主题 --primary 与前景色接近（38 27% 94%），仅靠 bg-primary/10
             // 在 18px 高的窄行上几乎不可感知，必须加全不透明色条才足够明确。
@@ -108,7 +110,7 @@ export function SidebarProjectSubgroup({
               type="button"
               aria-label={`在「${group.project.name}」中新建会话`}
               onClick={() => void onNewSessionInProject(group.project.id)}
-              className="absolute right-5 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-md text-foreground/30 opacity-0 transition-colors hover:bg-foreground/[0.055] hover:text-foreground/65 group-hover/subproject:opacity-100 focus-visible:opacity-100 titlebar-no-drag"
+              className="absolute right-10 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-md text-foreground/30 opacity-0 transition-colors hover:bg-foreground/[0.055] hover:text-foreground/65 group-hover/subproject:opacity-100 focus-visible:opacity-100 titlebar-no-drag"
             >
               <Plus size={12} />
             </button>
@@ -121,12 +123,25 @@ export function SidebarProjectSubgroup({
               type="button"
               aria-label={`「${group.project.name}」项目详情`}
               onClick={() => onOpenProjectDetail(group.project.id)}
-              className="absolute right-0 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-md text-foreground/30 opacity-0 transition-colors hover:bg-foreground/[0.055] hover:text-foreground/65 group-hover/subproject:opacity-100 focus-visible:opacity-100 titlebar-no-drag"
+              className="absolute right-5 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-md text-foreground/30 opacity-0 transition-colors hover:bg-foreground/[0.055] hover:text-foreground/65 group-hover/subproject:opacity-100 focus-visible:opacity-100 titlebar-no-drag"
             >
               <Info size={12} />
             </button>
           </TooltipTrigger>
           <TooltipContent side="top">项目详情</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              aria-label={`删除项目「${group.project.name}」`}
+              onClick={() => { void onDeleteProject(group.project.id) }}
+              className="absolute right-0 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-md text-foreground/30 opacity-0 transition-colors hover:bg-destructive/10 hover:text-destructive group-hover/subproject:opacity-100 focus-visible:opacity-100 titlebar-no-drag"
+            >
+              <Trash2 size={12} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top">删除项目</TooltipContent>
         </Tooltip>
       </div>
       {!collapsed && group.sessions.length > 0 && (

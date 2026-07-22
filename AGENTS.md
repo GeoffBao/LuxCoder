@@ -526,15 +526,16 @@ React UI 更新
 
 - Prefer Chinese for explanations; keep a terse expert tone
 - Commit only when explicitly asked
-- Work/Kanban task runs should show live tool/stream execution in Code chat, matching craft-agents and normal Code mode
-- Prefer fully aligning Work/Kanban behavior with craft-agents-max rather than inventing parallel UX
-- When changing Code `LeftSidebar`, isolate craft-Project UI (e.g. `SidebarProjectSubgroup`, `SidebarProjectsSection`) to keep Proma LeftSidebar ports merge-friendly
+- Work/Kanban task runs should show live tool/stream execution in Code chat and stay aligned with craft-agents-max rather than inventing parallel UX
 - Prefer Appearance and Tools settings tabs visible; do not re-hide them in `HIDDEN_TABS` without asking
-- Prefer Code left-rail modules as single entry rows (like Agent Skills / Auto Tasks), not expandable project lists; open management surfaces in the main area
-- Prefer Code IA: Sessions remain the primary list; module order Auto Tasks → Agent Skills → Agent Experts → 项目中心 (last in module zone); top-bar is Chat|Code only (Work/`cowork` retired)
-- Prefer naming the Projects hub「项目中心」(not bare「项目」); Agent专家 are creatable domain-role shells (builtin label「通用软件专家」, slug `general`) empowered by skills; TaskEditor expert picker must use the expert module list; Kanban uses task/project `expertId`—not swarm or IM bot UI yet
-- Prefer 项目中心 hub card → filtered Board (card may shortcut 新建任务); 新建任务/Teambition stay on Board toolbar, not project settings or left-rail; project detail stays in Code with craft-aligned fields (cwd/color/description)
-- Prefer one-way Proma sync only (no reverse PRs / dual-contribute); cherry-pick upstream in chronological order ~10 commits/batch on a dedicated `sync/proma-*` branch—agent auto-applies clean picks and pauses on structural conflicts for discussion; include Proma CLI/`session-core` when upstream brings them (rename to `@luxcoder`); do not merge the sync branch to `origin/main` until explicitly asked
+- Prefer Code left-rail modules as single entry rows (not expandable project lists); isolate craft-Project UI (`SidebarProjectSubgroup` etc.) so Proma LeftSidebar ports stay merge-friendly; open management surfaces in the main area
+- Prefer Code IA (2026-07-22): Workspace switcher at top (`Default Space`); sidebar dual projection「最近会话｜项目」; Project is the daily primary container; delete independent「项目中心」hub; Sessions stay the primary list; top-bar Chat|Code only (Work/`cowork` retired)
+- Prefer Agent专家 as creatable domain-role shells (builtin label「通用软件专家」, slug `general`) empowered by skills; TaskEditor expert picker must use the expert module list; Kanban uses task/project `expertId`—not swarm or IM bot UI yet
+- Prefer Task/Teambition creation to require a Project (no「无项目」); 新建任务/Teambition stay on Board toolbar; open-folder finds/creates Project then enters Draft Session; project detail stays in Code (`ProjectInfoPage` tabs) with craft-aligned fields (cwd/color/description)
+- Prefer omitting current-Workspace name badges on session rows/tabs (only show when the session belongs to another Workspace)
+- Prefer future Repo Wiki / Browser / Terminal as separate panel surfaces, not extra session tabs in the top bar
+- Prefer one-way Proma sync only (no reverse PRs / dual-contribute); cherry-pick upstream in chronological order ~10 commits/batch on a dedicated `sync/proma-*` branch—agent auto-applies clean picks and pauses on structural conflicts for discussion; include Proma CLI/`session-core` when upstream brings them (rename to `@luxcoder`); prefer landing clear Proma UX/UI polish and audit conflict resolutions for dropped UX; do not merge the sync branch to `origin/main` until explicitly asked
+- Prefer Proma agent-runtime defaults (Pi for new Code/agent sessions and task runs); Work/`cowork` is retired so Kanban shares the Code agent path—do not specially pin Work/Conductor to Claude unless asked
 
 ## Learned Workspace Facts
 
@@ -542,11 +543,11 @@ React UI 更新
 - Task `llmConnection` maps to LuxCoder `channelId` (Channel acts as the connection)
 - Dev config/storage lives under `~/.luxcoder-dev/`; packaged builds use `~/.luxcoder/`
 - Work/Kanban Conductor must run agents via `runAgentHeadless` so `STREAM_EVENT` reaches the Code renderer
-- Code main Board uses `codeMainViewAtom` (`'session' | 'work'`); `workViewAtom` stays separate; `WorkBoardView` is reused (no second board); project ⓘ stays in Code; top-bar Work/`cowork` is retired (ModeSwitcher Chat|Code; persisted `cowork` → `agent` + `codeMainView='work'`)
-- Code sidebar「工作区」= `AgentWorkspace`; craft「项目」= workspace-internal Project shared via `serverKanbanProjectsAtom`; Board filters by `selectedProjectIdAtom`
+- Code main Board uses `codeMainViewAtom` (`'session' | 'work'`); `workViewAtom` stays separate; `WorkBoardView` is reused (no second board); project ⓘ stays in Code; top-bar Work/`cowork` is retired (ModeSwitcher Chat|Code; persisted `cowork` → `agent` + `codeMainView='work'`); top tabs are Scratch Pad + current session (+ optional one file-preview)—Proma #633+ single-session model, not early multi-tab
+- Code sidebar Workspace = `AgentWorkspace` (UI label Workspace / default name `Default Space`, slug `default`, undeletable); craft「项目」= workspace-internal Project shared via `serverKanbanProjectsAtom`; Board filters by `selectedProjectIdAtom`
 - `projects:changed` payload `workspaceId` is the workspace root basename (slug), not the workspace UUID
-- Code IA: 项目中心 Hub via `activeView='projects'`, Agent专家 via `activeView='agent-experts'`; left-rail entry rows only (no expandable project list)
+- Code IA (2026-07-22): no独立「项目中心」/`activeView='projects'` hub; Agent专家 via `activeView='agent-experts'`; Project home is `ProjectInfoPage` (tabs 概览｜会话｜任务｜资料); Workspace delete lives on `WorkspaceSwitcher` (requires >1 workspace, never `slug==='default'`); feature work is on `feature/workspace-project-session-ia` at `.worktrees/workspace-project-session-ia` until merge (main `bun run dev` stays old; a branch can only be checked out in one worktree)
 - craft CreateProject is name-first; cwd/color/description thickness belongs on `ProjectInfoPage`, not a heavy create wizard
 - Agent专家 live under `~/.luxcoder/experts/{slug}/` (dev: `~/.luxcoder-dev/experts/`) with IDENTITY/SOUL/RULES + `expert.json`; builtins include 通用软件专家 + 驱动/应用/系统/通信软件专家、软件交付经理、软件SE、软件架构师、软件测试、代码审查; Kanban TaskRunner injects expert preamble via `task.defaults.expertId` → project `defaultExpertId` and merges `skillSlugs` (skip+warn if missing); no Code-session/`mcpIds`/Bot injection yet
 - `TaskModelSelect` / Radix dropdowns over AppShell need `z-[9999]` (AppShell chrome is `z-[60]`; default portal `z-50` gets clipped)
-- Proma upstream: `origin`=GeoffBao/LuxCoder, `upstream`=proma-ai/Proma; short-lived `sync/proma-YYYYMMDD[-bNN]` (push for backup; merge→main only when asked, then delete); `feature/*` only from main; tag `synced/proma-<sha>`; gate with `bun run sync:check` / `sync:apply-renames` (`scripts/upstream-sync/`, `.cursor/commands/upstream-sync.md`); Lux-owned surfaces (Kanban/项目中心/专家/`AgentSessionItem`/`@luxcoder`) win structure conflicts—take upstream for SDK/security/bugfix semantics; ported `@luxcoder/session-core` + `apps/cli` (`luxcoder` / `$LUXCODER_CLI`) stay in tree
+- Proma upstream: `origin`=GeoffBao/LuxCoder, `upstream`=proma-ai/Proma; short-lived `sync/proma-YYYYMMDD[-bNN]` (push for backup; merge→main only when asked, then delete); `feature/*` only from main; tag `synced/proma-<sha>`; gate with `bun run sync:check` / `sync:apply-renames` (`scripts/upstream-sync/`, `.cursor/commands/upstream-sync.md`); weekly GHA Sat 15:00 Asia/Shanghai (`.github/workflows/proma-weekly-sync.yml`) opens a new `origin/sync/*` from latest main; sync/feature archives under `proma-thinking/`; Lux-owned surfaces (Kanban/Project/专家/`AgentSessionItem`/`@luxcoder`) win structure conflicts—take upstream for SDK/security/bugfix semantics; ported `@luxcoder/session-core` + `apps/cli` (`luxcoder` / `$LUXCODER_CLI`) stay in tree

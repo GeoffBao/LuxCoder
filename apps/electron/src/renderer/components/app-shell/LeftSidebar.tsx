@@ -11,7 +11,7 @@
 import * as React from 'react'
 import { useAtom, useSetAtom, useAtomValue, useStore } from 'jotai'
 import { toast } from 'sonner'
-import { Pin, PinOff, Settings, Plus, Trash2, Pencil, PanelLeftClose, PanelLeftOpen, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MessageSquare, MoreHorizontal, FolderOpen, GripVertical, Clock, AlarmClock, ChevronRight, Blocks, GitBranch, Download, Loader2, RotateCw } from 'lucide-react'
+import { Pin, PinOff, Settings, Plus, Trash2, Pencil, PanelLeftClose, PanelLeftOpen, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MessageSquare, MoreHorizontal, FolderOpen, GripVertical, Clock, AlarmClock, ChevronRight, Blocks, GitBranch, Download, Loader2, RotateCw, Layers } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { ModeSwitcher } from './ModeSwitcher'
@@ -1318,12 +1318,46 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     handleSwitchWorkspace(workspaceId)
   }, [currentWorkspaceId, handleSwitchWorkspace])
 
+  /** 侧栏项目行直接删除 craft Project（缩短「进详情 → …」路径） */
+  const handleDeleteCraftProject = React.useCallback(async (projectId: string): Promise<void> => {
+    if (!workspaceRootForProjects) {
+      toast.error('请先选择工作空间')
+      return
+    }
+    const project = kanbanProjects.find((item) => item.id === projectId)
+    if (!project?.slug) {
+      toast.error('找不到项目')
+      return
+    }
+    if (!window.confirm(`确定删除项目「${project.name}」及其资产吗？`)) return
+    try {
+      await window.electronAPI.projects.delete(workspaceRootForProjects, project.slug)
+      setKanbanProjects((current) => current.filter((item) => item.id !== projectId))
+      if (selectedProjectId === projectId) {
+        setSelectedProjectId(null)
+        setWorkView('board')
+      }
+      toast.success('项目已删除')
+    } catch (cause) {
+      toast.error('删除项目失败', {
+        description: cause instanceof Error ? cause.message : String(cause),
+      })
+    }
+  }, [
+    kanbanProjects,
+    selectedProjectId,
+    setKanbanProjects,
+    setSelectedProjectId,
+    setWorkView,
+    workspaceRootForProjects,
+  ])
+
   /** 侧栏「项目」视图下新建 craft Project */
   const handleCreateCraftProject = React.useCallback(async (
     input: Parameters<typeof window.electronAPI.projects.create>[1],
   ): Promise<void> => {
     if (!workspaceRootForProjects) {
-      toast.error('请先选择 Workspace')
+      toast.error('请先选择工作空间')
       return
     }
     setCreatingCraftProject(true)
@@ -1388,7 +1422,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     if (!workspaceId || !workspace) return
 
     if (!canDeleteWorkspace(workspace)) {
-      toast.error(workspace.slug === 'default' ? '默认工作区不能删除' : '至少需要保留一个工作区')
+      toast.error(workspace.slug === 'default' ? '默认空间不能删除' : '至少需要保留一个工作空间')
       setPendingDeleteWorkspaceId(null)
       return
     }
@@ -1473,7 +1507,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         }
       }
 
-      toast.success('工作区已删除', {
+      toast.success('工作空间已删除', {
         description: `已删除「${workspace.name}」及其绑定资源`,
       })
     } catch (error) {
@@ -1648,20 +1682,31 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     setProjectDropIndicator(null)
   }, [])
 
-  /** 开始创建新工作区 */
+  /** 开始创建新工作空间（勿用 onBlur 自动关闭：Dropdown 关菜单会抢 focus 导致输入框闪没） */
   const handleStartCreateProject = React.useCallback((): void => {
     setCreatingProject(true)
     setNewProjectName('')
-    requestAnimationFrame(() => {
-      newProjectInputRef.current?.focus()
-    })
   }, [])
 
-  /** 创建新工作区，并设为当前工作区 */
+  const handleCancelCreateProject = React.useCallback((): void => {
+    setCreatingProject(false)
+    setNewProjectName('')
+  }, [])
+
+  React.useEffect(() => {
+    if (!creatingProject) return
+    // 等 Radix Dropdown 把 focus 还回 trigger 后再抢回输入框
+    const timer = window.setTimeout(() => {
+      newProjectInputRef.current?.focus()
+    }, 150)
+    return () => window.clearTimeout(timer)
+  }, [creatingProject])
+
+  /** 创建新工作空间，并设为当前工作空间 */
   const handleCreateProject = React.useCallback(async (): Promise<void> => {
     const trimmed = newProjectName.trim()
     if (!trimmed) {
-      setCreatingProject(false)
+      handleCancelCreateProject()
       return
     }
 
@@ -1670,13 +1715,12 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       setWorkspaces((prev) => [workspace, ...prev])
       setCurrentWorkspaceId(workspace.id)
       window.electronAPI.updateSettings({ agentWorkspaceId: workspace.id }).catch(console.error)
-      setCreatingProject(false)
-      setNewProjectName('')
+      handleCancelCreateProject()
     } catch (error) {
-      const msg = error instanceof Error ? error.message : '创建工作区失败'
+      const msg = error instanceof Error ? error.message : '创建工作空间失败'
       toast.error(msg)
     }
-  }, [newProjectName, setCurrentWorkspaceId, setWorkspaces])
+  }, [handleCancelCreateProject, newProjectName, setCurrentWorkspaceId, setWorkspaces])
 
   const handleCreateProjectKeyDown = React.useCallback((e: React.KeyboardEvent): void => {
     if (e.key === 'Enter') {
@@ -1685,10 +1729,9 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       void handleCreateProject()
     } else if (e.key === 'Escape') {
       e.preventDefault()
-      setCreatingProject(false)
-      setNewProjectName('')
+      handleCancelCreateProject()
     }
-  }, [handleCreateProject])
+  }, [handleCancelCreateProject, handleCreateProject])
 
   /** 选择 Agent 会话（打开或聚焦标签页） */
   const handleSelectAgentSession = React.useCallback((id: string, title: string): void => {
@@ -2276,7 +2319,10 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         active: session.id === activeSessionId,
         status: agentIndicatorMap.get(session.id) ?? (unviewedCompletedSessionIds.has(session.id) ? 'completed' as const : 'idle' as const),
         pinned: !!session.pinned,
-        workspaceName: session.workspaceId ? workspaceNameMap.get(session.workspaceId) : undefined,
+        workspaceName:
+          session.workspaceId && session.workspaceId !== currentWorkspaceId
+            ? workspaceNameMap.get(session.workspaceId)
+            : undefined,
         isAutomation: !!session.sourceAutomationId,
         isDelegation: !!session.sourceDelegationId,
       }))
@@ -2348,7 +2394,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     </AlertDialog>
   )
 
-  // 工作区删除确认弹窗（会同时删除工作区下的会话与绑定资源）
+  // 工作空间删除确认弹窗（会同时删除其下的会话与绑定资源）
   const projectDeleteDialog = (
     <AlertDialog
       open={pendingDeleteWorkspaceId !== null}
@@ -2366,9 +2412,9 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         }}
       >
         <AlertDialogHeader>
-          <AlertDialogTitle>确认删除工作区</AlertDialogTitle>
+          <AlertDialogTitle>确认删除工作空间</AlertDialogTitle>
           <AlertDialogDescription>
-            将删除「{pendingDeleteWorkspace?.name ?? '该工作区'}」及其绑定的所有会话、自动任务、MCP、Skills、工作区文件和本地工作区目录。附加目录和附加文件只会移除引用，不会删除原始文件。删除后无法恢复。
+            将删除「{pendingDeleteWorkspace?.name ?? '该工作空间'}」及其绑定的所有会话、自动任务、MCP、Skills、工作区文件和本地工作区目录。附加目录和附加文件只会移除引用，不会删除原始文件。删除后无法恢复。
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -2378,7 +2424,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             onClick={handleConfirmDeleteWorkspace}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {deletingWorkspaceId ? '删除中...' : '删除工作区'}
+            {deletingWorkspaceId ? '删除中...' : '删除工作空间'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -2661,7 +2707,31 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             currentWorkspaceId={currentWorkspaceId}
             onSelect={handleSwitchWorkspace}
             onCreate={handleStartCreateProject}
+            onRequestDelete={handleRequestDeleteWorkspace}
+            canDeleteWorkspace={canDeleteWorkspace}
           />
+          {creatingProject && (
+            <div className="mt-2 flex items-center gap-2 px-2 py-1.5 rounded-[10px] bg-foreground/[0.04]">
+              <Layers size={14} className="flex-shrink-0 text-foreground/40" />
+              <input
+                ref={newProjectInputRef}
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                onKeyDown={handleCreateProjectKeyDown}
+                placeholder="工作空间名称…"
+                className="flex-1 min-w-0 bg-transparent text-[13px] text-foreground border-b border-primary/50 outline-none px-0.5"
+                maxLength={50}
+                aria-label="工作空间名称"
+              />
+              <button
+                type="button"
+                onClick={handleCancelCreateProject}
+                className="flex-shrink-0 px-1.5 py-0.5 rounded text-[11px] text-foreground/45 hover:text-foreground/70 hover:bg-foreground/[0.06]"
+              >
+                取消
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -2863,7 +2933,12 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                               }
                               : undefined}
                             leftAccent={getSessionLeftAccent(rowStatus)}
-                            workspaceName={item.session.workspaceId ? workspaceNameMap.get(item.session.workspaceId) : undefined}
+                            workspaceName={
+                              item.session.workspaceId
+                              && item.session.workspaceId !== currentWorkspaceId
+                                ? workspaceNameMap.get(item.session.workspaceId)
+                                : undefined
+                            }
                             projectColor={item.session.projectId ? kanbanProjectColorMap.get(item.session.projectId) : undefined}
                             projects={item.session.workspaceId === currentWorkspaceId ? currentWorkspaceProjects : EMPTY_PROJECTS}
                             onMoveToProject={handleMoveToProject}
@@ -2886,7 +2961,12 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                                   activeSessionId={activeSessionId}
                                   agentIndicatorMap={agentIndicatorMap}
                                   relativeTimeNow={relativeTimeNow}
-                                  workspaceName={childSession.workspaceId ? workspaceNameMap.get(childSession.workspaceId) : undefined}
+                                  workspaceName={
+                                    childSession.workspaceId
+                                    && childSession.workspaceId !== currentWorkspaceId
+                                      ? workspaceNameMap.get(childSession.workspaceId)
+                                      : undefined
+                                  }
                                   projects={childSession.workspaceId === currentWorkspaceId ? currentWorkspaceProjects : EMPTY_PROJECTS}
                                   onMoveToProject={handleMoveToProject}
                                   onSelect={handleSelectAgentSession}
@@ -2933,25 +3013,6 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
           {/* 下区：当前 Workspace 会话投影（不再展示多 Workspace 树标题） */}
           <div className="sidebar-workspace-list flex-1 overflow-y-auto px-2 pb-3 scrollbar-thin min-h-0 titlebar-no-drag">
-            {creatingProject && (
-              <div className="flex items-center gap-2 px-2 py-1.5 mb-1 rounded-md bg-foreground/[0.04]">
-                <FolderOpen size={14} className="flex-shrink-0 text-foreground/40" />
-                <input
-                  ref={newProjectInputRef}
-                  value={newProjectName}
-                  onChange={(e) => setNewProjectName(e.target.value)}
-                  onKeyDown={handleCreateProjectKeyDown}
-                  onBlur={() => {
-                    setCreatingProject(false)
-                    setNewProjectName('')
-                  }}
-                  placeholder="Workspace 名称..."
-                  className="flex-1 min-w-0 bg-transparent text-[13px] text-foreground border-b border-primary/50 outline-none px-0.5"
-                  maxLength={50}
-                />
-              </div>
-            )}
-
             <div className="flex flex-col gap-0.5">
               {displayProjectGroups
                 .filter((group) =>
@@ -3006,6 +3067,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                     hideWorkspaceHeader={!isAuto}
                     unboundSectionLabel="未归类会话"
                     onOpenProjectDetail={handleOpenProjectDetail}
+                    onDeleteProject={handleDeleteCraftProject}
                     onNewSessionInProject={createAgentSessionInProject}
                     onMoveToProject={handleMoveToProject}
                     onSelectSession={handleSelectAgentSession}
@@ -3093,7 +3155,12 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                               }
                               : undefined}
                             leftAccent={getSessionLeftAccent(rowStatus)}
-                            workspaceName={item.session.workspaceId ? workspaceNameMap.get(item.session.workspaceId) : undefined}
+                            workspaceName={
+                              item.session.workspaceId
+                              && item.session.workspaceId !== currentWorkspaceId
+                                ? workspaceNameMap.get(item.session.workspaceId)
+                                : undefined
+                            }
                             relativeTimeNow={relativeTimeNow}
                             onSelect={handleSelectAgentSession}
                             onRequestDelete={handleRequestDelete}
@@ -3113,7 +3180,12 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                                   activeSessionId={activeSessionId}
                                   agentIndicatorMap={agentIndicatorMap}
                                   relativeTimeNow={relativeTimeNow}
-                                  workspaceName={childSession.workspaceId ? workspaceNameMap.get(childSession.workspaceId) : undefined}
+                                  workspaceName={
+                                    childSession.workspaceId
+                                    && childSession.workspaceId !== currentWorkspaceId
+                                      ? workspaceNameMap.get(childSession.workspaceId)
+                                      : undefined
+                                  }
                                   onSelect={handleSelectAgentSession}
                                   onRequestDelete={handleRequestDelete}
                                   onRequestMove={handleRequestMove}
@@ -3519,6 +3591,7 @@ interface AgentProjectGroupItemProps {
   unboundSectionLabel?: string
   onNewSessionInProject: (projectId: string) => Promise<void>
   onOpenProjectDetail: (projectId: string) => void
+  onDeleteProject: (projectId: string) => void | Promise<void>
   onMoveToProject: (sessionId: string, projectId?: string) => void | Promise<void>
   onSelectSession: (id: string, title: string) => void
   onRequestDelete: (id: string) => void
@@ -3564,6 +3637,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
   unboundSectionLabel,
   onNewSessionInProject,
   onOpenProjectDetail,
+  onDeleteProject,
   onMoveToProject,
   onSelectSession,
   onRequestDelete,
@@ -3818,7 +3892,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
               onSelect={() => onRequestDeleteWorkspace(group.workspace.id)}
             >
               <Trash2 size={14} />
-              删除工作区
+              删除工作空间
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -3843,6 +3917,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
                   projects={projects}
                   onNewSessionInProject={onNewSessionInProject}
                   onOpenProjectDetail={onOpenProjectDetail}
+                  onDeleteProject={onDeleteProject}
                   onMoveToProject={onMoveToProject}
                   onSelectSession={onSelectSession}
                   onRequestDelete={onRequestDelete}

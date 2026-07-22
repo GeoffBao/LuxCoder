@@ -2,7 +2,7 @@
 
 **日期：** 2026-07-22
 
-**状态：** 已完成交互确认，待书面规格复核
+**状态：** 规格已确认；实现计划见 `docs/superpowers/plans/2026-07-22-workspace-project-session-ia.md`
 
 **范围：** Code 模式中的 Workspace、Project、Session、Task 归属与导航
 

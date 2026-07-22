@@ -51,6 +51,7 @@ export function TabBar(): React.ReactElement {
   const setCurrentAgentSessionId = useSetAtom(currentAgentSessionIdAtom)
   const agentSessions = useAtomValue(agentSessionsAtom)
   const agentWorkspaces = useAtomValue(agentWorkspacesAtom)
+  const currentWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
   const setCurrentAgentWorkspaceId = useSetAtom(currentAgentWorkspaceIdAtom)
   const setUnviewedCompleted = useSetAtom(unviewedCompletedSessionIdsAtom)
   const setAutomationForm = useSetAtom(automationFormAtom)
@@ -74,16 +75,17 @@ export function TabBar(): React.ReactElement {
     }
   }, [store, tabs])
 
+  // 当前 Workspace 已由侧栏 WorkspaceSwitcher 展示；同 Workspace 的 Tab 不再叠 badge
   const workspaceNameBySessionId = React.useMemo(() => {
     const workspaceNameMap = new Map(agentWorkspaces.map((workspace) => [workspace.id, workspace.name]))
     const sessionWorkspaceNameMap = new Map<string, string>()
     for (const session of agentSessions) {
-      if (!session.workspaceId) continue
+      if (!session.workspaceId || session.workspaceId === currentWorkspaceId) continue
       const workspaceName = workspaceNameMap.get(session.workspaceId)
       if (workspaceName) sessionWorkspaceNameMap.set(session.id, workspaceName)
     }
     return sessionWorkspaceNameMap
-  }, [agentSessions, agentWorkspaces])
+  }, [agentSessions, agentWorkspaces, currentWorkspaceId])
 
   const automationSessionIds = React.useMemo(() => {
     const ids = new Set<string>()

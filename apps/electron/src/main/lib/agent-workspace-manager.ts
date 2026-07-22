@@ -341,14 +341,14 @@ export function ensureDefaultWorkspace(): AgentWorkspace {
     const now = Date.now()
     defaultWs = {
       id: randomUUID(),
-      name: 'Default Space',
+      name: '默认空间',
       slug: 'default',
       createdAt: now,
       updatedAt: now,
     }
 
     getAgentWorkspacePath('default')
-    ensurePluginManifest('default', 'Default Space')
+    ensurePluginManifest('default', '默认空间')
     copyDefaultSkills('default')
 
     index.workspaces.push(defaultWs)
@@ -356,6 +356,13 @@ export function ensureDefaultWorkspace(): AgentWorkspace {
 
     console.log('[Agent 工作区] 已创建默认工作区')
   } else {
+    // 英文旧名迁移为简体中文产品文案（用户已改名则保留）
+    if (defaultWs.name === 'Default Space') {
+      defaultWs = { ...defaultWs, name: '默认空间', updatedAt: Date.now() }
+      const idx = index.workspaces.findIndex((item) => item.id === defaultWs!.id)
+      if (idx >= 0) index.workspaces[idx] = defaultWs
+      writeIndex(index)
+    }
     // 迁移兼容：确保已有默认工作区包含 plugin manifest
     ensurePluginManifest(defaultWs.slug, defaultWs.name)
   }
