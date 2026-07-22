@@ -152,9 +152,14 @@ export function GlobalShortcuts(): null {
     useCallback(() => {
       if (appMode !== 'agent') return
       const inDraft = currentAgentSessionId != null && draftSessionIds.has(currentAgentSessionId)
-      // 无 Draft 时打开新任务流选择器，便于「浏览」落在同一套 ProjectContextPicker
+      // 无 Draft 时先打开新任务流选择器，再延迟递增 browse，
+      // 让挂载中的 picker 先建立基线，避免「点新任务却直接弹系统选目录」。
       if (!inDraft) {
         setNewTaskFlowOpen(true)
+        window.setTimeout(() => {
+          setBrowseRequest((value) => value + 1)
+        }, 0)
+        return
       }
       setBrowseRequest((value) => value + 1)
     }, [

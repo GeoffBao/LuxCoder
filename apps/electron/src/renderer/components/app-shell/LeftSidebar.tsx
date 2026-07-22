@@ -3037,7 +3037,13 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                     添加扫描目录…
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onSelect={() => setBrowseRequest((value) => value + 1)}
+                    onSelect={() => {
+                      // 先打开新任务流选择器再浏览，避免无 picker 时留下陈旧 browse token
+                      setNewTaskProjectFlowOpen(true)
+                      window.setTimeout(() => {
+                        setBrowseRequest((value) => value + 1)
+                      }, 0)
+                    }}
                   >
                     浏览文件夹…
                   </DropdownMenuItem>

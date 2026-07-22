@@ -3,6 +3,8 @@ import {
   allowsSkipProject,
   buildPickerSections,
   clampDiscoveryDepth,
+  shouldDefaultOpenSessionPicker,
+  shouldHonorBrowseRequest,
   type PickerProject,
   type DiscoveredRepo,
 } from '../project-context-picker-model.ts'
@@ -74,5 +76,28 @@ describe('project-context-picker-model', () => {
       scanRoots: ['/repos'],
     })
     expect(sections.discovery.items.map((item) => item.path)).toEqual(['/repos/gamma'])
+  })
+
+  test('shouldHonorBrowseRequest：挂载时不回放历史 token', () => {
+    const mounted = shouldHonorBrowseRequest({ browseRequest: 3, baseline: null })
+    expect(mounted.honor).toBe(false)
+    expect(mounted.nextBaseline).toBe(3)
+
+    const same = shouldHonorBrowseRequest({ browseRequest: 3, baseline: 3 })
+    expect(same.honor).toBe(false)
+
+    const bumped = shouldHonorBrowseRequest({ browseRequest: 4, baseline: 3 })
+    expect(bumped.honor).toBe(true)
+    expect(bumped.nextBaseline).toBe(4)
+
+    const zero = shouldHonorBrowseRequest({ browseRequest: 0, baseline: 3 })
+    expect(zero.honor).toBe(false)
+    expect(zero.nextBaseline).toBe(0)
+  })
+
+  test('shouldDefaultOpenSessionPicker：Draft 未绑定项目时默认展开', () => {
+    expect(shouldDefaultOpenSessionPicker({ mode: 'session' })).toBe(true)
+    expect(shouldDefaultOpenSessionPicker({ mode: 'session', selectedProjectId: 'p1' })).toBe(false)
+    expect(shouldDefaultOpenSessionPicker({ mode: 'task' })).toBe(false)
   })
 })

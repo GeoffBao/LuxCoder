@@ -27,6 +27,7 @@ import { cn } from '@/lib/utils'
 import type { KanbanProject } from '@/components/app-shell/kanban/types'
 import {
   buildPickerSections,
+  shouldHonorBrowseRequest,
   type ProjectContextPickerMode,
 } from './project-context-picker-model'
 
@@ -92,7 +93,8 @@ export function ProjectContextPicker({
   const [scanRoots, setScanRoots] = React.useState<string[]>([])
   const [maxDepth, setMaxDepth] = React.useState(3)
   const [discovering, setDiscovering] = React.useState(false)
-  const lastBrowseRequest = React.useRef(0)
+  /** null = 尚未建立基线；避免挂载时回放历史 ⌘O / 浏览请求 */
+  const browseBaselineRef = React.useRef<number | null>(null)
 
   const workspace = workspaces.find((item) => item.id === currentWorkspaceId) ?? workspaces[0]
 
@@ -209,9 +211,12 @@ export function ProjectContextPicker({
   }, [openOrCreateByPath])
 
   React.useEffect(() => {
-    if (browseRequest === lastBrowseRequest.current) return
-    lastBrowseRequest.current = browseRequest
-    if (browseRequest <= 0) return
+    const decision = shouldHonorBrowseRequest({
+      browseRequest,
+      baseline: browseBaselineRef.current,
+    })
+    browseBaselineRef.current = decision.nextBaseline
+    if (!decision.honor) return
     setOpen(true)
     void handleBrowse()
   }, [browseRequest, handleBrowse])

@@ -38,6 +38,35 @@ export function allowsSkipProject(mode: ProjectContextPickerMode): boolean {
   return mode === 'session'
 }
 
+/**
+ * 是否应响应 browseRequest 递增。
+ * baseline=null 表示选择器刚挂载：只同步基线，不回放历史请求
+ * （否则点「新会话/新任务」会误弹系统选文件夹对话框）。
+ */
+export function shouldHonorBrowseRequest(input: {
+  browseRequest: number
+  baseline: number | null
+}): { honor: boolean; nextBaseline: number } {
+  if (input.baseline === null) {
+    return { honor: false, nextBaseline: input.browseRequest }
+  }
+  if (input.browseRequest === input.baseline) {
+    return { honor: false, nextBaseline: input.baseline }
+  }
+  return {
+    honor: input.browseRequest > 0,
+    nextBaseline: input.browseRequest,
+  }
+}
+
+/** Draft 未绑定时应默认展开选择器，露出「使用现有文件夹…」等动作 */
+export function shouldDefaultOpenSessionPicker(input: {
+  mode: ProjectContextPickerMode
+  selectedProjectId?: string
+}): boolean {
+  return input.mode === 'session' && !input.selectedProjectId
+}
+
 export function clampDiscoveryDepth(depth: number | undefined): number {
   if (depth === undefined || Number.isNaN(depth)) return 3
   return Math.min(5, Math.max(1, Math.floor(depth)))
