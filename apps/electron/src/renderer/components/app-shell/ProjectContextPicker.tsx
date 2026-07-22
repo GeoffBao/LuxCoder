@@ -5,6 +5,8 @@
 import * as React from 'react'
 import { useAtomValue, useSetAtom } from 'jotai'
 import {
+  Check,
+  ChevronDown,
   FolderKanban,
   FolderOpen,
   FolderPlus,
@@ -281,20 +283,21 @@ export function ProjectContextPicker({
   const panel = (
     <div
       className={cn(
-        'rounded-xl border border-border/60 bg-background/95 shadow-lg backdrop-blur-sm',
-        defaultOpen ? 'w-full' : 'w-[min(100%,320px)]',
+        'flex flex-col overflow-hidden rounded-xl border border-border/60 bg-background/95 shadow-lg backdrop-blur-sm',
+        defaultOpen ? 'w-full' : 'w-[min(100%,280px)]',
       )}
       role="listbox"
       aria-label="选择项目上下文"
     >
-      <div className="max-h-[360px] space-y-2 overflow-y-auto p-2">
+      {/* 列表：只显示项目名，完整路径进 title（对齐 Cursor/Codex） */}
+      <div className="max-h-[220px] space-y-2 overflow-y-auto p-1.5">
         {sections.recents.length > 0 ? (
           <Section title="最近">
             {sections.recents.map((project) => (
               <PickRow
                 key={`recent-${project.id}`}
                 label={project.name}
-                hint={project.workingDirectory}
+                title={project.workingDirectory}
                 active={project.id === selectedProjectId}
                 disabled={busy}
                 onClick={() => { void handlePick(project.id) }}
@@ -303,7 +306,7 @@ export function ProjectContextPicker({
           </Section>
         ) : null}
 
-        <Section title="已有项目">
+        <Section title="项目">
           {sections.existing.length === 0 ? (
             <p className="px-2 py-1.5 text-[11px] text-foreground/40">暂无项目</p>
           ) : (
@@ -311,7 +314,7 @@ export function ProjectContextPicker({
               <PickRow
                 key={project.id}
                 label={project.name}
-                hint={project.workingDirectory}
+                title={project.workingDirectory}
                 active={project.id === selectedProjectId}
                 disabled={busy}
                 onClick={() => { void handlePick(project.id) }}
@@ -320,66 +323,67 @@ export function ProjectContextPicker({
           )}
         </Section>
 
-        <Section
-          title="发现"
-          trailing={discovering ? <Loader2 size={12} className="animate-spin text-foreground/40" /> : null}
-        >
-          {sections.discovery.needsScanRootGuide ? (
-            <p className="px-2 py-1.5 text-[11px] text-foreground/45">
-              尚未配置扫描目录。添加后可发现本地 Git 仓库。
-            </p>
-          ) : sections.discovery.items.length === 0 ? (
-            <p className="px-2 py-1.5 text-[11px] text-foreground/40">未发现新仓库</p>
-          ) : (
-            sections.discovery.items.map((repo) => (
-              <PickRow
-                key={repo.path}
-                label={repo.name}
-                hint={repo.path}
-                disabled={busy}
-                onClick={() => { void openOrCreateByPath(repo.path) }}
-              />
-            ))
-          )}
-        </Section>
+        {(sections.discovery.items.length > 0 || sections.discovery.needsScanRootGuide) ? (
+          <Section
+            title="发现"
+            trailing={discovering ? <Loader2 size={12} className="animate-spin text-foreground/40" /> : null}
+          >
+            {sections.discovery.needsScanRootGuide ? (
+              <p className="px-2 py-1 text-[11px] text-foreground/45">
+                添加扫描目录后可发现本地仓库
+              </p>
+            ) : (
+              sections.discovery.items.map((repo) => (
+                <PickRow
+                  key={repo.path}
+                  label={repo.name}
+                  title={repo.path}
+                  disabled={busy}
+                  onClick={() => { void openOrCreateByPath(repo.path) }}
+                />
+              ))
+            )}
+          </Section>
+        ) : null}
+      </div>
 
-        <div className="space-y-0.5 border-t border-border/40 pt-1.5">
+      {/* 动作钉底：新建项目始终可见，不被长列表挤出视口 */}
+      <div className="shrink-0 space-y-0.5 border-t border-border/40 bg-background/90 p-1.5">
+        <ActionRow
+          icon={FolderPlus}
+          label="新建项目…"
+          disabled={busy}
+          onClick={() => setCreateOpen(true)}
+        />
+        <ActionRow
+          icon={FolderOpen}
+          label="使用现有文件夹…"
+          disabled={busy}
+          onClick={() => { void handleBrowse() }}
+        />
+        {sections.actions.some((action) => action.id === 'add-scan-root') ? (
           <ActionRow
-            icon={FolderOpen}
-            label="浏览…"
+            icon={FolderSearch}
+            label="添加扫描目录…"
             disabled={busy}
-            onClick={() => { void handleBrowse() }}
+            onClick={() => { void handleAddScanRoot() }}
           />
+        ) : discovering ? null : (
           <ActionRow
-            icon={FolderPlus}
-            label="新建项目…"
+            icon={FolderSearch}
+            label="刷新发现"
             disabled={busy}
-            onClick={() => setCreateOpen(true)}
+            onClick={() => { void runDiscovery() }}
           />
-          {sections.actions.some((action) => action.id === 'add-scan-root') ? (
-            <ActionRow
-              icon={FolderSearch}
-              label="添加扫描目录…"
-              disabled={busy}
-              onClick={() => { void handleAddScanRoot() }}
-            />
-          ) : (
-            <ActionRow
-              icon={FolderSearch}
-              label="刷新发现"
-              disabled={busy || discovering}
-              onClick={() => { void runDiscovery() }}
-            />
-          )}
-          {sections.actions.some((action) => action.id === 'skip') ? (
-            <ActionRow
-              icon={FolderKanban}
-              label="无项目"
-              disabled={busy}
-              onClick={() => { void handlePick(null) }}
-            />
-          ) : null}
-        </div>
+        )}
+        {sections.actions.some((action) => action.id === 'skip') ? (
+          <ActionRow
+            icon={FolderKanban}
+            label="不使用项目"
+            disabled={busy}
+            onClick={() => { void handlePick(null) }}
+          />
+        ) : null}
       </div>
     </div>
   )
@@ -405,8 +409,8 @@ export function ProjectContextPicker({
   const triggerLabel = selectedName
     ? selectedName
     : mode === 'task'
-      ? '选择项目（必选）'
-      : '选择项目（可选）'
+      ? '选择项目'
+      : '选择项目'
 
   return (
     <div className={cn('relative', className)}>
@@ -415,15 +419,17 @@ export function ProjectContextPicker({
         disabled={busy}
         onClick={() => setOpen((value) => !value)}
         className={cn(
-          'flex h-7 max-w-[240px] items-center gap-1.5 rounded-md border border-border/50 bg-background/80 px-2 text-[12px] text-foreground/80 outline-none hover:border-border',
+          'inline-flex h-7 max-w-[200px] items-center gap-1 rounded-md px-1.5 text-[12px] text-foreground/70 outline-none hover:bg-foreground/[0.05] hover:text-foreground',
           busy && 'opacity-60',
         )}
         aria-expanded={open}
         aria-haspopup="listbox"
         aria-label="选择项目"
+        title={selectedName ?? '选择或新建项目'}
       >
         <FolderKanban size={12} className="shrink-0 text-foreground/40" />
         <span className="truncate">{triggerLabel}</span>
+        <ChevronDown size={11} className="shrink-0 text-foreground/35" />
       </button>
       {open ? (
         <>
@@ -433,7 +439,7 @@ export function ProjectContextPicker({
             aria-label="关闭项目选择器"
             onClick={() => setOpen(false)}
           />
-          <div className="absolute left-0 top-[calc(100%+6px)] z-50">
+          <div className="absolute bottom-[calc(100%+6px)] left-0 z-50">
             {panel}
           </div>
         </>
@@ -465,13 +471,14 @@ function Section({
 
 function PickRow({
   label,
-  hint,
+  title,
   active,
   disabled,
   onClick,
 }: {
   label: string
-  hint?: string
+  /** 完整路径等，仅作 tooltip，不占行高 */
+  title?: string
   active?: boolean
   disabled?: boolean
   onClick: () => void
@@ -480,15 +487,17 @@ function PickRow({
     <button
       type="button"
       disabled={disabled}
+      title={title}
       onClick={onClick}
       className={cn(
-        'flex w-full flex-col items-start rounded-lg px-2 py-1.5 text-left transition-colors',
-        active ? 'bg-primary/10 text-foreground' : 'text-foreground/80 hover:bg-foreground/[0.05]',
+        'flex h-8 w-full items-center gap-2 rounded-lg px-2 text-left text-[12px] transition-colors',
+        active ? 'bg-primary/10 font-medium text-foreground' : 'text-foreground/80 hover:bg-foreground/[0.05]',
         disabled && 'opacity-50',
       )}
     >
-      <span className="w-full truncate text-[12px] font-medium">{label}</span>
-      {hint ? <span className="w-full truncate text-[10px] text-foreground/40">{hint}</span> : null}
+      <FolderKanban size={12} className="shrink-0 text-foreground/35" />
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      {active ? <Check size={12} className="shrink-0 text-primary" /> : null}
     </button>
   )
 }
