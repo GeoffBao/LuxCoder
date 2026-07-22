@@ -980,6 +980,7 @@ export interface ElectronAPI {
       error?: string
       installSupported?: boolean
       packagePath?: string
+      fallbackToPackage?: boolean
     }>
     onStatusChanged: (callback: (status: {
       status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'not-available' | 'error'
@@ -989,6 +990,7 @@ export interface ElectronAPI {
       error?: string
       installSupported?: boolean
       packagePath?: string
+      fallbackToPackage?: boolean
     }) => void) => () => void
     quitAndInstall: () => Promise<void>
     openDownloadedPackage: () => Promise<void>

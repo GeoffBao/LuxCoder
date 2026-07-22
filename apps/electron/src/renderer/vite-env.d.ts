@@ -26,6 +26,7 @@ interface UpdateStatus {
   error?: string
   installSupported?: boolean
   packagePath?: string
+  fallbackToPackage?: boolean
 }
 
 /** 更新 API */

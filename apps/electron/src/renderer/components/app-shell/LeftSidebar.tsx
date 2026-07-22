@@ -192,9 +192,9 @@ function SidebarUpdateButton({
   showText = false,
   hideIcon = false,
 }: SidebarUpdateButtonProps): React.ReactElement {
-  const installSupported = status.installSupported !== false
-  const label = getSidebarUpdateLabel(status.status, status.version, installSupported)
-  const buttonText = getSidebarUpdateButtonText(status.status, installSupported)
+  const useFallback = !!status.packagePath || status.fallbackToPackage === true
+  const label = getSidebarUpdateLabel(status.status, status.version, !useFallback)
+  const buttonText = getSidebarUpdateButtonText(status.status, !useFallback)
 
   return (
     <Tooltip>
@@ -209,7 +209,7 @@ function SidebarUpdateButton({
             status.status === 'downloading' ? (
               <Loader2 size={16} className="animate-spin" />
             ) : status.status === 'downloaded' ? (
-              installSupported ? <RotateCw size={16} /> : <Download size={16} />
+              useFallback ? <Download size={16} /> : <RotateCw size={16} />
             ) : (
               <Download size={16} />
             )
@@ -742,20 +742,20 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   }, [setSettingsOpen])
 
   const handleUpdateButtonClick = React.useCallback((): void => {
-    // 已签名：立即重启安装
-    if (updateStatus.status === 'downloaded' && updateStatus.installSupported !== false) {
-      void window.electronAPI.updater?.quitAndInstall()
-      return
-    }
-    // 未签名：打开本地静默下载的安装包（不暴露 GitHub URL）
+    // 兜底包：打开本地 DMG/EXE
     if (updateStatus.status === 'downloaded' && updateStatus.packagePath) {
       void window.electronAPI.updater?.openDownloadedPackage()
+      return
+    }
+    // 主路径：立即重启安装
+    if (updateStatus.status === 'downloaded') {
+      void window.electronAPI.updater?.quitAndInstall()
       return
     }
 
     setSettingsTab('about')
     setSettingsOpen(true)
-  }, [setSettingsOpen, setSettingsTab, updateStatus.installSupported, updateStatus.packagePath, updateStatus.status])
+  }, [setSettingsOpen, setSettingsTab, updateStatus.packagePath, updateStatus.status])
 
   React.useEffect(() => {
     const id = window.setInterval(() => setRelativeTimeNow(Date.now()), 60_000)

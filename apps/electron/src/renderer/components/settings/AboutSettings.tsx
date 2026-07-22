@@ -2,7 +2,7 @@
  * AboutSettings - 关于页面
  *
  * 显示应用版本号等基本信息，以及版本检测状态。
- * 检测到新版本后自动下载安装包；未签名 macOS 引导打开本地 DMG。
+ * 主路径自动下载并「立即重启」；应用内安装失败后再静默下载 DMG 供打开。
  */
 
 import * as React from 'react'
@@ -23,7 +23,9 @@ import { EnvironmentCheckCard } from '@/components/environment/EnvironmentCheckC
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { ReleaseNotesViewer } from './ReleaseNotesViewer'
-import { VersionHistory } from './VersionHistory'/** 从 package.json 构建时由 Vite define 注入 */
+import { VersionHistory } from './VersionHistory'
+
+/** 从 package.json 构建时由 Vite define 注入 */
 declare const __APP_VERSION__: string
 const APP_VERSION = __APP_VERSION__
 
@@ -39,9 +41,9 @@ function UpdateCard(): React.ReactElement | null {
   // updater 不可用时不渲染
   if (!available) return null
 
-  const installSupported = status.installSupported !== false
-  const canQuitAndInstall = installSupported && status.status === 'downloaded'
-  const canOpenPackage = !installSupported && status.status === 'downloaded' && !!status.packagePath
+  const hasFallbackPackage = status.status === 'downloaded' && !!status.packagePath
+  const canQuitAndInstall = status.status === 'downloaded' && !status.packagePath
+  const canOpenPackage = hasFallbackPackage
 
   const handleCheck = async (): Promise<void> => {
     setChecking(true)
@@ -142,11 +144,14 @@ function UpdateCard(): React.ReactElement | null {
         </div>
       </SettingsRow>
 
-      {!installSupported && (status.status === 'downloaded' || status.status === 'downloading') && (
+      {status.fallbackToPackage && status.status === 'downloading' && (
         <div className="px-4 pb-3 text-xs text-muted-foreground border-t pt-3">
-          {status.status === 'downloading'
-            ? '正在后台下载安装包，完成后可一键打开。'
-            : '安装包已下载到本地。打开后将 LuxCoder 拖入「应用程序」即可完成更新。'}
+          应用内安装失败，正在下载安装包…
+        </div>
+      )}
+      {hasFallbackPackage && (
+        <div className="px-4 pb-3 text-xs text-muted-foreground border-t pt-3">
+          应用内自动安装不可用，已改为下载安装包。打开后将 LuxCoder 拖入「应用程序」即可完成更新。
         </div>
       )}
 

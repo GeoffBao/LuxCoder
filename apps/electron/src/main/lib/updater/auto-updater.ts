@@ -1,8 +1,9 @@
 /**
  * 自动更新核心模块
  *
- * 检测新版本 →（支持时）自动后台下载 → 用户确认后重启安装。
- * 未签名 macOS：静默下载 DMG 到本地，用户点「打开安装包」挂载，不暴露 GitHub URL。
+ * 主路径（不变）：检查 → 自动下载 →「立即重启」quitAndInstall。
+ * 兜底：应用内安装失败（如未签名 macOS）后再静默下载 DMG/EXE，
+ * 供用户「打开安装包」，不弹浏览器、不展示 GitHub URL。
  */
 
 import { autoUpdater } from 'electron-updater'
@@ -31,26 +32,37 @@ let win: BrowserWindow | null = null
 /** 定时检查定时器 */
 let checkInterval: ReturnType<typeof setInterval> | null = null
 
-/** 应用内安装能力（init 时探测） */
+/** 签名探测结果（仅用于日志 / 错误文案，不拦截主路径） */
 let updateSupport: AutoUpdateSupport = { installSupported: true }
 
 /** 手动安装包下载取消 */
 let manualDownloadAbort: AbortController | null = null
 
-/** 本地已下载安装包路径 */
+/** 本地兜底安装包路径 */
 let downloadedPackagePath: string | undefined
+
+/** electron-updater 已下完可安装包（主路径就绪） */
+let nativeUpdateReady = false
+
+/** 正在走 DMG 兜底下载，忽略 updater 连带 error */
+let fallbackDownloadInProgress = false
+
+/** 本版本是否已启动过兜底（防死循环） */
+let fallbackStartedForVersion: string | undefined
 
 /** 更新状态并推送给渲染进程 */
 function setStatus(status: UpdateStatus): void {
-  currentStatus = withSupport(status)
+  currentStatus = withMeta(status)
   win?.webContents?.send(UPDATER_IPC_CHANNELS.ON_STATUS_CHANGED, currentStatus)
 }
 
-function withSupport(status: UpdateStatus): UpdateStatus {
+function withMeta(status: UpdateStatus): UpdateStatus {
+  const fallbackToPackage = fallbackDownloadInProgress || !!downloadedPackagePath
   return {
     ...status,
-    installSupported: updateSupport.installSupported,
+    installSupported: !fallbackToPackage,
     packagePath: downloadedPackagePath ?? status.packagePath,
+    fallbackToPackage,
   }
 }
 
@@ -60,12 +72,12 @@ function currentVersion(): string | undefined {
 
 /** 获取当前更新状态 */
 export function getUpdateStatus(): UpdateStatus {
-  return withSupport(currentStatus)
+  return withMeta(currentStatus)
 }
 
-/** 是否支持应用内自动安装 */
+/** 是否仍以应用内安装为主（无兜底包） */
 export function isAutoInstallSupported(): boolean {
-  return updateSupport.installSupported
+  return !downloadedPackagePath
 }
 
 /** 手动触发检查更新 */
@@ -93,16 +105,25 @@ export async function checkForUpdates(): Promise<void> {
 }
 
 /**
- * 未签名构建：按版本静默拉取 DMG/EXE 到本地缓存。
+ * 应用内安装失败后的兜底：静默下载对应版本 DMG/EXE。
  * URL 只在主进程使用，不推给渲染层。
  */
-async function startManualPackageDownload(version: string, _releaseNotes?: string): Promise<void> {
+async function startManualPackageDownload(version: string): Promise<void> {
+  if (fallbackStartedForVersion === version && (fallbackDownloadInProgress || downloadedPackagePath)) {
+    console.log('[更新] 跳过兜底下载：本版本已处理', version)
+    return
+  }
+
   if (manualDownloadAbort) {
     manualDownloadAbort.abort()
   }
   const abort = new AbortController()
   manualDownloadAbort = abort
+  fallbackStartedForVersion = version
+  fallbackDownloadInProgress = true
   downloadedPackagePath = undefined
+  // 主路径已失败，不再拦截检查跳过逻辑里的 downloaded
+  nativeUpdateReady = false
 
   try {
     setStatus({
@@ -118,7 +139,7 @@ async function startManualPackageDownload(version: string, _releaseNotes?: strin
       throw new Error('未找到对应平台的安装包')
     }
 
-    console.log(`[更新] 静默下载安装包: ${asset.name}`)
+    console.log(`[更新] 应用内安装失败，改下安装包: ${asset.name}`)
     const filePath = await downloadManualPackage({
       url: asset.browser_download_url,
       filename: asset.name,
@@ -147,16 +168,17 @@ async function startManualPackageDownload(version: string, _releaseNotes?: strin
       version,
       packagePath: filePath,
     })
-    console.log(`[更新] 安装包已就绪: ${filePath}`)
+    console.log(`[更新] 兜底安装包已就绪: ${filePath}`)
   } catch (err) {
     if (abort.signal.aborted) return
-    console.error('[更新] 静默下载安装包失败:', err)
+    console.error('[更新] 兜底下载安装包失败:', err)
     setStatus({
       status: 'error',
       error: err instanceof Error ? err.message : String(err),
       version,
     })
   } finally {
+    fallbackDownloadInProgress = false
     if (manualDownloadAbort === abort) {
       manualDownloadAbort = null
     }
@@ -175,10 +197,28 @@ export async function openDownloadedPackage(): Promise<void> {
   await openManualPackage(filePath)
 }
 
-/** 退出并安装已下载的更新 */
+/**
+ * 应用内安装失败 → 触发 DMG 兜底（若有版本号）
+ * @returns 是否已转入兜底
+ */
+function tryFallbackAfterInstallFailure(reason: string): boolean {
+  const version = currentVersion()
+  if (!version) return false
+  if (fallbackDownloadInProgress) return true
+  if (downloadedPackagePath) return true
+
+  // 重启安装失败后应用仍存活：取消 quitting，避免窗口被当成退出
+  setQuitting(false)
+
+  console.warn(`[更新] 应用内安装失败，转入安装包兜底: ${reason}`)
+  void startManualPackageDownload(version)
+  return true
+}
+
+/** 退出并安装已下载的更新（主路径） */
 export function quitAndInstall(): void {
-  if (!updateSupport.installSupported) {
-    // 未签名：改为打开本地安装包，避免假「检查失败」
+  // 已有兜底包：打开本地安装包
+  if (downloadedPackagePath) {
     void openDownloadedPackage().catch((err) => {
       console.error('[更新] 打开安装包失败:', err)
       setStatus({
@@ -209,14 +249,21 @@ export function quitAndInstall(): void {
 
   // 延迟调用确保 IPC 响应已发送回渲染进程
   setImmediate(() => {
-    if (process.platform === 'darwin' && autoUpdater.autoInstallOnAppQuit) {
-      console.log('[更新] macOS 调用 app.quit() 触发安装')
-      app.quit()
-      return
+    try {
+      console.log('[更新] 调用 quitAndInstall')
+      autoUpdater.quitAndInstall(false, true)
+    } catch (err) {
+      console.error('[更新] quitAndInstall 抛错:', err)
+      // 同步失败时回滚 quitting，并走兜底
+      setQuitting(false)
+      if (!tryFallbackAfterInstallFailure(err instanceof Error ? err.message : String(err))) {
+        setStatus({
+          status: 'error',
+          error: err instanceof Error ? err.message : String(err),
+          version: currentVersion(),
+        })
+      }
     }
-
-    console.log('[更新] 调用 quitAndInstall')
-    autoUpdater.quitAndInstall(false, true)
   })
 }
 
@@ -242,6 +289,9 @@ export function initAutoUpdater(mainWindow: BrowserWindow): void {
     platform: process.platform,
     exePath: app.getPath('exe'),
   })
+  if (!updateSupport.installSupported) {
+    console.warn(`[更新] ${updateSupport.reason}；仍走原自动更新，「立即重启」失败后再下 DMG`)
+  }
 
   autoUpdater.logger = {
     info: (...args: unknown[]) => console.log('[更新-updater]', ...args),
@@ -250,15 +300,9 @@ export function initAutoUpdater(mainWindow: BrowserWindow): void {
     debug: (...args: unknown[]) => console.log('[更新-updater:debug]', ...args),
   }
 
-  if (updateSupport.installSupported) {
-    autoUpdater.autoDownload = true
-    autoUpdater.autoInstallOnAppQuit = process.platform === 'darwin'
-  } else {
-    // 未签名：不用 electron-updater 下 zip（Squirrel 装不上），改走静默 DMG
-    console.warn(`[更新] ${updateSupport.reason}`)
-    autoUpdater.autoDownload = false
-    autoUpdater.autoInstallOnAppQuit = false
-  }
+  // 主路径保持原行为：自动下载，仅用户确认后安装
+  autoUpdater.autoDownload = true
+  autoUpdater.autoInstallOnAppQuit = false
 
   autoUpdater.on('checking-for-update', () => {
     console.log('[更新] 正在检查更新...')
@@ -267,26 +311,19 @@ export function initAutoUpdater(mainWindow: BrowserWindow): void {
 
   autoUpdater.on('update-available', (info) => {
     console.log('[更新] 发现新版本:', info.version)
-    const releaseNotes = typeof info.releaseNotes === 'string' ? info.releaseNotes : undefined
-
-    if (!updateSupport.installSupported) {
-      setStatus({
-        status: 'available',
-        version: info.version,
-        releaseNotes,
-      })
-      void startManualPackageDownload(info.version, releaseNotes)
-      return
-    }
-
+    downloadedPackagePath = undefined
+    fallbackStartedForVersion = undefined
+    nativeUpdateReady = false
     setStatus({
       status: 'available',
       version: info.version,
-      releaseNotes,
+      releaseNotes: typeof info.releaseNotes === 'string' ? info.releaseNotes : undefined,
     })
   })
 
   autoUpdater.on('download-progress', (progress) => {
+    // 兜底下载用自己的进度，忽略 updater 进度以免乱跳
+    if (fallbackDownloadInProgress) return
     setStatus({
       status: 'downloading',
       version: currentVersion() || '',
@@ -301,6 +338,8 @@ export function initAutoUpdater(mainWindow: BrowserWindow): void {
 
   autoUpdater.on('update-downloaded', (info) => {
     console.log('[更新] 下载完成:', info.version)
+    nativeUpdateReady = true
+    downloadedPackagePath = undefined
     setStatus({
       status: 'downloaded',
       version: info.version,
@@ -309,16 +348,23 @@ export function initAutoUpdater(mainWindow: BrowserWindow): void {
 
   autoUpdater.on('update-not-available', () => {
     console.log('[更新] 已是最新版本')
+    nativeUpdateReady = false
     setStatus({ status: 'not-available' })
   })
 
   autoUpdater.on('error', (err) => {
     console.error('[更新] 更新出错:', err)
-    // 手动包下载进行中时，忽略 electron-updater 的连带 error，避免冲掉进度
-    if (!updateSupport.installSupported && currentStatus.status === 'downloading') {
-      console.warn('[更新] 忽略 updater error（手动包下载中）:', err.message)
+
+    if (fallbackDownloadInProgress) {
+      console.warn('[更新] 忽略 updater error（兜底包下载中）:', err.message)
       return
     }
+
+    // 主路径已就绪或用户点了重启后失败 → 转 DMG 兜底，而不是停在「检查失败」
+    if (nativeUpdateReady || currentStatus.status === 'downloaded') {
+      if (tryFallbackAfterInstallFailure(err.message)) return
+    }
+
     setStatus({
       status: 'error',
       error: formatUpdaterErrorMessage(err.message, updateSupport.installSupported),
@@ -345,6 +391,6 @@ export function initAutoUpdater(mainWindow: BrowserWindow): void {
   })
 
   console.log(
-    `[更新] 自动更新模块已初始化（installSupported=${updateSupport.installSupported}, autoDownload=${autoUpdater.autoDownload}, autoInstallOnAppQuit=${autoUpdater.autoInstallOnAppQuit}）`,
+    `[更新] 自动更新模块已初始化（主路径=quitAndInstall，失败兜底=静默 DMG；signed=${updateSupport.installSupported}）`,
   )
 }

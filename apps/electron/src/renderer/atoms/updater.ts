@@ -26,6 +26,8 @@ export interface UpdateStatus {
   installSupported?: boolean
   /** 静默下载的本地安装包路径 */
   packagePath?: string
+  /** 已转入安装包兜底 */
+  fallbackToPackage?: boolean
 }
 
 /** 更新状态 atom */
