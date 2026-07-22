@@ -333,6 +333,8 @@ export function ChatInput({ conversationId, streaming, pendingAttachments, onSet
                 thinkingEnabled && inputToolbarActiveButtonClass
               )}
               onClick={() => setThinkingEnabled(!thinkingEnabled)}
+              aria-pressed={thinkingEnabled}
+              aria-label={thinkingEnabled ? '思考模式已开启' : '思考模式已关闭'}
             >
               <Brain className="size-5" />
             </Button>

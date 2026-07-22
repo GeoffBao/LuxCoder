@@ -256,6 +256,7 @@ function AgentThinkingPopover({ agentThinking, onToggle, codexConfig }: AgentThi
   const normalizedLevel = normalizeOpenAIThinkingLevel(codexConfig?.thinkingLevel)
   const isEnabled = isCodex ? normalizedLevel !== 'off' : agentThinking?.type === 'adaptive'
   const sliderPosition = CODEX_THINKING_LEVELS.indexOf(normalizedLevel)
+  const switchClassName = 'h-4 w-7 shrink-0 [&>span]:size-3 [&>span]:data-[state=checked]:translate-x-3'
 
   const handleMouseEnter = React.useCallback(() => {
     if (hoverTimeout.current) clearTimeout(hoverTimeout.current)
@@ -272,6 +273,7 @@ function AgentThinkingPopover({ agentThinking, onToggle, codexConfig }: AgentThi
     }
   }, [])
 
+  /** 单击即切换生成侧思考开关，无需再进菜单二次确认 */
   const handleButtonClick = (): void => {
     if (codexConfig) {
       codexConfig.onThinkingLevelChange(isEnabled ? 'off' : 'high')
@@ -292,6 +294,9 @@ function AgentThinkingPopover({ agentThinking, onToggle, codexConfig }: AgentThi
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
           disabled={codexConfig?.disabled}
+          aria-pressed={isEnabled}
+          aria-label={isEnabled ? '思考模式已开启' : '思考模式已关闭'}
+          title={isEnabled ? '思考模式：开（点击关闭）' : '思考模式：关（点击开启）'}
         >
           <Brain className="size-5" />
         </Button>
@@ -300,52 +305,67 @@ function AgentThinkingPopover({ agentThinking, onToggle, codexConfig }: AgentThi
         side="top"
         align="center"
         sideOffset={8}
-        className="w-64 p-3"
+        className="w-72 p-3"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <div className="flex flex-col gap-3">
           {codexConfig ? (
-            <>
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-xs font-medium text-foreground/80">思考深度</span>
-                  <span className="text-xs tabular-nums text-muted-foreground">
-                    {CODEX_THINKING_LABELS[normalizedLevel]}
-                  </span>
+            <div className="space-y-2.5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 space-y-0.5">
+                  <span className="text-xs font-medium text-foreground">思考深度</span>
+                  <p className="text-[10px] leading-snug text-muted-foreground">
+                    控制模型推理强度（生成侧），与下方展示无关
+                  </p>
                 </div>
-                <Slider
-                  value={[sliderPosition]}
-                  onValueChange={([position]) => codexConfig.onThinkingLevelChange(CODEX_THINKING_LEVELS[position!]!)}
-                  min={0}
-                  max={CODEX_THINKING_LEVELS.length - 1}
-                  step={1}
-                  disabled={codexConfig.disabled}
-                  aria-label="OpenAI 思考深度"
-                />
-                <div className="flex justify-between text-[10px] text-muted-foreground">
-                  {CODEX_THINKING_LEVELS.map((level) => <span key={level}>{CODEX_THINKING_LABELS[level]}</span>)}
-                </div>
+                <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                  {CODEX_THINKING_LABELS[normalizedLevel]}
+                </span>
               </div>
-            </>
+              <Slider
+                value={[sliderPosition]}
+                onValueChange={([position]) => codexConfig.onThinkingLevelChange(CODEX_THINKING_LEVELS[position!]!)}
+                min={0}
+                max={CODEX_THINKING_LEVELS.length - 1}
+                step={1}
+                disabled={codexConfig.disabled}
+                aria-label="OpenAI 思考深度"
+              />
+              <div className="flex justify-between text-[10px] text-muted-foreground">
+                {CODEX_THINKING_LEVELS.map((level) => <span key={level}>{CODEX_THINKING_LABELS[level]}</span>)}
+              </div>
+            </div>
           ) : (
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-xs text-foreground/70">思考模式</span>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 space-y-0.5">
+                <span className="text-xs font-medium text-foreground">思考模式</span>
+                <p className="text-[10px] leading-snug text-muted-foreground">
+                  开启后模型先推理再回答；点脑图标即可开关
+                </p>
+              </div>
               <Switch
                 checked={isEnabled}
                 onCheckedChange={onToggle}
-                className="h-4 w-7 [&>span]:size-3 [&>span]:data-[state=checked]:translate-x-3"
+                className={switchClassName}
+                aria-label="思考模式"
               />
             </div>
           )}
           <div className="h-px bg-border" />
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-xs text-foreground/70">展开思考</span>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 space-y-0.5">
+              <span className="text-xs font-medium text-foreground">默认展开思考过程</span>
+              <p className="text-[10px] leading-snug text-muted-foreground">
+                仅影响消息里 Thinking 块是否默认展开，不改变模型是否思考
+              </p>
+            </div>
             <Switch
               checked={thinkingExpanded}
               onCheckedChange={setThinkingExpanded}
-              className="h-4 w-7 [&>span]:size-3 [&>span]:data-[state=checked]:translate-x-3"
+              className={switchClassName}
+              aria-label="默认展开思考过程"
             />
           </div>
         </div>
