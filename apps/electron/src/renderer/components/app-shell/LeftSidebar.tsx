@@ -739,14 +739,15 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   }, [setSettingsOpen])
 
   const handleUpdateButtonClick = React.useCallback((): void => {
-    if (updateStatus.status === 'downloaded') {
+    // 仅在「已下载且支持应用内安装」时直接重启；未签名 macOS 等场景改为打开关于页手动下载
+    if (updateStatus.status === 'downloaded' && updateStatus.installSupported !== false) {
       void window.electronAPI.updater?.quitAndInstall()
       return
     }
 
     setSettingsTab('about')
     setSettingsOpen(true)
-  }, [setSettingsOpen, setSettingsTab, updateStatus.status])
+  }, [setSettingsOpen, setSettingsTab, updateStatus.installSupported, updateStatus.status])
 
   React.useEffect(() => {
     const id = window.setInterval(() => setRelativeTimeNow(Date.now()), 60_000)

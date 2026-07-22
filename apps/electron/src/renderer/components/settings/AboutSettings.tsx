@@ -42,6 +42,13 @@ function UpdateCard(): React.ReactElement | null {
   // updater 不可用时不渲染
   if (!available) return null
 
+  const installSupported = status.installSupported !== false
+  const canQuitAndInstall = installSupported && status.status === 'downloaded'
+  const showManualDownload =
+    status.status === 'available' ||
+    status.status === 'error' ||
+    (status.status === 'downloaded' && !installSupported)
+
   const handleCheck = async (): Promise<void> => {
     setChecking(true)
     try {
@@ -63,7 +70,11 @@ function UpdateCard(): React.ReactElement | null {
 
   // 当检测到新版本时，获取完整的 release 信息
   React.useEffect(() => {
-    if (status.status === 'available' && status.version && !release) {
+    if (
+      (status.status === 'available' || status.status === 'downloaded' || status.status === 'error') &&
+      status.version &&
+      !release
+    ) {
       window.electronAPI
         .getReleaseByTag(`v${status.version}`)
         .then((r) => {
@@ -86,10 +97,15 @@ function UpdateCard(): React.ReactElement | null {
       <SettingsRow label="软件更新">
         <div className="flex items-center gap-3">
           {/* 状态文字 */}
-          <StatusText status={status.status} version={status.version} error={status.error} />
+          <StatusText
+            status={status.status}
+            version={status.version}
+            error={status.error}
+            installSupported={installSupported}
+          />
 
-          {/* 操作按钮 */}
-          {status.status === 'downloaded' ? (
+          {/* 操作按钮：可应用内安装时优先「立即重启」，否则引导手动下载 */}
+          {canQuitAndInstall ? (
             <button
               onClick={handleQuitAndInstall}
               className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
@@ -97,7 +113,7 @@ function UpdateCard(): React.ReactElement | null {
               <RotateCw className="h-3.5 w-3.5" />
               立即重启
             </button>
-          ) : status.status === 'available' ? (
+          ) : showManualDownload ? (
             <button
               onClick={handleGoToDownload}
               className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
@@ -122,8 +138,15 @@ function UpdateCard(): React.ReactElement | null {
         </div>
       </SettingsRow>
 
+      {/* 未签名 macOS：补充说明，避免用户误以为「立即重启」可用 */}
+      {!installSupported && (status.status === 'available' || status.status === 'error') && (
+        <div className="px-4 pb-3 text-xs text-muted-foreground border-t pt-3">
+          当前安装包未签名，macOS 无法应用内自动安装。请前往 GitHub Releases 下载 DMG 手动覆盖安装。
+        </div>
+      )}
+
       {/* Release Notes（新版本可用时显示） */}
-      {status.status === 'available' && hasReleaseNotes && (
+      {(status.status === 'available' || (!installSupported && status.status === 'error' && status.version)) && hasReleaseNotes && (
         <div className="px-4 pb-4 border-t">
           <button
             onClick={() => setShowReleaseNotes(!showReleaseNotes)}
@@ -153,10 +176,11 @@ function UpdateCard(): React.ReactElement | null {
 }
 
 /** 状态文字组件 */
-function StatusText({ status, version, error }: {
+function StatusText({ status, version, error, installSupported }: {
   status: string
   version?: string
   error?: string
+  installSupported: boolean
 }): React.ReactElement {
   switch (status) {
     case 'checking':
@@ -165,7 +189,7 @@ function StatusText({ status, version, error }: {
       return (
         <span className="text-xs text-primary flex items-center gap-1">
           <ExternalLink className="h-3 w-3" />
-          新版本 v{version} 可用
+          {installSupported ? `新版本 v${version} 可用` : `新版本 v${version}，请手动下载`}
         </span>
       )
     case 'downloading':
@@ -191,9 +215,12 @@ function StatusText({ status, version, error }: {
       )
     case 'error':
       return (
-        <span className="text-xs text-destructive flex items-center gap-1" title={error}>
-          <AlertCircle className="h-3 w-3" />
-          检查失败
+        <span
+          className="text-xs text-destructive flex items-center gap-1 max-w-[280px]"
+          title={error}
+        >
+          <AlertCircle className="h-3 w-3 shrink-0" />
+          <span className="truncate">{error?.trim() ? error : '更新失败'}</span>
         </span>
       )
     default:

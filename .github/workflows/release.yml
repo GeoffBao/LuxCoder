@@ -3,12 +3,15 @@
 # 触发条件：推送 v* tag（如 v0.4.0）
 # 构建 macOS 和 Windows 产物并发布到 GitHub Releases
 #
-# 所需 GitHub Secrets（macOS 签名/公证，可选）:
+# 所需 GitHub Secrets（macOS 签名/公证 — 应用内自动更新强依赖签名）:
 # - MAC_CERTS: Base64 编码的 macOS Developer ID Application 证书 (.p12)
 # - MAC_CERTS_PASSWORD: 证书密码
 # - APPLE_ID: Apple ID（公证用）
 # - APPLE_APP_SPECIFIC_PASSWORD: App-Specific 密码（公证用）
 # - APPLE_TEAM_ID: Apple Developer Team ID
+#
+# 注意：若未配置 MAC_CERTS，CI 会产出未签名包。Squirrel.Mac 无法对未签名应用
+# 执行 quitAndInstall，客户端会降级为「检查更新 → 前往 GitHub Releases 手动下载」。
 # GITHUB_TOKEN 由 GitHub Actions 自动提供，无需手动配置
 
 name: Release

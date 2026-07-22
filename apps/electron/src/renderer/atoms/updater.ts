@@ -22,6 +22,8 @@ export interface UpdateStatus {
   releaseNotes?: string
   progress?: DownloadProgress
   error?: string
+  /** 是否支持应用内 quitAndInstall（未签名 macOS 为 false） */
+  installSupported?: boolean
 }
 
 /** 更新状态 atom */
