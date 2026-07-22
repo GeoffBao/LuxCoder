@@ -1,18 +1,14 @@
 /**
  * 自动更新核心模块
  *
- * 检测新版本 →（支持时）自动后台下载 → 用户从更新入口确认后重启安装。
- * 仅在打包后的生产环境中工作。
- *
- * macOS 注意：
- * - 应用内安装依赖 Squirrel.Mac，必须 Developer ID 签名
- * - 未签名构建只提示新版本，引导手动下载（避免「已就绪 → 立即重启 → 检查失败」死循环）
- * - 已签名时 autoInstallOnAppQuit=true，让 nativeUpdater 在 zip 下载后预取，quit 时安装
+ * 检测新版本 →（支持时）自动后台下载 → 用户确认后重启安装。
+ * 未签名 macOS：静默下载 DMG 到本地，用户点「打开安装包」挂载，不暴露 GitHub URL。
  */
 
 import { autoUpdater } from 'electron-updater'
 import { BrowserWindow, app } from 'electron'
 import { setQuitting } from '../app-lifecycle'
+import { getReleaseByTag } from '../github-release-service'
 import type { UpdateStatus } from './updater-types'
 import { UPDATER_IPC_CHANNELS } from './updater-types'
 import {
@@ -20,6 +16,11 @@ import {
   resolveAutoUpdateSupport,
   type AutoUpdateSupport,
 } from './updater-support'
+import {
+  downloadManualPackage,
+  openManualPackage,
+  pickManualInstallerAsset,
+} from './updater-manual-package'
 
 /** 当前更新状态 */
 let currentStatus: UpdateStatus = { status: 'idle' }
@@ -33,6 +34,12 @@ let checkInterval: ReturnType<typeof setInterval> | null = null
 /** 应用内安装能力（init 时探测） */
 let updateSupport: AutoUpdateSupport = { installSupported: true }
 
+/** 手动安装包下载取消 */
+let manualDownloadAbort: AbortController | null = null
+
+/** 本地已下载安装包路径 */
+let downloadedPackagePath: string | undefined
+
 /** 更新状态并推送给渲染进程 */
 function setStatus(status: UpdateStatus): void {
   currentStatus = withSupport(status)
@@ -43,6 +50,7 @@ function withSupport(status: UpdateStatus): UpdateStatus {
   return {
     ...status,
     installSupported: updateSupport.installSupported,
+    packagePath: downloadedPackagePath ?? status.packagePath,
   }
 }
 
@@ -84,14 +92,100 @@ export async function checkForUpdates(): Promise<void> {
   }
 }
 
+/**
+ * 未签名构建：按版本静默拉取 DMG/EXE 到本地缓存。
+ * URL 只在主进程使用，不推给渲染层。
+ */
+async function startManualPackageDownload(version: string, _releaseNotes?: string): Promise<void> {
+  if (manualDownloadAbort) {
+    manualDownloadAbort.abort()
+  }
+  const abort = new AbortController()
+  manualDownloadAbort = abort
+  downloadedPackagePath = undefined
+
+  try {
+    setStatus({
+      status: 'downloading',
+      version,
+      progress: { percent: 0, transferred: 0, total: 0, bytesPerSecond: 0 },
+    })
+
+    const release = await getReleaseByTag(`v${version}`)
+    const assets = release?.assets ?? []
+    const asset = pickManualInstallerAsset(assets, process.platform, process.arch)
+    if (!asset) {
+      throw new Error('未找到对应平台的安装包')
+    }
+
+    console.log(`[更新] 静默下载安装包: ${asset.name}`)
+    const filePath = await downloadManualPackage({
+      url: asset.browser_download_url,
+      filename: asset.name,
+      expectedSize: asset.size,
+      signal: abort.signal,
+      onProgress: (progress) => {
+        if (abort.signal.aborted) return
+        setStatus({
+          status: 'downloading',
+          version,
+          progress: {
+            percent: progress.percent,
+            transferred: progress.transferred,
+            total: progress.total,
+            bytesPerSecond: progress.bytesPerSecond,
+          },
+        })
+      },
+    })
+
+    if (abort.signal.aborted) return
+
+    downloadedPackagePath = filePath
+    setStatus({
+      status: 'downloaded',
+      version,
+      packagePath: filePath,
+    })
+    console.log(`[更新] 安装包已就绪: ${filePath}`)
+  } catch (err) {
+    if (abort.signal.aborted) return
+    console.error('[更新] 静默下载安装包失败:', err)
+    setStatus({
+      status: 'error',
+      error: err instanceof Error ? err.message : String(err),
+      version,
+    })
+  } finally {
+    if (manualDownloadAbort === abort) {
+      manualDownloadAbort = null
+    }
+  }
+}
+
+/** 打开已下载的本地安装包（DMG/EXE），不打开浏览器 */
+export async function openDownloadedPackage(): Promise<void> {
+  const filePath = downloadedPackagePath
+    ?? ('packagePath' in currentStatus ? currentStatus.packagePath : undefined)
+
+  if (!filePath) {
+    throw new Error('安装包尚未下载完成')
+  }
+
+  await openManualPackage(filePath)
+}
+
 /** 退出并安装已下载的更新 */
 export function quitAndInstall(): void {
   if (!updateSupport.installSupported) {
-    console.warn('[更新] 拒绝 quitAndInstall：当前构建不支持应用内安装')
-    setStatus({
-      status: 'error',
-      error: updateSupport.reason ?? '当前构建不支持应用内自动安装，请手动下载',
-      version: currentVersion(),
+    // 未签名：改为打开本地安装包，避免假「检查失败」
+    void openDownloadedPackage().catch((err) => {
+      console.error('[更新] 打开安装包失败:', err)
+      setStatus({
+        status: 'error',
+        error: err instanceof Error ? err.message : String(err),
+        version: currentVersion(),
+      })
     })
     return
   }
@@ -115,8 +209,6 @@ export function quitAndInstall(): void {
 
   // 延迟调用确保 IPC 响应已发送回渲染进程
   setImmediate(() => {
-    // macOS + autoInstallOnAppQuit：Squirrel 已预取，走正常 quit 即可安装
-    // （历史修复：quitAndInstall 在部分 macOS 路径上不会正确设置 isQuitting）
     if (process.platform === 'darwin' && autoUpdater.autoInstallOnAppQuit) {
       console.log('[更新] macOS 调用 app.quit() 触发安装')
       app.quit()
@@ -134,6 +226,8 @@ export function cleanupUpdater(): void {
     clearInterval(checkInterval)
     checkInterval = null
   }
+  manualDownloadAbort?.abort()
+  manualDownloadAbort = null
 }
 
 /**
@@ -157,17 +251,15 @@ export function initAutoUpdater(mainWindow: BrowserWindow): void {
   }
 
   if (updateSupport.installSupported) {
-    // 自动下载；macOS 还需在 zip 落盘后喂给 Squirrel（autoInstallOnAppQuit）
     autoUpdater.autoDownload = true
     autoUpdater.autoInstallOnAppQuit = process.platform === 'darwin'
   } else {
-    // 未签名 macOS：只检查，不后台下载「假就绪」包，避免点重启必失败
+    // 未签名：不用 electron-updater 下 zip（Squirrel 装不上），改走静默 DMG
     console.warn(`[更新] ${updateSupport.reason}`)
     autoUpdater.autoDownload = false
     autoUpdater.autoInstallOnAppQuit = false
   }
 
-  // 监听更新事件
   autoUpdater.on('checking-for-update', () => {
     console.log('[更新] 正在检查更新...')
     setStatus({ status: 'checking' })
@@ -175,12 +267,22 @@ export function initAutoUpdater(mainWindow: BrowserWindow): void {
 
   autoUpdater.on('update-available', (info) => {
     console.log('[更新] 发现新版本:', info.version)
+    const releaseNotes = typeof info.releaseNotes === 'string' ? info.releaseNotes : undefined
+
+    if (!updateSupport.installSupported) {
+      setStatus({
+        status: 'available',
+        version: info.version,
+        releaseNotes,
+      })
+      void startManualPackageDownload(info.version, releaseNotes)
+      return
+    }
+
     setStatus({
       status: 'available',
       version: info.version,
-      releaseNotes: typeof info.releaseNotes === 'string'
-        ? info.releaseNotes
-        : undefined,
+      releaseNotes,
     })
   })
 
@@ -212,6 +314,11 @@ export function initAutoUpdater(mainWindow: BrowserWindow): void {
 
   autoUpdater.on('error', (err) => {
     console.error('[更新] 更新出错:', err)
+    // 手动包下载进行中时，忽略 electron-updater 的连带 error，避免冲掉进度
+    if (!updateSupport.installSupported && currentStatus.status === 'downloading') {
+      console.warn('[更新] 忽略 updater error（手动包下载中）:', err.message)
+      return
+    }
     setStatus({
       status: 'error',
       error: formatUpdaterErrorMessage(err.message, updateSupport.installSupported),
@@ -219,19 +326,16 @@ export function initAutoUpdater(mainWindow: BrowserWindow): void {
     })
   })
 
-  // 启动后延迟 10 秒首次检查
   setTimeout(() => {
     console.log('[更新] 首次自动检查更新')
     checkForUpdates()
   }, 10_000)
 
-  // 每 4 小时自动检查一次
   checkInterval = setInterval(() => {
     console.log('[更新] 定时自动检查更新')
     checkForUpdates()
   }, 4 * 60 * 60 * 1000)
 
-  // 窗口关闭时清理定时器
   mainWindow.on('closed', () => {
     if (checkInterval) {
       clearInterval(checkInterval)

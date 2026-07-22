@@ -24,6 +24,8 @@ export interface UpdateStatus {
   error?: string
   /** 是否支持应用内 quitAndInstall（未签名 macOS 为 false） */
   installSupported?: boolean
+  /** 静默下载的本地安装包路径 */
+  packagePath?: string
 }
 
 /** 更新状态 atom */

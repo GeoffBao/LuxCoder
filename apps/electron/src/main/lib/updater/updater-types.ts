@@ -1,13 +1,15 @@
 /**
  * 自动更新相关类型定义
  *
- * 检测新版本 → 自动下载 → 用户从更新入口确认后重启安装
+ * 检测新版本 → 自动下载 → 用户从更新入口确认后重启安装 / 打开安装包
  */
 
 /** 各状态可选携带的安装能力标记 */
 interface UpdateStatusMeta {
   /** 是否支持应用内 quitAndInstall（未签名 macOS 为 false） */
   installSupported?: boolean
+  /** 静默下载的本地安装包路径（未签名 macOS DMG 等） */
+  packagePath?: string
 }
 
 /** 更新状态 */
@@ -38,4 +40,5 @@ export const UPDATER_IPC_CHANNELS = {
   GET_STATUS: 'updater:get-status',
   ON_STATUS_CHANGED: 'updater:status-changed',
   QUIT_AND_INSTALL: 'updater:quit-and-install',
+  OPEN_DOWNLOADED_PACKAGE: 'updater:open-downloaded-package',
 } as const
