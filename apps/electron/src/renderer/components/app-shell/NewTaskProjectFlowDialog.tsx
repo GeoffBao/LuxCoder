@@ -52,7 +52,7 @@ export function NewTaskProjectFlowDialog(): React.ReactElement {
         <DialogHeader>
           <DialogTitle>新建任务</DialogTitle>
           <DialogDescription>
-            先选择或创建项目，再填写任务内容。
+            选择项目后填写任务。也可新建项目或打开本地文件夹。
           </DialogDescription>
         </DialogHeader>
         <ProjectContextPicker
