@@ -50,13 +50,13 @@ interface MessageProps extends HTMLAttributes<HTMLDivElement> {
   from: MessageRole
 }
 
-/** 消息根容器，user 自动右对齐 */
+/** 消息根容器，user 右对齐、assistant 左对齐 */
 export function Message({ className, from, ...props }: MessageProps): React.ReactElement {
   return (
     <div
       className={cn(
         'message-item group flex w-full flex-col gap-0.5 rounded-[10px] px-2.5 py-3',
-        from === 'user' ? 'is-user' : 'is-assistant',
+        from === 'user' ? 'is-user items-end' : 'is-assistant',
         className
       )}
       {...props}
@@ -113,7 +113,7 @@ type MessageContentProps = HTMLAttributes<HTMLDivElement>
 
 /**
  * 消息内容区域
- * - user 消息：pl-[40px] 与头像对齐 + 浅色气泡背景
+ * - user 消息：右对齐，无左 padding
  * - assistant 消息：pl-[40px] 与头像对齐
  */
 export function MessageContent({
@@ -124,9 +124,9 @@ export function MessageContent({
   return (
     <div
       className={cn(
-        'message-body flex max-w-full min-w-0 flex-col gap-2 overflow-hidden pl-[40px]',
-        'group-[.is-user]:text-foreground group-[.is-user]:items-start',
-        'group-[.is-assistant]:w-full group-[.is-assistant]:text-foreground',
+        'message-body flex max-w-full min-w-0 flex-col gap-2 overflow-hidden',
+        'group-[.is-user]:text-foreground group-[.is-user]:items-end',
+        'group-[.is-assistant]:w-full group-[.is-assistant]:text-foreground group-[.is-assistant]:pl-[40px]',
         className
       )}
       {...props}
