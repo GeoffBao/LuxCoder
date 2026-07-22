@@ -49,6 +49,7 @@ import emeraldLogo from '@/assets/bots/logos/emerald.png'
 import logo8bitLogo from '@/assets/bots/logos/8bit.png'
 import cyberpunkLogo from '@/assets/bots/logos/cyberpunk.png'
 import futuristicLogo from '@/assets/bots/logos/futuristic.png'
+import defaultLogo from '@/assets/models/luxcoder.png'
 
 // ===== 主题预览图片导入 =====
 import themeCloudDancer from '@/assets/theme-previews/theme-cloud-dancer.webp'
@@ -163,7 +164,7 @@ interface IconVariant {
 }
 
 const ICON_VARIANTS: readonly IconVariant[] = [
-  { id: 'default', name: '默认', src: '', previewBg: 'bg-neutral-900' },
+  { id: 'default', name: '默认', src: defaultLogo, previewBg: 'bg-neutral-900' },
   { id: 'black', name: '经典黑', src: blackLogo, previewBg: 'bg-neutral-900' },
   { id: 'white', name: '纯白版', src: whiteLogo, previewBg: 'bg-white' },
   { id: 'blue', name: '品牌蓝', src: blueLogo, previewBg: 'bg-blue-900' },
@@ -384,29 +385,12 @@ function IconCard({
           variant.previewBg,
         )}
       >
-        {variant.id === 'default' ? (
-          // 默认图标用 CSS 模拟 LuxCoder logo 形状
-          <div className="flex items-end gap-[2px] -rotate-12">
-            {[1, 0.85, 0.7, 0.55, 0.4, 0.25].map((opacity, i) => (
-              <div
-                key={i}
-                className="rounded-[1px]"
-                style={{
-                  width: i === 0 ? 4 : 3,
-                  height: i === 0 ? 14 : 14 - i * 1.5,
-                  backgroundColor: `rgba(255,255,255,${opacity})`,
-                }}
-              />
-            ))}
-          </div>
-        ) : (
-          <img
-            src={variant.src}
-            alt={variant.name}
-            className="w-full h-full object-contain"
-            draggable={false}
-          />
-        )}
+        <img
+          src={variant.src}
+          alt={variant.name}
+          className="w-full h-full object-contain"
+          draggable={false}
+        />
       </div>
       <span className="text-[10px] font-medium text-muted-foreground leading-tight text-center">
         {variant.name}
