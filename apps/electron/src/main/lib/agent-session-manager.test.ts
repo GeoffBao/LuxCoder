@@ -167,15 +167,20 @@ describe('Agent 会话 runtime 元数据', () => {
     expect(manager.getAgentSessionMeta(defaultRuntimeSession.id)?.agentRuntime).toBe('pi')
     expect(manager.getAgentSessionMeta(claudeRuntimeSession.id)?.agentRuntime).toBe('claude')
     expect(defaultRuntimeSession.openAIThinkingLevel).toBe('high')
+    expect(defaultRuntimeSession.thinkingLevel).toBe('high')
   })
 
-  test('Given Codex session settings When updating Then persists depth per session', () => {
+  test('Given session thinking level When updating Then dual-writes thinkingLevel and legacy openAIThinkingLevel', () => {
     const session = manager.createAgentSession('Codex 会话', undefined, undefined, undefined, 'pi')
 
-    const updated = manager.updateAgentSessionMeta(session.id, { openAIThinkingLevel: 'xhigh' })
+    const updated = manager.updateAgentSessionMeta(session.id, { thinkingLevel: 'xhigh' })
 
+    expect(updated.thinkingLevel).toBe('xhigh')
     expect(updated.openAIThinkingLevel).toBe('xhigh')
-    expect(manager.getAgentSessionMeta(session.id)).toMatchObject({ openAIThinkingLevel: 'xhigh' })
+    expect(manager.getAgentSessionMeta(session.id)).toMatchObject({
+      thinkingLevel: 'xhigh',
+      openAIThinkingLevel: 'xhigh',
+    })
   })
 
   test('Given a session When star state is updated Then it persists without changing freshness or archive state', () => {

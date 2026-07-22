@@ -50,8 +50,42 @@ export type ThinkingConfig =
  */
 export type AgentEffort = 'low' | 'medium' | 'high' | 'max'
 
-/** Agent 思考等级（用于 Pi runtime；Claude runtime 继续使用 ThinkingConfig/AgentEffort） */
+/** Agent 思考等级（Pi runtime / craft 对齐；会话级 sticky） */
 export type AgentThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'
+
+/** 合法思考等级列表（UI / IPC 校验共用） */
+export const AGENT_THINKING_LEVELS = [
+  'off',
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+] as const satisfies readonly AgentThinkingLevel[]
+
+/** 新会话默认思考深度（与 craft DEFAULT_THINKING_LEVEL=medium 不同：Lux 历史默认 high） */
+export const DEFAULT_AGENT_THINKING_LEVEL: AgentThinkingLevel = 'high'
+
+export function isAgentThinkingLevel(value: unknown): value is AgentThinkingLevel {
+  return typeof value === 'string' && (AGENT_THINKING_LEVELS as readonly string[]).includes(value)
+}
+
+/** 读取会话思考等级（兼容旧字段 openAIThinkingLevel） */
+export function getSessionThinkingLevel(
+  session: { thinkingLevel?: AgentThinkingLevel; openAIThinkingLevel?: AgentThinkingLevel } | undefined,
+): AgentThinkingLevel | undefined {
+  if (!session) return undefined
+  if (isAgentThinkingLevel(session.thinkingLevel)) return session.thinkingLevel
+  if (isAgentThinkingLevel(session.openAIThinkingLevel)) return session.openAIThinkingLevel
+  return undefined
+}
+
+/** 写入会话思考等级时双写新旧字段，保证旧索引可读 */
+export function sessionThinkingLevelPatch(
+  level: AgentThinkingLevel,
+): { thinkingLevel: AgentThinkingLevel; openAIThinkingLevel: AgentThinkingLevel } {
+  return { thinkingLevel: level, openAIThinkingLevel: level }
+}
 
 /** 是否为 Proma 可暴露 reasoning.effort 的 OpenAI 推理模型。 */
 export function isOpenAIReasoningSupportedModel(modelId: string | undefined): boolean {
@@ -655,7 +689,14 @@ export interface AgentSessionMeta {
   agentRuntime?: import('./agent-provider').AgentRuntime
   /** ChatGPT Codex Fast Mode 开关；仅 Pi + ChatGPT OAuth 的受支持模型实际生效。 */
   codexFastMode?: boolean
-  /** 本会话的 OpenAI（Codex OAuth / Responses API）推理深度；未设置时兼容旧版全局思考设置。 */
+  /**
+   * 本会话思考深度（Pi sticky；对齐 craft ThinkingLevel）。
+   * 未设置时回退到 openAIThinkingLevel（旧字段）或应用默认。
+   */
+  thinkingLevel?: AgentThinkingLevel
+  /**
+   * @deprecated 使用 thinkingLevel。保留以兼容旧会话索引与 OpenAI 推理扩展写入。
+   */
   openAIThinkingLevel?: AgentThinkingLevel
   /** 所属工作区 ID */
   workspaceId?: string
@@ -1686,7 +1727,12 @@ export const AGENT_IPC_CHANNELS = {
   UPDATE_SESSION_AGENT_RUNTIME: 'agent:update-session-agent-runtime',
   /** 切换指定会话的 ChatGPT Codex Fast Mode（下一轮 Pi 请求生效） */
   UPDATE_SESSION_CODEX_FAST_MODE: 'agent:update-session-codex-fast-mode',
-  /** 更新指定会话的 OpenAI 推理设置（下一轮 Pi 请求生效） */
+  /**
+   * 更新指定会话的思考深度（下一轮 Pi 请求生效）。
+   * 通道名保留 openai-reasoning 历史字符串，避免破坏已分发客户端。
+   */
+  UPDATE_SESSION_THINKING_LEVEL: 'agent:update-session-openai-reasoning',
+  /** @deprecated 使用 UPDATE_SESSION_THINKING_LEVEL */
   UPDATE_SESSION_OPENAI_REASONING: 'agent:update-session-openai-reasoning',
 
   // AskUserQuestion 交互式问答

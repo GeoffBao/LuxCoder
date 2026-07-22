@@ -4,7 +4,7 @@
  * 主题模式、IPC 通道等设置相关定义。
  */
 
-import type { AgentRuntime, EnvironmentCheckResult, ThinkingConfig, AgentEffort, FeishuSessionMirrorSettings } from '@luxcoder/shared'
+import type { AgentRuntime, AgentThinkingLevel, EnvironmentCheckResult, ThinkingConfig, AgentEffort, FeishuSessionMirrorSettings } from '@luxcoder/shared'
 
 /** 通知音场景类型 */
 export type NotificationSoundType = 'taskComplete' | 'permissionRequest' | 'exitPlanMode'
@@ -223,10 +223,12 @@ export interface AppSettings {
   notificationSounds?: NotificationSoundSettings
   /** 标签页持久化状态（重启恢复） */
   tabState?: PersistedTabSettings
-  /** Agent 思考模式 */
+  /** Agent 思考模式（遗留 Claude 路径；Pi 以 defaultThinkingLevel / session.thinkingLevel 为准） */
   agentThinking?: ThinkingConfig
-  /** Agent 推理深度 */
+  /** Agent 推理深度（遗留全局 fallback） */
   agentEffort?: AgentEffort
+  /** 新会话默认思考深度（对齐 craft defaultThinkingLevel；会话内可覆盖） */
+  defaultThinkingLevel?: AgentThinkingLevel
   /** Agent 最大预算（美元/次） */
   agentMaxBudgetUsd?: number
   /** Agent 最大轮次（0 或 undefined = SDK 默认） */

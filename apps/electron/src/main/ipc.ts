@@ -2413,11 +2413,11 @@ export function registerIpcHandlers(): void {
   )
 
   ipcMain.handle(
-    AGENT_IPC_CHANNELS.UPDATE_SESSION_OPENAI_REASONING,
+    AGENT_IPC_CHANNELS.UPDATE_SESSION_THINKING_LEVEL,
     async (_, sessionId: string, thinkingLevel: AgentThinkingLevel): Promise<AgentSessionMeta> => {
       const validThinkingLevels: AgentThinkingLevel[] = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh']
       if (!validThinkingLevels.includes(thinkingLevel)) {
-        throw new Error(`无效的 Codex 思考深度: ${String(thinkingLevel)}`)
+        throw new Error(`无效的思考深度: ${String(thinkingLevel)}`)
       }
       if (!getAgentSessionMeta(sessionId)) {
         throw new Error(`Agent 会话不存在: ${sessionId}`)
@@ -2425,7 +2425,7 @@ export function registerIpcHandlers(): void {
       if (isAgentSessionActive(sessionId)) {
         throw new Error('Agent 正在运行，完成后再切换思考深度')
       }
-      return updateAgentSessionMeta(sessionId, { openAIThinkingLevel: thinkingLevel })
+      return updateAgentSessionMeta(sessionId, { thinkingLevel })
     }
   )
 
