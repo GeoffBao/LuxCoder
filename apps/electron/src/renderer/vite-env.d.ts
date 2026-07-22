@@ -24,6 +24,9 @@ interface UpdateStatus {
   releaseNotes?: string
   progress?: { percent: number; transferred: number; total: number; bytesPerSecond: number }
   error?: string
+  installSupported?: boolean
+  packagePath?: string
+  fallbackToPackage?: boolean
 }
 
 /** 更新 API */
@@ -32,6 +35,7 @@ interface UpdaterAPI {
   getStatus: () => Promise<UpdateStatus>
   onStatusChanged: (callback: (status: UpdateStatus) => void) => () => void
   quitAndInstall: () => Promise<void>
+  openDownloadedPackage: () => Promise<void>
 }
 
 // 附件临时 base64 缓存（用于发送前暂存数据）

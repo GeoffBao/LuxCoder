@@ -978,6 +978,9 @@ export interface ElectronAPI {
       releaseNotes?: string
       progress?: { percent: number; transferred: number; total: number; bytesPerSecond: number }
       error?: string
+      installSupported?: boolean
+      packagePath?: string
+      fallbackToPackage?: boolean
     }>
     onStatusChanged: (callback: (status: {
       status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'not-available' | 'error'
@@ -985,8 +988,12 @@ export interface ElectronAPI {
       releaseNotes?: string
       progress?: { percent: number; transferred: number; total: number; bytesPerSecond: number }
       error?: string
+      installSupported?: boolean
+      packagePath?: string
+      fallbackToPackage?: boolean
     }) => void) => () => void
     quitAndInstall: () => Promise<void>
+    openDownloadedPackage: () => Promise<void>
   }
 
   // GitHub Release
@@ -2274,6 +2281,7 @@ const electronAPI: ElectronAPI = {
       return () => { ipcRenderer.removeListener('updater:status-changed', listener) }
     },
     quitAndInstall: () => ipcRenderer.invoke('updater:quit-and-install'),
+    openDownloadedPackage: () => ipcRenderer.invoke('updater:open-downloaded-package'),
   },
 
   // GitHub Release
