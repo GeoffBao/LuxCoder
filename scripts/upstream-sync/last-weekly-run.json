@@ -1,0 +1,21 @@
+{
+  "ranAt": "2026-08-01T09:07:33.469Z",
+  "baseRef": "origin/main",
+  "lastSyncedBefore": "79327978dc29a8712fbd780d14346f4124b57422",
+  "lastSyncedAfter": "79327978dc29a8712fbd780d14346f4124b57422",
+  "upstreamMain": "ff9a9b58d142708055fd0aadca55838dc3d86e02",
+  "pendingTotal": 98,
+  "branch": "sync/proma-20260801-1707-auto",
+  "picks": [
+    {
+      "sha": "8a6abe884530698fb2c2d3759e1cbeab4daade25",
+      "subject": "fix(agent): cap Ark GLM-5.2 output tokens (#1243)",
+      "ok": false,
+      "empty": false,
+      "conflict": true
+    }
+  ],
+  "stoppedOnConflict": true,
+  "pushed": false,
+  "prUrl": null
+}

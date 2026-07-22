@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+<<<<<<< HEAD
 import { buildModel, getCodexAlignedGPT5Capabilities } from './pi-model-registry'
 
 describe('第三方 GPT-5 capability extrapolation', () => {
@@ -37,6 +38,9 @@ describe('第三方 GPT-5 capability extrapolation', () => {
     expect(result.model.thinkingLevelMap).toMatchObject({ off: 'none', minimal: 'low', xhigh: 'xhigh', max: 'max' })
   })
 })
+=======
+import { buildModel } from './pi-model-registry'
+>>>>>>> 8a6abe88 (fix(agent): cap Ark GLM-5.2 output tokens (#1243))
 
 describe('Pi runtime 火山方舟 GLM-5.2 输出限制', () => {
   test.each([

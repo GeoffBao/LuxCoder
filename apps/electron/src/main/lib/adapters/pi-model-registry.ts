@@ -339,9 +339,12 @@ export async function resolvePiReasoningCapability(
 
 async function resolvePiModelDefaults(input: PiAgentQueryOptions): Promise<PiModelDefaults> {
   const catalogModel = input.model ? await findPiCatalogModel(input.provider, input.model) : undefined
+<<<<<<< HEAD
   const codexAlignedCapabilities = getCodexAlignedGPT5Capabilities(input.model)
   const api = normalizePiApi(input.provider)
   const providerSpecificCapabilities = compilePiReasoningCapabilities(api, input.model)
+=======
+>>>>>>> 8a6abe88 (fix(agent): cap Ark GLM-5.2 output tokens (#1243))
   const isVolcengineGlm52 = (input.provider === 'doubao' || input.provider === 'ark-coding-plan')
     && input.model?.toLowerCase() === 'glm-5.2'
   const catalogContextWindow = catalogModel?.contextWindow ?? DEFAULT_CONTEXT_WINDOW
