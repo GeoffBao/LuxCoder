@@ -10,6 +10,16 @@ import type { SDKMessage } from './agent'
 /** Agent runtime 实现 */
 export type AgentRuntime = 'claude' | 'pi'
 
+/**
+ * 是否向用户开放 Claude Agent 内核。
+ *
+ * 默认关闭：仅使用 Pi，避免暴露双内核选择给用户造成困扰。
+ * - UI 层：隐藏内核选择器与 Claude 徽章。
+ * - 执行层：`normalizeAgentRuntime` 在此关闭时强制回落到 Pi（含历史会话）。
+ * 后续如需在 release 版本恢复 Claude 选项，将此改为 true 即可。
+ */
+export const CLAUDE_RUNTIME_ENABLED = false
+
 /** SDK 用户消息（队列消息注入用，匹配 SDK SDKUserMessage 结构） */
 export interface SDKUserMessageInput {
   type: 'user'

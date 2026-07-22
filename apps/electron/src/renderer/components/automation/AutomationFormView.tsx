@@ -49,6 +49,7 @@ import type {
   UpdateAutomationInput,
   AgentRuntime,
 } from '@luxcoder/shared'
+import { CLAUDE_RUNTIME_ENABLED } from '@luxcoder/shared'
 
 const NO_FEISHU_BINDING = '__none__'
 
@@ -1010,13 +1011,16 @@ export function AutomationFormView(): React.ReactElement | null {
             </div>
           )}
 
-          <div className="flex flex-col gap-2">
-            <Label>Agent 内核</Label>
-            <AutomationRuntimeSelector runtime={form.agentRuntime} onChange={handleRuntimeChange} />
-            <span className="pl-2.5 text-xs text-muted-foreground leading-relaxed">
-              Pi 内核支持选择任意已启用模型渠道；Claude 内核仅显示已勾选为 Agent 兼容的渠道。
-            </span>
-          </div>
+          {/* Claude 内核默认关闭时，隐藏内核选择器（仅 Pi）。 */}
+          {CLAUDE_RUNTIME_ENABLED && (
+            <div className="flex flex-col gap-2">
+              <Label>Agent 内核</Label>
+              <AutomationRuntimeSelector runtime={form.agentRuntime} onChange={handleRuntimeChange} />
+              <span className="pl-2.5 text-xs text-muted-foreground leading-relaxed">
+                Pi 内核支持选择任意已启用模型渠道；Claude 内核仅显示已勾选为 Agent 兼容的渠道。
+              </span>
+            </div>
+          )}
 
           {/* 选择模型（Claude 内核仅显示 Agent 兼容渠道；Pi 内核显示所有已启用渠道） */}
           <div className="flex flex-col gap-2">
