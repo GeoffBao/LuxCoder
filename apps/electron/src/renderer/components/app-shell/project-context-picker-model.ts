@@ -77,15 +77,16 @@ export function buildPickerSections(input: {
     ? []
     : input.discovered.filter((repo) => !boundPaths.has(normalizePathForCompare(repo.path)))
 
+  // 动作标签对齐 Cursor/Codex/Kimi：新建优先、浏览次之、会话可跳过
   const actions: PickerAction[] = [
-    { id: 'browse', label: '浏览…' },
     { id: 'create', label: '新建项目…' },
+    { id: 'browse', label: '使用现有文件夹…' },
   ]
   if (needsScanRootGuide) {
     actions.push({ id: 'add-scan-root', label: '添加扫描目录…' })
   }
   if (allowsSkipProject(input.mode)) {
-    actions.push({ id: 'skip', label: '无项目' })
+    actions.push({ id: 'skip', label: '不使用项目' })
   }
 
   return {
