@@ -43,6 +43,11 @@ import { getAgentWorkspace, listAgentWorkspaces } from './agent-workspace-manage
 import { getAgentWorkspacePath, getExpertsDir } from './config-paths'
 import { getExpert } from './expert-service'
 import { projectRepository } from './project-repository'
+import {
+  openOrCreateProjectForPath,
+  relocateProjectWorkingDirectory,
+  resolveEffectiveCwd,
+} from './project-path-service'
 import { TaskRunner, type RunOptions } from './task-runner'
 import { TeambitionService, type ClaimTeambitionTaskInput, type TeambitionRemoteTask } from './teambition-service'
 
@@ -388,6 +393,39 @@ export function registerTaskHandlers(window: BrowserWindow): void {
     projectRepository.writeProjectMemoryAtRoot(workspaceRoot, slug, content)
     broadcastProjectsChanged(workspaceRoot, workspaceIdFor(workspaceRoot))
   })
+
+  ipcMain.handle(
+    PROJECT_IPC_CHANNELS.OPEN_OR_CREATE_BY_PATH,
+    (_event, workspaceRoot: string, folderPath: string) => {
+      const result = openOrCreateProjectForPath(workspaceRoot, folderPath)
+      if (result.created) {
+        broadcastProjectsChanged(workspaceRoot, workspaceIdFor(workspaceRoot))
+      }
+      const loaded = projectRepository.getProjectAtRoot(workspaceRoot, result.project.slug)
+      if (!loaded) throw new Error(`项目创建或复用后无法加载: ${result.project.slug}`)
+      return { project: loaded, created: result.created }
+    },
+  )
+
+  ipcMain.handle(
+    PROJECT_IPC_CHANNELS.RESOLVE_EFFECTIVE_CWD,
+    (_event, workspaceRoot: string, projectSlug: string) => {
+      const loaded = projectRepository.getProjectAtRoot(workspaceRoot, projectSlug)
+      if (!loaded) throw new Error(`项目不存在: ${projectSlug}`)
+      return resolveEffectiveCwd(workspaceRoot, loaded.config)
+    },
+  )
+
+  ipcMain.handle(
+    PROJECT_IPC_CHANNELS.RELOCATE_WORKING_DIRECTORY,
+    (_event, workspaceRoot: string, projectSlug: string, newPath: string) => {
+      relocateProjectWorkingDirectory(workspaceRoot, projectSlug, newPath)
+      const loaded = projectRepository.getProjectAtRoot(workspaceRoot, projectSlug)
+      if (!loaded) throw new Error(`重新定位后无法加载项目: ${projectSlug}`)
+      broadcastProjectsChanged(workspaceRoot, workspaceIdFor(workspaceRoot))
+      return loaded
+    },
+  )
 
   ipcMain.handle(TASK_IPC_CHANNELS.VALIDATE, (_event, yaml: string) => {
     return buildTaskValidationPayload(parseTaskYaml(yaml))

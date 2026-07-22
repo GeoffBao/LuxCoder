@@ -16,6 +16,9 @@ export const PROJECT_IPC_CHANNELS = {
   DELETE_ASSET: 'projects:deleteAsset',
   READ_MEMORY: 'projects:readMemory',
   WRITE_MEMORY: 'projects:writeMemory',
+  OPEN_OR_CREATE_BY_PATH: 'projects:openOrCreateByPath',
+  RESOLVE_EFFECTIVE_CWD: 'projects:resolveEffectiveCwd',
+  RELOCATE_WORKING_DIRECTORY: 'projects:relocateWorkingDirectory',
   CHANGED:     'projects:changed',
 } as const;
 

@@ -188,6 +188,19 @@ export interface BrowserProjectChangedEvent {
   projects: BrowserProject[]
 }
 
+export type BrowserEffectiveCwdStatus = 'managed' | 'external' | 'unavailable'
+
+export interface BrowserEffectiveCwdResult {
+  status: BrowserEffectiveCwdStatus
+  cwd?: string
+  displayPath?: string
+}
+
+export interface BrowserOpenOrCreateProjectResult {
+  project: BrowserProject
+  created: boolean
+}
+
 export interface TaskValidationResult extends ValidationResult {
   spec?: TaskSpec
 }
@@ -1231,6 +1244,19 @@ export interface ElectronAPI {
     deleteAsset: (workspaceRoot: string, slug: string, filename: string) => Promise<void>
     readMemory: (workspaceRoot: string, slug: string) => Promise<string>
     writeMemory: (workspaceRoot: string, slug: string, content: string) => Promise<void>
+    openOrCreateByPath: (
+      workspaceRoot: string,
+      folderPath: string,
+    ) => Promise<BrowserOpenOrCreateProjectResult>
+    resolveEffectiveCwd: (
+      workspaceRoot: string,
+      projectSlug: string,
+    ) => Promise<BrowserEffectiveCwdResult>
+    relocateWorkingDirectory: (
+      workspaceRoot: string,
+      projectSlug: string,
+      newPath: string,
+    ) => Promise<BrowserProject>
     onChanged: (callback: (event: BrowserProjectChangedEvent) => void) => () => void
   }
   tasks: {
@@ -2719,6 +2745,39 @@ const electronAPI: ElectronAPI = {
       invokeTyped<string>(PROJECT_IPC_CHANNELS.READ_MEMORY, workspaceRoot, slug),
     writeMemory: (workspaceRoot: string, slug: string, content: string): Promise<void> =>
       invokeTyped<void>(PROJECT_IPC_CHANNELS.WRITE_MEMORY, workspaceRoot, slug, content),
+    openOrCreateByPath: async (
+      workspaceRoot: string,
+      folderPath: string,
+    ): Promise<BrowserOpenOrCreateProjectResult> => {
+      const result = await invokeTyped<{ project: LoadedProject; created: boolean }>(
+        PROJECT_IPC_CHANNELS.OPEN_OR_CREATE_BY_PATH,
+        workspaceRoot,
+        folderPath,
+      )
+      return { project: toBrowserProject(result.project), created: result.created }
+    },
+    resolveEffectiveCwd: (
+      workspaceRoot: string,
+      projectSlug: string,
+    ): Promise<BrowserEffectiveCwdResult> =>
+      invokeTyped<BrowserEffectiveCwdResult>(
+        PROJECT_IPC_CHANNELS.RESOLVE_EFFECTIVE_CWD,
+        workspaceRoot,
+        projectSlug,
+      ),
+    relocateWorkingDirectory: async (
+      workspaceRoot: string,
+      projectSlug: string,
+      newPath: string,
+    ): Promise<BrowserProject> => {
+      const project = await invokeTyped<LoadedProject>(
+        PROJECT_IPC_CHANNELS.RELOCATE_WORKING_DIRECTORY,
+        workspaceRoot,
+        projectSlug,
+        newPath,
+      )
+      return toBrowserProject(project)
+    },
     onChanged: (callback: (event: BrowserProjectChangedEvent) => void): (() => void) => {
       const listener = (_event: unknown, payload: ProjectsChangedEventPayload): void => {
         callback({
