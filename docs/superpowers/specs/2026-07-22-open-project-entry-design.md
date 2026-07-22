@@ -2,7 +2,7 @@
 
 **日期：** 2026-07-22
 
-**状态：** 规格已确认，待写实现计划
+**状态：** 已实现（见 `docs/superpowers/plans/2026-07-22-open-project-entry.md` / PR）
 
 **范围：** Code 侧栏「开始」动作、Draft Session / 新任务流内的项目上下文选择、仓库发现；Teambition 认领入口本期关闭
 
