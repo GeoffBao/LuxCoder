@@ -6,7 +6,7 @@
  */
 
 import * as React from 'react'
-import type { DefaultAppInfo, FileAccessOptions } from '@luxcodex/shared'
+import type { DefaultAppInfo, FileAccessOptions } from '@luxcoder/shared'
 
 const rendererCache = new Map<string, DefaultAppInfo | null>()
 

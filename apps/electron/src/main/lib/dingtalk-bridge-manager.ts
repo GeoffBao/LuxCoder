@@ -11,7 +11,7 @@ import type {
   DingTalkBotBridgeState,
   DingTalkTestResult,
   DingTalkBotConfig,
-} from '@luxcodex/shared'
+} from '@luxcoder/shared'
 import { DingTalkBridge } from './dingtalk-bridge'
 import { getDingTalkMultiBotConfig, getDingTalkBotById } from './dingtalk-config'
 import { redactSensitiveLogValue } from './bridge-log-redaction'

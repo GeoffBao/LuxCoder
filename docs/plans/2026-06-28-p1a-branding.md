@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 把 Proma 视觉/系统层面替换为 LuxCodex：品牌字符串、数据目录、Electron 元数据、localStorage 键名、三模式 Tab，不改任何核心功能逻辑，不改 `@proma/*` 包名（留给 P1b）。
+**Goal:** 把 Proma 视觉/系统层面替换为 LuxCoder：品牌字符串、数据目录、Electron 元数据、localStorage 键名、三模式 Tab，不改任何核心功能逻辑，不改 `@proma/*` 包名（留给 P1b）。
 
-**Architecture:** 逐文件替换，无结构变化。新增 `migration-service.ts` 在首次启动时把 `~/.luxcodex/` 数据迁移到 `~/.luxcodex/`（非破坏性，保留原目录）。ModeSwitcher 扩展为三按钮滑块（Chat / Code / Work），Work 为占位 UI。
+**Architecture:** 逐文件替换，无结构变化。新增 `migration-service.ts` 在首次启动时把 `~/.luxcoder/` 数据迁移到 `~/.luxcoder/`（非破坏性，保留原目录）。ModeSwitcher 扩展为三按钮滑块（Chat / Code / Work），Work 为占位 UI。
 
 **Tech Stack:** TypeScript, Electron, React, Jotai, Tailwind CSS, esbuild
 
@@ -30,11 +30,11 @@
 | Modify | `apps/electron/src/renderer/atoms/theme.ts` | 3 个缓存键常量 |
 | Modify | `apps/electron/src/renderer/atoms/chat-atoms.ts` | 4 个 localStorage 键 |
 | Modify | `apps/electron/src/renderer/components/settings/AboutSettings.tsx` | GitHub URL、页面标题 |
-| Modify | `apps/electron/src/renderer/components/settings/FeishuSettings.tsx` | UI 文案中的 Proma → LuxCodex |
-| Modify | `apps/electron/src/renderer/components/settings/WeChatSettings.tsx` | UI 文案中的 Proma → LuxCodex |
+| Modify | `apps/electron/src/renderer/components/settings/FeishuSettings.tsx` | UI 文案中的 Proma → LuxCoder |
+| Modify | `apps/electron/src/renderer/components/settings/WeChatSettings.tsx` | UI 文案中的 Proma → LuxCoder |
 | Rename | `apps/electron/src/renderer/components/settings/PromaLogoSettings.tsx` → `AppLogoSettings.tsx` | 组件名、内部注释 |
 | Modify | `apps/electron/src/renderer/components/settings/BotHubSettings.tsx` | 更新 import |
-| Rename | `apps/electron/default-skills/proma-coach/` → `luxcodex-coach/` | 目录 + SKILL.md 内容 |
+| Rename | `apps/electron/default-skills/proma-coach/` → `luxcoder-coach/` | 目录 + SKILL.md 内容 |
 | Modify | `apps/electron/src/renderer/components/app-shell/ModeSwitcher.tsx` | 三模式滑块 |
 
 ---
@@ -51,17 +51,17 @@
 ```typescript
 // packages/shared/src/config/index.ts
 /**
- * Shared configuration for LuxCodex
+ * Shared configuration for LuxCoder
  */
 
-export const APP_NAME = 'LuxCodex'
+export const APP_NAME = 'LuxCoder'
 ```
 
 - [ ] **Step 2: 重写 user-agent.ts**
 
 ```typescript
 // packages/core/src/providers/user-agent.ts
-const LUXCODEX_REPO_URL = 'https://github.com/GeoffBao/LuxCodex'
+const LUXCODER_REPO_URL = 'https://github.com/GeoffBao/LuxCoder'
 
 let _appVersion = '0.0.0'
 
@@ -75,7 +75,7 @@ export function getAppVersion(): string {
 
 export function getAppUserAgent(version?: string): string {
   const v = version ?? _appVersion
-  return `LuxCodex/${v} (+${LUXCODEX_REPO_URL})`
+  return `LuxCoder/${v} (+${LUXCODER_REPO_URL})`
 }
 ```
 
@@ -103,7 +103,7 @@ Expected: 0 errors
 
 ```bash
 git add packages/shared/src/config/index.ts packages/core/src/providers/user-agent.ts packages/core/src/providers/anthropic-adapter.ts
-git commit -m "brand: rename APP_NAME and user-agent constants to LuxCodex"
+git commit -m "brand: rename APP_NAME and user-agent constants to LuxCoder"
 ```
 
 ---
@@ -116,34 +116,34 @@ git commit -m "brand: rename APP_NAME and user-agent constants to LuxCodex"
 - [ ] **Step 1: 更新 appId / productName / copyright**
 
 ```yaml
-appId: com.luxshare.luxcodex
-productName: LuxCodex
+appId: com.luxshare.luxcoder
+productName: LuxCoder
 copyright: Copyright © 2024-2026 Luxshare
 ```
 
 - [ ] **Step 2: 更新 fileAssociations（mac + win 各一处）**
 
-mac 和 win 的 fileAssociations 把 `.luxcodex-backup` / `.luxcodex-share` 改为 `.luxcodex-backup` / `.luxcodex-share`：
+mac 和 win 的 fileAssociations 把 `.luxcoder-backup` / `.luxcoder-share` 改为 `.luxcoder-backup` / `.luxcoder-share`：
 
 ```yaml
 # mac section
 fileAssociations:
-  - ext: luxcodex-backup
-    name: LuxCodex Personal Backup
+  - ext: luxcoder-backup
+    name: LuxCoder Personal Backup
     role: Editor
-  - ext: luxcodex-share
-    name: LuxCodex Share Package
+  - ext: luxcoder-share
+    name: LuxCoder Share Package
     role: Editor
 ```
 
 ```yaml
 # win section
 fileAssociations:
-  - ext: luxcodex-backup
-    name: LuxCodex Personal Backup
+  - ext: luxcoder-backup
+    name: LuxCoder Personal Backup
     icon: resources/icon.ico
-  - ext: luxcodex-share
-    name: LuxCodex Share Package
+  - ext: luxcoder-share
+    name: LuxCoder Share Package
     icon: resources/icon.ico
 ```
 
@@ -151,7 +151,7 @@ fileAssociations:
 
 ```yaml
 extendInfo:
-  NSMicrophoneUsageDescription: "LuxCodex 需要访问麦克风，用于将你的语音实时转写为文本。"
+  NSMicrophoneUsageDescription: "LuxCoder 需要访问麦克风，用于将你的语音实时转写为文本。"
 ```
 
 - [ ] **Step 4: 更新 publish**
@@ -160,14 +160,14 @@ extendInfo:
 publish:
   provider: github
   owner: GeoffBao
-  repo: LuxCodex
+  repo: LuxCoder
 ```
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add apps/electron/electron-builder.yml
-git commit -m "brand: update electron-builder metadata to LuxCodex"
+git commit -m "brand: update electron-builder metadata to LuxCoder"
 ```
 
 ---
@@ -182,26 +182,26 @@ git commit -m "brand: update electron-builder metadata to LuxCodex"
 第 8 行：
 ```typescript
 // 原：app.setPath('userData', join(app.getPath('appData'), '@proma/electron-dev'))
-app.setPath('userData', join(app.getPath('appData'), '@luxcodex/electron-dev'))
+app.setPath('userData', join(app.getPath('appData'), '@luxcoder/electron-dev'))
 ```
 
 - [ ] **Step 2: 更新自定义协议注册**
 
 找到 `proma-file` 协议注册（约第 33 行），改为：
 ```typescript
-{ scheme: 'luxcodex-file', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } },
+{ scheme: 'luxcoder-file', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } },
 ```
 
 - [ ] **Step 3: 更新文件扩展名检测**
 
 约第 51 行（argv 扫描）：
 ```typescript
-const fileArg = argv.find((arg) => arg.endsWith('.luxcodex-backup') || arg.endsWith('.luxcodex-share'))
+const fileArg = argv.find((arg) => arg.endsWith('.luxcoder-backup') || arg.endsWith('.luxcoder-share'))
 ```
 
 约第 126 行（filePath 检测）：
 ```typescript
-if (filePath.endsWith('.luxcodex-backup') || filePath.endsWith('.luxcodex-share')) {
+if (filePath.endsWith('.luxcoder-backup') || filePath.endsWith('.luxcoder-share')) {
 ```
 
 - [ ] **Step 4: 更新 import 和 setAppVersion 调用**
@@ -220,7 +220,7 @@ setAppVersion(app.getVersion())
 
 约第 484 行：
 ```typescript
-protocol.handle('luxcodex-file', handlePromaFileRequest)
+protocol.handle('luxcoder-file', handlePromaFileRequest)
 ```
 
 （函数名 handlePromaFileRequest 保留，P1b 随包名一起改）
@@ -229,15 +229,15 @@ protocol.handle('luxcodex-file', handlePromaFileRequest)
 
 约第 628-629 行：
 ```typescript
-`2. ~/.luxcodex/ 配置损坏（重命名 ~/.luxcodex 后重启）\n` +
-`3. 系统 Keychain 无法解密保存的凭证（删除 ~/.luxcodex/feishu.json 等后重新登录）\n\n` +
+`2. ~/.luxcoder/ 配置损坏（重命名 ~/.luxcoder 后重启）\n` +
+`3. 系统 Keychain 无法解密保存的凭证（删除 ~/.luxcoder/feishu.json 等后重新登录）\n\n` +
 ```
 
-- [ ] **Step 7: 更新注释中的 ~/.luxcodex/ 路径引用**
+- [ ] **Step 7: 更新注释中的 ~/.luxcoder/ 路径引用**
 
 约第 490 行注释：
 ```typescript
-// 同步默认 Skills 模板到 ~/.luxcodex/default-skills/
+// 同步默认 Skills 模板到 ~/.luxcoder/default-skills/
 ```
 
 - [ ] **Step 8: 类型检查**
@@ -251,7 +251,7 @@ Expected: 0 errors
 
 ```bash
 git add apps/electron/src/main/index.ts
-git commit -m "brand: update Electron main process to LuxCodex protocol/paths"
+git commit -m "brand: update Electron main process to LuxCoder protocol/paths"
 ```
 
 ---
@@ -266,16 +266,16 @@ git commit -m "brand: update Electron main process to LuxCodex protocol/paths"
 `getConfigDirName()` 函数中：
 ```typescript
 // 原：if (process.env.PROMA_DEV === '1')
-if (process.env.LUXCODEX_DEV === '1') {
-  _configDirName = '.luxcodex-dev'
+if (process.env.LUXCODER_DEV === '1') {
+  _configDirName = '.luxcoder-dev'
 } else {
   try {
     const { app } = require('electron')
-    _configDirName = app.isPackaged ? '.luxcodex' : '.luxcodex-dev'
+    _configDirName = app.isPackaged ? '.luxcoder' : '.luxcoder-dev'
   } catch {
-    _configDirName = '.luxcodex'
+    _configDirName = '.luxcoder'
   }
-  const mode = _configDirName === '.luxcodex-dev' ? '开发模式' : '正式版本'
+  const mode = _configDirName === '.luxcoder-dev' ? '开发模式' : '正式版本'
   console.log(`[配置] 配置目录: ~/${_configDirName}/（${mode}）`)
 ```
 
@@ -285,30 +285,30 @@ if (process.env.LUXCODEX_DEV === '1') {
 /**
  * 配置路径工具
  *
- * 管理 LuxCodex 应用的本地配置文件路径。
- * 所有用户配置存储在 ~/.luxcodex/ 目录下。
+ * 管理 LuxCoder 应用的本地配置文件路径。
+ * 所有用户配置存储在 ~/.luxcoder/ 目录下。
  */
 ```
 
-- [ ] **Step 3: 替换文件内所有注释中的 ~/.luxcodex/ 路径**
+- [ ] **Step 3: 替换文件内所有注释中的 ~/.luxcoder/ 路径**
 
-用 sed 批量替换注释（共约 30 处 JSDoc `@returns ~/.luxcodex/...`）：
+用 sed 批量替换注释（共约 30 处 JSDoc `@returns ~/.luxcoder/...`）：
 
 ```bash
-sed -i '' 's|~\/\.proma\/|~\/.luxcodex\/|g' apps/electron/src/main/lib/config-paths.ts
+sed -i '' 's|~\/\.proma\/|~\/.luxcoder\/|g' apps/electron/src/main/lib/config-paths.ts
 ```
 
 - [ ] **Step 4: 替换 getSdkConfigDir 注释中的「Proma」**
 
 ```typescript
-// 实现 LuxCodex 与 Claude Code CLI 的配置隔离。
+// 实现 LuxCoder 与 Claude Code CLI 的配置隔离。
 ```
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add apps/electron/src/main/lib/config-paths.ts
-git commit -m "brand: rename data directory .proma → .luxcodex"
+git commit -m "brand: rename data directory .proma → .luxcoder"
 ```
 
 ---
@@ -325,7 +325,7 @@ git commit -m "brand: rename data directory .proma → .luxcodex"
 /**
  * 迁移服务
  *
- * 首次启动时将 ~/.luxcodex/ 迁移到 ~/.luxcodex/（非破坏性，保留原目录）。
+ * 首次启动时将 ~/.luxcoder/ 迁移到 ~/.luxcoder/（非破坏性，保留原目录）。
  * 迁移完成后标记 flag 文件，避免重复执行。
  */
 
@@ -334,7 +334,7 @@ import { existsSync, cpSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 
 const OLD_DIR = '.proma'
-const NEW_DIR = '.luxcodex'
+const NEW_DIR = '.luxcoder'
 const MIGRATE_FLAG = '.migrated-from-proma'
 
 export function migrateDataDirIfNeeded(): void {
@@ -386,7 +386,7 @@ Expected: 0 errors
 
 ```bash
 git add apps/electron/src/main/lib/migration-service.ts apps/electron/src/main/index.ts
-git commit -m "feat: add data directory migration service (.proma → .luxcodex)"
+git commit -m "feat: add data directory migration service (.proma → .luxcoder)"
 ```
 
 ---
@@ -407,7 +407,7 @@ git commit -m "feat: add data directory migration service (.proma → .luxcodex)
 
 ```bash
 find apps/electron/src/renderer/atoms -name "*.ts" -exec \
-  sed -i '' "s/'proma-/'luxcodex-/g" {} \;
+  sed -i '' "s/'proma-/'luxcoder-/g" {} \;
 ```
 
 - [ ] **Step 2: 验证替换结果**
@@ -421,12 +421,12 @@ Expected: 输出为空（无遗漏）
 
 ```typescript
 // apps/electron/src/renderer/atoms/tab-atoms.ts
-export const TUTORIAL_TAB_TITLE = 'LuxCodex 使用教程'
+export const TUTORIAL_TAB_TITLE = 'LuxCoder 使用教程'
 ```
 
 - [ ] **Step 4: 更新 theme.ts 注释**
 
-把注释中 `~/.luxcodex/settings.json` → `~/.luxcodex/settings.json`（如有）。
+把注释中 `~/.luxcoder/settings.json` → `~/.luxcoder/settings.json`（如有）。
 
 - [ ] **Step 5: 类型检查**
 
@@ -439,7 +439,7 @@ Expected: 0 errors
 
 ```bash
 git add apps/electron/src/renderer/atoms/
-git commit -m "brand: rename proma-* localStorage keys to luxcodex-*"
+git commit -m "brand: rename proma-* localStorage keys to luxcoder-*"
 ```
 
 ---
@@ -455,34 +455,34 @@ git commit -m "brand: rename proma-* localStorage keys to luxcodex-*"
 
 约第 32 行：
 ```typescript
-const GITHUB_RELEASES_URL = 'https://github.com/GeoffBao/LuxCodex/releases'
+const GITHUB_RELEASES_URL = 'https://github.com/GeoffBao/LuxCoder/releases'
 ```
 
 约第 445 行：
 ```tsx
-title="关于 LuxCodex"
+title="关于 LuxCoder"
 ```
 
 约第 470 行：
 ```tsx
-href="https://github.com/GeoffBao/LuxCodex"
+href="https://github.com/GeoffBao/LuxCoder"
 ```
 
 约第 475 行：
 ```tsx
-github.com/GeoffBao/LuxCodex
+github.com/GeoffBao/LuxCoder
 ```
 
-- [ ] **Step 2: FeishuSettings - 用户可见文案中的 Proma → LuxCodex**
+- [ ] **Step 2: FeishuSettings - 用户可见文案中的 Proma → LuxCoder**
 
 ```bash
-sed -i '' 's/Proma Agent/LuxCodex Agent/g' apps/electron/src/renderer/components/settings/FeishuSettings.tsx
-sed -i '' 's/Proma 的/LuxCodex 的/g' apps/electron/src/renderer/components/settings/FeishuSettings.tsx
-sed -i '' 's/Proma 会/LuxCodex 会/g' apps/electron/src/renderer/components/settings/FeishuSettings.tsx
-sed -i '' 's/Proma 记录/LuxCodex 记录/g' apps/electron/src/renderer/components/settings/FeishuSettings.tsx
-sed -i '' 's/让 Proma/让 LuxCodex/g' apps/electron/src/renderer/components/settings/FeishuSettings.tsx
-sed -i '' 's/向 Proma/向 LuxCodex/g' apps/electron/src/renderer/components/settings/FeishuSettings.tsx
-sed -i '' 's/ Proma / LuxCodex /g' apps/electron/src/renderer/components/settings/FeishuSettings.tsx
+sed -i '' 's/Proma Agent/LuxCoder Agent/g' apps/electron/src/renderer/components/settings/FeishuSettings.tsx
+sed -i '' 's/Proma 的/LuxCoder 的/g' apps/electron/src/renderer/components/settings/FeishuSettings.tsx
+sed -i '' 's/Proma 会/LuxCoder 会/g' apps/electron/src/renderer/components/settings/FeishuSettings.tsx
+sed -i '' 's/Proma 记录/LuxCoder 记录/g' apps/electron/src/renderer/components/settings/FeishuSettings.tsx
+sed -i '' 's/让 Proma/让 LuxCoder/g' apps/electron/src/renderer/components/settings/FeishuSettings.tsx
+sed -i '' 's/向 Proma/向 LuxCoder/g' apps/electron/src/renderer/components/settings/FeishuSettings.tsx
+sed -i '' 's/ Proma / LuxCoder /g' apps/electron/src/renderer/components/settings/FeishuSettings.tsx
 ```
 
 - [ ] **Step 3: 验证 FeishuSettings 无遗漏**
@@ -495,10 +495,10 @@ Expected: 0 行（`@proma/shared` import 除外，package import 在 P1b 改）
 - [ ] **Step 4: WeChatSettings - 用户可见文案**
 
 ```bash
-sed -i '' 's/Proma Agent/LuxCodex Agent/g' apps/electron/src/renderer/components/settings/WeChatSettings.tsx
-sed -i '' 's/Proma 会/LuxCodex 会/g' apps/electron/src/renderer/components/settings/WeChatSettings.tsx
-sed -i '' 's/向 Proma/向 LuxCodex/g' apps/electron/src/renderer/components/settings/WeChatSettings.tsx
-sed -i '' 's/ Proma / LuxCodex /g' apps/electron/src/renderer/components/settings/WeChatSettings.tsx
+sed -i '' 's/Proma Agent/LuxCoder Agent/g' apps/electron/src/renderer/components/settings/WeChatSettings.tsx
+sed -i '' 's/Proma 会/LuxCoder 会/g' apps/electron/src/renderer/components/settings/WeChatSettings.tsx
+sed -i '' 's/向 Proma/向 LuxCoder/g' apps/electron/src/renderer/components/settings/WeChatSettings.tsx
+sed -i '' 's/ Proma / LuxCoder /g' apps/electron/src/renderer/components/settings/WeChatSettings.tsx
 ```
 
 - [ ] **Step 5: 类型检查**
@@ -514,7 +514,7 @@ Expected: 0 errors
 git add apps/electron/src/renderer/components/settings/AboutSettings.tsx \
   apps/electron/src/renderer/components/settings/FeishuSettings.tsx \
   apps/electron/src/renderer/components/settings/WeChatSettings.tsx
-git commit -m "brand: update settings UI copy Proma → LuxCodex"
+git commit -m "brand: update settings UI copy Proma → LuxCoder"
 ```
 
 ---
@@ -522,27 +522,27 @@ git commit -m "brand: update settings UI copy Proma → LuxCodex"
 ## Task 8: Skill 目录重命名 + Logo 组件重命名
 
 **Files:**
-- Rename: `apps/electron/default-skills/proma-coach/` → `apps/electron/default-skills/luxcodex-coach/`
+- Rename: `apps/electron/default-skills/proma-coach/` → `apps/electron/default-skills/luxcoder-coach/`
 - Rename: `PromaLogoSettings.tsx` → `AppLogoSettings.tsx`
 - Modify: `apps/electron/src/renderer/components/settings/BotHubSettings.tsx`
 
 - [ ] **Step 1: 重命名 proma-coach skill 目录**
 
 ```bash
-mv apps/electron/default-skills/proma-coach apps/electron/default-skills/luxcodex-coach
+mv apps/electron/default-skills/proma-coach apps/electron/default-skills/luxcoder-coach
 ```
 
-- [ ] **Step 2: 更新 luxcodex-coach/SKILL.md 的 name 字段**
+- [ ] **Step 2: 更新 luxcoder-coach/SKILL.md 的 name 字段**
 
-打开 `apps/electron/default-skills/luxcodex-coach/SKILL.md`，找到 frontmatter 中的：
+打开 `apps/electron/default-skills/luxcoder-coach/SKILL.md`，找到 frontmatter 中的：
 ```yaml
 name: proma-coach
 ```
 改为：
 ```yaml
-name: luxcodex-coach
+name: luxcoder-coach
 ```
-同时把 SKILL.md 正文中所有 "Proma" 替换为 "LuxCodex"（注意保留专业术语）。
+同时把 SKILL.md 正文中所有 "Proma" 替换为 "LuxCoder"（注意保留专业术语）。
 
 - [ ] **Step 3: 递增 SKILL.md 的 version 字段（patch +1）**
 
@@ -563,7 +563,7 @@ mv apps/electron/src/renderer/components/settings/PromaLogoSettings.tsx \
 文件头注释：
 ```typescript
 /**
- * AppLogoSettings - LuxCodex 品牌 Logo 下载
+ * AppLogoSettings - LuxCoder 品牌 Logo 下载
  *
  * 展示多个 Logo 颜色变体网格，用户可下载用作机器人头像。
  */
@@ -628,7 +628,7 @@ import { atomWithStorage } from 'jotai/utils'
 export type AppMode = 'chat' | 'agent' | 'cowork' | 'scratch'
 
 /** App 模式，自动持久化到 localStorage */
-export const appModeAtom = atomWithStorage<AppMode>('luxcodex-app-mode', 'agent')
+export const appModeAtom = atomWithStorage<AppMode>('luxcoder-app-mode', 'agent')
 ```
 
 - [ ] **Step 2: 重写 ModeSwitcher.tsx 为三按钮版本**
@@ -809,10 +809,10 @@ grep -rn "\bProma\b\|\bproma\b" \
 
 允许残留：`PromaPermissionMode`、`PROMA_*` 等 TypeScript 类型名（在 `@proma/shared` 包内，P1b 处理）。
 
-- [ ] **Step 3: 确认 luxcodex 替换覆盖**
+- [ ] **Step 3: 确认 luxcoder 替换覆盖**
 
 ```bash
-grep -rn "luxcodex" apps/electron/src/main apps/electron/src/renderer \
+grep -rn "luxcoder" apps/electron/src/main apps/electron/src/renderer \
   packages/shared/src packages/core/src \
   --include="*.ts" --include="*.tsx" \
   | grep -v "node_modules" | wc -l
@@ -833,5 +833,5 @@ git log --oneline -10
 - **`@proma/*` 包名 import**（如 `from '@proma/shared'`）**不在 P1a 范围**，留给 P1b（300+ 文件）。
 - **PromaPermissionMode 类型名**不在 P1a 范围，留给 P1b。
 - `handlePromaFileRequest` 函数名不在 P1a 范围，留给 P1b。
-- logo 图片资源（proma-black.png 等）物理文件不替换 — 无 LuxCodex 设计稿，保留原图。
-- 迁移服务只处理 `~/.luxcodex` → `~/.luxcodex` 一次性迁移；`~/.luxcodex-dev` 留给手动处理（开发者知道自己在做什么）。
+- logo 图片资源（proma-black.png 等）物理文件不替换 — 无 LuxCoder 设计稿，保留原图。
+- 迁移服务只处理 `~/.luxcoder` → `~/.luxcoder` 一次性迁移；`~/.luxcoder-dev` 留给手动处理（开发者知道自己在做什么）。

@@ -125,7 +125,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
-import type { ConversationMeta, AgentSessionMeta, AgentWorkspace, WorkspaceCapabilities } from '@luxcodex/shared'
+import type { ConversationMeta, AgentSessionMeta, AgentWorkspace, WorkspaceCapabilities } from '@luxcoder/shared'
 import type { KanbanProject } from './kanban/types'
 import { buildProjectColorMap, buildSidebarProjectGroups } from './sidebar-project-groups'
 import { SidebarProjectSubgroup } from './SidebarProjectSubgroup'
@@ -251,8 +251,8 @@ const PINNED_SESSION_ROW_HEIGHT_PX = 32
 const PINNED_SESSION_MAX_HEIGHT = PINNED_SESSION_VISIBLE_LIMIT * PINNED_SESSION_ROW_HEIGHT_PX
 const SESSION_QUICK_SWITCH_HINT_DELAY_MS = 1000
 const SESSION_QUICK_SWITCH_LIMIT = 9
-const SESSION_QUICK_SWITCH_KEYDOWN_EVENT = 'luxcodex:session-quick-switch-keydown'
-const SESSION_QUICK_SWITCH_KEYUP_EVENT = 'luxcodex:session-quick-switch-keyup'
+const SESSION_QUICK_SWITCH_KEYDOWN_EVENT = 'luxcoder:session-quick-switch-keydown'
+const SESSION_QUICK_SWITCH_KEYUP_EVENT = 'luxcoder:session-quick-switch-keyup'
 
 const ACTIVE_SESSION_STATUSES: ReadonlySet<SessionIndicatorStatus> = new Set([
   'blocked',

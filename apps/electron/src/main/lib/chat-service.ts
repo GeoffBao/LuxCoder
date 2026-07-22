@@ -4,24 +4,24 @@
  * 负责 Electron 特定的操作：
  * - 查找渠道、解密 API Key
  * - 管理 AbortController
- * - 调用 @luxcodex/core 的 Provider 适配器系统
+ * - 调用 @luxcoder/core 的 Provider 适配器系统
  * - 桥接 StreamEvent → webContents.send()
  * - 持久化消息到 JSONL + 更新索引
  * - 模块化工具的 function calling 循环（通过 ChatToolRegistry + ChatToolExecutor）
  *
- * 纯逻辑（消息转换、SSE 解析、请求构建）已抽象到 @luxcodex/core/providers。
+ * 纯逻辑（消息转换、SSE 解析、请求构建）已抽象到 @luxcoder/core/providers。
  */
 
 import { randomUUID } from 'node:crypto'
 import type { WebContents } from 'electron'
-import { CHAT_IPC_CHANNELS } from '@luxcodex/shared'
-import type { ChatSendInput, ChatMessage, GenerateTitleInput, FileAttachment, ChatToolActivity } from '@luxcodex/shared'
+import { CHAT_IPC_CHANNELS } from '@luxcoder/shared'
+import type { ChatSendInput, ChatMessage, GenerateTitleInput, FileAttachment, ChatToolActivity } from '@luxcoder/shared'
 import {
   getAdapter,
   streamSSE,
   fetchTitle,
-} from '@luxcodex/core'
-import type { ImageAttachmentData, ContinuationMessage } from '@luxcodex/core'
+} from '@luxcoder/core'
+import type { ImageAttachmentData, ContinuationMessage } from '@luxcoder/core'
 import { listChannels, resolveChannelRuntimeApiKey } from './channel-manager'
 import { appendMessage, updateConversationMeta, getConversationMessages } from './conversation-manager'
 import { readAttachmentAsBase64, isImageAttachment } from './attachment-service'

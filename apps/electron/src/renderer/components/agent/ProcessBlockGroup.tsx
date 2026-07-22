@@ -8,7 +8,7 @@ import type {
   SDKToolResultBlock,
   SDKToolUseBlock,
   SDKUserMessage,
-} from '@luxcodex/shared'
+} from '@luxcoder/shared'
 
 interface ProcessBlockGroupProps {
   blocks: SDKContentBlock[]

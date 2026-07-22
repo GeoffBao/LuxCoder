@@ -13,8 +13,8 @@ import type {
   AutomationPermissionMode,
   AutomationSessionMode,
   AgentRuntime,
-} from '@luxcodex/shared'
-import { AUTOMATION_DEFAULT_PERMISSION_MODE, AUTOMATION_DEFAULT_SESSION_MODE } from '@luxcodex/shared'
+} from '@luxcoder/shared'
+import { AUTOMATION_DEFAULT_PERMISSION_MODE, AUTOMATION_DEFAULT_SESSION_MODE } from '@luxcoder/shared'
 
 /** 全部定时任务列表 */
 export const automationsAtom = atom<Automation[]>([])

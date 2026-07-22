@@ -1,7 +1,7 @@
 /**
  * 文本输出服务
  *
- * 语音输入完成后优先写入 LuxCodex 输入框，否则尝试写入当前光标位置。
+ * 语音输入完成后优先写入 LuxCoder 输入框，否则尝试写入当前光标位置。
  */
 
 import { BrowserWindow, clipboard } from 'electron'
@@ -12,7 +12,7 @@ import { pasteTextAtCurrentCursor } from './text-insertion-service'
 
 let targetWasPromaInput = false
 
-/** 在显示语音浮窗前记录目标是否为 LuxCodex 主窗口。 */
+/** 在显示语音浮窗前记录目标是否为 LuxCoder 主窗口。 */
 export function captureVoiceDictationTarget(forcePromaInput?: boolean): boolean {
   const mainWindow = getMainWindow()
   targetWasPromaInput = forcePromaInput ?? BrowserWindow.getFocusedWindow() === mainWindow
@@ -30,12 +30,12 @@ export async function commitVoiceDictationText(
 
   const mainWindow = getMainWindow()
   const shouldWriteProma =
-    settings.outputMode === 'luxcodex-input' ||
+    settings.outputMode === 'luxcoder-input' ||
     (settings.outputMode === 'auto' && targetWasPromaInput)
 
   if (shouldWriteProma && mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send(VOICE_DICTATION_IPC_CHANNELS.INSERT_TEXT, { text: trimmed })
-    return { mode: 'luxcodex-input', success: true, message: '已写入 LuxCodex 输入框' }
+    return { mode: 'luxcoder-input', success: true, message: '已写入 LuxCoder 输入框' }
   }
 
   if (settings.outputMode === 'auto') {

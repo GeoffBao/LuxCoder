@@ -5,14 +5,14 @@
 
 ## 背景与问题
 
-LuxCodex 当前存在两套互不相干的「项目」概念撞名：
+LuxCoder 当前存在两套互不相干的「项目」概念撞名：
 
-1. **Code 侧边栏的「项目」= AgentWorkspace（工作区）**。`LeftSidebar.tsx` 中所有"项目"文案实际指 workspace（如 "默认项目不能删除"）。这是 LuxCodex 自己的叫法，craft-agents-max 中不存在。
+1. **Code 侧边栏的「项目」= AgentWorkspace（工作区）**。`LeftSidebar.tsx` 中所有"项目"文案实际指 workspace（如 "默认项目不能删除"）。这是 LuxCoder 自己的叫法，craft-agents-max 中不存在。
 2. **Work 看板的「Projects」= 从 craft-agents-max 迁移的 craft Project**。存储在 `{workspaceRoot}/projects/{slug}/config.json`，是工作区内部的会话分组，带 kanbanColumns、workingDirectory、color、assets、MEMORY.md。
 
 **数据层迁移已完整**：`ProjectConfig`、`packages/shared/src/projects/storage.ts`、`project-repository.ts`、`session.projectId`、prompt 上下文注入（`agent-orchestrator.ts`）、看板 projectId 过滤、`set_project_id` 会话命令、`projects:changed` 广播 + preload `onProjectsChanged` 全部就绪。
 
-**缺失的是 craft 的 UX 融合层**：craft 中 Project 显示在左侧边栏（`ProjectsListPanel` 挂 app-shell），会话绑定项目、显示项目色条（`SessionProjectColorWrapper`）、新建会话继承 workingDirectory。LuxCodex 把项目 UI 藏在 Work 模式右栏，Code 模式建的会话永远没有 projectId，项目体系空转。
+**缺失的是 craft 的 UX 融合层**：craft 中 Project 显示在左侧边栏（`ProjectsListPanel` 挂 app-shell），会话绑定项目、显示项目色条（`SessionProjectColorWrapper`）、新建会话继承 workingDirectory。LuxCoder 把项目 UI 藏在 Work 模式右栏，Code 模式建的会话永远没有 projectId，项目体系空转。
 
 ## 目标
 
@@ -30,7 +30,7 @@ LuxCodex 当前存在两套互不相干的「项目」概念撞名：
 - 方案 B（否决）：侧边栏独立拉取——与 Work 面板状态割裂，重复 fetch，与 craft 模式相悖。
 - 方案 C（否决）：主进程预分组——改 IPC 契约，UI 分组语义泄漏进主进程，过度设计。
 
-**对后续 Proma 功能移植的影响评估**：本设计纯渲染端 UI 层，主进程、IPC 契约、`@proma/shared` 类型、存储格式零改动；新增逻辑全部落在新文件或 LuxCodex 独有文件（`project-atoms.ts`、`WorkBoardView.tsx`）中，唯一共享热点 `LeftSidebar.tsx` 仅保留挂载点级 diff。
+**对后续 Proma 功能移植的影响评估**：本设计纯渲染端 UI 层，主进程、IPC 契约、`@proma/shared` 类型、存储格式零改动；新增逻辑全部落在新文件或 LuxCoder 独有文件（`project-atoms.ts`、`WorkBoardView.tsx`）中，唯一共享热点 `LeftSidebar.tsx` 仅保留挂载点级 diff。
 
 ## 设计
 

@@ -1,4 +1,4 @@
-import type { ProviderType } from '@luxcodex/shared'
+import type { ProviderType } from '@luxcoder/shared'
 
 /**
  * 豆包 OpenAI 兼容接口只接受 system、user、assistant 和 tool 角色。

@@ -1,5 +1,5 @@
-import type { TaskGeneratedEventPayload } from '@luxcodex/shared'
-import type { TaskSpec } from '@luxcodex/shared/tasks/schema'
+import type { TaskGeneratedEventPayload } from '@luxcoder/shared'
+import type { TaskSpec } from '@luxcoder/shared/tasks/schema'
 import { buildSpec, specToSubtasks, type SpecForm } from './task-spec-form'
 import type { KanbanItem, TaskEditorTarget } from './types'
 

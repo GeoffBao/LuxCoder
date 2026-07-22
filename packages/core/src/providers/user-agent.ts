@@ -1,4 +1,4 @@
-const LUXCODEX_REPO_URL = 'https://github.com/GeoffBao/LuxCodex'
+const LUXCODER_REPO_URL = 'https://github.com/GeoffBao/LuxCoder'
 
 let _appVersion = '0.0.0'
 
@@ -12,5 +12,5 @@ export function getAppVersion(): string {
 
 export function getAppUserAgent(version?: string): string {
   const v = version ?? _appVersion
-  return `LuxCodex/${v} (+${LUXCODEX_REPO_URL})`
+  return `LuxCoder/${v} (+${LUXCODER_REPO_URL})`
 }

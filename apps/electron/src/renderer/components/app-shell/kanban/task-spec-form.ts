@@ -5,8 +5,8 @@
  * 无需 React 组件树即可单测。生成器写入节点 ID 后，同级 prompt 中的
  * `${nodes.<id>.output}` 引用必须保持不变，否则 `tasks:create` 会拒绝悬空引用。
  */
-import { MAX_REPAIR_ATTEMPTS_CAP, TaskSpecSchema } from '@luxcodex/shared/tasks/schema'
-import type { PermissionMode, TaskSpec } from '@luxcodex/shared/tasks/schema'
+import { MAX_REPAIR_ATTEMPTS_CAP, TaskSpecSchema } from '@luxcoder/shared/tasks/schema'
+import type { PermissionMode, TaskSpec } from '@luxcoder/shared/tasks/schema'
 
 let _uid = 0
 /** 单调递增的本地行 ID（不是 task node ID），供编辑器和转换函数共用以避免冲突。 */

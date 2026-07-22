@@ -1,5 +1,5 @@
 import { getChannelById } from './channel-manager'
-import type { ProviderType } from '@luxcodex/shared'
+import type { ProviderType } from '@luxcoder/shared'
 
 export interface AvailableAgentModel {
   id: string

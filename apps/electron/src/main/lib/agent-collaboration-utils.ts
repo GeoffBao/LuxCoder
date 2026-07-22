@@ -5,15 +5,15 @@
  */
 
 import {
-  LUXCODEX_DEFAULT_PERMISSION_MODE,
+  LUXCODER_DEFAULT_PERMISSION_MODE,
   type AgentDelegationRole,
   type AgentDelegationStatus,
   type AgentRuntime,
   type AgentSessionMeta,
-  type LuxCodexPermissionMode,
-} from '@luxcodex/shared'
+  type LuxCoderPermissionMode,
+} from '@luxcoder/shared'
 
-const PERMISSION_RANK: Record<LuxCodexPermissionMode, number> = {
+const PERMISSION_RANK: Record<LuxCoderPermissionMode, number> = {
   plan: 0,
   bypassPermissions: 1,
 }
@@ -60,21 +60,21 @@ export interface RecoveredDelegationState {
   title: string
   role: AgentDelegationRole
   goal: string
-  permissionMode: LuxCodexPermissionMode
+  permissionMode: LuxCoderPermissionMode
   status: AgentDelegationStatus
   startedAt: number
   completedAt?: number
 }
 
 export function resolveDelegationPermissionMode(
-  parentMode: LuxCodexPermissionMode | undefined,
-  requestedMode: LuxCodexPermissionMode | undefined,
+  parentMode: LuxCoderPermissionMode | undefined,
+  requestedMode: LuxCoderPermissionMode | undefined,
   agentRuntime?: AgentRuntime,
-): LuxCodexPermissionMode {
+): LuxCoderPermissionMode {
   // Pi 子会话目前不支持 Plan 模式下的完整工具集，固定直接执行。
   if (agentRuntime === 'pi') return 'bypassPermissions'
 
-  const parent = parentMode ?? LUXCODEX_DEFAULT_PERMISSION_MODE
+  const parent = parentMode ?? LUXCODER_DEFAULT_PERMISSION_MODE
   const requested = requestedMode ?? parent
   return PERMISSION_RANK[requested] <= PERMISSION_RANK[parent] ? requested : parent
 }
@@ -83,7 +83,7 @@ export function buildRecoveredDelegationState(input: {
   parentSessionId: string
   delegationId: string
   session: AgentSessionMeta
-  fallbackPermissionMode?: LuxCodexPermissionMode
+  fallbackPermissionMode?: LuxCoderPermissionMode
 }): RecoveredDelegationState {
   const persistedStatus = input.session.delegationStatus
   // 从持久化记录恢复但不在 live Map 中，说明当前进程并没有这个委派在跑。
@@ -99,7 +99,7 @@ export function buildRecoveredDelegationState(input: {
     title: input.session.title,
     role: input.session.delegationRole ?? 'custom',
     goal: input.session.delegationGoal ?? '',
-    permissionMode: input.session.permissionMode ?? input.fallbackPermissionMode ?? LUXCODEX_DEFAULT_PERMISSION_MODE,
+    permissionMode: input.session.permissionMode ?? input.fallbackPermissionMode ?? LUXCODER_DEFAULT_PERMISSION_MODE,
     status,
     startedAt: input.session.createdAt,
     completedAt: persistedStatus ? input.session.updatedAt : undefined,
@@ -114,7 +114,7 @@ export function buildDelegationPrompt(input: {
   expectedOutput?: string
 }): string {
   const expectedOutput = input.expectedOutput?.trim()
-  return `你是 LuxCodex 协作子 Agent。你由父 Agent 会话 ${input.parentSessionId} 委派创建，委派 ID 为 ${input.delegationId}。
+  return `你是 LuxCoder 协作子 Agent。你由父 Agent 会话 ${input.parentSessionId} 委派创建，委派 ID 为 ${input.delegationId}。
 
 ## 工作边界
 

@@ -1,4 +1,4 @@
-import type { FileAccessOptions } from '@luxcodex/shared'
+import type { FileAccessOptions } from '@luxcoder/shared'
 import type { PreviewFile } from '@/atoms/preview-atoms'
 
 export function isAbsoluteFilePath(filePath: string): boolean {

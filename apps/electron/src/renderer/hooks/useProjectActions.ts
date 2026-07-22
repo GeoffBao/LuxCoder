@@ -13,7 +13,7 @@ import {
   currentAgentWorkspaceIdAtom,
 } from '@/atoms/agent-atoms'
 import { activeViewAtom } from '@/atoms/active-view'
-import type { AgentWorkspace } from '@luxcodex/shared'
+import type { AgentWorkspace } from '@luxcoder/shared'
 
 interface UseProjectActionsResult {
   workspaces: AgentWorkspace[]

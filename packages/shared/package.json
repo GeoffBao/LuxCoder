@@ -1,8 +1,8 @@
 {
-  "name": "@luxcodex/shared",
+  "name": "@luxcoder/shared",
   "version": "0.1.30",
   "license": "AGPL-3.0-only",
-  "description": "Shared types, configs and utilities for LuxCodex",
+  "description": "Shared types, configs and utilities for LuxCoder",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",

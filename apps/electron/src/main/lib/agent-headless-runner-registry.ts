@@ -9,7 +9,7 @@ import type {
   AgentExternalRunSource,
   AgentMessage,
   AgentSendInput,
-} from '@luxcodex/shared'
+} from '@luxcoder/shared'
 
 export interface HeadlessAgentRunCallbacks {
   onError: (error: string) => void

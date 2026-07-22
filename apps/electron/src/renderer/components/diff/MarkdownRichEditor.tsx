@@ -6,7 +6,7 @@ import Link from '@tiptap/extension-link'
 import { Markdown } from 'tiptap-markdown'
 import type { MarkdownStorage } from 'tiptap-markdown'
 import { TextSelection } from '@tiptap/pm/state'
-import type { FileAccessOptions } from '@luxcodex/shared'
+import type { FileAccessOptions } from '@luxcoder/shared'
 import { cn } from '@/lib/utils'
 import { MARKDOWN_RENDERER_VERSION, markdownToHtml } from '@/lib/markdown-rich-text'
 import {
@@ -203,15 +203,15 @@ export function MarkdownRichEditor({
         className={cn(
           editing ? 'min-h-0 flex-1 overflow-auto scrollbar-thin' : 'h-full min-h-full flex-1',
           isEditable
-            ? '[&_.luxcodex-mermaid-preview]:hidden [&_.luxcodex-code-source-body]:block'
+            ? '[&_.luxcoder-mermaid-preview]:hidden [&_.luxcoder-code-source-body]:block'
             : [
-                '[&_.luxcodex-code-block--mermaid]:overflow-visible',
-                '[&_.luxcodex-code-block--mermaid]:rounded-none',
-                '[&_.luxcodex-code-block--mermaid]:border-0',
-                '[&_.luxcodex-code-block--mermaid]:bg-transparent',
-                '[&_.luxcodex-code-block--mermaid_.luxcodex-code-header]:hidden',
-                '[&_.luxcodex-code-block--mermaid_.luxcodex-mermaid-preview]:block',
-                '[&_.luxcodex-code-block--mermaid_.luxcodex-code-source-body]:hidden',
+                '[&_.luxcoder-code-block--mermaid]:overflow-visible',
+                '[&_.luxcoder-code-block--mermaid]:rounded-none',
+                '[&_.luxcoder-code-block--mermaid]:border-0',
+                '[&_.luxcoder-code-block--mermaid]:bg-transparent',
+                '[&_.luxcoder-code-block--mermaid_.luxcoder-code-header]:hidden',
+                '[&_.luxcoder-code-block--mermaid_.luxcoder-mermaid-preview]:block',
+                '[&_.luxcoder-code-block--mermaid_.luxcoder-code-source-body]:hidden',
               ],
         )}
       />

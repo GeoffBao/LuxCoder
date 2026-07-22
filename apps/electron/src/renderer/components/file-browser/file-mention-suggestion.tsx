@@ -12,7 +12,7 @@ import type { SuggestionOptions, SuggestionProps } from '@tiptap/suggestion'
 import { toast } from 'sonner'
 import { FileMentionList } from './FileMentionList'
 import type { FileMentionRef } from './FileMentionList'
-import type { FileIndexEntry, FileSearchResult } from '@luxcodex/shared'
+import type { FileIndexEntry, FileSearchResult } from '@luxcoder/shared'
 import { createMentionPopup, positionPopup, isSuggestionTriggerPresent } from '@/components/agent/mention-popup-utils'
 export function createFileMentionSuggestion(
   workspacePathRef: React.RefObject<string | null>,

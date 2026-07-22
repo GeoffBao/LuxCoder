@@ -26,7 +26,7 @@ describe('Pi native retry terminal gate', () => {
     expect(gate.settle(false)).toBeUndefined()
   })
 
-  test('maps Pi native retry lifecycle to LuxCodex retry UI events', () => {
+  test('maps Pi native retry lifecycle to LuxCoder retry UI events', () => {
     expect(mapPiNativeRetryEvent({
       type: 'auto_retry_start', attempt: 2, maxAttempts: 8, delayMs: 4_000, errorMessage: '529 overloaded',
     }, 123)).toEqual([

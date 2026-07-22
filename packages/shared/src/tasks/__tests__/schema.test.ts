@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { TaskSpecSchema, validateTaskInput, type TaskSpec } from '@luxcodex/shared/tasks';
-import * as taskContracts from '@luxcodex/shared/tasks';
+import { TaskSpecSchema, validateTaskInput, type TaskSpec } from '@luxcoder/shared/tasks';
+import * as taskContracts from '@luxcoder/shared/tasks';
 import { parseTaskYaml, serializeTaskYaml } from '../storage.ts';
 import * as taskStorage from '../storage.ts';
 

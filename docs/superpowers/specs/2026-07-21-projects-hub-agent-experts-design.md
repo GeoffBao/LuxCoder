@@ -108,7 +108,7 @@ P1 可选补位（不进 P0 内置强制）：探索/调研、规划、DevOps/SR
 ### 5.4 专家包文件布局（本地文件优先）
 
 ```
-~/.luxcodex/experts/{slug}/          # 开发态：~/.luxcodex-dev/experts/
+~/.luxcoder/experts/{slug}/          # 开发态：~/.luxcoder-dev/experts/
   IDENTITY.md      # 名、角色一句话
   SOUL.md          # 语气 / 立场
   RULES.md         # 操作边界（≈ AGENTS.md 角色篇）
@@ -158,7 +158,7 @@ Hub 点项目
 
 点「Agent 专家」
   → activeView='agent-experts'
-  → 读 ~/.luxcodex[-dev]/experts/*
+  → 读 ~/.luxcoder[-dev]/experts/*
 ```
 
 ### 6.1 错误与边界
@@ -218,7 +218,7 @@ Hub 点项目
 - `apps/electron/src/renderer/components/work/SidebarProjectsSection.tsx`（改入口行）
 - 新建：`ProjectsHubView.tsx`（及同目录 view-model/tests）
 - 新建：`agent-experts/`（`AgentExpertsView`、expert 读写、种子、tests）
-- `@luxcodex/shared` ProjectConfig / CreateProjectInput（`defaultExpertId`）
+- `@luxcoder/shared` ProjectConfig / CreateProjectInput（`defaultExpertId`）
 - 主进程：experts 目录 seed / list / read / write IPC（若渲染进程不宜直读写）
 - `apps/electron/package.json` patch
 

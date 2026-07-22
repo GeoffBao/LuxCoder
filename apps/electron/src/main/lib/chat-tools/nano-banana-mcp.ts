@@ -292,7 +292,7 @@ async function callGeminiAndBuildResult(
         filename: result.attachment.filename,
         mediaType: result.attachment.mediaType,
       })
-      textParts.push(`[LUXCODEX_IMAGE_ATTACHMENT:${attachmentMeta}]`)
+      textParts.push(`[LUXCODER_IMAGE_ATTACHMENT:${attachmentMeta}]`)
     } else if (part.text) {
       textParts.push(part.text)
     }

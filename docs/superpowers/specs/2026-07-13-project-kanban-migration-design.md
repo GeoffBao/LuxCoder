@@ -6,7 +6,7 @@
 
 ## 1. 目标
 
-将 `craft-agents-max/260705-agent` 中的 Projects、Task/Conductor、Kanban 和 Teambition-Kanban 集成完整迁移到 LuxCodex。
+将 `craft-agents-max/260705-agent` 中的 Projects、Task/Conductor、Kanban 和 Teambition-Kanban 集成完整迁移到 LuxCoder。
 
 迁移完成后，Project + Task/Conductor + Kanban 是唯一的 Work 实现。用户可以在一个 Agent Workspace 内管理多个 Project，查看和归类所有普通 Agent Session，创建和编辑 DAG Task，运行/暂停/恢复/停止任务，并通过 Teambition 领取任务与同步进度。
 
@@ -18,7 +18,7 @@
 - 旧 WorkTask 数据不迁移，不保留只读旧看板。
 - 旧 Work Mode、九阶段 LangGraph、WorkEngine、WorkTask、THO、旧 Work IPC、旧 atoms/components 和旧 checkpoint/telemetry 直接删除。
 - Teambition 领取、绑定、卡片徽标、状态同步、进度回写、冲突和重新认证状态都属于本次迁移范围。
-- 功能交互与信息结构跟随权威 Craft 实现；视觉适配 LuxCodex 现有主题、Jotai、Radix/Tailwind 组件和三段式 App Shell。
+- 功能交互与信息结构跟随权威 Craft 实现；视觉适配 LuxCoder 现有主题、Jotai、Radix/Tailwind 组件和三段式 App Shell。
 - 本次不做移动端专门布局；窄窗口使用单列横向滚动。
 
 ## 3. 总体架构
@@ -163,7 +163,7 @@ TaskEditor validation
 
 ### P3：Kanban UI
 
-迁移 atoms、类型、Board、Column、Tile、子任务、状态徽章、编辑器、Project list/detail、filter、list toggle 和 TaskChatPreview；接入 LuxCodex App Shell 与主题。
+迁移 atoms、类型、Board、Column、Tile、子任务、状态徽章、编辑器、Project list/detail、filter、list toggle 和 TaskChatPreview；接入 LuxCoder App Shell 与主题。
 
 ### P4：Teambition
 

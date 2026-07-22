@@ -5,7 +5,7 @@
  * Conductor 调度就绪节点、发射子 session、监听完成、驱动看板状态。
  *
  * 参照 OSS: packages/server-core/src/tasks/TaskRunner.ts
- * 适配: @craft-agent/ → @luxcodex/；CreateSessionOptions/SessionCompletionEvent 本地类型
+ * 适配: @craft-agent/ → @luxcoder/；CreateSessionOptions/SessionCompletionEvent 本地类型
  */
 import {
   nodeTitle,
@@ -13,9 +13,9 @@ import {
   MAX_REPAIR_ATTEMPTS_CAP,
   type TaskSpec,
   type TaskNode,
-} from '@luxcodex/shared/tasks/schema'
-import { interpolateRefs, type NodeOutput } from '@luxcodex/shared/tasks/refs'
-import { materializeDeps } from '@luxcodex/shared/tasks/validate'
+} from '@luxcoder/shared/tasks/schema'
+import { interpolateRefs, type NodeOutput } from '@luxcoder/shared/tasks/refs'
+import { materializeDeps } from '@luxcoder/shared/tasks/validate'
 import {
   appendRunLog,
   writeNodeOutput,
@@ -26,14 +26,14 @@ import {
   writeRunSpecSnapshot,
   type RunLogEntry,
   type NodeRunState,
-} from '@luxcodex/shared/tasks/storage'
-import type { ExpertPackage } from '@luxcodex/shared/experts'
+} from '@luxcoder/shared/tasks/storage'
+import type { ExpertPackage } from '@luxcoder/shared/experts'
 import {
   formatExpertPreamble,
   mergeMcpIds,
   mergeSkillSlugs,
   resolveExpertId,
-} from '@luxcodex/shared/experts'
+} from '@luxcoder/shared/experts'
 
 // ---------------------------------------------------------------------------
 // 本地类型（替代 OSS 的 protocol dto / SessionManager）

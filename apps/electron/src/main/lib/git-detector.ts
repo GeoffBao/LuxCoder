@@ -7,7 +7,7 @@
 import { execSync, spawnSync } from 'child_process'
 import { existsSync } from 'fs'
 import { join } from 'path'
-import type { GitRuntimeStatus, GitRepoStatus } from '@luxcodex/shared'
+import type { GitRuntimeStatus, GitRepoStatus } from '@luxcoder/shared'
 import { getGitForWindowsInstallPath } from './windows-env'
 
 /**

@@ -180,7 +180,7 @@ export function SettingsPanel({
   /** 切换标签页时检测是否有未保存内容，tutorial 特殊处理：打开 New Tab 并关闭设置 */
   const handleTabChange = (tabId: SettingsTab): void => {
     if (tabId === 'tutorial') {
-      const result = openTab(mainTabs, { type: 'tutorial', sessionId: TUTORIAL_TAB_ID, title: 'LuxCodex 使用指南' })
+      const result = openTab(mainTabs, { type: 'tutorial', sessionId: TUTORIAL_TAB_ID, title: 'LuxCoder 使用指南' })
       setMainTabs(result.tabs)
       setMainActiveTabId(result.activeTabId)
       setSettingsOpen(false)

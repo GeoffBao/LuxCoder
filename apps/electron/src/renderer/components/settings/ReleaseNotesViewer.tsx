@@ -5,12 +5,12 @@
  */
 
 import * as React from 'react'
-import type { GitHubRelease } from '@luxcodex/shared'
+import type { GitHubRelease } from '@luxcoder/shared'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Badge } from '@/components/ui/badge'
 import { ExternalLink } from 'lucide-react'
-import { CodeBlock } from '@luxcodex/ui'
+import { CodeBlock } from '@luxcoder/ui'
 import { cn } from '@/lib/utils'
 
 interface ReleaseNotesViewerProps {

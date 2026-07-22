@@ -8,7 +8,7 @@
 import * as React from 'react'
 import { useAtomValue, useSetAtom } from 'jotai'
 import { RefreshCw, Loader2, CheckCircle2, AlertCircle, Info, Terminal, ChevronDown, ChevronUp, ExternalLink, RotateCw } from 'lucide-react'
-import type { EnvironmentCheckResult, RuntimeStatus } from '@luxcodex/shared'
+import type { EnvironmentCheckResult, RuntimeStatus } from '@luxcoder/shared'
 import {
   SettingsSection,
   SettingsCard,
@@ -29,7 +29,7 @@ import { VersionHistory } from './VersionHistory'
 declare const __APP_VERSION__: string
 const APP_VERSION = __APP_VERSION__
 
-const GITHUB_RELEASES_URL = 'https://github.com/GeoffBao/LuxCodex/releases'
+const GITHUB_RELEASES_URL = 'https://github.com/GeoffBao/LuxCoder/releases'
 
 /** 更新状态卡片 */
 function UpdateCard(): React.ReactElement | null {
@@ -37,7 +37,7 @@ function UpdateCard(): React.ReactElement | null {
   const status = useAtomValue(updateStatusAtom)
   const [checking, setChecking] = React.useState(false)
   const [showReleaseNotes, setShowReleaseNotes] = React.useState(false)
-  const [release, setRelease] = React.useState<import('@luxcodex/shared').GitHubRelease | null>(null)
+  const [release, setRelease] = React.useState<import('@luxcoder/shared').GitHubRelease | null>(null)
 
   // updater 不可用时不渲染
   if (!available) return null
@@ -442,7 +442,7 @@ function ShellEnvironmentCard(): React.ReactElement | null {
 export function AboutSettings(): React.ReactElement {
   return (
     <SettingsSection
-      title="关于 LuxCodex"
+      title="关于 LuxCoder"
       description="集成通用 AI Agent 的下一代人工智能软件"
     >
       <SettingsCard>
@@ -467,12 +467,12 @@ export function AboutSettings(): React.ReactElement {
         </SettingsRow>
         <SettingsRow label="项目地址">
           <a
-            href="https://github.com/GeoffBao/LuxCodex"
+            href="https://github.com/GeoffBao/LuxCoder"
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm text-primary hover:underline"
           >
-            github.com/GeoffBao/LuxCodex
+            github.com/GeoffBao/LuxCoder
           </a>
         </SettingsRow>
       </SettingsCard>

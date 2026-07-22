@@ -1,4 +1,4 @@
-import type { SkillMeta } from '@luxcodex/shared'
+import type { SkillMeta } from '@luxcoder/shared'
 
 export interface SkillGroup {
   id: string

@@ -4,7 +4,7 @@
 
 **Goal:** Kanban `tasks.run` 节点 `sendMessage` 注入专家 IDENTITY/SOUL/RULES preamble，并与任务 `skills` 合并 skill 引用；顺手修 TaskEditor「编排模型」下拉被 AppShell `z-[60]` 遮挡。
 
-**Architecture:** `@luxcodex/shared/experts` 提供纯函数（resolve / merge / format）；`TaskRunnerDeps` 注入 `getExpert` 与项目 default 查找；`dispatch` 拼 `skillsPreamble(merged) + expertPreamble + buildPrompt`。不做 systemPrompt / Code 会话 / mcpIds。
+**Architecture:** `@luxcoder/shared/experts` 提供纯函数（resolve / merge / format）；`TaskRunnerDeps` 注入 `getExpert` 与项目 default 查找；`dispatch` 拼 `skillsPreamble(merged) + expertPreamble + buildPrompt`。不做 systemPrompt / Code 会话 / mcpIds。
 
 **Tech Stack:** TypeScript、Bun test、Zod TaskSpec、既有 `expert-service` / `projectRepository`、Radix DropdownMenu。
 
@@ -324,7 +324,7 @@ EOF
 在 `TaskRunnerDeps` 增加：
 
 ```ts
-import type { ExpertPackage } from '@luxcodex/shared/experts'
+import type { ExpertPackage } from '@luxcoder/shared/experts'
 
 export interface TaskRunnerDeps {
   host: ConductorSessionHost
@@ -357,7 +357,7 @@ import {
   formatExpertPreamble,
   mergeSkillSlugs,
   resolveExpertId,
-} from '@luxcodex/shared/experts'
+} from '@luxcoder/shared/experts'
 
 // inside dispatch:
 const projectDefault = this.spec.project && this.deps.resolveProjectDefaultExpertId
@@ -556,8 +556,8 @@ expertId: z.string().min(1).optional(),
 
 - [ ] **Step 3: Bump versions**
 
-- `@luxcodex/shared`: `0.1.13` → `0.1.14`
-- `@luxcodex/electron`: `0.1.31` → `0.1.32`
+- `@luxcoder/shared`: `0.1.13` → `0.1.14`
+- `@luxcoder/electron`: `0.1.31` → `0.1.32`
 
 - [ ] **Step 4: Typecheck + focused tests**
 

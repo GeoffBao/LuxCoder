@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import * as protocolContracts from '@luxcodex/shared/protocol';
+import * as protocolContracts from '@luxcoder/shared/protocol';
 import {
   PROJECT_IPC_CHANNELS,
   SESSION_KANBAN_IPC_CHANNELS,

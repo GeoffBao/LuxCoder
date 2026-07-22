@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Proma → LuxCodex 周更自动 sync。
+ * Proma → LuxCoder 周更自动 sync。
  *
  * 从 LAST_SYNCED_UPSTREAM 之后，按 first-parent 顺序 cherry-pick upstream/main，
  * 每挑成功后跑 apply-renames --write；遇冲突即停，推送新 origin/sync 分支供人工收尾。

@@ -50,7 +50,7 @@ export default function App(): React.ReactElement {
 
     if (openTutorial) {
       const tabs = store.get(tabsAtom)
-      const result = openTab(tabs, { type: 'tutorial', sessionId: TUTORIAL_TAB_ID, title: 'LuxCodex 使用指南' })
+      const result = openTab(tabs, { type: 'tutorial', sessionId: TUTORIAL_TAB_ID, title: 'LuxCoder 使用指南' })
       store.set(tabsAtom, result.tabs)
       store.set(activeTabIdAtom, result.activeTabId)
       return

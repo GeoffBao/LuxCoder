@@ -23,7 +23,7 @@ import {
 const tempRoots: string[] = [];
 
 function createTempWorkspaceRoot(): string {
-  const root = mkdtempSync(join(tmpdir(), 'luxcodex-task-storage-'));
+  const root = mkdtempSync(join(tmpdir(), 'luxcoder-task-storage-'));
   tempRoots.push(root);
   return root;
 }

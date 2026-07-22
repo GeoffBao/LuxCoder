@@ -1,4 +1,4 @@
-import type { Channel } from '@luxcodex/shared'
+import type { Channel } from '@luxcoder/shared'
 import type { KanbanModelOption, KanbanModelProviderGroup } from './types'
 
 export interface KanbanModelSelection {

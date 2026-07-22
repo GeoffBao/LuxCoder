@@ -15,15 +15,15 @@ import type {
   ExitPlanModeRequest,
   ExitPlanModeResponse,
   ExitPlanAllowedPrompt,
-  LuxCodexPermissionMode,
-} from '@luxcodex/shared'
+  LuxCoderPermissionMode,
+} from '@luxcoder/shared'
 
 /** ExitPlanMode 审批结果（扩展 SDK PermissionResult，附加 targetMode） */
 export type ExitPlanPermissionResult = {
   behavior: 'allow'
   updatedInput: Record<string, unknown>
   /** 用户选择的目标权限模式 */
-  targetMode?: LuxCodexPermissionMode
+  targetMode?: LuxCoderPermissionMode
 } | {
   behavior: 'deny'
   message: string
@@ -39,7 +39,7 @@ interface PendingExitPlan {
 /** ExitPlanMode 审批结果回调（通知编排层切换权限模式） */
 export interface ExitPlanModeCallbacks {
   /** 切换权限模式 */
-  onPermissionModeChange: (mode: LuxCodexPermissionMode) => void
+  onPermissionModeChange: (mode: LuxCoderPermissionMode) => void
 }
 
 /**
@@ -92,7 +92,7 @@ export class AgentExitPlanService {
    *
    * @returns { sessionId, targetMode } 用于通知编排层；未找到返回 null
    */
-  respondToExitPlanMode(response: ExitPlanModeResponse): { sessionId: string; targetMode: LuxCodexPermissionMode | null } | null {
+  respondToExitPlanMode(response: ExitPlanModeResponse): { sessionId: string; targetMode: LuxCoderPermissionMode | null } | null {
     const pending = this.pendingRequests.get(response.requestId)
     if (!pending) return null
 

@@ -2,7 +2,7 @@ import type {
   AgentSessionMeta,
   FeishuBotConfig,
   FeishuSessionMirrorSettings,
-} from '@luxcodex/shared'
+} from '@luxcoder/shared'
 
 export const DEFAULT_FEISHU_SESSION_MIRROR: FeishuSessionMirrorSettings = { mode: 'off' }
 
@@ -31,7 +31,7 @@ export function buildSessionMirrorGroupName(session: Pick<AgentSessionMeta, 'id'
   const title = rawTitle && rawTitle !== '新 Agent 会话'
     ? rawTitle
     : `新会话 ${session.id.slice(0, 8)}`
-  return truncateGroupName(`LuxCodex - ${title}`)
+  return truncateGroupName(`LuxCoder - ${title}`)
 }
 
 function truncateGroupName(name: string): string {

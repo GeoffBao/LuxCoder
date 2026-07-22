@@ -2,7 +2,7 @@
  * 左栏模块折叠态 Atoms
  *
  * 管理左栏各模块（项目等）的折叠状态，按 `${mode}:${moduleId}` 存储，
- * 持久化到 ~/.luxcodex/settings.json 的 `sidebarModuleCollapsed` 字段
+ * 持久化到 ~/.luxcoder/settings.json 的 `sidebarModuleCollapsed` 字段
  * （遵循"配置文件优于 localStorage"约束）。
  */
 

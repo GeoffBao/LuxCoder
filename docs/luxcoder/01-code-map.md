@@ -1,6 +1,6 @@
-# Proma Code Map for LuxCodex
+# Proma Code Map for LuxCoder
 
-> 基于 `rg` 全库扫描整理，用于 LuxCodex 品牌改造与架构理解的快速导航。
+> 基于 `rg` 全库扫描整理，用于 LuxCoder 品牌改造与架构理解的快速导航。
 > 扫描关键词：Proma / proma / .proma / appName / productName / bundle / electron / BrowserWindow / ipcMain / ipcRenderer / workspace / skill / skills / mcp / provider / agent / workflow / claude / anthropic
 
 ---
@@ -15,7 +15,7 @@
   - `ModeSwitcher.tsx` — Chat ↔ Agent 模式切换
   - `SearchDialog.tsx` — 全局搜索对话框
   - `Panel.tsx` / `PanelHeader.tsx` — 可复用面板容器
-- notes: 改造重点低，无 Proma 硬编码；若加入 LuxCodex logo 从 `LeftSidebar.tsx` 入手
+- notes: 改造重点低，无 Proma 硬编码；若加入 LuxCoder logo 从 `LeftSidebar.tsx` 入手
 
 ---
 
@@ -98,7 +98,7 @@
   - `apps/electron/default-skills/` — 内置 Skill 包：`agent-collaboration`、`automation`、`brainstorming`、`docx`、`executing-plans`、`find-skills`、`guizang-ppt-skill`、`pdf`、`pptx`、`proma-coach`、`skill-creator`、`tool-builder`、`writing-plans`、`xlsx`
   - `apps/electron/src/renderer/components/agent-skills/` — AgentSkillsView.tsx、SkillCard.tsx、SkillDetailSheet.tsx、ImportSkillDialog.tsx、McpCard.tsx、McpDetailSheet.tsx、BuiltinMcpDetailSheet.tsx、useAgentSkillsData.ts、skillMdUtils.ts
   - `apps/electron/src/main/lib/agent-workspace-manager.ts` — Skills CRUD 实现（含 seedDefaultSkills / upgradeDefaultSkillsInWorkspaces）
-- notes: `proma-coach` skill 名称需改为 `luxcodex-coach`；每次修改 default-skills 内容必须同步递增 SKILL.md 的 `version` 字段
+- notes: `proma-coach` skill 名称需改为 `luxcoder-coach`；每次修改 default-skills 内容必须同步递增 SKILL.md 的 `version` 字段
 
 ---
 
@@ -110,7 +110,7 @@
   - `apps/electron/src/renderer/components/agent-skills/McpCard.tsx` / `McpDetailSheet.tsx` / `BuiltinMcpDetailSheet.tsx`
   - `apps/electron/src/renderer/components/settings/McpServerForm.tsx`
   - `packages/shared/src/utils/mcp-transport.ts` / `mcp-transport.test.ts` — MCP 传输层工具
-- notes: MCP 配置按工作区隔离，存储于 `~/.luxcodex/agent-workspaces/{slug}/mcp.json`；内置 MCP 通过 registry.ts 注册
+- notes: MCP 配置按工作区隔离，存储于 `~/.luxcoder/agent-workspaces/{slug}/mcp.json`；内置 MCP 通过 registry.ts 注册
 
 ---
 
@@ -129,25 +129,25 @@
 ## Storage
 
 - path:
-  - `apps/electron/src/main/lib/config-paths.ts` — **所有本地路径函数**，核心改造点：`~/.luxcodex/` → `~/.luxcodex/`（正式版）/ `~/.luxcodex-dev/` → `~/.luxcodex-dev/`（开发版）
+  - `apps/electron/src/main/lib/config-paths.ts` — **所有本地路径函数**，核心改造点：`~/.luxcoder/` → `~/.luxcoder/`（正式版）/ `~/.luxcoder-dev/` → `~/.luxcoder-dev/`（开发版）
   - `apps/electron/src/main/lib/storage-service.ts` — 通用 JSON 文件读写服务
   - `apps/electron/src/main/lib/conversation-manager.ts` — 对话索引 + 每对话 JSONL 文件
   - `apps/electron/src/main/lib/agent-session-manager.ts` — Agent 会话索引 + 每会话 JSONL 文件
   - `apps/electron/src/main/lib/memory-service.ts` — 跨会话记忆存储与检索
-  - `apps/electron/src/main/lib/attachment-service.ts` — 附件文件管理（`~/.luxcodex/attachments/`）
+  - `apps/electron/src/main/lib/attachment-service.ts` — 附件文件管理（`~/.luxcoder/attachments/`）
   - `apps/electron/src/main/lib/settings-service.ts` — 应用设置持久化（`settings.json`）
   - `apps/electron/src/main/lib/user-profile-service.ts` — 用户档案持久化（`user-profile.json`）
   - `apps/electron/src/main/lib/migration-service.ts` — 数据迁移服务
-- notes: 无本地数据库，全部 JSON + JSONL 文件；改目录名后需提供从 `~/.luxcodex/` 迁移的脚本，否则老用户数据丢失
+- notes: 无本地数据库，全部 JSON + JSONL 文件；改目录名后需提供从 `~/.luxcoder/` 迁移的脚本，否则老用户数据丢失
 
 ---
 
 ## Branding Strings
 
 - path:
-  - `apps/electron/electron-builder.yml` — `appId: com.proma.app`、`productName: Proma`、文件扩展名 `.luxcodex-backup` / `.luxcodex-share`、资源目录 `proma-logos`、麦克风权限描述、GitHub repo 名称
+  - `apps/electron/electron-builder.yml` — `appId: com.proma.app`、`productName: Proma`、文件扩展名 `.luxcoder-backup` / `.luxcoder-share`、资源目录 `proma-logos`、麦克风权限描述、GitHub repo 名称
   - `packages/shared/src/config/index.ts` — `APP_NAME = 'Proma'`（全局常量，所有 UI 文案来源）
-  - `apps/electron/src/main/lib/config-paths.ts` — 目录名 `.proma` / `.luxcodex-dev`
+  - `apps/electron/src/main/lib/config-paths.ts` — 目录名 `.proma` / `.luxcoder-dev`
   - `apps/electron/src/renderer/components/settings/PromaLogoSettings.tsx` — Proma Logo 下载页，含 `proma-black/white/blue.png` 资源引用
   - `apps/electron/src/renderer/components/settings/AboutSettings.tsx` — "关于 Proma"、GitHub URL `github.com/ErlichLiu/Proma`
   - `apps/electron/default-skills/proma-coach/SKILL.md` — 内置 Skill 名称

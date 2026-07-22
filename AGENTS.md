@@ -14,14 +14,14 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ## 项目概述
 
-LuxCodex 是基于 Proma 演化的企业级 AI R&D 工作台，采用 Electron 桌面应用架构。UI 顶层模式：Chat / Code（Agent） / Work（Kanban）。
+LuxCoder 是基于 Proma 演化的企业级 AI R&D 工作台，采用 Electron 桌面应用架构。UI 顶层模式：Chat / Code（Agent） / Work（Kanban）。
 
 ## Monorepo 结构
 
 Bun workspace monorepo：
 
 ```
-luxcodex/
+luxcoder/
 ├── packages/
 │   ├── shared/     # 共享类型、IPC 通道常量、配置、工具函数、projects/tasks (v0.1.10)
 │   ├── core/       # AI Provider 适配器、代码高亮服务 (v0.1.0)
@@ -34,29 +34,29 @@ luxcodex/
             └── renderer/   # React UI (Vite + Tailwind + Radix UI)
 ```
 
-**包命名规范**：`@luxcodex/*` 作用域（`@luxcodex/core`、`@luxcodex/shared`、`@luxcodex/ui`、`@luxcodex/electron`）
+**包命名规范**：`@luxcoder/*` 作用域（`@luxcoder/core`、`@luxcoder/shared`、`@luxcoder/ui`、`@luxcoder/electron`）
 
 **依赖管理**：package.json 中使用 `workspace:*` 引用内部包
 
 ### 包职责详解
 
-#### @luxcodex/shared (v0.1.10)
+#### @luxcoder/shared (v0.1.10)
 - **导出模块**：`./types`、`./config`、`./utils`、`./constants/permission-rules`、`./projects`、`./tasks`
 - **关键类型**：`AgentMessage`、`ChatMessage`、`Channel`、`PermissionRequest`、`FeishuConfig`、`ProjectConfig`、`LoadedProject`
 - **依赖**：无运行时依赖（仅 TypeScript）
 
-#### @luxcodex/core (v0.1.0)
+#### @luxcoder/core (v0.1.0)
 - **导出模块**：`./providers`、`./highlight`、`./types`、`./utils`
 - **关键功能**：Provider 适配器注册表、代码高亮（Shiki）
-- **依赖**：`@luxcodex/shared`、`shiki`
+- **依赖**：`@luxcoder/shared`、`shiki`
 - **Peer 依赖**：`@anthropic-ai/claude-agent-sdk`、`@anthropic-ai/sdk`、`@modelcontextprotocol/sdk`
 
-#### @luxcodex/ui (v0.1.0)
+#### @luxcoder/ui (v0.1.0)
 - **关键组件**：共享 React UI 组件库
-- **依赖**：`@luxcodex/core`、`beautiful-mermaid`、`mermaid`、`shiki`
+- **依赖**：`@luxcoder/core`、`beautiful-mermaid`、`mermaid`、`shiki`
 - **Peer 依赖**：`react@^18.3.0`、`react-dom@^18.3.0`
 
-#### @luxcodex/electron (v0.1.21)
+#### @luxcoder/electron (v0.1.21)
 - **职责**：Electron 桌面应用主体，集成所有包
 - **关键依赖**：
   - `@anthropic-ai/claude-agent-sdk` - Agent SDK
@@ -144,7 +144,7 @@ bun run generate:icons    # 生成应用图标
 
 类型定义 → 主进程处理 → Preload 桥接 → 渲染进程调用：
 
-1. **类型 & 常量**：`@luxcodex/shared` 定义 IPC 通道名称常量和请求/响应类型
+1. **类型 & 常量**：`@luxcoder/shared` 定义 IPC 通道名称常量和请求/响应类型
 2. **主进程处理**：`main/ipc.ts`（57KB）注册 `ipcMain.handle()` 处理器，调用 `main/lib/` 服务
 3. **Preload 桥接**：`preload/index.ts` 通过 `contextBridge.exposeInMainWorld` 暴露类型安全的 API
 4. **渲染进程**：通过 `window.electronAPI.*` 调用，Jotai atoms 中封装调用逻辑
@@ -209,7 +209,7 @@ bun run generate:icons    # 生成应用图标
 | 服务 | 职责 |
 |------|------|
 | `runtime-init.ts` | 运行时初始化：Shell 环境、Bun、Git 检测（`bun-finder.ts`、`git-detector.ts`、`shell-env.ts`） |
-| `config-paths.ts` | 配置路径管理：`~/.luxcodex/` 目录结构 |
+| `config-paths.ts` | 配置路径管理：`~/.luxcoder/` 目录结构 |
 | `user-profile-service.ts` | 用户档案持久化 |
 | `settings-service.ts` | 应用设置持久化（主题等） |
 | `updater/` | 自动更新：Electron Updater 集成 |
@@ -286,10 +286,10 @@ bun run generate:icons    # 生成应用图标
 | `ProjectsInitializer` | 按当前工作区加载 craft Project 列表进 `serverKanbanProjectsAtom`，订阅 `projects:changed`（按 workspace slug 匹配）；Code/Work 共享 |
 | `UpdaterInitializer` | 订阅主进程推送的自动更新状态变化事件 |
 
-### 本地文件存储（`~/.luxcodex/`，开发模式 `~/.luxcodex-dev/`）
+### 本地文件存储（`~/.luxcoder/`，开发模式 `~/.luxcoder-dev/`）
 
 ```
-~/.luxcodex/
+~/.luxcoder/
 ├── channels.json           # 渠道配置（API Key 经 safeStorage 加密）
 ├── conversations.json      # 对话索引（元数据，轻量）
 ├── conversations/          # 消息存储
@@ -345,7 +345,7 @@ bun run generate:icons    # 生成应用图标
     - node_modules/@anthropic-ai/claude-agent-sdk-darwin-arm64/**/*
     - node_modules/@anthropic-ai/claude-agent-sdk-darwin-x64/**/*
     - node_modules/@anthropic-ai/claude-agent-sdk-win32-x64/**/*
-    - "!node_modules/@luxcodex/**"
+    - "!node_modules/@luxcoder/**"
   ```
 - SDK 主包和同级平台子包会被复制到 `app/node_modules/@anthropic-ai/`，Node.js 的模块解析能从 `app/dist/main.cjs` 找到
 - `agent-orchestrator.ts` 中 `resolveSDKCliPath()` 解析到 SDK 主包入口后，沿 `..` 到 `@anthropic-ai/` 同级目录，再拼 `claude-agent-sdk-${platform}-${arch}/{Codex|Codex.exe}` 得到 binary 路径
@@ -398,7 +398,7 @@ bun run generate:icons    # 生成应用图标
 
 修改任何 `default-skills/<skill>/` 内容时，**必须同步递增该 Skill `SKILL.md` frontmatter 的 `version` 字段**（patch +1）。
 
-**为什么**：`seedDefaultSkills()` 与 `upgradeDefaultSkillsInWorkspaces()` 通过 semver 比较决定是否将 bundle 中的 Skill 同步到老用户的 `~/.luxcodex/default-skills/` 与各工作区。**version 不变 = 老用户拿不到新内容**。
+**为什么**：`seedDefaultSkills()` 与 `upgradeDefaultSkillsInWorkspaces()` 通过 semver 比较决定是否将 bundle 中的 Skill 同步到老用户的 `~/.luxcoder/default-skills/` 与各工作区。**version 不变 = 老用户拿不到新内容**。
 
 **早期实现曾用"无条件 cpSync"绕开这个约束**，但每次启动同步 4MB+ 文件会阻塞主进程导致启动卡顿，已恢复为 semver 比较（见 `config-paths.ts:seedDefaultSkills`、`agent-workspace-manager.ts:upgradeDefaultSkillsInWorkspaces`）。
 
@@ -447,7 +447,7 @@ React UI 更新
 ### 关键设计
 
 - **SDK 调用**：`sdk.query({ prompt, options: { apiKey, model, permissionMode, cwd, abortController } })`
-- **事件转换**：`convertSDKMessage()`（`@luxcodex/shared`）将 SDK 原始消息转为统一的 `AgentEvent` 类型
+- **事件转换**：`convertSDKMessage()`（`@luxcoder/shared`）将 SDK 原始消息转为统一的 `AgentEvent` 类型
 - **工具匹配**：`packages/shared/src/agent/tool-matching.ts` — 无状态 `ToolIndex` + `extractToolStarts` / `extractToolResults` 解析工具调用
 - **状态管理**：`applyAgentEvent()` 纯函数更新 `AgentStreamState`，支持流式增量更新
 - **全局 IPC 监听**：`useGlobalAgentListeners`（`renderer/hooks/`）在 `main.tsx` 顶层挂载，通过 `useStore()` 直接操作 atoms，永不销毁。确保页面切换（如设置页）时流式输出、权限请求不丢失
@@ -474,9 +474,9 @@ React UI 更新
   - `options.env` 回退为"替换"
   - **SDK 包结构重构**：删除 `cli.js`，改为平台 native binary（通过 `@anthropic-ai/claude-agent-sdk-{platform}-{arch}` optionalDependency 分发），ripgrep 编译进 binary
   - 详见上方"打包配置注意事项"段落
-- `0.2.120`: `query()` 省略 `settingSources` 时默认加载所有来源（LuxCodex 已显式传 `['user', 'project']`，不受影响）
+- `0.2.120`: `query()` 省略 `settingSources` 时默认加载所有来源（LuxCoder 已显式传 `['user', 'project']`，不受影响）
 
-### 共享类型（`@luxcodex/shared`）
+### 共享类型（`@luxcoder/shared`）
 
 - `AgentEvent`：Agent 事件（text / tool_start / tool_result / done / error）
 - `AgentSessionMeta`：会话元数据（id / title / channelId / workspaceId）
@@ -494,7 +494,7 @@ React UI 更新
 - **Agent SDK**：@anthropic-ai/claude-agent-sdk（[v1 文档](https://platform.Codex.com/docs/en/agent-sdk/typescript)、[v2 文档](https://platform.Codex.com/docs/en/agent-sdk/typescript-v2-preview)）
 - **MCP 集成**：Model Context Protocol 用于外部数据源
 - **凭证存储**：AES-256-GCM 加密
-- **配置位置**：`~/.luxcodex/`（类似 `~/.craft-agent/`）
+- **配置位置**：`~/.luxcoder/`（类似 `~/.craft-agent/`）
 
 ## 核心特性
 
@@ -534,19 +534,19 @@ React UI 更新
 - Prefer Code IA: Sessions remain the primary list; module order Auto Tasks → Agent Skills → Agent Experts → 项目中心 (last in module zone); top-bar is Chat|Code only (Work/`cowork` retired)
 - Prefer naming the Projects hub「项目中心」(not bare「项目」); Agent专家 are creatable domain-role shells (builtin label「通用软件专家」, slug `general`) empowered by skills; TaskEditor expert picker must use the expert module list; Kanban uses task/project `expertId`—not swarm or IM bot UI yet
 - Prefer 项目中心 hub card → filtered Board (card may shortcut 新建任务); 新建任务/Teambition stay on Board toolbar, not project settings or left-rail; project detail stays in Code with craft-aligned fields (cwd/color/description)
-- Prefer one-way Proma sync only (no reverse PRs / dual-contribute); cherry-pick upstream in chronological order ~10 commits/batch on a dedicated `sync/proma-*` branch—agent auto-applies clean picks and pauses on structural conflicts for discussion; include Proma CLI/`session-core` when upstream brings them (rename to `@luxcodex`); do not merge the sync branch to `origin/main` until explicitly asked
+- Prefer one-way Proma sync only (no reverse PRs / dual-contribute); cherry-pick upstream in chronological order ~10 commits/batch on a dedicated `sync/proma-*` branch—agent auto-applies clean picks and pauses on structural conflicts for discussion; include Proma CLI/`session-core` when upstream brings them (rename to `@luxcoder`); do not merge the sync branch to `origin/main` until explicitly asked
 
 ## Learned Workspace Facts
 
 - Project/Kanban is ported from craft-agents-max (https://github.com/GeoffBao/craft-agents-max); treat that repo as the behavior reference for gaps
-- Task `llmConnection` maps to LuxCodex `channelId` (Channel acts as the connection)
-- Dev config/storage lives under `~/.luxcodex-dev/`; packaged builds use `~/.luxcodex/`
+- Task `llmConnection` maps to LuxCoder `channelId` (Channel acts as the connection)
+- Dev config/storage lives under `~/.luxcoder-dev/`; packaged builds use `~/.luxcoder/`
 - Work/Kanban Conductor must run agents via `runAgentHeadless` so `STREAM_EVENT` reaches the Code renderer
 - Code main Board uses `codeMainViewAtom` (`'session' | 'work'`); `workViewAtom` stays separate; `WorkBoardView` is reused (no second board); project ⓘ stays in Code; top-bar Work/`cowork` is retired (ModeSwitcher Chat|Code; persisted `cowork` → `agent` + `codeMainView='work'`)
 - Code sidebar「工作区」= `AgentWorkspace`; craft「项目」= workspace-internal Project shared via `serverKanbanProjectsAtom`; Board filters by `selectedProjectIdAtom`
 - `projects:changed` payload `workspaceId` is the workspace root basename (slug), not the workspace UUID
 - Code IA: 项目中心 Hub via `activeView='projects'`, Agent专家 via `activeView='agent-experts'`; left-rail entry rows only (no expandable project list)
 - craft CreateProject is name-first; cwd/color/description thickness belongs on `ProjectInfoPage`, not a heavy create wizard
-- Agent专家 live under `~/.luxcodex/experts/{slug}/` (dev: `~/.luxcodex-dev/experts/`) with IDENTITY/SOUL/RULES + `expert.json`; builtins include 通用软件专家 + 驱动/应用/系统/通信软件专家、软件交付经理、软件SE、软件架构师、软件测试、代码审查; Kanban TaskRunner injects expert preamble via `task.defaults.expertId` → project `defaultExpertId` and merges `skillSlugs` (skip+warn if missing); no Code-session/`mcpIds`/Bot injection yet
+- Agent专家 live under `~/.luxcoder/experts/{slug}/` (dev: `~/.luxcoder-dev/experts/`) with IDENTITY/SOUL/RULES + `expert.json`; builtins include 通用软件专家 + 驱动/应用/系统/通信软件专家、软件交付经理、软件SE、软件架构师、软件测试、代码审查; Kanban TaskRunner injects expert preamble via `task.defaults.expertId` → project `defaultExpertId` and merges `skillSlugs` (skip+warn if missing); no Code-session/`mcpIds`/Bot injection yet
 - `TaskModelSelect` / Radix dropdowns over AppShell need `z-[9999]` (AppShell chrome is `z-[60]`; default portal `z-50` gets clipped)
-- Proma upstream: `origin`=GeoffBao/LuxCodex, `upstream`=proma-ai/Proma; short-lived `sync/proma-YYYYMMDD[-bNN]` (push for backup; merge→main only when asked, then delete); `feature/*` only from main; tag `synced/proma-<sha>`; gate with `bun run sync:check` / `sync:apply-renames` (`scripts/upstream-sync/`, `.cursor/commands/upstream-sync.md`); Lux-owned surfaces (Kanban/项目中心/专家/`AgentSessionItem`/`@luxcodex`) win structure conflicts—take upstream for SDK/security/bugfix semantics; ported `@luxcodex/session-core` + `apps/cli` (`luxcodex` / `$LUXCODEX_CLI`) stay in tree
+- Proma upstream: `origin`=GeoffBao/LuxCoder, `upstream`=proma-ai/Proma; short-lived `sync/proma-YYYYMMDD[-bNN]` (push for backup; merge→main only when asked, then delete); `feature/*` only from main; tag `synced/proma-<sha>`; gate with `bun run sync:check` / `sync:apply-renames` (`scripts/upstream-sync/`, `.cursor/commands/upstream-sync.md`); Lux-owned surfaces (Kanban/项目中心/专家/`AgentSessionItem`/`@luxcoder`) win structure conflicts—take upstream for SDK/security/bugfix semantics; ported `@luxcoder/session-core` + `apps/cli` (`luxcoder` / `$LUXCODER_CLI`) stay in tree

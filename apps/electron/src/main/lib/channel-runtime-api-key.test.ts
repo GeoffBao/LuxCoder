@@ -2,14 +2,14 @@ import { afterAll, beforeAll, beforeEach, describe, expect, mock, test } from 'b
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import * as os from 'node:os'
 import { join } from 'node:path'
-import { serializeCodexCredentials } from '@luxcodex/shared'
+import { serializeCodexCredentials } from '@luxcoder/shared'
 
 type ChannelManagerModule = typeof import('./channel-manager')
 
 let channelManager: ChannelManagerModule
 let tempHome: string
 const originalHome = process.env.HOME
-const originalLuxcodexDev = process.env.LUXCODEX_DEV
+const originalLuxcoderDev = process.env.LUXCODER_DEV
 const originalPromaDev = process.env.PROMA_DEV
 
 mock.module('electron', () => ({
@@ -33,7 +33,7 @@ mock.module('node:os', () => ({
 }))
 
 function writeChannels(channels: unknown[]): void {
-  const configDir = join(tempHome, '.luxcodex')
+  const configDir = join(tempHome, '.luxcoder')
   mkdirSync(configDir, { recursive: true })
   writeFileSync(
     join(configDir, 'channels.json'),
@@ -43,15 +43,15 @@ function writeChannels(channels: unknown[]): void {
 }
 
 beforeAll(async () => {
-  tempHome = mkdtempSync(join(os.tmpdir(), 'luxcodex-channel-runtime-key-'))
+  tempHome = mkdtempSync(join(os.tmpdir(), 'luxcoder-channel-runtime-key-'))
   process.env.HOME = tempHome
-  delete process.env.LUXCODEX_DEV
+  delete process.env.LUXCODER_DEV
   process.env.PROMA_DEV = '0'
   channelManager = await import('./channel-manager')
 })
 
 beforeEach(() => {
-  rmSync(join(tempHome, '.luxcodex'), { recursive: true, force: true })
+  rmSync(join(tempHome, '.luxcoder'), { recursive: true, force: true })
 })
 
 afterAll(() => {
@@ -60,10 +60,10 @@ afterAll(() => {
   } else {
     process.env.HOME = originalHome
   }
-  if (originalLuxcodexDev === undefined) {
-    delete process.env.LUXCODEX_DEV
+  if (originalLuxcoderDev === undefined) {
+    delete process.env.LUXCODER_DEV
   } else {
-    process.env.LUXCODEX_DEV = originalLuxcodexDev
+    process.env.LUXCODER_DEV = originalLuxcoderDev
   }
   if (originalPromaDev === undefined) {
     delete process.env.PROMA_DEV

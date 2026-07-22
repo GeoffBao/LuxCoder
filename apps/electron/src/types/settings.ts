@@ -4,7 +4,7 @@
  * 主题模式、IPC 通道等设置相关定义。
  */
 
-import type { AgentRuntime, EnvironmentCheckResult, ThinkingConfig, AgentEffort, FeishuSessionMirrorSettings } from '@luxcodex/shared'
+import type { AgentRuntime, EnvironmentCheckResult, ThinkingConfig, AgentEffort, FeishuSessionMirrorSettings } from '@luxcoder/shared'
 
 /** 通知音场景类型 */
 export type NotificationSoundType = 'taskComplete' | 'permissionRequest' | 'exitPlanMode'
@@ -29,7 +29,7 @@ export type VoiceDictationProvider = 'doubao'
 export type VoiceDictationEndpointMode = 'async' | 'duplex'
 
 /** 语音输入输出方式 */
-export type VoiceDictationOutputMode = 'auto' | 'clipboard' | 'luxcodex-input'
+export type VoiceDictationOutputMode = 'auto' | 'clipboard' | 'luxcoder-input'
 
 /** 语音输入浮窗位置 */
 export interface VoiceDictationWindowPosition {
@@ -118,7 +118,7 @@ export interface VoiceDictationResizeInput {
 
 /** 输出语音输入文本结果 */
 export interface VoiceDictationCommitResult {
-  mode: 'luxcodex-input' | 'cursor' | 'clipboard'
+  mode: 'luxcoder-input' | 'cursor' | 'clipboard'
   success: boolean
   message: string
 }
@@ -253,13 +253,13 @@ export interface AppSettings {
   appIconVariant?: string
   /** 语音输入设置（Access Token 以加密态存储，由专用服务解密后返回渲染进程） */
   voiceDictation?: VoiceDictationPersistedSettings
-  /** 飞书 Session 镜像设置：每个 LuxCodex Session 可创建一个仅包含用户与指定 Bot 的飞书群 */
+  /** 飞书 Session 镜像设置：每个 LuxCoder Session 可创建一个仅包含用户与指定 Bot 的飞书群 */
   feishuSessionMirror?: FeishuSessionMirrorSettings
-  /** 用户手动关闭的 LuxCodex 内置 MCP ID 列表（针对默认开启的内置 MCP） */
+  /** 用户手动关闭的 LuxCoder 内置 MCP ID 列表（针对默认开启的内置 MCP） */
   builtinMcpDisabledIds?: string[]
-  /** 用户手动开启的 LuxCodex 内置 MCP ID 列表（针对默认关闭的内置 MCP，如 nano-banana、mem） */
+  /** 用户手动开启的 LuxCoder 内置 MCP ID 列表（针对默认关闭的内置 MCP，如 nano-banana、mem） */
   builtinMcpEnabledIds?: string[]
-  /** 启动时自动清理临时文件（luxcodex-preview、luxcodex-installers），默认 true */
+  /** 启动时自动清理临时文件（luxcoder-preview、luxcoder-installers），默认 true */
   autoCleanupTempOnStart?: boolean
   /** 自动清理 N 天前已归档会话的 SDK 数据（0 = 禁用，默认 0） */
   autoCleanupArchivedDays?: number

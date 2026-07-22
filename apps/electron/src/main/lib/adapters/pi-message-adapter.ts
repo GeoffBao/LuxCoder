@@ -8,7 +8,7 @@
 import { randomUUID } from 'node:crypto'
 import type { AgentMessage } from '@earendil-works/pi-agent-core'
 import type { AssistantMessage, ToolResultMessage, UserMessage } from '@earendil-works/pi-ai/compat'
-import type { SDKMessage } from '@luxcodex/shared'
+import type { SDKMessage } from '@luxcoder/shared'
 import type { RuntimeGuardResultOverride } from '../agent-runtime-guards'
 
 function getPiEditItems(input: Record<string, unknown>): Array<Record<string, unknown>> {

@@ -1,4 +1,4 @@
-# LuxCodex Design Decisions
+# LuxCoder Design Decisions
 
 > Date: 2026-06-28
 > 记录架构决策，供后续开发参考。
@@ -74,12 +74,12 @@ Claude Agent SDK（唯一引擎）
 
 ## Decision 5: Hermes 部署方案
 
-**背景**：如果 Hermes 作为 provider，其他用户安装 LuxCodex 时是否需要额外安装 Hermes？
+**背景**：如果 Hermes 作为 provider，其他用户安装 LuxCoder 时是否需要额外安装 Hermes？
 
-**决策**：不需要。Hermes 部署在企业内网服务端，LuxCodex 通过 Claude Agent SDK 的 hermes provider（HTTP endpoint）连接。用户只需安装 LuxCodex 一个应用。
+**决策**：不需要。Hermes 部署在企业内网服务端，LuxCoder 通过 Claude Agent SDK 的 hermes provider（HTTP endpoint）连接。用户只需安装 LuxCoder 一个应用。
 
 ```
-LuxCodex (客户端) → Agent SDK → provider: "hermes" → Hermes Server (企业内网)
+LuxCoder (客户端) → Agent SDK → provider: "hermes" → Hermes Server (企业内网)
 ```
 
 ---
@@ -118,7 +118,7 @@ LuxCodex (客户端) → Agent SDK → provider: "hermes" → Hermes Server (企
 1. TB 审核 — 方案文档 review（内容对不对）
 2. Gerrit 审核 — 代码 review（实现对不对）
 
-**方案文档模板（植入 LuxCodex，上传 TB 存档）**：
+**方案文档模板（植入 LuxCoder，上传 TB 存档）**：
 - 问题描述
 - 根因分析
 - 方案对比
@@ -135,7 +135,7 @@ LuxCodex (客户端) → Agent SDK → provider: "hermes" → Hermes Server (企
 
 **MVP 实现状态（2026-06-29，feature/work-mode-kanban 分支）：**
 - ✅ `WorkTask` 独立实体（六阶段状态机 + 任务类型分流）
-- ✅ 本地 JSON 持久化（`~/.luxcodex/work-tasks.json`）
+- ✅ 本地 JSON 持久化（`~/.luxcoder/work-tasks.json`）
 - ✅ 全屏分屏视图（左：任务列表按状态分组 + 右：任务详情）
 - ✅ 内嵌 AgentView（任务进入 coding 阶段时显示 Agent 对话）
 - ✅ 状态流转按钮（基于类型决定允许的下一步）
@@ -157,7 +157,7 @@ LuxCodex (客户端) → Agent SDK → provider: "hermes" → Hermes Server (企
 ```
 P0 Baseline     (1w) → 跑通 Proma，代码地图
 P1a Branding    (1w) → 品牌替换 + 主题 + 数据目录 + 三模式 Tab
-P1b Namespace   (1w) → @proma/* → @luxcodex/* 包名替换
+P1b Namespace   (1w) → @proma/* → @luxcoder/* 包名替换
 P3  Chat Mode   (2w) → Hermes provider + Chat UI + chips
 P4  Code Mode   (3w) → Agent 模式重构为工程视图 + log stream + diff
 P4  Work Mode (4w) → TB API(MCP) + 六阶段看板 + 双向同步 + TaskOrchestrator
@@ -190,11 +190,11 @@ P6  Enterprise  (4w) → SSO/RBAC/审计/Cost
 
 **背景**：Work 模式需要文档模板供研发选择使用。
 
-**决策**：模板植入 LuxCodex，分三层共享。
+**决策**：模板植入 LuxCoder，分三层共享。
 
 ```
 内置模板（打包）  → 方案设计文档 / RCA 报告 / Bug Fix 说明 / 测试报告
-项目模板（Git）   → .luxcodex/templates/ 目录，git clone 即得
+项目模板（Git）   → .luxcoder/templates/ 目录，git clone 即得
 个人模板（本地）  → 用户自建
 ```
 
@@ -212,7 +212,7 @@ P6  Enterprise  (4w) → SSO/RBAC/审计/Cost
 |------|------|----------|
 | Chat 历史 / 配置 | 👤 个人 | 本地存储，不上传 |
 | 看板状态 | 👤 个人 | 本地，TB 同步 |
-| Skills / 模板 / RAG 知识 | 📁 项目 | Git repo `.luxcodex/` |
+| Skills / 模板 / RAG 知识 | 📁 项目 | Git repo `.luxcoder/` |
 | MCP 配置 / Provider 密钥 | 👤 个人 | 本地加密 |
 | 方案文档 / RCA 报告 | 📁 项目 | TB 附件归档 |
 | SSO / 审计 / 成本 | 🌐 企业 | 企业 Server（Phase 5） |
@@ -262,4 +262,4 @@ P6  Enterprise  (4w) → SSO/RBAC/审计/Cost
 
 **定制**：Camera BSP 专用模板替换 spec-kit 默认模板（问题描述/根因分析/方案对比/实施计划/测试计划）
 
-**产物归档**：`.luxcodex/specs/{task-id}/spec.md` + `plan.md`，同时上传 TB 附件。
+**产物归档**：`.luxcoder/specs/{task-id}/spec.md` + `plan.md`，同时上传 TB 附件。

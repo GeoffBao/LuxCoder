@@ -1,20 +1,20 @@
 {
-  "name": "@luxcodex/cli",
+  "name": "@luxcoder/cli",
   "version": "0.1.0",
   "license": "AGPL-3.0-only",
-  "description": "luxcodex — LuxCodex 命令行工具。面向有限上下文的 Agent 消费者，提供会话的渐进式读取（list / info / outline / search / export）。",
+  "description": "luxcoder — LuxCoder 命令行工具。面向有限上下文的 Agent 消费者，提供会话的渐进式读取（list / info / outline / search / export）。",
   "type": "module",
   "bin": {
-    "luxcodex": "./src/index.ts"
+    "luxcoder": "./src/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build": "bun build --compile --outfile dist/luxcodex src/index.ts",
+    "build": "bun build --compile --outfile dist/luxcoder src/index.ts",
     "start": "bun src/index.ts"
   },
   "dependencies": {
-    "@luxcodex/session-core": "workspace:*",
-    "@luxcodex/shared": "workspace:*"
+    "@luxcoder/session-core": "workspace:*",
+    "@luxcoder/shared": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.0.0"

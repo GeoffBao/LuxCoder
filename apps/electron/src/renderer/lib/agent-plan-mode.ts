@@ -1,4 +1,4 @@
-import type { AgentPlanModeChangeSource, LuxCodexPermissionMode } from '@luxcodex/shared'
+import type { AgentPlanModeChangeSource, LuxCoderPermissionMode } from '@luxcoder/shared'
 
 export interface PlanModeChange {
   active: boolean
@@ -36,8 +36,8 @@ export function updatePlanModeSessionSet(
 
 /** 输入区处于计划阶段时，权限按钮也优先展示计划模式图标。 */
 export function getDisplayedPermissionMode(
-  permissionMode: LuxCodexPermissionMode,
+  permissionMode: LuxCoderPermissionMode,
   planModeActive: boolean,
-): LuxCodexPermissionMode {
+): LuxCoderPermissionMode {
   return planModeActive ? 'plan' : permissionMode
 }

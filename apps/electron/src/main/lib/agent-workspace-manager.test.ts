@@ -10,7 +10,7 @@ let manager: AgentWorkspaceManager
 let configPaths: ConfigPathsModule
 let tempHome: string
 const originalHome = process.env.HOME
-const originalLuxcodexDev = process.env.LUXCODEX_DEV
+const originalLuxcoderDev = process.env.LUXCODER_DEV
 const originalPromaDev = process.env.PROMA_DEV
 
 mock.module('electron', () => ({
@@ -31,9 +31,9 @@ mock.module('node:os', () => ({
 }))
 
 beforeAll(async () => {
-  tempHome = mkdtempSync(join(os.tmpdir(), 'luxcodex-agent-workspace-manager-'))
+  tempHome = mkdtempSync(join(os.tmpdir(), 'luxcoder-agent-workspace-manager-'))
   process.env.HOME = tempHome
-  delete process.env.LUXCODEX_DEV
+  delete process.env.LUXCODER_DEV
   process.env.PROMA_DEV = '0'
   configPaths = await import('./config-paths')
   manager = await import('./agent-workspace-manager')
@@ -51,10 +51,10 @@ afterAll(() => {
   } else {
     process.env.HOME = originalHome
   }
-  if (originalLuxcodexDev === undefined) {
-    delete process.env.LUXCODEX_DEV
+  if (originalLuxcoderDev === undefined) {
+    delete process.env.LUXCODER_DEV
   } else {
-    process.env.LUXCODEX_DEV = originalLuxcodexDev
+    process.env.LUXCODER_DEV = originalLuxcoderDev
   }
   if (originalPromaDev === undefined) {
     delete process.env.PROMA_DEV

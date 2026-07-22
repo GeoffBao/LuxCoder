@@ -22,7 +22,7 @@ import {
 import { ScrollMinimap } from '@/components/ai-elements/scroll-minimap'
 import type { MinimapItem } from '@/components/ai-elements/scroll-minimap'
 import { StickyUserMessage } from '@/components/ai-elements/sticky-user-message'
-import { useSmoothStream } from '@luxcodex/ui'
+import { useSmoothStream } from '@luxcoder/ui'
 import { formatMessageTime } from '@/components/chat/ChatMessageItem'
 import { getModelLogo, resolveModelDisplayName, resolveModelProvider } from '@/lib/model-logo'
 import { userProfileAtom } from '@/atoms/user-profile'
@@ -38,8 +38,8 @@ import { ContentBlock } from './ContentBlock'
 import { parseThinkTagsFromText } from './thinking-tag-parser'
 import { AgentHistorySelectionLayer } from './AgentHistorySelectionLayer'
 import { TaskProgressOverlay } from './TaskProgressOverlay'
-import type { AgentEventUsage, RetryAttempt, SDKMessage, SDKSystemMessage } from '@luxcodex/shared'
-import { getSDKCompactStatus } from '@luxcodex/shared'
+import type { AgentEventUsage, RetryAttempt, SDKMessage, SDKSystemMessage } from '@luxcoder/shared'
+import { getSDKCompactStatus } from '@luxcoder/shared'
 import type { AgentStreamState } from '@/atoms/agent-atoms'
 
 function stableStringify(value: unknown): string {
@@ -507,11 +507,11 @@ export function AgentMessages({ sessionId, sessionModelId, messagesLoaded, persi
     const live = liveMessages ?? []
     const stampStableKey = (message: SDKMessage): SDKMessage => {
       const key = getSDKMessageStableKey(message)
-      ;(message as Record<string, unknown>)._luxcodexStableKey = key
+      ;(message as Record<string, unknown>)._luxcoderStableKey = key
       return message
     }
     const keyOf = (message: SDKMessage): string =>
-      (message as Record<string, unknown>)._luxcodexStableKey as string
+      (message as Record<string, unknown>)._luxcoderStableKey as string
 
     const persistedWithKeys = persisted.map(stampStableKey)
     const liveWithKeys = live.map(stampStableKey)

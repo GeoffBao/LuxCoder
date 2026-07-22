@@ -2,7 +2,7 @@
  * AppearanceSettings - 外观设置页
  *
  * 特殊风格选择 + 主题模式切换（浅色/深色/跟随系统/特殊风格）。
- * 通过 Jotai atom 管理状态，持久化到 ~/.luxcodex/settings.json。
+ * 通过 Jotai atom 管理状态，持久化到 ~/.luxcoder/settings.json。
  */
 
 import * as React from 'react'
@@ -385,7 +385,7 @@ function IconCard({
         )}
       >
         {variant.id === 'default' ? (
-          // 默认图标用 CSS 模拟 LuxCodex logo 形状
+          // 默认图标用 CSS 模拟 LuxCoder logo 形状
           <div className="flex items-end gap-[2px] -rotate-12">
             {[1, 0.85, 0.7, 0.55, 0.4, 0.25].map((opacity, i) => (
               <div

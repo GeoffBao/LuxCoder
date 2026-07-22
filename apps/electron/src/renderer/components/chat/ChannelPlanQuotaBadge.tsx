@@ -1,5 +1,5 @@
 import * as React from 'react'
-import type { Channel, ChannelPlanQuotaResult, ChannelPlanQuotaWindow } from '@luxcodex/shared'
+import type { Channel, ChannelPlanQuotaResult, ChannelPlanQuotaWindow } from '@luxcoder/shared'
 import { cn } from '@/lib/utils'
 import { supportsChannelPlanQuota, fetchChannelPlanQuota } from '@/lib/channel-plan-quota'
 

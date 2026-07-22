@@ -1,4 +1,4 @@
-import { TaskSpecSchema } from '@luxcodex/shared/tasks/schema'
+import { TaskSpecSchema } from '@luxcoder/shared/tasks/schema'
 
 export interface QuickTaskDraft {
   title: string

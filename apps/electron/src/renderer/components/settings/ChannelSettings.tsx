@@ -10,9 +10,9 @@ import { Plus, Pencil, Trash2, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
-import { PROVIDER_LABELS, isAgentCompatibleProvider } from '@luxcodex/shared'
-import type { Channel } from '@luxcodex/shared'
-import { getChannelLogo, LuxCodexLogo } from '@/lib/model-logo'
+import { PROVIDER_LABELS, isAgentCompatibleProvider } from '@luxcoder/shared'
+import type { Channel } from '@luxcoder/shared'
+import { getChannelLogo, LuxCoderLogo } from '@/lib/model-logo'
 import { getEnabledClaudeAgentChannelIds } from '@/lib/agent-channel-selection'
 import { agentChannelIdAtom, agentModelIdAtom, agentChannelIdsAtom } from '@/atoms/agent-atoms'
 import { channelsAtom } from '@/atoms/chat-atoms'
@@ -209,7 +209,7 @@ export function ChannelSettings(): React.ReactElement {
         }
       >
         <SettingsCard>
-          <LuxCodexProviderCard />
+          <LuxCoderProviderCard />
         </SettingsCard>
         {loading ? (
           <div className="text-sm text-muted-foreground py-8 text-center">加载中...</div>
@@ -338,18 +338,18 @@ function AgentCoreChips({ provider }: Pick<Channel, 'provider'>): React.ReactEle
   )
 }
 
-// ===== LuxCodex 官方供应商推广卡片 =====
+// ===== LuxCoder 官方供应商推广卡片 =====
 
-function LuxCodexProviderCard(): React.ReactElement {
+function LuxCoderProviderCard(): React.ReactElement {
   const handleDownload = (): void => {
     window.open('http://proma.cool/download', '_blank')
   }
 
   return (
     <SettingsRow
-      label="LuxCodex"
-      icon={<img src={LuxCodexLogo} alt="LuxCodex" className="w-8 h-8 rounded" />}
-      description="LuxCodex 官方供应｜稳定｜靠谱｜丝滑｜简单｜可用于 Agent"
+      label="LuxCoder"
+      icon={<img src={LuxCoderLogo} alt="LuxCoder" className="w-8 h-8 rounded" />}
+      description="LuxCoder 官方供应｜稳定｜靠谱｜丝滑｜简单｜可用于 Agent"
     >
       <Button size="sm" variant="outline" className="gap-1.5" onClick={handleDownload}>
         <ExternalLink size={13} />

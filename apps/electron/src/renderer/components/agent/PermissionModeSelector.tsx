@@ -12,12 +12,12 @@ import { Zap, Map as MapIcon } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
 import { agentPermissionModeMapAtom, agentDefaultPermissionModeAtom, sessionPersistedPermissionModeAtom, sessionExistsAtom, agentPlanModeSessionsAtom } from '@/atoms/agent-atoms'
-import type { LuxCodexPermissionMode } from '@luxcodex/shared'
-import { LUXCODEX_PERMISSION_MODE_CONFIG, LUXCODEX_PERMISSION_MODE_ORDER } from '@luxcodex/shared'
+import type { LuxCoderPermissionMode } from '@luxcoder/shared'
+import { LUXCODER_PERMISSION_MODE_CONFIG, LUXCODER_PERMISSION_MODE_ORDER } from '@luxcoder/shared'
 import { getDisplayedPermissionMode, updatePlanModeSessionSet } from '@/lib/agent-plan-mode'
 import { inputToolbarButtonClass } from '@/components/ai-elements/input-toolbar-styles'
 
-const MODE_ICONS: Record<LuxCodexPermissionMode, React.ComponentType<{ className?: string }>> = {
+const MODE_ICONS: Record<LuxCoderPermissionMode, React.ComponentType<{ className?: string }>> = {
   bypassPermissions: Zap,
   plan: MapIcon,
 }
@@ -44,7 +44,7 @@ export function PermissionModeSelector({ sessionId }: PermissionModeSelectorProp
   React.useEffect(() => {
     if (!sessionExistsInList) return
 
-    setModeMap((prev: Map<string, LuxCodexPermissionMode>) => {
+    setModeMap((prev: Map<string, LuxCoderPermissionMode>) => {
       if (prev.has(sessionId)) return prev
       const next = new Map(prev)
       next.set(sessionId, persistedSessionMode ?? defaultMode)
@@ -54,14 +54,14 @@ export function PermissionModeSelector({ sessionId }: PermissionModeSelectorProp
 
   /** 循环切换模式 */
   const cycleMode = React.useCallback(async () => {
-    const currentIndex = LUXCODEX_PERMISSION_MODE_ORDER.indexOf(displayMode)
-    const nextIndex = (currentIndex + 1) % LUXCODEX_PERMISSION_MODE_ORDER.length
-    const nextMode = LUXCODEX_PERMISSION_MODE_ORDER[nextIndex]!
+    const currentIndex = LUXCODER_PERMISSION_MODE_ORDER.indexOf(displayMode)
+    const nextIndex = (currentIndex + 1) % LUXCODER_PERMISSION_MODE_ORDER.length
+    const nextMode = LUXCODER_PERMISSION_MODE_ORDER[nextIndex]!
     const prevMode = mode
     const prevPlanModeActive = planModeActive
 
     // 乐观更新当前 session 的模式
-    setModeMap((prev: Map<string, LuxCodexPermissionMode>) => {
+    setModeMap((prev: Map<string, LuxCoderPermissionMode>) => {
       const next = new Map(prev)
       next.set(sessionId, nextMode)
       return next
@@ -75,7 +75,7 @@ export function PermissionModeSelector({ sessionId }: PermissionModeSelectorProp
       await window.electronAPI.updateSessionPermissionMode(sessionId, nextMode)
     } catch (error) {
       console.error('[PermissionModeSelector] 运行中切换权限模式失败，回滚 UI:', error)
-      setModeMap((prev: Map<string, LuxCodexPermissionMode>) => {
+      setModeMap((prev: Map<string, LuxCoderPermissionMode>) => {
         const next = new Map(prev)
         next.set(sessionId, prevMode)
         return next
@@ -86,7 +86,7 @@ export function PermissionModeSelector({ sessionId }: PermissionModeSelectorProp
     }
   }, [displayMode, mode, planModeActive, sessionId, setModeMap, setPlanModeSessions])
 
-  const config = LUXCODEX_PERMISSION_MODE_CONFIG[displayMode]
+  const config = LUXCODER_PERMISSION_MODE_CONFIG[displayMode]
   const Icon = MODE_ICONS[displayMode]
 
   return (

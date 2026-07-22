@@ -16,7 +16,7 @@ It is not just another chat box. Proma is meant to become a long-lived Agent wor
 - **Skills & MCP**: each workspace can manage its own Skills, MCP servers, and workspace files.
 - **Remote bots**: Lark / Feishu bot bridging is supported, with DingTalk and WeChat bridge entry points also present in the app.
 - **Memory and tools**: Chat and Agent can share memory, with web search, built-in Chat tools, and Agent recommendation helpers.
-- **Local-first data**: conversations, workspaces, attachments, settings, and Skills are stored under `~/.luxcodex/` as JSON / JSONL files, without a local database.
+- **Local-first data**: conversations, workspaces, attachments, settings, and Skills are stored under `~/.luxcoder/` as JSON / JSONL files, without a local database.
 - **Desktop experience**: auto-update, proxy settings, file preview, global shortcuts, quick task window, voice input, and light / dark / system themes.
 
 ## Getting Started
@@ -107,14 +107,14 @@ Proma supports Doubao-powered streaming voice input, both inside Proma and acros
 
 > **Kimi Coding Plan users**: Proma is officially whitelisted by Kimi. Using Proma with your Kimi Coding Plan subscription will not trigger any third-party client ban policy.
 
-Agent mode is powered by Claude Agent SDK, so it currently requires an Anthropic or Anthropic-compatible channel. Chat mode uses Provider Adapters from `@luxcodex/core` to support different protocols.
+Agent mode is powered by Claude Agent SDK, so it currently requires an Anthropic or Anthropic-compatible channel. Chat mode uses Provider Adapters from `@luxcoder/core` to support different protocols.
 
 ## Local Data
 
 Proma stores data in local files so it is easy to back up, migrate, and inspect.
 
 ```text
-~/.luxcodex/
+~/.luxcoder/
 ├── channels.json
 ├── conversations.json
 ├── conversations/
@@ -153,10 +153,10 @@ Current package versions:
 
 | Package | Version | Responsibility |
 | --- | --- | --- |
-| `@luxcodex/electron` | `0.9.12` | Electron desktop app |
-| `@luxcodex/shared` | `0.1.17` | shared types, IPC constants, config, utilities |
-| `@luxcodex/core` | `0.2.9` | Provider Adapters, SSE, Shiki highlighting |
-| `@luxcodex/ui` | `0.1.3` | shared React UI components |
+| `@luxcoder/electron` | `0.9.12` | Electron desktop app |
+| `@luxcoder/shared` | `0.1.17` | shared types, IPC constants, config, utilities |
+| `@luxcoder/core` | `0.2.9` | Provider Adapters, SSE, Shiki highlighting |
+| `@luxcoder/ui` | `0.1.3` | shared React UI components |
 
 Common commands:
 

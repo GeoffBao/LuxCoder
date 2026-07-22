@@ -1,7 +1,7 @@
 {
-  "name": "@luxcodex/electron",
+  "name": "@luxcoder/electron",
   "version": "0.1.89",
-  "description": "LuxCodex next gen ai software with general agents - Electron App",
+  "description": "LuxCoder next gen ai software with general agents - Electron App",
   "main": "dist/main.cjs",
   "author": {
     "name": "GeoffBao",
@@ -66,10 +66,10 @@
     "@emoji-mart/data": "^1.2.1",
     "@emoji-mart/react": "^1.1.1",
     "@larksuiteoapi/node-sdk": "^1.65.0",
-    "@luxcodex/core": "workspace:*",
-    "@luxcodex/session-core": "workspace:*",
-    "@luxcodex/shared": "workspace:*",
-    "@luxcodex/ui": "workspace:*",
+    "@luxcoder/core": "workspace:*",
+    "@luxcoder/session-core": "workspace:*",
+    "@luxcoder/shared": "workspace:*",
+    "@luxcoder/ui": "workspace:*",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-collapsible": "^1.1.12",
     "@radix-ui/react-context-menu": "^2.2.16",
@@ -166,5 +166,5 @@
   "build": {
     "extends": "electron-builder.yml"
   },
-  "luxcodex": {}
+  "luxcoder": {}
 }

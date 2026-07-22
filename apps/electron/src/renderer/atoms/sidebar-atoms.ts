@@ -15,12 +15,12 @@ export const sidebarViewModeAtom = atom<SidebarViewMode>('active')
 
 /** 项目列表高度（px），用户可拖拽调整，持久化到 localStorage */
 export const projectListHeightAtom = atomWithStorage<number>(
-  'luxcodex-workspace-list-height',
+  'luxcoder-workspace-list-height',
   120,
 )
 
 /** 左侧边栏宽度（px），用户可拖拽调整，持久化到 localStorage */
 export const leftSidebarWidthAtom = atomWithStorage<number>(
-  'luxcodex-left-sidebar-width',
+  'luxcoder-left-sidebar-width',
   300,
 )

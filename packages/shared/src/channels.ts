@@ -1,7 +1,7 @@
 /**
  * IPC 通道常量 — 轻量入口
  *
- * 专供 preload 等不需要完整 @luxcodex/shared 的模块使用。
+ * 专供 preload 等不需要完整 @luxcoder/shared 的模块使用。
  * 仅导出 IPC 通道常量，不引入 projects/、tasks/ 等重依赖。
  *
  * 每个常量引用自各自的类型定义文件，这些文件仅包含纯常量 + type-only 导入，

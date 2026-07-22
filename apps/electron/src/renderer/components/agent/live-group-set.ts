@@ -1,4 +1,4 @@
-import type { SDKMessage } from '@luxcodex/shared'
+import type { SDKMessage } from '@luxcoder/shared'
 import type { MessageGroup } from './SDKMessageRenderer'
 
 interface BuildLiveGroupSetOptions {

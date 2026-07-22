@@ -48,7 +48,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu'
-import type { AgentSessionMeta } from '@luxcodex/shared'
+import type { AgentSessionMeta } from '@luxcoder/shared'
 import type { KanbanProject } from './kanban/types'
 
 export function formatRelativeUpdatedAt(updatedAt: number, now: number): string {

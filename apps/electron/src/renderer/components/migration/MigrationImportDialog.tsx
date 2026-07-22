@@ -69,7 +69,7 @@ export function MigrationImportDialog(): React.ReactElement {
         <DialogHeader>
           <DialogTitle>导入配置</DialogTitle>
           <DialogDescription>
-            从备份文件导入数据，支持 .luxcodex-backup 和 .luxcodex-share 格式
+            从备份文件导入数据，支持 .luxcoder-backup 和 .luxcoder-share 格式
           </DialogDescription>
         </DialogHeader>
 
@@ -81,7 +81,7 @@ export function MigrationImportDialog(): React.ReactElement {
                 <FolderOpen size={28} className="text-muted-foreground" />
               </div>
               <p className="text-sm text-muted-foreground text-center">
-                选择 .luxcodex-backup 或 .luxcodex-share 文件开始导入
+                选择 .luxcoder-backup 或 .luxcoder-share 文件开始导入
               </p>
               <button
                 onClick={handleSelectImportFile}

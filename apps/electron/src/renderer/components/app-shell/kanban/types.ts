@@ -1,4 +1,4 @@
-import type { AgentSessionMeta } from '@luxcodex/shared'
+import type { AgentSessionMeta } from '@luxcoder/shared'
 
 /** 未归属项目的会话默认显示在收件箱。 */
 export const INBOX_COLUMN_ID = 'inbox'
@@ -110,7 +110,7 @@ export interface KanbanModelOption {
 
 /**
  * 按渠道分组的可选模型（对应 craft 的 provider groups；
- * LuxCodex 用 Channel 充当 connection，llmConnection = channelId）。
+ * LuxCoder 用 Channel 充当 connection，llmConnection = channelId）。
  */
 export interface KanbanModelProviderGroup {
   provider: string
