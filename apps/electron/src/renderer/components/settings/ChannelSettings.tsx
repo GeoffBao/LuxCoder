@@ -6,13 +6,13 @@
 
 import * as React from 'react'
 import { useAtom, useSetAtom } from 'jotai'
-import { Plus, Pencil, Trash2, ExternalLink } from 'lucide-react'
+import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { PROVIDER_LABELS, isAgentCompatibleProvider } from '@luxcoder/shared'
 import type { Channel } from '@luxcoder/shared'
-import { getChannelLogo, LuxCoderLogo } from '@/lib/model-logo'
+import { getChannelLogo } from '@/lib/model-logo'
 import { getEnabledClaudeAgentChannelIds } from '@/lib/agent-channel-selection'
 import { agentChannelIdAtom, agentModelIdAtom, agentChannelIdsAtom } from '@/atoms/agent-atoms'
 import { channelsAtom } from '@/atoms/chat-atoms'
@@ -208,9 +208,6 @@ export function ChannelSettings(): React.ReactElement {
           </Button>
         }
       >
-        <SettingsCard>
-          <LuxCoderProviderCard />
-        </SettingsCard>
         {loading ? (
           <div className="text-sm text-muted-foreground py-8 text-center">加载中...</div>
         ) : channels.length === 0 ? (
@@ -335,26 +332,5 @@ function AgentCoreChips({ provider }: Pick<Channel, 'provider'>): React.ReactEle
         Pi
       </Badge>
     </div>
-  )
-}
-
-// ===== LuxCoder 官方供应商推广卡片 =====
-
-function LuxCoderProviderCard(): React.ReactElement {
-  const handleDownload = (): void => {
-    window.open('http://proma.cool/download', '_blank')
-  }
-
-  return (
-    <SettingsRow
-      label="LuxCoder"
-      icon={<img src={LuxCoderLogo} alt="LuxCoder" className="w-8 h-8 rounded" />}
-      description="LuxCoder 官方供应｜稳定｜靠谱｜丝滑｜简单｜可用于 Agent"
-    >
-      <Button size="sm" variant="outline" className="gap-1.5" onClick={handleDownload}>
-        <ExternalLink size={13} />
-        <span>下载后启动</span>
-      </Button>
-    </SettingsRow>
   )
 }
