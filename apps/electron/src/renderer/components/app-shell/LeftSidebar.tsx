@@ -698,7 +698,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   // craft Project 状态（Work 看板同源）：侧边栏项目子分组 / 色条 / 详情跳转用
   const kanbanProjects = useAtomValue(serverKanbanProjectsAtom)
   const setKanbanProjects = useSetAtom(serverKanbanProjectsAtom)
-  const [selectedProjectId, setSelectedProjectId] = useAtom(selectedProjectIdAtom)
+  const setSelectedProjectId = useSetAtom(selectedProjectIdAtom)
   const [sidebarSessionViewMode] = useAtom(sidebarSessionViewModeAtom)
   const setWorkView = useSetAtom(workViewAtom)
   const setCodeMainView = useSetAtom(codeMainViewAtom)
@@ -852,21 +852,6 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     if (!currentWorkspaceId) return null
     return workspaces.find((w) => w.id === currentWorkspaceId)?.slug ?? null
   }, [currentWorkspaceId, workspaces])
-
-  const [workspaceRootForProjects, setWorkspaceRootForProjects] = React.useState<string | null>(null)
-
-  React.useEffect(() => {
-    let cancelled = false
-    if (!currentWorkspaceSlug) {
-      setWorkspaceRootForProjects(null)
-      return () => { cancelled = true }
-    }
-    void window.electronAPI.getWorkspaceRootPath(currentWorkspaceSlug)
-      .then((root) => {
-        if (!cancelled) setWorkspaceRootForProjects(root)
-      })
-    return () => { cancelled = true }
-  }, [currentWorkspaceSlug])
 
   const workspaceNameMap = React.useMemo(() => {
     const map = new Map<string, string>()
