@@ -2496,22 +2496,6 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
         {/* 模式切换 */}
         <div className="flex flex-col items-center gap-1.5">
-          <CollapsedWorkspacePopover>
-            <button
-              type="button"
-              aria-label="切换到 Agent 模式（悬停查看工作区）"
-              onClick={() => handleRailModeSwitch('agent')}
-              className={cn(
-                'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag',
-                mode === 'agent'
-                  ? 'bg-primary/10 text-foreground shadow-[0_1px_2px_0_rgba(0,0,0,0.05)]'
-                  : 'text-foreground/45 hover:bg-foreground/[0.06] hover:text-foreground/75'
-              )}
-            >
-              <Bot size={18} />
-            </button>
-          </CollapsedWorkspacePopover>
-
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -2530,6 +2514,22 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             </TooltipTrigger>
             <TooltipContent side="right">Chat 模式</TooltipContent>
           </Tooltip>
+
+          <CollapsedWorkspacePopover>
+            <button
+              type="button"
+              aria-label="切换到 Agent 模式（悬停查看工作区）"
+              onClick={() => handleRailModeSwitch('agent')}
+              className={cn(
+                'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag',
+                mode === 'agent'
+                  ? 'bg-primary/10 text-foreground shadow-[0_1px_2px_0_rgba(0,0,0,0.05)]'
+                  : 'text-foreground/45 hover:bg-foreground/[0.06] hover:text-foreground/75'
+              )}
+            >
+              <Bot size={18} />
+            </button>
+          </CollapsedWorkspacePopover>
         </div>
 
         <div className="my-3 h-px w-8 bg-border/70" />
