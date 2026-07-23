@@ -2733,7 +2733,8 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     <AgentSessionProvider sessionId={sessionId}>
       <div className="agent-workbench flex h-full min-h-0 flex-1 min-w-0 max-w-[min(72rem,100%)] flex-col overflow-hidden mx-auto">
         {/* Agent Header */}
-        <AgentHeader sessionId={sessionId} />
+        {/* key 保证会话切换时重置标题编辑态 */}
+        <AgentHeader key={sessionId} sessionId={sessionId} />
 
         {/* 任务编排状态条（有 taskSlug 的 orchestrator 会话） */}
         <AgentTaskPanel sessionId={sessionId} />

@@ -122,15 +122,20 @@ export function SessionHeader({
     requestAnimationFrame(() => inputRef.current?.focus())
   }
 
-  /** 保存标题：空值或未变化则跳过持久化，直接退出编辑态 */
+  /** 保存标题：空值或未变化则跳过持久化，直接退出编辑态；失败时记录日志并退出编辑态 */
   const saveTitle = async (): Promise<void> => {
     const trimmed = editTitle.trim()
     if (!trimmed || trimmed === title) {
       setEditing(false)
       return
     }
-    await onRename(trimmed)
-    setEditing(false)
+    try {
+      await onRename(trimmed)
+    } catch (error) {
+      console.error('[SessionHeader] 更新标题失败:', error)
+    } finally {
+      setEditing(false)
+    }
   }
 
   /** 键盘事件 */
@@ -305,7 +310,7 @@ export function ChatHeader({ conversation }: ChatHeaderProps): React.ReactElemen
 }
 ```
 
-注意：原文件里手写的 `titlebar-drag-region` div 和 Windows insets 逻辑已经被 `SessionHeader` 内部接管，这里不用再写。
+注意：原文件里手写的 `titlebar-drag-region` div 和 Windows insets 逻辑已经被 `SessionHeader` 内部接管，这里不用再写。原文件 `saveTitle` 里的 try/catch 也不需要在 wrapper 里重写——`SessionHeader.saveTitle` 内部已统一 catch 并保证退出编辑态，`handleRename` 直接 await 即可。
 
 - [ ] **Step 2: 类型检查**
 

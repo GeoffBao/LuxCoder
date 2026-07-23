@@ -264,8 +264,6 @@ export function MainArea(): React.ReactElement {
               <AgentExpertsView />
             ) : (
               <>
-                {/* Code 模式会话视图顶部常驻「会话 | 看板」切换条 */}
-                {appMode === 'agent' && <CodeMainViewSwitcher />}
                 <TabBar />
                 {automationFormOpen ? (
                   // 兼容从会话内入口打开任务设置的场景。
