@@ -49,8 +49,12 @@ export function ChatHeader({ conversation }: ChatHeaderProps): React.ReactElemen
                 size="icon"
                 className={cn('h-7 w-7', conversation.pinned && 'bg-accent text-accent-foreground')}
                 onClick={async () => {
-                  const updated = await window.electronAPI.togglePinConversation(conversation.id)
-                  setConversations((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
+                  try {
+                    const updated = await window.electronAPI.togglePinConversation(conversation.id)
+                    setConversations((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
+                  } catch (error) {
+                    console.error('[ChatHeader] 切换置顶失败:', error)
+                  }
                 }}
               >
                 <Pin className="size-3.5" />
