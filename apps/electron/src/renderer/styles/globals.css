@@ -1066,8 +1066,8 @@
   white-space: nowrap;
 }
 
-/* Header：平涂，同内容区一色，仅底部一道 hairline */
-:root:not(.ui-classic) .agent-header-polished {
+/* Header：平涂，同内容区一色，仅底部一道 hairline。Chat/Agent 会话标题行共用。 */
+:root:not(.ui-classic) .session-header-polished {
   background: hsl(var(--content-area));
   box-shadow: 0 1px 0 var(--ink-line);
   backdrop-filter: none;
