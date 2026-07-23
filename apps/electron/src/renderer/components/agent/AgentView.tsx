@@ -303,7 +303,7 @@ function AgentThinkingPopover({ config }: AgentThinkingPopoverProps): React.Reac
             <div className="min-w-0 space-y-0.5">
               <span className="text-xs font-medium text-foreground">思考深度</span>
               <p className="text-[10px] leading-snug text-muted-foreground">
-                本会话生效（对齐 craft）；默认展开思考过程请到「通用设置」
+                本会话生效；默认展开思考过程请到「通用设置」
               </p>
             </div>
             <span className="shrink-0 text-xs tabular-nums text-muted-foreground">

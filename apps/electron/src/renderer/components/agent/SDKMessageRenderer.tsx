@@ -462,8 +462,15 @@ export function AssistantTurnRenderer({ turn, allMessages, basePath, onFork, onR
     }
   }
 
+  // 过滤仅用于进度追踪的工具块（TaskCreate/TaskUpdate），它们不影响内容分组逻辑。
+  // 否则这些块若位于数组末尾，会导致 getTrailingTextStartIndex 返回 null，
+  // 最终把全部文本答案也裹进「执行过程」并自动折叠。
+  const contentBlocks = topLevelBlocks.filter(
+    (b) => !(b.type === 'tool_use' && TASK_TOOL_NAMES.has((b as SDKToolUseBlock).name))
+  )
+
   // 检测是否有主要内容（text 块），用于决定 tool/thinking 是否 dimmed
-  const hasTextContent = topLevelBlocks.some(
+  const hasTextContent = contentBlocks.some(
     (b) => b.type === 'text' && 'text' in b && !!(b as { text: string }).text
   )
 
@@ -471,11 +478,11 @@ export function AssistantTurnRenderer({ turn, allMessages, basePath, onFork, onR
     return buildCompletedToolResultIds(turn.turnMessages)
   }, [turn.turnMessages])
   const renderItems = React.useMemo(() => {
-    return buildAssistantTurnRenderItems(topLevelBlocks, {
+    return buildAssistantTurnRenderItems(contentBlocks, {
       isStreaming,
       completedToolResultIds,
     })
-  }, [topLevelBlocks, isStreaming, completedToolResultIds])
+  }, [contentBlocks, isStreaming, completedToolResultIds])
 
   // 本轮「文件名 → 绝对路径」映射：与 footer chips 同源，供正文内联文件引用补全裸文件名
   const turnFileMap = React.useMemo(

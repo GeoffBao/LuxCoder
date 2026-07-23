@@ -369,7 +369,7 @@ export function GeneralSettings(): React.ReactElement {
           />
           <SettingsRow
             label="新会话默认思考深度"
-            description="对齐 craft：仅作为新建会话的初始值，可在输入栏按会话覆盖"
+            description="仅作为新建会话的初始值，可在输入栏按会话覆盖"
           >
             <Select value={defaultThinkingLevel} onValueChange={handleDefaultThinkingLevelChange}>
               <SelectTrigger className="w-[120px] h-8 text-[13px]">
