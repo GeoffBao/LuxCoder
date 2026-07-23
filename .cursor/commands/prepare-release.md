@@ -45,9 +45,9 @@ description: 根据上一 GitHub Release 之后的提交，递增版本号并写
    ```
    只写**用户可感知**的 Features / Fixes；chore/ci/docs 内部项可省略或收进「其他」。
 
-4. **开分支**（命名随仓库惯例，cloud代理用 `cursor/release-X-Y-Z-<suffix>`）
+4. **开分支**（命名随仓库 / 代理惯例，例如 `cursor/release-0-1-99-<suffix>` 或 `chore/release-v0.1.99`）
    ```bash
-   git checkout -b cursor/release-<NEXT-with-dashes>-e59f
+   git checkout -b cursor/release-<NEXT-with-dashes>
    ```
 
 5. **改版本号**
