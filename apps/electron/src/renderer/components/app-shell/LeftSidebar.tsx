@@ -1273,17 +1273,6 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     await createAgentSessionInWorkspace()
   }, [createAgentSessionInWorkspace, setActiveView])
 
-  /** 在指定项目中新建 Draft 会话（绑定 projectId + effectiveCwd） */
-  const createAgentSessionInProject = React.useCallback(async (projectId: string): Promise<void> => {
-    await createAgent({
-      draft: true,
-      projectId,
-      workspaceId: currentWorkspaceId ?? undefined,
-      channelId: agentChannelId || undefined,
-      modelId: agentModelId || undefined,
-    })
-  }, [agentChannelId, agentModelId, createAgent, currentWorkspaceId])
-
   /** 迁移会话进/出项目 */
   const handleMoveToProject = React.useCallback(async (sessionId: string, projectId?: string): Promise<void> => {
     try {
@@ -1323,40 +1312,6 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     }
     handleSwitchWorkspace(workspaceId)
   }, [currentWorkspaceId, handleSwitchWorkspace])
-
-  /** 侧栏项目行直接删除 craft Project（缩短「进详情 → …」路径） */
-  const handleDeleteCraftProject = React.useCallback(async (projectId: string): Promise<void> => {
-    if (!workspaceRootForProjects) {
-      toast.error('请先选择工作空间')
-      return
-    }
-    const project = kanbanProjects.find((item) => item.id === projectId)
-    if (!project?.slug) {
-      toast.error('找不到项目')
-      return
-    }
-    if (!window.confirm(`确定删除项目「${project.name}」及其资产吗？`)) return
-    try {
-      await window.electronAPI.projects.delete(workspaceRootForProjects, project.slug)
-      setKanbanProjects((current) => current.filter((item) => item.id !== projectId))
-      if (selectedProjectId === projectId) {
-        setSelectedProjectId(null)
-        setWorkView('board')
-      }
-      toast.success('项目已删除')
-    } catch (cause) {
-      toast.error('删除项目失败', {
-        description: cause instanceof Error ? cause.message : String(cause),
-      })
-    }
-  }, [
-    kanbanProjects,
-    selectedProjectId,
-    setKanbanProjects,
-    setSelectedProjectId,
-    setWorkView,
-    workspaceRootForProjects,
-  ])
 
   /** 侧栏「新任务」：先经项目选择器再开 TaskEditor */
   const handleNewTask = React.useCallback((): void => {
