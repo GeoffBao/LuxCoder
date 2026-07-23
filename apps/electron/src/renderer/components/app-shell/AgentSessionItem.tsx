@@ -1,6 +1,6 @@
 /**
  * Agent 会话列表项 + 共享的 SessionItemActions / 左侧状态色条工具。
- * 从 LeftSidebar 抽出，打破 SidebarProjectSubgroup ↔ LeftSidebar 的循环依赖。
+ * 从 LeftSidebar 抽出为独立文件，便于复用与测试。
  */
 
 import * as React from 'react'
