@@ -5,6 +5,7 @@
  * 无需 React 组件树即可单测。生成器写入节点 ID 后，同级 prompt 中的
  * `${nodes.<id>.output}` 引用必须保持不变，否则 `tasks:create` 会拒绝悬空引用。
  */
+import { slugify } from '@luxcoder/shared/utils'
 import { MAX_REPAIR_ATTEMPTS_CAP, TaskSpecSchema } from '@luxcoder/shared/tasks/schema'
 import type { PermissionMode, TaskSpec } from '@luxcoder/shared/tasks/schema'
 
@@ -46,9 +47,6 @@ export function quickAddChildToSubtask(child: {
     ...(child.llmConnection ? { llmConnection: child.llmConnection } : {}),
   }
 }
-
-export const slugify = (s: string): string =>
-  s.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48)
 
 export interface EditorSubtask {
   uid: string
