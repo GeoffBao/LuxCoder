@@ -1,61 +1,58 @@
 /**
- * AgentHeader — Agent 会话头部
+ * SessionHeader — Chat / Agent 会话共用的标题栏
  *
- * 显示会话标题（可点击编辑）。
- * 参照 ChatHeader 的编辑模式。
+ * 显示会话标题（可点击编辑），右侧可选 actions 插槽由调用方传入
+ * （Chat 传系统提示词选择器/置顶/并排模式，Agent 目前不传）。
  */
 
 import * as React from 'react'
-import { useAtomValue, useSetAtom } from 'jotai'
 import { Pencil, Check, X } from 'lucide-react'
-import { agentSessionsAtom } from '@/atoms/agent-atoms'
-import { tabsAtom, updateTabTitle } from '@/atoms/tab-atoms'
-import { replaceAgentSessionInFreshnessOrder } from '@/lib/agent-session-list'
 import { detectIsWindows, WINDOW_CONTROLS_INSET_RIGHT } from '@/lib/platform'
 import { cn } from '@/lib/utils'
 
-/** AgentHeader 属性接口 */
-interface AgentHeaderProps {
-  sessionId: string
+export interface SessionHeaderProps {
+  /** 当前标题 */
+  title: string
+  /** 保存新标题；title 为空或与当前值相同时不会被调用 */
+  onRename: (newTitle: string) => Promise<void> | void
+  /** 右侧操作区，不传则不渲染 */
+  actions?: React.ReactNode
+  /** 编辑态输入框最大长度 */
+  maxLength?: number
 }
 
-export function AgentHeader({ sessionId }: AgentHeaderProps): React.ReactElement | null {
+export function SessionHeader({
+  title,
+  onRename,
+  actions,
+  maxLength = 100,
+}: SessionHeaderProps): React.ReactElement {
   const isWindows = React.useMemo(() => detectIsWindows(), [])
-  const sessions = useAtomValue(agentSessionsAtom)
-  const session = sessions.find((s) => s.id === sessionId) ?? null
-  const setAgentSessions = useSetAtom(agentSessionsAtom)
-  const setTabs = useSetAtom(tabsAtom)
   const [editing, setEditing] = React.useState(false)
   const [editTitle, setEditTitle] = React.useState('')
   const inputRef = React.useRef<HTMLInputElement>(null)
 
-  if (!session) return null
-
   /** 进入编辑模式 */
   const startEdit = (): void => {
-    setEditTitle(session.title)
+    setEditTitle(title)
     setEditing(true)
     requestAnimationFrame(() => inputRef.current?.focus())
   }
 
-  /** 保存标题 */
+  /** 保存标题：空值或未变化则跳过持久化，直接退出编辑态 */
   const saveTitle = async (): Promise<void> => {
     const trimmed = editTitle.trim()
-    if (!trimmed || trimmed === session.title) {
+    if (!trimmed || trimmed === title) {
       setEditing(false)
       return
     }
-
     try {
-      const updated = await window.electronAPI.updateAgentSessionTitle(session.id, trimmed)
-      // 同步更新标签页标题
-      setTabs((prev) => updateTabTitle(prev, updated.id, updated.title))
-      // 同步更新侧边栏会话列表
-      setAgentSessions((prev) => replaceAgentSessionInFreshnessOrder(prev, updated))
+      await onRename(trimmed)
     } catch (error) {
-      console.error('[AgentHeader] 更新标题失败:', error)
+      console.error('[SessionHeader] 更新标题失败:', error)
+    } finally {
+      setEditing(false)
     }
-    setEditing(false)
   }
 
   /** 键盘事件 */
@@ -81,7 +78,7 @@ export function AgentHeader({ sessionId }: AgentHeaderProps): React.ReactElement
             onKeyDown={handleKeyDown}
             onBlur={saveTitle}
             className="flex-1 bg-transparent text-sm font-medium border-b border-primary/50 outline-none px-0 py-0.5 min-w-0"
-            maxLength={100}
+            maxLength={maxLength}
           />
           <button
             type="button"
@@ -103,7 +100,7 @@ export function AgentHeader({ sessionId }: AgentHeaderProps): React.ReactElement
       ) : (
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
           <span className="truncate text-sm font-medium text-foreground">
-            {session.title}
+            {title}
           </span>
           <button
             type="button"
@@ -114,6 +111,12 @@ export function AgentHeader({ sessionId }: AgentHeaderProps): React.ReactElement
           >
             <Pencil className="size-3.5" />
           </button>
+        </div>
+      )}
+
+      {actions && (
+        <div className="flex items-center gap-1 titlebar-no-drag ml-auto">
+          {actions}
         </div>
       )}
     </div>
