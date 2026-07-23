@@ -310,6 +310,16 @@ git commit -m "refactor(ui): delete SidebarProjectSubgroup/SidebarSessionViewTog
 
 （`{sessions.map((item) => {` 这一行和它后面一路到对应的 `))}` 收尾、`{hiddenCount > 0 && (...)}`、`{expanded && (...)}` 这些块**全部原样保留不动**——只是删除了它们前面的 `projectGroups.map` 和 `unboundSectionLabel` 两段。）
 
+- [ ] **Step 4.5: 顺手清理本步骤刚清空的两个 import（代码评审补充，原计划遗漏）**
+
+Step 4 删掉了 `buildSidebarProjectGroups`/`SidebarProjectSubgroup` 在本文件里的最后一处使用，但计划里后续任务都不会去清理文件顶部对它们的 import——不修的话 Task 9 最终 typecheck 会失败且找不到归属任务。就地清理：
+
+```diff
+-import { buildProjectColorMap, buildSidebarProjectGroups } from './sidebar-project-groups'
+-import { SidebarProjectSubgroup } from './SidebarProjectSubgroup'
++import { buildProjectColorMap } from './sidebar-project-groups'
+```
+
 - [ ] **Step 5: 类型检查**
 
 Run: `cd apps/electron && bun run typecheck`
