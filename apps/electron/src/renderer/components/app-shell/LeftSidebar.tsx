@@ -3079,16 +3079,15 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                 )
                 .map((group) => {
                 const isAuto = group.workspace.id === AUTOMATION_GROUP_ID
-                const forceRecent = !isAuto && sidebarSessionViewMode === 'recent'
                 return (
                   <AgentProjectGroupItem
                     key={group.workspace.id}
-                    group={forceRecent
-                      ? {
+                    group={isAuto
+                      ? group
+                      : {
                           ...group,
                           sessions: buildRecentSessionList(group.sessions),
-                        }
-                      : group}
+                        }}
                     isAutomationGroup={isAuto}
                     workspaceNameMap={isAuto ? workspaceNameMap : undefined}
                     currentWorkspaceId={currentWorkspaceId}
@@ -3118,15 +3117,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                     onRenameWorkspace={isAuto ? noopAsync : handleWorkspaceRename}
                     onRequestDeleteWorkspace={isAuto ? noopVoid : handleRequestDeleteWorkspace}
                     canDeleteWorkspace={isAuto ? false : canDeleteWorkspace(group.workspace)}
-                    projects={forceRecent
-                      ? EMPTY_PROJECTS
-                      : (!isAuto && group.workspace.id === currentWorkspaceId ? currentWorkspaceProjects : EMPTY_PROJECTS)}
-                    selectedProjectId={selectedProjectId}
+                    projects={!isAuto && group.workspace.id === currentWorkspaceId ? currentWorkspaceProjects : EMPTY_PROJECTS}
                     hideWorkspaceHeader={!isAuto}
-                    unboundSectionLabel="未归类会话"
-                    onOpenProjectDetail={handleOpenProjectDetail}
-                    onDeleteProject={handleDeleteCraftProject}
-                    onNewSessionInProject={createAgentSessionInProject}
                     onMoveToProject={handleMoveToProject}
                     onSelectSession={handleSelectAgentSession}
                     onRequestDelete={handleRequestDelete}
