@@ -1,0 +1,65 @@
+<h2>Work 模式：Project &amp; Kanban UI 结构</h2>
+<p class="subtitle">保留 LuxAgents 三段式壳层；Work 替换中间会话区，不影响 Chat / Code。</p>
+
+<div class="mockup">
+  <div class="mockup-header">LuxAgents · Work</div>
+  <div class="mockup-body" style="padding:0;min-height:470px;display:grid;grid-template-columns:72px 230px 1fr;overflow:hidden">
+    <div style="background:#111827;color:white;padding:16px 10px;display:flex;flex-direction:column;gap:16px;text-align:center">
+      <div style="font-weight:800;color:#a5b4fc">LA</div>
+      <div style="opacity:.55">Chat</div>
+      <div style="background:#4f46e5;border-radius:10px;padding:8px 3px">Work</div>
+      <div style="opacity:.55">Code</div>
+    </div>
+    <div style="background:rgba(15,23,42,.05);padding:16px;border-right:1px solid rgba(148,163,184,.2)">
+      <div style="display:flex;justify-content:space-between;align-items:center"><strong>Projects</strong><button class="mock-button">＋</button></div>
+      <div class="mock-input" style="margin:12px 0">搜索项目</div>
+      <div style="padding:9px;border-radius:9px;background:rgba(79,70,229,.12);margin-bottom:6px"><strong>全部任务</strong><span style="float:right">12</span></div>
+      <div style="padding:9px;border-radius:9px;margin-bottom:6px"><span style="color:#10b981">●</span> LuxAgents 迁移 <span style="float:right">7</span></div>
+      <div style="padding:9px;border-radius:9px;margin-bottom:6px"><span style="color:#f59e0b">●</span> 企业集成 <span style="float:right">5</span></div>
+      <div style="margin-top:22px;font-size:12px;opacity:.6">ARCHIVED</div>
+      <div style="padding:9px;opacity:.55">历史项目</div>
+    </div>
+    <div style="padding:18px;overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div><strong style="font-size:18px">LuxAgents 迁移</strong><div style="font-size:12px;opacity:.65">7 tasks · 3 running</div></div>
+        <div style="display:flex;gap:7px"><button class="mock-button">Board / List</button><button class="mock-button">从 Teambition 领取</button><button class="mock-button" style="background:#4f46e5;color:white">＋ 新任务</button></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+        <div style="background:rgba(148,163,184,.09);border-radius:12px;padding:10px"><strong>Inbox / Todo</strong><span style="float:right;opacity:.55">3</span>
+          <div style="background:white;border-radius:11px;padding:11px;margin-top:10px;box-shadow:0 4px 14px rgba(15,23,42,.08)"><small style="color:#4f46e5">LuxAgents 迁移</small><h4 style="margin:7px 0">完成 Project IPC</h4><div style="font-size:12px;opacity:.65">Claude Sonnet · 2 subtasks</div></div>
+          <div style="background:white;border-radius:11px;padding:11px;margin-top:10px;box-shadow:0 4px 14px rgba(15,23,42,.08)"><small style="color:#0ea5e9">Teambition · 已绑定</small><h4 style="margin:7px 0">迁移 TaskEditor</h4><div style="font-size:12px;opacity:.65">未开始 · 0/4</div></div>
+        </div>
+        <div style="background:rgba(99,102,241,.08);border-radius:12px;padding:10px"><strong>In Progress</strong><span style="float:right;opacity:.55">3</span>
+          <div style="background:white;border-radius:11px;padding:11px;margin-top:10px;box-shadow:0 4px 14px rgba(15,23,42,.08);border-left:4px solid #6366f1"><small style="color:#6366f1">运行中</small><h4 style="margin:7px 0">Conductor DAG</h4><div style="height:5px;background:#e5e7eb;border-radius:4px"><div style="width:67%;height:100%;background:#6366f1;border-radius:4px"></div></div><div style="font-size:12px;opacity:.65;margin-top:6px">2/3 nodes · $0.42</div></div>
+        </div>
+        <div style="background:rgba(16,185,129,.08);border-radius:12px;padding:10px"><strong>Done</strong><span style="float:right;opacity:.55">1</span>
+          <div style="background:white;border-radius:11px;padding:11px;margin-top:10px;box-shadow:0 4px 14px rgba(15,23,42,.08)"><small style="color:#10b981">已完成 · 已同步 TW</small><h4 style="margin:7px 0">Project storage</h4><div style="font-size:12px;opacity:.65">3/3 nodes · 12m</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:18px">
+  <div class="label">核心交互闭环</div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px">
+    <div class="card"><div class="card-body"><h3>拖拽卡片</h3><p>更新 <code>kanbanColumn</code>；项目自定义列可同时映射 Session status。失败时回滚 UI 并 toast。</p></div></div>
+    <div class="card"><div class="card-body"><h3>打开任务</h3><p>普通 Session 打开聊天预览；有 taskSlug 时打开 TaskEditor，可编辑 spec、节点与运行配置。</p></div></div>
+    <div class="card"><div class="card-body"><h3>运行 DAG</h3><p>父卡显示稳定节点总数；子 Session 延迟创建，进度与状态实时汇总，支持 pause/resume/stop。</p></div></div>
+    <div class="card"><div class="card-body"><h3>Teambition</h3><p>Picker 领取 → 绑定 Project/Session → 卡片显示同步态 → 手动或完成时回写。</p></div></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">编辑与详情呈现</div>
+  <p>ProjectInfo 使用主区页面（Sessions / Assets / Memory / Settings）；TaskEditor 使用宽侧滑 Sheet，避免离开看板上下文。移动端不在本次范围，最小窗口下改为单列横向滚动。</p>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="approve-ui" onclick="toggleSelect(this)">
+    <div class="letter">✓</div><div class="content"><h3>批准 UI 与交互</h3><p>继续设计执行流程、错误恢复与事件模型。</p></div>
+  </div>
+  <div class="option" data-choice="revise-ui" onclick="toggleSelect(this)">
+    <div class="letter">↺</div><div class="content"><h3>需要调整</h3><p>在终端说明需要修改的布局或交互。</p></div>
+  </div>
+</div>

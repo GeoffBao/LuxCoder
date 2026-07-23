@@ -1,0 +1,157 @@
+id: projects-kanban-teambition
+title: Projects & Kanban 迁移 + Teambition 集成 SDD
+goal: >-
+  参考 craft-agents-oss 新增的 Projects & Kanban Task Board 功能，
+  将其完整迁移到 LuxAgents（Work 模式优先，含前端+后端）；
+  并依据 Teambition 开放平台文档与项目内 SDD 规范，
+  完成 Teambition 企业 MCP 集成的完整需求与技术方案设计
+acceptance_criteria: >-
+  1. oss Projects & Kanban 的所有 40+ 相关源码文件已被逐文件读取
+  并产出一份结构化参考文档，包含所有类型定义、组件签名、
+  RPC 模式、存储逻辑，标注了需要适配 LuxAgents IPC 模式的部分
+
+  2. 迁移方案文档遵循 SDD Plan 模板：包含 Goal/Architecture/
+  Global Constraints、架构决策（三选一裁决）、逐 Task 的
+  精确文件路径/接口签名/实现步骤，无 TBD/TODO 占位符
+
+  3. Teambition 集成 SDD 文档遵循 SDD Design Spec 骨架：
+  包含 MCP 能力探测流程序列图、WorkPhase↔TW 状态映射表数据结构、
+  REST 兜底 4 步调用链实现、8 场景错误处理矩阵、
+  contract/幂等/脱敏/降级测试策略，所有未验证项已明确标注
+
+nodes:
+  - id: oss-kanban-source-read
+    title: 读取 oss 源码并产出参考文档
+    prompt: |
+      逐文件读取 craft-agents-oss 的 Projects & Kanban Task Board 全部
+      相关源码（位于 /Users/admin/Workspace/ClaudeCode/craft-agents-max/），
+      并产出一份结构化源码参考文档。
+
+      对每个文件提取：
+      - 导出的类型/接口定义（完整源码，不省略字段）
+      - 核心函数的完整签名（参数+返回类型完全展开）
+      - 组件 Props 接口 + 渲染结构概述
+      - 存储/RPC 的关键操作逻辑
+      - 标注需要适配 LuxAgents IPC 模式的部分
+
+      需要读取的源文件（路径前缀 /Users/admin/Workspace/ClaudeCode/craft-agents-max/）：
+
+      共享层（packages/shared/src/）：
+      - projects/types.ts, projects/storage.ts, projects/index.ts
+      - tasks/schema.ts, tasks/storage.ts, tasks/refs.ts
+      - tasks/validate.ts, tasks/generator-prompt.ts
+      - sessions/types.ts, protocol/channels.ts
+
+      服务层（packages/server-core/src/）：
+      - handlers/rpc/projects.ts, handlers/rpc/tasks.ts
+      - handlers/session-manager-interface.ts
+      - tasks/TaskRunner.ts
+
+      前端（apps/electron/src/renderer/）：
+      - atoms/kanban.ts
+      - components/app-shell/kanban/*.tsx（全部 12 个组件文件）
+      - components/app-shell/ProjectsListPanel.tsx
+      - pages/ProjectInfoPage.tsx
+      - playground/demos/kanban/mock-kanban-data.ts
+
+      产出标题：craft-agents-oss Projects & Kanban 源码参考
+      文件路径：docs/plans/2026-07-13-oss-kanban-source-reference.md
+
+      每文件一节，结构：
+      文件名（路径）、导出内容、关键类型（完整定义）、
+      关键函数（签名+实现摘要）、LuxAgents 适配要点（IPC 模式差异等）
+
+      末尾附总结表：文件路径 → LuxAgents 目标位置建议 + 迁移方式
+  - id: migration-plan-design
+    title: 设计完整迁移方案文档
+    prompt: |
+      基于 craft-agents-oss 源码分析结果和现有 LuxAgents 项目文档，
+      设计完整的迁移方案文档，遵循 SDD Plan 模板规范。
+
+      输入文件路径：
+      - oss 源码参考: docs/plans/2026-07-13-oss-kanban-source-reference.md
+        （确认上游节点已产出该文件）
+      - 已有 oss 调研: /Users/admin/.craft-agent/workspaces/llm-kb/sessions/
+        260712-witty-nebula/plans/craft-agents-oss-kanban-research.md
+      - SDD 方法论: docs/plans/2026-07-12-sdd-methodology-research.md
+      - Work Mode Kanban: docs/plans/2026-06-29-work-mode-kanban.md
+      - Work Mode 架构: docs/plans/2026-07-07-work-mode-design.md
+      - 项目 AGENTS.md、CLAUDE.md
+      - Teambition 集成设计: docs/plans/2026-07-12-teambition-integration-spec.md
+
+      产出文件：docs/plans/2026-07-13-oss-kanban-migration-plan.md
+
+      文档结构（SDD Plan 模板）：
+
+      ### Header
+      Goal / Architecture / Tech Stack
+
+      ### Global Constraints
+      提取项目级硬约束（Jotai、无数据库、四层IPC、ShadcnUI、无TBD等）
+
+      ### 架构决策
+      三选一裁决并给出理由：
+      1. 改造 Work Mode 吸收 oss 能力
+      2. 新增独立 Projects+Kanban 与 Work Mode 并存
+      3. 仅迁移 Project 实体
+
+      ### Task 1: Project 实体类型 + 存储
+      Files: Create/Modify 精确路径
+      Interfaces: Consumes/Produces 精确签名
+      每步完整代码/命令/期望输出（禁止占位符）
+
+      ### Task N: ...
+      （5-10 个 Task，覆盖 Project 实体、Kanban 组件、
+      Session 字段扩展、Task spec、Teambition Adapter 最终填补等）
+
+      ### 不迁移清单
+      标注哪些 oss 功能本阶段不做
+
+      ## 写入后验证
+      - 无 TBD/TODO 占位符
+      - spec 每节对应到至少一个 Task
+      - 跨 Task 的函数名/类型名前后一致
+    depends_on: [oss-kanban-source-read]
+  - id: teambition-sdd-complete
+    title: 完成 Teambition 集成 SDD
+    prompt: |
+      基于现有 Teambition 集成设计的已有文档、SDD 方法论模板和项目源码，
+      产出一份完整的、可直接执行的 Teambition 企业 MCP 集成 SDD 设计文档。
+
+      输入文件路径：
+      - 已有集成设计: docs/plans/2026-07-12-teambition-integration-spec.md
+      - SDD 方法论: docs/plans/2026-07-12-sdd-methodology-research.md
+      - 现有 teambition-adapter.ts 和 .test.ts:
+        apps/electron/src/main/lib/teambition-adapter.ts
+      - Work 模式需求/设计: docs/plans/2026-07-07-work-mode-*.md
+      - Work Mode Kanban: docs/plans/2026-06-29-work-mode-kanban.md
+      - 项目 AGENTS.md、CLAUDE.md
+      - 项目类型文件: packages/shared/src/types/work.ts
+      - Work 常量: apps/electron/src/renderer/components/work/work-constants.ts
+      - Work Graph/Engine: apps/electron/src/main/lib/work-*.ts
+
+      产出文件：docs/plans/2026-07-13-teambition-integration-sdd.md
+
+      文档结构（SDD Design Spec 5.1 骨架）：
+
+      1. 目标 - 用户故事式列表 + 边界声明 + 三选一引用
+      2. 官方能力结论 - TW 开放平台盘点 + 验证状态标注
+      3. 总体架构 - Mermaid 分层图 + 数据流说明
+      4. 集成边界 - 新增模块文件树 + 宿主改动清单
+      5. Gateway 接口 - 完整 TS interface + RestTeambitionAdapter
+      6. 本地绑定与快照 - 数据模型 + 目录 + 唯一键规则
+      7. MCP 能力探测流程 - 设置面板序列图 + 工具名持久化
+      8. WorkPhase ↔ TW 状态映射 - 九阶段与三状态映射 + 配置结构
+      9. 同步策略 - 轮询周期 + 失败不阻塞 + 重试
+      10. 凭据安全 - safeStorage + 内存缓存 + 日志脱敏
+      11. 分阶段交付 - 0..5 阶段 + 每阶段验收标准
+      12. 错误处理 - 8 场景映射表（场景/处理/用户反馈）
+      13. 测试策略 - contract/幂等/脱敏/降级/golden file
+      14. 明确不做清单
+      15. 假设与未决问题
+
+      写入后验证：
+      - 所有未验证项已明确标注，无编造性填充
+      - 8 个错误场景全部有处理方式和用户反馈
+      - Gateway 接口与现有 teambition-adapter.ts 骨架兼容
+    depends_on: [oss-kanban-source-read]

@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "LuxAgents Project & Kanban — Current Architecture",
+    "subtitle": "Electron renderer → typed IPC → local-first orchestration, with Teambition behind an adapter boundary",
+    "output": "project-kanban-architecture.html",
+    "viewBox": [1280, 760]
+  },
+  "components": [
+    { "id": "user", "type": "external", "label": "User", "sublabel": "Work mode", "pos": [30, 330], "size": [110, 60] },
+    { "id": "workboard", "type": "frontend", "label": "WorkBoardView", "sublabel": "current 3-column UI", "pos": [180, 330], "size": [135, 60], "tag": "migration UI" },
+    { "id": "jotai", "type": "frontend", "label": "Jotai + ViewModel", "sublabel": "derived cards + optimistic move", "pos": [355, 330], "size": [150, 60] },
+    { "id": "preload", "type": "security", "label": "Preload Bridge", "sublabel": "typed electronAPI", "pos": [545, 330], "size": [130, 60] },
+    { "id": "handlers", "type": "backend", "label": "Task Handlers", "sublabel": "Projects / Tasks / Session IPC", "pos": [715, 330], "size": [145, 60] },
+    { "id": "projectRepo", "type": "backend", "label": "Project Storage", "sublabel": "CRUD + assets + memory", "pos": [715, 135], "size": [145, 60] },
+    { "id": "taskRunner", "type": "backend", "label": "TaskRunner", "sublabel": "DAG + budget + verdict", "pos": [900, 330], "size": [140, 60], "tag": "runtime core" },
+    { "id": "sessionHost", "type": "backend", "label": "Conductor Host", "sublabel": "Agent session adapter", "pos": [1080, 330], "size": [145, 60] },
+    { "id": "localFiles", "type": "database", "label": "Local Files", "sublabel": "config / YAML / JSONL / outputs", "pos": [900, 535], "size": [150, 60], "tag": "source of truth" },
+    { "id": "twAdapter", "type": "messagebus", "label": "Teambition Adapter", "sublabel": "MCP or local Mock", "pos": [900, 135], "size": [150, 60], "tag": "mock default" },
+    { "id": "teambition", "type": "external", "label": "Teambition", "sublabel": "user-mcp / remote tasks", "pos": [1090, 135], "size": [140, 60] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Electron Renderer", "wraps": ["workboard", "jotai"] },
+    { "kind": "security-group", "label": "contextBridge / IPC boundary", "wraps": ["preload"] },
+    { "kind": "region", "label": "Electron Main Runtime", "wraps": ["handlers", "projectRepo", "taskRunner", "sessionHost", "twAdapter"] },
+    { "kind": "security-group", "label": "Local-first persistence boundary", "wraps": ["localFiles"] }
+  ],
+  "connections": [
+    { "from": "user", "to": "workboard", "variant": "emphasis" },
+    { "from": "workboard", "to": "jotai" },
+    { "from": "jotai", "to": "preload", "label": "nested API", "variant": "emphasis", "labelAt": [525, 404] },
+    { "from": "preload", "to": "handlers", "label": "ipcRenderer.invoke", "variant": "security", "labelAt": [695, 326] },
+    { "from": "handlers", "to": "projectRepo", "label": "Project CRUD", "fromSide": "top", "toSide": "bottom", "route": "orthogonal-v", "labelDx": 55 },
+    { "from": "handlers", "to": "taskRunner", "label": "run controls", "variant": "emphasis", "labelAt": [880, 404] },
+    { "from": "taskRunner", "to": "sessionHost", "label": "child sessions", "variant": "emphasis", "labelAt": [1060, 326] },
+    { "from": "projectRepo", "to": "localFiles", "label": "atomic files", "fromSide": "bottom", "toSide": "left", "route": "orthogonal-v", "via": [[787, 245], [875, 245], [875, 565]], "labelAt": [820, 232] },
+    { "from": "taskRunner", "to": "localFiles", "label": "append log + output", "fromSide": "bottom", "toSide": "top", "route": "orthogonal-v", "labelDx": 72 },
+    { "from": "sessionHost", "to": "localFiles", "label": "session metadata", "variant": "dashed", "fromSide": "bottom", "toSide": "right", "route": "orthogonal-v", "via": [[1152, 470], [1075, 470], [1075, 565]], "labelAt": [1125, 458] },
+    { "from": "handlers", "to": "twAdapter", "label": "remote task calls", "variant": "dashed", "fromSide": "top", "toSide": "bottom", "route": "orthogonal-v", "via": [[787, 250], [975, 250]], "labelAt": [880, 237] },
+    { "from": "twAdapter", "to": "teambition", "label": "MCP", "variant": "security" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "Verified runtime", "items": ["Project/Task/Session IPC is registered in main", "TaskRunner dispatches DAG nodes as child Agent sessions", "Local files and Session metadata are the durable truth"] },
+    { "dot": "amber", "title": "Migration boundary", "items": ["Current WorkBoard remains a lightweight 3-column surface", "Session-first Kanban ViewModel and optimistic move atoms already exist", "Legacy compatibility atoms and flat preload methods still coexist"] },
+    { "dot": "rose", "title": "External boundary", "items": ["Teambition adapter supports explicit MCP tool names", "Runtime currently falls back to MockTeambitionAdapter", "Remote schema mapping, binding and conflict UI are not yet complete"] }
+  ]
+}

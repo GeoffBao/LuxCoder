@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Project & Kanban Task Workflow",
+    "subtitle": "Create or generate a task, persist task.yaml, run the DAG, then derive board state",
+    "output": "project-kanban-workflow.html"
+  },
+  "lanes": [
+    { "id": "ui", "label": "User + Work UI" },
+    { "id": "bridge", "label": "Preload / IPC" },
+    { "id": "runtime", "label": "Main Runtime" },
+    { "id": "agent", "label": "Agent Sessions" },
+    { "id": "storage", "label": "Local Persistence" },
+    { "id": "exceptions", "label": "Validation / Pause / Failure", "variant": "exception" }
+  ],
+  "phases": [
+    { "id": "intake", "label": "Intake", "fromCol": 0, "toCol": 1 },
+    { "id": "contract", "label": "Validate + persist", "fromCol": 2, "toCol": 3, "variant": "security" },
+    { "id": "execute", "label": "Execute + report", "fromCol": 4, "toCol": 5, "variant": "emphasis" }
+  ],
+  "groups": [
+    { "id": "execution", "label": "DAG scheduling", "lane": "runtime", "fromCol": 4, "toCol": 5, "variant": "emphasis" },
+    { "id": "guardrails", "label": "Explicit non-success states", "lane": "exceptions", "fromCol": 2, "toCol": 5, "variant": "security" }
+  ],
+  "mainPath": ["compose", "invoke", "validate", "persist", "schedule", "spawn"],
+  "nodes": [
+    { "id": "compose", "lane": "ui", "col": 0, "type": "frontend", "label": "Create task", "sublabel": "title + goal / YAML" },
+    { "id": "refresh", "lane": "ui", "col": 5, "type": "frontend", "label": "Refresh board", "sublabel": "derive card + column" },
+    { "id": "invoke", "lane": "bridge", "col": 1, "type": "security", "label": "Typed invoke", "sublabel": "electronAPI.tasks" },
+    { "id": "validate", "lane": "runtime", "col": 2, "type": "backend", "label": "Validate spec", "sublabel": "schema + graph" },
+    { "id": "schedule", "lane": "runtime", "col": 4, "type": "backend", "label": "Schedule DAG", "sublabel": "deps + maxParallel", "tag": "TaskRunner" },
+    { "id": "spawn", "lane": "agent", "col": 5, "type": "backend", "label": "Child session", "sublabel": "execute node prompt" },
+    { "id": "persist", "lane": "storage", "col": 3, "type": "database", "label": "Write task.yaml", "sublabel": "atomic replace", "width": 112 },
+    { "id": "record", "lane": "storage", "col": 5, "type": "database", "label": "Append results", "sublabel": "run-log + outputs" },
+    { "id": "invalid", "lane": "exceptions", "col": 2, "type": "security", "label": "Needs review", "sublabel": "invalid / generation error" },
+    { "id": "paused", "lane": "exceptions", "col": 4, "type": "security", "label": "Paused", "sublabel": "user or token budget" },
+    { "id": "failed", "lane": "exceptions", "col": 5, "type": "security", "label": "Failed", "sublabel": "retry exhausted / stopped" }
+  ],
+  "edges": [
+    { "from": "compose", "to": "invoke", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "route": "drop" },
+    { "from": "invoke", "to": "validate", "label": "tasks:create", "variant": "security", "fromSide": "bottom", "toSide": "top", "route": "drop", "labelSegment": 1 },
+    { "from": "validate", "to": "persist", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "route": "drop" },
+    { "from": "persist", "to": "schedule", "label": "run", "variant": "emphasis", "fromSide": "top", "toSide": "bottom", "route": "drop", "labelSegment": 1 },
+    { "from": "schedule", "to": "spawn", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "route": "drop" },
+    { "from": "spawn", "to": "record", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "route": "drop" },
+    { "from": "record", "to": "refresh", "variant": "emphasis", "role": "return", "fromSide": "right", "toSide": "right", "route": "outside-right" },
+    { "from": "validate", "to": "invalid", "variant": "security", "role": "error", "fromSide": "bottom", "toSide": "top", "route": "straight" },
+    { "from": "schedule", "to": "paused", "label": "pause / budget", "variant": "security", "role": "branch", "fromSide": "bottom", "toSide": "top", "route": "straight", "labelAt": [554, 415] },
+    { "from": "spawn", "to": "failed", "variant": "security", "role": "error", "fromSide": "right", "toSide": "right", "route": "outside-right" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "Happy path", "items": ["Task contract is validated before persistence", "TaskRunner schedules only dependency-ready nodes", "Each node executes in a child Agent session", "Board state is derived from run and session facts"] },
+    { "dot": "amber", "title": "Control points", "items": ["Pause blocks new dispatch while active nodes may finish", "Token budget breaches pause pending work", "Resume can rehydrate from snapshot + JSONL"] },
+    { "dot": "rose", "title": "No false success", "items": ["Invalid generation enters needs-review", "Failed nodes retry only within declared limits", "Failed and stopped remain explicit terminal states"] }
+  ]
+}

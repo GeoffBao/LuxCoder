@@ -1,0 +1,79 @@
+<h2>Task 执行、事件与恢复模型</h2>
+<p class="subtitle">磁盘日志是恢复事实源，Session completion event 驱动运行时；界面不自行推测终态。</p>
+
+<div class="section">
+  <div class="label">标准执行序列</div>
+  <div class="mockup" style="margin-top:12px">
+    <div class="mockup-body" style="display:grid;grid-template-columns:repeat(7,auto);gap:8px;align-items:center;justify-content:center">
+      <span class="mock-button">TaskEditor 验证</span><span>→</span>
+      <span class="mock-button">保存 task.yaml</span><span>→</span>
+      <span class="mock-button">创建/采用父 Session</span><span>→</span>
+      <span class="mock-button">TaskRunner.run</span>
+      <span style="grid-column:1/-1;text-align:center">↓</span>
+      <span class="mock-button">调度 ready nodes</span><span>→</span>
+      <span class="mock-button">创建 Child Sessions</span><span>→</span>
+      <span class="mock-button">onSessionComplete</span><span>→</span>
+      <span class="mock-button">写 output + run-log</span>
+      <span style="grid-column:1/-1;text-align:center">↓</span>
+      <span class="mock-button">全部节点完成</span><span>→</span>
+      <span class="mock-button">Orchestrator verdict</span><span>→</span>
+      <span class="mock-button">PASS / bounded repair</span><span>→</span>
+      <span class="mock-button">完成 + TW 同步</span>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">运行状态机</div>
+  <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:12px;text-align:center">
+    <div class="card"><div class="card-body"><h3>running</h3><p>按依赖与 max_parallel 调度。</p></div></div>
+    <div class="card"><div class="card-body"><h3>paused</h3><p>不再派发新节点；已运行节点继续。</p></div></div>
+    <div class="card"><div class="card-body"><h3>verifying</h3><p>节点完成，等待父 Session 判定。</p></div></div>
+    <div class="card"><div class="card-body"><h3>repairing</h3><p>FAIL 后仅重跑 repair frontier，最多 10 次。</p></div></div>
+    <div class="card"><div class="card-body"><h3>completed</h3><p>PASS，输出与同步完成。</p></div></div>
+    <div class="card"><div class="card-body"><h3>failed/stopped</h3><p>明确终态，不自动伪装成功。</p></div></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">冷启动恢复</div>
+  <div style="display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:12px;align-items:center;margin-top:12px">
+    <div class="mockup"><div class="mockup-body"><strong>扫描非终态 run-log</strong><br><span style="opacity:.7">重建 node state、attempt、tokens、outputs</span></div></div>
+    <div style="font-size:22px">→</div>
+    <div class="mockup"><div class="mockup-body"><strong>核对 SessionMeta</strong><br><span style="opacity:.7">运行中、已完成、丢失、被用户停止</span></div></div>
+    <div style="font-size:22px">→</div>
+    <div class="mockup"><div class="mockup-body"><strong>恢复订阅并继续</strong><br><span style="opacity:.7">缺失 Session 标记失败；不重复派发已记录节点</span></div></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">失败与一致性策略</div>
+  <div class="split" style="margin-top:12px">
+    <div class="pros"><h4>本地事务边界</h4><ul>
+      <li>先验证，再原子写 task.yaml / project config</li>
+      <li>Session 字段更新成功后才广播 renderer</li>
+      <li>拖拽采用 optimistic UI；IPC 失败立即回滚</li>
+      <li>run-log 先落盘，再更新内存快照与 UI</li>
+    </ul></div>
+    <div class="cons"><h4>外部同步边界</h4><ul>
+      <li>Teambition 不参与本地原子事务，本地完成不因远端超时回滚</li>
+      <li>同步失败记录 pending/conflict/stale，可人工重试</li>
+      <li>写操作做 preflight capability 与绑定校验</li>
+      <li>同一 binding 使用幂等键，避免重复领取和重复评论</li>
+    </ul></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">资源护栏</div>
+  <p>并发同时受 TaskSpec.max_parallel 与应用全局上限约束；token_budget 达限时自动 pause；重试、repair、verdict 格式重问均有独立上限；stop 会取消活动 Child Session 并写入明确日志。</p>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="approve-execution" onclick="toggleSelect(this)">
+    <div class="letter">✓</div><div class="content"><h3>批准执行与恢复模型</h3><p>继续设计测试矩阵、迁移阶段和完成标准。</p></div>
+  </div>
+  <div class="option" data-choice="revise-execution" onclick="toggleSelect(this)">
+    <div class="letter">↺</div><div class="content"><h3>需要调整</h3><p>在终端说明需要改变的运行或恢复行为。</p></div>
+  </div>
+</div>

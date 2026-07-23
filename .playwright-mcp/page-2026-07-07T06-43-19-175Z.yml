@@ -1,0 +1,153 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - navigation [ref=e3]:
+      - generic [ref=e4]: L
+      - button "Chat" [ref=e5] [cursor=pointer]:
+        - img [ref=e6]
+      - button "Code" [ref=e8] [cursor=pointer]:
+        - img [ref=e9]
+      - button "Work" [ref=e12] [cursor=pointer]:
+        - img [ref=e13]
+      - button "切换主题" [ref=e18] [cursor=pointer]:
+        - img [ref=e19]
+    - navigation [ref=e22]:
+      - heading "工作区" [level=2] [ref=e23]
+      - button "全部任务 7" [ref=e24] [cursor=pointer]:
+        - text: 全部任务
+        - generic [ref=e25]: "7"
+      - button "Camera ISP 4" [ref=e27] [cursor=pointer]:
+        - generic [ref=e28]: Camera ISP
+        - generic [ref=e30]: "4"
+      - button "Audio DSP 2" [ref=e31] [cursor=pointer]:
+        - generic [ref=e32]: Audio DSP
+        - generic [ref=e33]: "2"
+      - button "WiFi Driver 1" [ref=e34] [cursor=pointer]:
+        - generic [ref=e35]: WiFi Driver
+        - generic [ref=e36]: "1"
+      - button "＋ 新建任务" [ref=e38] [cursor=pointer]
+      - button "◌ 预览空状态" [ref=e39] [cursor=pointer]
+    - main [ref=e40]:
+      - generic [ref=e41]:
+        - generic [ref=e42]: 全部任务
+        - generic [ref=e43]:
+          - text: 进行中
+          - generic [ref=e44]: "2"
+          - text: · AI 运行中
+          - generic [ref=e45]: "2"
+          - text: · 待审批
+          - generic [ref=e46]: "1"
+        - generic [ref=e47]:
+          - generic [ref=e48]: JK 移动
+          - generic [ref=e49]: Enter 详情
+          - generic [ref=e50]: A 批准
+          - generic [ref=e51]: ⌘K 命令
+        - generic [ref=e52]: TW 已连接
+        - button "归档" [ref=e54] [cursor=pointer]
+        - button "↓ 从 TW 领取" [ref=e55] [cursor=pointer]
+      - generic [ref=e56]:
+        - generic [ref=e57]:
+          - text: 待我处理
+          - generic [ref=e59]: (3)
+        - generic [ref=e60]:
+          - button "CB-024 审批请求 · 方案设计文档 等待 2h" [ref=e61] [cursor=pointer]:
+            - generic [ref=e63]: CB-024
+            - generic [ref=e64]: 审批请求 · 方案设计文档
+            - generic [ref=e65]: 等待 2h
+          - button "CB-021 任务失败 重试 2/3 未过" [ref=e66] [cursor=pointer]:
+            - generic [ref=e68]: CB-021
+            - generic [ref=e69]: 任务失败
+            - generic [ref=e70]: 重试 2/3 未过
+          - button "CB-019 停留超时 方案撰写中 停留 1d 4h" [ref=e71] [cursor=pointer]:
+            - generic [ref=e73]: CB-019
+            - generic [ref=e74]: 停留超时
+            - generic [ref=e75]: 方案撰写中 停留 1d 4h
+      - generic [ref=e76]:
+        - generic [ref=e77]:
+          - generic [ref=e78]:
+            - generic [ref=e80]: 待办
+            - generic [ref=e81]: "4"
+          - generic [ref=e82]:
+            - article [ref=e83] [cursor=pointer]:
+              - generic [ref=e84]:
+                - generic [ref=e85]: CB-024
+                - generic [ref=e86]: 需求
+                - generic [ref=e87]: P1
+              - generic [ref=e88]: 相机启动耗时优化：冷启动 30 帧内出画
+              - generic [ref=e89]:
+                - generic [ref=e90]: 李
+                - generic [ref=e91]: 方案审核中
+                - generic [ref=e92]: 2h
+            - article [ref=e93] [cursor=pointer]:
+              - generic [ref=e94]:
+                - generic [ref=e95]: CB-026
+                - generic [ref=e96]: Feature
+                - generic [ref=e97]: P2
+              - generic [ref=e98]: AEC 收敛速度优化：逆光场景 3 帧内收敛
+              - generic [ref=e99]:
+                - generic [ref=e100]: 李
+                - generic [ref=e101]: 需求撰写中
+                - generic [ref=e108]: 45m
+              - generic [ref=e109]: 正在生成需求文档…
+            - article [ref=e110] [cursor=pointer]:
+              - generic [ref=e111]:
+                - generic [ref=e112]: CB-019
+                - generic [ref=e113]: Task
+                - generic [ref=e114]: P3
+              - generic [ref=e115]: 音频延迟测量工具链搭建
+              - generic [ref=e116]:
+                - generic [ref=e117]: 张
+                - generic [ref=e118]: 方案撰写中
+                - generic [ref=e119]: 1d 4h
+            - article [ref=e120] [cursor=pointer]:
+              - generic [ref=e121]:
+                - generic [ref=e122]: CB-027
+                - generic [ref=e123]: Task
+                - generic [ref=e124]: 本地
+                - generic [ref=e125]: P4
+              - generic [ref=e126]: DSP 固件日志格式统一（本地任务）
+              - generic [ref=e127]:
+                - generic [ref=e128]: 张
+                - generic [ref=e129]: 待处理
+                - generic [ref=e130]: 10m
+        - generic [ref=e131]:
+          - generic [ref=e132]:
+            - generic [ref=e134]: 编码中
+            - generic [ref=e135]: "2"
+          - generic [ref=e136]:
+            - article [ref=e137] [cursor=pointer]:
+              - generic [ref=e138]:
+                - generic [ref=e139]: CB-025
+                - generic [ref=e140]: Bug
+                - generic [ref=e141]: P1
+              - generic [ref=e142]: HAL3 预览流 buffer 泄漏修复
+              - generic [ref=e143]:
+                - generic [ref=e144]: 王
+                - generic [ref=e151]: 12m
+              - generic [ref=e152]: 正在运行单元测试…
+            - article [ref=e153] [cursor=pointer]:
+              - generic [ref=e154]:
+                - generic [ref=e155]: CB-021
+                - generic [ref=e156]: Bug
+                - generic [ref=e157]: P2
+              - generic [ref=e158]: 对焦马达驱动 I2C 超时导致 AF 失败
+              - generic [ref=e159]:
+                - generic [ref=e160]: 王
+                - generic [ref=e161]: ↺ 2/3
+                - generic [ref=e162]: 1d
+        - generic [ref=e163]:
+          - generic [ref=e164]:
+            - generic [ref=e166]: 待回写
+            - generic [ref=e167]: "1"
+          - article [ref=e169] [cursor=pointer]:
+            - generic [ref=e170]:
+              - generic [ref=e171]: CB-023
+              - generic [ref=e172]: Bug
+              - generic [ref=e173]: P2
+            - generic [ref=e174]: WiFi 驱动周期性扫描功耗回退
+            - generic [ref=e175]:
+              - generic [ref=e176]: 刘
+              - generic [ref=e177]: 3h
+      - complementary "任务详情" [ref=e178]
+  - generic [ref=e179]:
+    - button "重置" [ref=e180] [cursor=pointer]
+    - button "▶ 演示闭环" [ref=e181] [cursor=pointer]

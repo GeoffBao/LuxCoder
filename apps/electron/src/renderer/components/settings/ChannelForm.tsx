@@ -74,7 +74,7 @@ interface ChannelFormProps {
 }
 
 /** 所有可选供应商 */
-const PROVIDER_OPTIONS: ProviderType[] = ['anthropic', 'anthropic-compatible', 'openai', 'openai-responses', 'openai-codex', 'deepseek', 'google', 'kimi-api', 'kimi-coding', 'zhipu', 'zhipu-coding', 'zhipu-coding-team', 'ark-coding-plan', 'minimax', 'doubao', 'qwen', 'qwen-anthropic', 'qwen-token-plan', 'xiaomi', 'xiaomi-token-plan', 'openrouter', 'custom']
+const PROVIDER_OPTIONS: ProviderType[] = ['anthropic', 'anthropic-compatible', 'openai', 'openai-responses', 'openai-codex', 'deepseek', 'google', 'kimi-api', 'kimi-coding', 'zhipu', 'zhipu-coding', 'zhipu-coding-team', 'ark-coding-plan', 'minimax', 'doubao', 'qwen', 'qwen-anthropic', 'qwen-token-plan', 'xiaomi', 'xiaomi-token-plan', 'openrouter', 'nuwa', 'custom']
 
 /** 需要用 messages 端点测试的供应商预设模型 */
 const PROVIDER_TEST_MODEL_PRESETS: Partial<Record<ProviderType, string[]>> = {
@@ -599,8 +599,8 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
 
   /** 创建渠道（仅新建模式） */
   const handleCreate = async (): Promise<void> => {
-    if (models.length === 0) {
-      toast.warning('尚未配置模型，建议先从供应商获取或手动添加', { id: 'no-models-warn' })
+    if (!models.some((m) => m.enabled)) {
+      toast.warning('至少需要启用一个模型才能创建配置', { id: 'no-models-warn' })
       return
     }
     const savedChannel = await doCreate()
@@ -609,7 +609,7 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
 
   /** 检测表单是否有未保存内容 */
   const isDirty = !isEdit && (name.trim() !== '' || effectiveApiKey.trim() !== '' || models.length > 0)
-  const hasNoModels = !isEdit && models.length === 0
+  const hasNoEnabledModels = !isEdit && !models.some((m) => m.enabled)
 
   /** 返回按钮：创建模式下有未保存内容时拦截 */
   const handleBack = (): void => {
@@ -687,7 +687,7 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
           <Button
             size="sm"
             onClick={handleCreate}
-            disabled={saving || !name.trim() || !hasRequiredSecret}
+            disabled={saving || !name.trim() || !hasRequiredSecret || hasNoEnabledModels}
           >
             {saving && <Loader2 size={14} className="animate-spin" />}
             <span>创建</span>
@@ -1060,8 +1060,8 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
           <AlertDialogHeader>
             <AlertDialogTitle>放弃未保存的更改？</AlertDialogTitle>
             <AlertDialogDescription>
-              {hasNoModels
-                ? '当前尚未配置模型，建议先配置模型再保存。'
+              {hasNoEnabledModels
+                ? '尚未启用任何模型，保存后该配置将无法使用。请先从下方可用模型中启用至少一个模型。'
                 : '您填写的内容尚未保存，确定要放弃编辑吗？'}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -1069,7 +1069,7 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
             <AlertDialogCancel onClick={handleDiscard}>放弃编辑</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleSaveAndClose}
-              disabled={saving || !name.trim() || !hasRequiredSecret}
+              disabled={saving || !name.trim() || !hasRequiredSecret || hasNoEnabledModels}
             >
               {saving ? <><Loader2 size={14} className="animate-spin" /> 保存中...</> : '保存并关闭'}
             </AlertDialogAction>

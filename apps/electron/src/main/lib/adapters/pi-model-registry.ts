@@ -164,6 +164,7 @@ function normalizePiApi(provider: ProviderType): Api {
     case 'doubao':
     case 'qwen':
     case 'openrouter':
+    case 'nuwa':
     case 'custom':
       return 'openai-completions'
     case 'openai-responses':

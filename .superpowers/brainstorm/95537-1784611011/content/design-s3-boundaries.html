@@ -1,0 +1,54 @@
+<h2>设计 §3 · 边界 / 测试 / 后续</h2>
+<p class="subtitle">本轮做什么、不做什么，以及验收点。</p>
+
+<div class="section">
+  <p class="label">本轮做（P0）</p>
+  <ul style="font-size:13px">
+    <li>左栏序：自动任务 → Agent 技能 → Agent 专家 → 项目中心（模块区末）→ 工作区会话</li>
+    <li>项目中心 / Agent 专家：入口行 → <code>activeView</code> 全屏 Hub（对齐技能）</li>
+    <li>侧栏不再展开项目列表；Hub 点卡片进看板；详情挂默认专家</li>
+    <li>专家目录壳 + 文件系统包（IDENTITY/SOUL/RULES + expert.json 引用）</li>
+    <li>修订/取代今早 IA 里「项目可折叠展开」条款</li>
+  </ul>
+</div>
+
+<div class="section">
+  <p class="label">本轮不做</p>
+  <ul style="font-size:13px">
+    <li>专家 runtime 注入（orchestrator / Skill 自动装载）</li>
+    <li>Kimi 式蜂群编排 / 主 Agent 调度子 Agent UI</li>
+    <li>飞书/Discord bot 绑定配置 UI（仅 <code>channelBindings:[]</code> 占位）</li>
+    <li>每专家 USER.md；探索/规划专家角色（可列 P1）</li>
+    <li>统一 Module Registry 大重构</li>
+  </ul>
+</div>
+
+<div class="section">
+  <p class="label">测试（BDD 向）</p>
+  <ul style="font-size:13px">
+    <li>点「项目中心」→ 主区 Hub，侧栏无展开列表</li>
+    <li>Hub 选项目 → 看板过滤；详情可选默认专家并持久化</li>
+    <li>点「Agent 专家」→ 专家网格；内置 slug 可见</li>
+    <li>Chat 模式不显示项目中心 / Agent 专家</li>
+    <li>纯函数：activeView 路由、defaultExpertId 读写、expert.json 解析</li>
+  </ul>
+</div>
+
+<div class="section">
+  <p class="label">后续钩子（写入 spec，不实现）</p>
+  <ul style="font-size:13px">
+    <li>蜂群：主 Agent + 专家子 Agent，上下文隔离（对齐 Kimi Swarm / Code sub-agents）</li>
+    <li>Bot：Expert ↔ Feishu accountId / Discord app；@路由；群内 Agent@Agent</li>
+  </ul>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="s3-ok" onclick="toggleSelect(this)">
+    <div class="letter">Y</div>
+    <div class="content"><h3>§3 没问题 · 写 spec</h3><p>整份设计定稿并提交 docs</p></div>
+  </div>
+  <div class="option" data-choice="s3-revise" onclick="toggleSelect(this)">
+    <div class="letter">N</div>
+    <div class="content"><h3>要改</h3><p>终端说明</p></div>
+  </div>
+</div>

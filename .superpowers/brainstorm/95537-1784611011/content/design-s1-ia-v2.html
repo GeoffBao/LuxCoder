@@ -1,0 +1,32 @@
+<h2>设计 §1′ · 信息架构（修订）</h2>
+<p class="subtitle">按你的顺序：技能 → 专家 → … → 项目中心垫底。</p>
+
+<div class="mockup">
+  <div class="mockup-header">Code 左栏模块（全入口行）</div>
+  <div class="mockup-body" style="font-size:13px;line-height:1.9">
+    <div>① 自动任务</div>
+    <div>② Agent 技能</div>
+    <div><strong>③ Agent 专家</strong></div>
+    <div style="color:#aaa">…（会话/工作区列表在中间）…</div>
+    <div><strong>④ 项目中心</strong>（模块区最下）</div>
+  </div>
+</div>
+
+<p style="font-size:13px;color:#555">说明：若「最下面」是指整栏底（档案/设置之上），也可以把项目中心钉在会话列表<strong>之后</strong>、页脚之前——默认按「模块入口区最后一项」理解。不对再说。</p>
+
+<div class="options">
+  <div class="option" data-choice="s1v2-ok-modules-bottom" onclick="toggleSelect(this)">
+    <div class="letter">Y</div>
+    <div class="content">
+      <h3>模块区最后一项即可</h3>
+      <p>自动任务 → 技能 → 专家 →（工作区会话）…；或专家后紧接项目中心再会话——见终端说明</p>
+    </div>
+  </div>
+  <div class="option" data-choice="s1v2-footer" onclick="toggleSelect(this)">
+    <div class="letter">F</div>
+    <div class="content">
+      <h3>钉在会话列表下方、页脚前</h3>
+      <p>项目中心永远在整栏视觉底部（靠近归档）</p>
+    </div>
+  </div>
+</div>

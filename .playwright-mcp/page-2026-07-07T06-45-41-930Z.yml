@@ -1,0 +1,166 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - navigation [ref=e3]:
+      - generic [ref=e4]: L
+      - button "Chat" [ref=e5] [cursor=pointer]:
+        - img [ref=e6]
+      - button "Code" [ref=e8] [cursor=pointer]:
+        - img [ref=e9]
+      - button "Work" [ref=e12] [cursor=pointer]:
+        - img [ref=e13]
+      - button "切换主题" [ref=e18] [cursor=pointer]:
+        - img [ref=e19]
+    - navigation [ref=e22]:
+      - heading "工作区" [level=2] [ref=e23]
+      - button "全部任务 7" [ref=e24] [cursor=pointer]:
+        - text: 全部任务
+        - generic [ref=e25]: "7"
+      - button "Camera ISP 4" [ref=e27] [cursor=pointer]:
+        - generic [ref=e28]: Camera ISP
+        - generic [ref=e30]: "4"
+      - button "Audio DSP 2" [ref=e31] [cursor=pointer]:
+        - generic [ref=e32]: Audio DSP
+        - generic [ref=e33]: "2"
+      - button "WiFi Driver 1" [ref=e34] [cursor=pointer]:
+        - generic [ref=e35]: WiFi Driver
+        - generic [ref=e36]: "1"
+      - button "＋ 新建任务" [ref=e38] [cursor=pointer]
+      - button "◌ 预览空状态" [ref=e39] [cursor=pointer]
+    - main [ref=e40]:
+      - generic [ref=e41]:
+        - generic [ref=e42]: Camera ISP
+        - generic [ref=e43]:
+          - text: 进行中
+          - generic [ref=e44]: "2"
+          - text: · AI 运行中
+          - generic [ref=e45]: "2"
+          - text: · 待审批
+          - generic [ref=e46]: "1"
+        - generic [ref=e47]:
+          - generic [ref=e48]: JK 移动
+          - generic [ref=e49]: Enter 详情
+          - generic [ref=e50]: A 批准
+          - generic [ref=e51]: ⌘K 命令
+        - generic [ref=e52]: TW 已连接
+        - button "归档" [ref=e54] [cursor=pointer]
+        - button "↓ 从 TW 领取" [ref=e55] [cursor=pointer]
+      - generic [ref=e56]:
+        - generic [ref=e57]:
+          - text: 待我处理
+          - generic [ref=e59]: (2)
+        - generic [ref=e60]:
+          - button "CB-024 审批请求 · 方案设计文档 等待 2h" [ref=e238] [cursor=pointer]:
+            - generic [ref=e240]: CB-024
+            - generic [ref=e241]: 审批请求 · 方案设计文档
+            - generic [ref=e242]: 等待 2h
+          - button "CB-021 任务失败 重试 2/3 未过" [ref=e243] [cursor=pointer]:
+            - generic [ref=e245]: CB-021
+            - generic [ref=e246]: 任务失败
+            - generic [ref=e247]: 重试 2/3 未过
+      - generic [ref=e76]:
+        - generic [ref=e248]:
+          - generic [ref=e249]:
+            - generic [ref=e251]: 待办
+            - generic [ref=e252]: "2"
+          - generic [ref=e253]:
+            - article [ref=e254] [cursor=pointer]:
+              - generic [ref=e255]:
+                - generic [ref=e256]: CB-024
+                - generic [ref=e257]: 需求
+                - generic [ref=e258]: P1
+              - generic [ref=e259]: 相机启动耗时优化：冷启动 30 帧内出画
+              - generic [ref=e260]:
+                - generic [ref=e261]: 李
+                - generic [ref=e262]: 方案审核中
+                - generic [ref=e263]: 2h
+            - article [ref=e264] [cursor=pointer]:
+              - generic [ref=e265]:
+                - generic [ref=e266]: CB-026
+                - generic [ref=e267]: Feature
+                - generic [ref=e268]: P2
+              - generic [ref=e269]: AEC 收敛速度优化：逆光场景 3 帧内收敛
+              - generic [ref=e270]:
+                - generic [ref=e271]: 李
+                - generic [ref=e272]: 需求撰写中
+                - generic [ref=e279]: 45m
+              - generic [ref=e280]: 正在生成需求文档…
+        - generic [ref=e281]:
+          - generic [ref=e282]:
+            - generic [ref=e284]: 编码中
+            - generic [ref=e285]: "2"
+          - generic [ref=e286]:
+            - article [active] [ref=e287] [cursor=pointer]:
+              - generic [ref=e288]:
+                - generic [ref=e289]: CB-025
+                - generic [ref=e290]: Bug
+                - generic [ref=e291]: P1
+              - generic [ref=e292]: HAL3 预览流 buffer 泄漏修复
+              - generic [ref=e293]:
+                - generic [ref=e294]: 王
+                - generic [ref=e301]: 12m
+              - generic [ref=e302]: 正在运行单元测试…
+            - article [ref=e303] [cursor=pointer]:
+              - generic [ref=e304]:
+                - generic [ref=e305]: CB-021
+                - generic [ref=e306]: Bug
+                - generic [ref=e307]: P2
+              - generic [ref=e308]: 对焦马达驱动 I2C 超时导致 AF 失败
+              - generic [ref=e309]:
+                - generic [ref=e310]: 王
+                - generic [ref=e311]: ↺ 2/3
+                - generic [ref=e312]: 1d
+        - generic [ref=e313]:
+          - generic [ref=e314]:
+            - generic [ref=e316]: 待回写
+            - generic [ref=e317]: "0"
+          - generic [ref=e319]: 暂无任务
+      - complementary "任务详情" [ref=e178]:
+        - generic [ref=e366]:
+          - generic [ref=e367]:
+            - generic [ref=e368]: CB-025
+            - generic [ref=e369]: Bug
+            - generic [ref=e370]: P1
+            - button "✕" [ref=e371] [cursor=pointer]
+          - generic [ref=e372]: HAL3 预览流 buffer 泄漏修复
+          - generic [ref=e373]:
+            - link "#TW-1011 ↗" [ref=e374] [cursor=pointer]:
+              - /url: "#"
+            - text: · 来源 Teambition · 负责人 王
+        - generic [ref=e375]:
+          - generic [ref=e377]:
+            - generic [ref=e380]: 待处理
+            - generic [ref=e383]: 编码
+            - generic [ref=e386]: CR
+            - generic [ref=e389]: 回写
+            - generic [ref=e392]: 完成
+          - generic [ref=e393]:
+            - heading "当前阶段：编码中" [level=3] [ref=e394]
+            - button "提交 Gerrit →" [ref=e396] [cursor=pointer]
+          - generic [ref=e397]:
+            - button "文档与描述" [ref=e398] [cursor=pointer]
+            - button "执行日志" [ref=e399] [cursor=pointer]
+            - button "遥测" [ref=e400] [cursor=pointer]
+          - generic [ref=e401]:
+            - heading "产出物 · .luxagents-tasks/CB-025/" [level=3] [ref=e402]
+            - generic [ref=e403]:
+              - generic [ref=e404]: ✅
+              - generic [ref=e405]: design.md
+              - generic [ref=e406]: 已上传 TW
+              - generic [ref=e407]: 查看
+            - generic [ref=e408]:
+              - generic [ref=e409]: ○
+              - generic [ref=e410]: experience.md
+              - generic [ref=e411]: 未生成
+              - generic [ref=e412]: 前往生成 →
+          - generic [ref=e413]:
+            - heading "描述" [level=3] [ref=e414]
+            - generic [ref=e415]: 长时间预览后 dmabuf fd 持续增长，4 小时后触发 OOM。初步定位 stream teardown 时 ImageReader 未 close。
+          - generic [ref=e416]:
+            - heading "干预" [level=3] [ref=e417]
+            - generic [ref=e418]:
+              - button "↻ 重新生成方案" [ref=e419] [cursor=pointer]
+              - button "⏭ 跳过冒烟" [ref=e420] [cursor=pointer]
+              - button "✎ 补充说明…" [ref=e421] [cursor=pointer]
+  - generic [ref=e179]:
+    - button "重置" [ref=e180] [cursor=pointer]
+    - button "▶ 演示闭环" [ref=e181] [cursor=pointer]

@@ -1,0 +1,44 @@
+<h2>实现路径（选一条）</h2>
+<p class="subtitle">已锁定：项目中心 Hub · Agent 专家左栏壳 · 项目默认专家。差在状态/导航怎么接现有壳。</p>
+
+<div class="options">
+  <div class="option" data-choice="ext-active-view" onclick="toggleSelect(this)">
+    <div class="letter">1</div>
+    <div class="content">
+      <h3>扩展 activeViewAtom ★ 推荐</h3>
+      <p><code>conversations | automations | agent-skills | projects | agent-experts</code>。项目中心/专家与技能同槽；看板仍用 <code>codeMainView='work'</code>。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="ext-code-main" onclick="toggleSelect(this)">
+    <div class="letter">2</div>
+    <div class="content">
+      <h3>塞进 codeMainViewAtom</h3>
+      <p><code>session | work | projects-hub | experts</code>。Code 主区一把梭，但自动任务/技能已在 activeView，两套覆盖视图并存更乱。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="module-registry" onclick="toggleSelect(this)">
+    <div class="letter">3</div>
+    <div class="content">
+      <h3>统一 Module Registry</h3>
+      <p>抽象「侧栏模块 → 主区视图」注册表，一次性收编技能/任务/项目/专家。优雅但本轮 refactor 面过大。</p>
+    </div>
+  </div>
+</div>
+
+<div class="pros-cons">
+  <div class="pros">
+    <h4>推荐 1 的原因</h4>
+    <ul>
+      <li>和 Agent 技能 / 自动任务打开方式同一机制</li>
+      <li>看板链路（codeMainView + WorkBoardView）不动</li>
+      <li>专家壳零成本复用 MainArea 分支</li>
+    </ul>
+  </div>
+  <div class="cons">
+    <h4>代价</h4>
+    <ul>
+      <li>activeView 枚举再长一点（可接受）</li>
+      <li>Registry（路径 3）留给模块数 &gt;5 时再做</li>
+    </ul>
+  </div>
+</div>

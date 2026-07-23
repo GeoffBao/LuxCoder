@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Run Task Sequence",
+    "subtitle": "UI command returns a snapshot quickly; child-session execution and persistence continue asynchronously",
+    "output": "project-kanban-sequence.html",
+    "viewBox": [1020, 980]
+  },
+  "participants": [
+    { "id": "user", "type": "external", "label": "User", "sublabel": "Work mode" },
+    { "id": "board", "type": "frontend", "label": "WorkBoard", "sublabel": "React + Jotai" },
+    { "id": "preload", "type": "security", "label": "Preload", "sublabel": "typed bridge" },
+    { "id": "handlers", "type": "backend", "label": "Handlers", "sublabel": "main IPC" },
+    { "id": "runner", "type": "backend", "label": "TaskRunner", "sublabel": "ActiveRun" },
+    { "id": "host", "type": "backend", "label": "SessionHost", "sublabel": "adapter" },
+    { "id": "agent", "type": "cloud", "label": "Child Agent", "sublabel": "node session" },
+    { "id": "files", "type": "database", "label": "Local Files", "sublabel": "YAML + JSONL" }
+  ],
+  "segments": [
+    { "from": 150, "to": 445, "label": "01 / LOAD" },
+    { "from": 465, "to": 750, "label": "02 / START RUN" },
+    { "from": 770, "to": 920, "label": "03 / ASYNC EXECUTION" }
+  ],
+  "messages": [
+    { "from": "user", "to": "board", "y": 180, "label": "open Work", "variant": "default" },
+    { "from": "board", "to": "preload", "y": 224, "label": "list projects + tasks", "variant": "emphasis" },
+    { "from": "preload", "to": "handlers", "y": 268, "label": "typed IPC invokes", "variant": "security" },
+    { "from": "handlers", "to": "files", "y": 312, "label": "read configs + specs", "variant": "emphasis" },
+    { "from": "files", "to": "handlers", "y": 354, "label": "validated snapshots", "variant": "return" },
+    { "from": "handlers", "to": "preload", "y": 396, "label": "browser-safe DTOs", "variant": "return" },
+    { "from": "preload", "to": "board", "y": 438, "label": "render cards", "variant": "return" },
+    { "from": "user", "to": "board", "y": 486, "label": "Run", "variant": "emphasis" },
+    { "from": "board", "to": "preload", "y": 528, "label": "tasks.run(slug)", "variant": "emphasis" },
+    { "from": "preload", "to": "handlers", "y": 570, "label": "tasks:run", "variant": "security" },
+    { "from": "handlers", "to": "runner", "y": 612, "label": "run(spec, options)", "variant": "emphasis" },
+    { "from": "runner", "to": "host", "y": 654, "label": "create child session", "variant": "emphasis" },
+    { "from": "runner", "to": "handlers", "y": 696, "label": "RunSnapshot", "variant": "return", "note": "IPC does not wait for the whole DAG" },
+    { "from": "handlers", "to": "preload", "y": 738, "label": "accepted snapshot", "variant": "return" },
+    { "from": "host", "to": "agent", "y": 790, "label": "send node prompt", "variant": "emphasis" },
+    { "from": "agent", "to": "host", "y": 824, "label": "completion + tokens", "variant": "return" },
+    { "from": "host", "to": "runner", "y": 858, "label": "completion event", "variant": "dashed" },
+    { "from": "runner", "to": "files", "y": 894, "label": "append log + output", "variant": "dashed" }
+  ],
+  "activations": [
+    { "participant": "board", "from": 215, "to": 445, "type": "frontend" },
+    { "participant": "preload", "from": 220, "to": 445, "type": "security" },
+    { "participant": "handlers", "from": 265, "to": 405, "type": "backend" },
+    { "participant": "runner", "from": 608, "to": 905, "type": "backend" },
+    { "participant": "host", "from": 648, "to": 870, "type": "backend" },
+    { "participant": "agent", "from": 785, "to": 832, "type": "cloud" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "IPC contract", "items": ["Renderer never reads filesystem modules directly", "Preload returns browser-safe project and task payloads", "Main handlers own validation and local storage access"] },
+    { "dot": "emerald", "title": "Async execution", "items": ["Run returns an initial snapshot after scheduling begins", "TaskRunner listens for child-session completion", "Each completion can unlock dependent nodes"] },
+    { "dot": "amber", "title": "Durability", "items": ["run-started captures params and verification mode", "Node output is written before downstream scheduling", "Snapshot + JSONL supports process restart recovery"] }
+  ]
+}

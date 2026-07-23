@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Project & Kanban Data Flow",
+    "subtitle": "Local-first facts are joined into renderer-only cards; Teambition stays outside the durable local transaction",
+    "output": "project-kanban-dataflow.html",
+    "viewBox": [1080, 760]
+  },
+  "stages": [
+    { "label": "Inputs" },
+    { "label": "Contracts" },
+    { "label": "Runtime" },
+    { "label": "Persistence" },
+    { "label": "Consumers" }
+  ],
+  "nodes": [
+    { "id": "user", "type": "frontend", "label": "Work actions", "sublabel": "create / move / run", "stage": 0, "row": 0, "tag": "intent" },
+    { "id": "remote", "type": "external", "label": "Teambition raw", "sublabel": "remote task payload", "stage": 0, "row": 3, "tag": "unverified schema" },
+    { "id": "contracts", "type": "security", "label": "Typed contracts", "sublabel": "Project / Task / Session", "stage": 1, "row": 0, "tag": "validated" },
+    { "id": "twAdapter", "type": "messagebus", "label": "TW adapter", "sublabel": "MCP / Mock", "stage": 1, "row": 3, "tag": "boundary" },
+    { "id": "handlers", "type": "backend", "label": "IPC handlers", "sublabel": "commands + snapshots", "stage": 2, "row": 0, "tag": "main" },
+    { "id": "viewModel", "type": "backend", "label": "Kanban model", "sublabel": "pure derived join", "stage": 2, "row": 2, "tag": "renderer-only" },
+    { "id": "runner", "type": "backend", "label": "TaskRunner", "sublabel": "DAG state machine", "stage": 2, "row": 4, "tag": "control" },
+    { "id": "projectStore", "type": "database", "label": "Project files", "sublabel": "config + assets + memory", "stage": 3, "row": 0, "tag": "local" },
+    { "id": "sessionStore", "type": "database", "label": "Session metadata", "sublabel": "project + column + task ids", "stage": 3, "row": 2, "tag": "card truth" },
+    { "id": "runStore", "type": "database", "label": "Task artifacts", "sublabel": "YAML + JSONL + outputs", "stage": 3, "row": 4, "tag": "append-only" },
+    { "id": "board", "type": "frontend", "label": "Board / List", "sublabel": "KanbanItem cards", "stage": 4, "row": 1, "tag": "derived" },
+    { "id": "agents", "type": "cloud", "label": "Child sessions", "sublabel": "node execution", "stage": 4, "row": 4, "tag": "runtime" }
+  ],
+  "flows": [
+    { "from": "user", "to": "contracts", "label": "command payload", "classification": "browser-safe", "variant": "emphasis", "route": "straight", "labelAt": [208, 145] },
+    { "from": "contracts", "to": "handlers", "label": "typed IPC", "classification": "validated", "variant": "security", "route": "straight", "labelAt": [423, 145] },
+    { "from": "handlers", "to": "projectStore", "label": "project facts", "classification": "local write", "variant": "emphasis", "route": "straight", "labelAt": [638, 145] },
+    { "from": "handlers", "to": "viewModel", "label": "project snapshots", "classification": "read model", "variant": "default", "fromSide": "bottom", "toSide": "top", "route": "straight", "labelAt": [530, 242] },
+    { "from": "handlers", "to": "runner", "label": "run command", "classification": "control", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "route": "straight", "labelAt": [560, 468] },
+    { "from": "runner", "to": "runStore", "label": "spec + events + outputs", "classification": "durable local", "variant": "emphasis", "route": "straight", "labelAt": [638, 656] },
+    { "from": "runner", "to": "sessionStore", "label": "column + task linkage", "classification": "metadata", "variant": "default", "fromSide": "right", "toSide": "left", "via": [[638, 613], [638, 385]], "labelAt": [658, 496] },
+    { "from": "runner", "to": "agents", "label": "node prompt", "classification": "per-session", "variant": "emphasis", "route": "straight", "labelAt": [852, 598] },
+    { "from": "sessionStore", "to": "board", "label": "session cards", "classification": "read-only", "variant": "emphasis", "fromSide": "right", "toSide": "left", "via": [[850, 385], [850, 271]], "labelAt": [830, 326] },
+    { "from": "viewModel", "to": "board", "label": "derived KanbanItem", "classification": "not persisted", "variant": "dashed", "fromSide": "right", "toSide": "left", "via": [[750, 385], [750, 271]], "labelAt": [760, 428] },
+    { "from": "remote", "to": "twAdapter", "label": "raw tasks", "classification": "external", "variant": "security", "route": "straight", "labelAt": [208, 486] },
+    { "from": "twAdapter", "to": "viewModel", "label": "display fields", "classification": "runtime join", "variant": "dashed", "fromSide": "right", "toSide": "left", "via": [[420, 499], [420, 385]], "labelAt": [438, 442] }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "Durable facts", "items": ["ProjectConfig lives under workspace projects", "TaskSpec and run snapshot live under tasks", "run-log.jsonl is append-only", "Session metadata owns projectId and kanbanColumn"] },
+    { "dot": "violet", "title": "Derived data", "items": ["KanbanItem joins sessions, projects, runs and bindings", "Optimistic column overrides are temporary", "Renderer view fields never rewrite SessionMeta directly"] },
+    { "dot": "rose", "title": "Remote isolation", "items": ["Local transactions do not require Teambition success", "Current adapter preserves raw payloads until schema is verified", "Mock is the default runtime fallback today"] }
+  ]
+}

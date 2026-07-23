@@ -1,0 +1,68 @@
+<h2>点击左栏「项目」入口后，主区应该怎样？</h2>
+<p class="subtitle">对齐「自动任务 / Agent 技能」：左栏只做入口行，不展开列表。选一种主区形态。</p>
+
+<div class="cards">
+  <div class="card" data-choice="hub" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0;border:none;box-shadow:none">
+        <div class="mockup-body" style="padding:12px">
+          <div style="display:flex;gap:8px;font-size:11px;color:#888;margin-bottom:8px">
+            <span style="font-weight:600;color:#111">全部项目</span>
+            <span>看板</span>
+            <span>归档</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div class="placeholder" style="height:56px;border-radius:8px">项目 A · 3 任务</div>
+            <div class="placeholder" style="height:56px;border-radius:8px">项目 B · 8 任务</div>
+            <div class="placeholder" style="height:56px;border-radius:8px">项目 C · 1 任务</div>
+            <div class="placeholder" style="height:56px;border-radius:8px">+ 新建</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A · 项目管理 Hub</h3>
+      <p>像 Agent 技能一样：卡片网格 / 列表，搜索、新建、归档；点进某项目再进看板或详情。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="board" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0;border:none;box-shadow:none">
+        <div class="mockup-body" style="padding:12px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:8px">
+            <span style="font-weight:600">看板</span>
+            <span class="mock-input" style="width:120px;height:22px;font-size:10px">全部项目 ▾</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <div class="placeholder" style="flex:1;height:72px;border-radius:6px">待办</div>
+            <div class="placeholder" style="flex:1;height:72px;border-radius:6px">进行中</div>
+            <div class="placeholder" style="flex:1;height:72px;border-radius:6px">完成</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B · 直达看板</h3>
+      <p>点击入口立刻进 Kanban（现有 WorkBoardView）；项目切换放到主区顶栏下拉，不经过列表页。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="hub-board-tabs" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0;border:none;box-shadow:none">
+        <div class="mockup-body" style="padding:12px">
+          <div style="display:flex;gap:10px;font-size:12px;margin-bottom:10px;border-bottom:1px solid #e5e5e5;padding-bottom:6px">
+            <span style="font-weight:700;border-bottom:2px solid #111;padding-bottom:4px">项目</span>
+            <span style="color:#888">看板</span>
+          </div>
+          <div class="placeholder" style="height:80px;border-radius:8px">Tab 内切换：项目 Hub ↔ 当前看板</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C · Hub + 看板双 Tab</h3>
+      <p>一个全屏模块，顶栏「项目 | 看板」互切（类似技能的 Skills | MCP）；默认落在项目 Hub。</p>
+    </div>
+  </div>
+</div>

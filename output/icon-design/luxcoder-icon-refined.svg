@@ -1,0 +1,49 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="shell" x1="250" y1="170" x2="790" y2="870" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#34373D"/>
+      <stop offset="0.52" stop-color="#202329"/>
+      <stop offset="1" stop-color="#17191E"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="376" y1="266" x2="664" y2="790" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFEFA"/>
+      <stop offset="1" stop-color="#E8E9EC"/>
+    </linearGradient>
+    <linearGradient id="cut" x1="361" y1="760" x2="482" y2="643" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#C7CBD3"/>
+      <stop offset="0.5" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#D6D9DF"/>
+    </linearGradient>
+    <filter id="shellShadow" x="46" y="54" width="932" height="950" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="24" stdDeviation="24" flood-color="#090A0C" flood-opacity="0.34"/>
+    </filter>
+    <filter id="markShadow" x="286" y="218" width="505" height="616" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#07080A" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <!-- macOS 安全区内的低对比阳极氧化铝底板。 -->
+  <g filter="url(#shellShadow)">
+    <rect x="96" y="88" width="832" height="832" rx="190" fill="url(#shell)"/>
+    <rect x="97.5" y="89.5" width="829" height="829" rx="188.5" stroke="white" stroke-opacity="0.12" stroke-width="3"/>
+  </g>
+
+  <!--
+    LuxCoder 定制 L：
+    - 竖笔略窄，抵消其视觉高度；
+    - 横笔略厚，确保 16px 下仍稳定；
+    - 两笔共享同一转角，仅用一道短光切区分方向。
+  -->
+  <g filter="url(#markShadow)">
+    <path d="M382 258H442C465.196 258 484 276.804 484 300V636L358 770C351.562 776.842 340 772.286 340 762.891V300C340 276.804 358.804 258 382 258Z" fill="url(#mark)"/>
+    <path d="M484 636H714C737.196 636 756 654.804 756 678V730C756 753.196 737.196 772 714 772H365.919C354.552 772 348.828 758.278 356.802 750.174L484 636Z" fill="url(#mark)"/>
+
+    <!-- 识别性的“Lux 光切”：短、亮、在小尺寸下退化为干净转角。 -->
+    <path d="M360 760L482 644" stroke="#101217" stroke-opacity="0.28" stroke-width="18" stroke-linecap="round"/>
+    <path d="M360 756L482 640" stroke="url(#cut)" stroke-width="8" stroke-linecap="round"/>
+  </g>
+
+  <!-- 顶缘仅提供材质方向，不制造玻璃感。 -->
+  <path d="M390 259.5H442C464.368 259.5 482.5 277.632 482.5 300" stroke="white" stroke-opacity="0.58" stroke-width="3" stroke-linecap="round"/>
+  <path d="M484 637.5H714C736.368 637.5 754.5 655.632 754.5 678" stroke="white" stroke-opacity="0.42" stroke-width="3" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,91 @@
+<style>
+  .lead { max-width:900px; }
+  .flow { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:24px 0 18px; }
+  .step { position:relative; padding:15px; min-height:126px; border:1px solid var(--border); border-radius:14px; background:var(--surface); }
+  .step:not(:last-child)::after { content:'→'; position:absolute; right:-10px; top:50%; transform:translateY(-50%); z-index:2; width:18px; height:18px; border-radius:50%; background:var(--bg); color:var(--muted); display:grid; place-items:center; font-size:13px; }
+  .num { width:22px; height:22px; border-radius:7px; background:color-mix(in srgb,var(--accent) 14%,transparent); color:var(--accent); display:grid; place-items:center; font-size:11px; font-weight:700; margin-bottom:10px; }
+  .step h3 { font-size:15px; margin:0 0 6px; }
+  .step p { margin:0; color:var(--muted); font-size:11px; line-height:1.5; }
+  .demo { border:1px solid var(--border); border-radius:16px; overflow:hidden; background:#fff; color:#222; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; box-shadow:0 16px 38px rgba(0,0,0,.06); }
+  .bar { height:38px; display:flex; align-items:center; gap:12px; padding:0 14px; border-bottom:1px solid #e8e7e4; background:#fafaf9; font-size:10px; }
+  .dots { color:#aaa; letter-spacing:2px; }
+  .crumb { flex:1; color:#666; }
+  .body { min-height:390px; display:grid; grid-template-columns:190px 1fr; }
+  .side { background:#f3f2ef; border-right:1px solid #e6e4df; padding:12px 10px; }
+  .brand { font-size:13px; font-weight:700; padding:5px 7px 10px; }
+  .actions { display:grid; grid-template-columns:1fr auto; gap:5px; margin-bottom:11px; }
+  .new { padding:8px; background:#232323; color:white; border-radius:7px; font-size:10px; }
+  .folder { width:30px; display:grid; place-items:center; border:1px solid #ddd; background:white; border-radius:7px; font-size:13px; }
+  .label { padding:10px 7px 5px; color:#999; font-size:8px; text-transform:uppercase; letter-spacing:.08em; display:flex; justify-content:space-between; }
+  .seg { display:flex; padding:2px; background:#dfddd8; border-radius:7px; margin:3px 4px 8px; }
+  .seg span { flex:1; text-align:center; font-size:8px; padding:5px; color:#777; }
+  .seg .on { background:white; color:#111; border-radius:5px; }
+  .project { padding:8px 7px; background:#deddd9; border-radius:6px; display:flex; gap:6px; align-items:center; font-size:10px; font-weight:650; }
+  .pdot { width:6px; height:6px; border-radius:50%; background:#6e8df6; }
+  .session { padding:7px 7px 7px 25px; font-size:9px; color:#555; }
+  .main { padding:20px 24px; }
+  .context { display:flex; gap:6px; align-items:center; font-size:9px; color:#777; margin-bottom:16px; }
+  .pill { padding:4px 7px; border-radius:999px; background:#f0f0ef; color:#555; }
+  .main h3 { margin:0 0 5px; font-size:19px; }
+  .main > p { margin:0 0 19px; font-size:10px; color:#777; }
+  .inherit { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:16px; }
+  .inherit > div { background:#f6f6f5; padding:10px; border-radius:9px; }
+  .inherit b { display:block; font-size:9px; margin-bottom:4px; }
+  .inherit span { font-size:8px; color:#777; line-height:1.4; }
+  .composer { border:1px solid #ddd; border-radius:12px; min-height:104px; padding:12px; box-shadow:0 5px 16px rgba(0,0,0,.04); }
+  .composer p { margin:0; color:#aaa; font-size:10px; }
+  .composer-foot { display:flex; justify-content:space-between; align-items:center; margin-top:52px; font-size:9px; color:#777; }
+  .send { width:22px; height:22px; border-radius:50%; background:#222; color:#fff; display:grid; place-items:center; }
+  .rules { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:18px 0; }
+  .rule { padding:13px; border-radius:12px; background:color-mix(in srgb,var(--surface) 92%,var(--accent)); }
+  .rule b { display:block; font-size:12px; margin-bottom:5px; }
+  .rule span { font-size:10px; color:var(--muted); line-height:1.45; }
+  .decision { margin-top:18px; }
+  @media (max-width:900px) { .flow,.rules { grid-template-columns:1fr 1fr; } .step:not(:last-child)::after { display:none; } }
+</style>
+
+<h2>本地工程 → Agent 对话：可以做到“一次打开，直接开工”</h2>
+<p class="subtitle lead">关键是把“打开文件夹”解释为：查找或创建对应 Project，然后建立绑定该 Project 的 Session。用户不需要先理解 Agent 环境。</p>
+
+<div class="flow">
+  <div class="step"><div class="num">1</div><h3>打开文件夹</h3><p>首页、侧栏或新会话菜单中选择本地工程目录。</p></div>
+  <div class="step"><div class="num">2</div><h3>识别项目</h3><p>用规范化路径查找已有 Project；没有则用文件夹名称自动创建。</p></div>
+  <div class="step"><div class="num">3</div><h3>继承上下文</h3><p>环境提供 Skills/MCP，项目提供 cwd、Memory、资料与默认专家。</p></div>
+  <div class="step"><div class="num">4</div><h3>开始对话</h3><p>自动新建项目 Session，Agent 直接在工程目录中读取、编辑与运行。</p></div>
+</div>
+
+<div class="demo">
+  <div class="bar"><span class="dots">● ● ●</span><span class="crumb">个人环境 / luxcoder / 修复项目导航</span><span>⌘ ⇧ O</span></div>
+  <div class="body">
+    <aside class="side">
+      <div class="brand">LuxCoder</div>
+      <div class="actions"><div class="new">＋ 新会话</div><div class="folder" title="打开文件夹">⌂</div></div>
+      <div class="label"><span>工作</span><span>＋</span></div>
+      <div class="seg"><span>最近会话</span><span class="on">按项目</span></div>
+      <div class="project"><span>⌄</span><span class="pdot"></span>luxcoder</div>
+      <div class="session">修复项目导航</div>
+    </aside>
+    <main class="main">
+      <div class="context"><span class="pill">项目 · luxcoder</span><span class="pill">专家 · 通用软件专家</span><span class="pill">本地目录 · ~/Workspace/LuxAgents</span></div>
+      <h3>修复项目导航</h3>
+      <p>这是该本地工程中的第一个 Agent 会话。</p>
+      <div class="inherit">
+        <div><b>Agent 环境</b><span>Skills、MCP、渠道、权限</span></div>
+        <div><b>项目</b><span>主目录、资料、记忆、任务</span></div>
+        <div><b>本次会话</b><span>目标、消息、运行状态</span></div>
+      </div>
+      <div class="composer"><p>告诉 Agent 你想在这个工程中完成什么……</p><div class="composer-foot"><span>＋ 附件　@ 文件</span><span class="send">↑</span></div></div>
+    </main>
+  </div>
+</div>
+
+<div class="rules">
+  <div class="rule"><b>不重复创建</b><span>再次打开同一路径时回到已有项目，而不是生成重名项目。</span></div>
+  <div class="rule"><b>不污染 Repo</b><span>项目配置默认保存在 ~/.luxcoder；未经允许不向代码仓库写配置文件。</span></div>
+  <div class="rule"><b>路径失效可恢复</b><span>目录移动或磁盘离线时保留项目、任务与会话，并提示重新定位目录。</span></div>
+</div>
+
+<div class="options decision">
+  <div class="option" data-choice="approve-local-folder-flow" onclick="toggleSelect(this)"><div class="letter">✓</div><div class="content"><h3>这套流程符合预期</h3><p>打开文件夹后自动识别/创建项目，并直接进入第一个 Agent 会话。</p></div></div>
+  <div class="option" data-choice="revise-local-folder-flow" onclick="toggleSelect(this)"><div class="letter">↺</div><div class="content"><h3>需要调整</h3><p>点击后回到对话告诉我哪一步不自然。</p></div></div>
+</div>

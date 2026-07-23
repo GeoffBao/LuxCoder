@@ -1,0 +1,36 @@
+<h2>设计 §1 · 信息架构</h2>
+<p class="subtitle">修订今早 spec：项目不再侧栏展开；专家成一等模块。看板职责不变。</p>
+
+<div class="section">
+  <div class="mockup">
+    <div class="mockup-header">Code 左栏（入口行，均 collapsible:false）</div>
+    <div class="mockup-body" style="font-size:13px;line-height:1.7">
+      <div>自动任务</div>
+      <div>Agent 技能</div>
+      <div><strong>项目中心</strong> ← 新文案；点击 → activeView=projects</div>
+      <div><strong>Agent 专家</strong> ← 新模块；点击 → activeView=agent-experts</div>
+      <div style="color:#888;margin-top:8px">── 工作区 / 会话列表 ──</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <p class="label">主区互斥</p>
+  <ul style="font-size:13px">
+    <li><code>activeView=projects</code> → 项目中心 Hub（卡片网格）</li>
+    <li><code>activeView=agent-experts</code> → 专家目录壳</li>
+    <li><code>activeView=conversations</code> + <code>codeMainView=work</code> → 看板 / 项目详情（现有）</li>
+    <li>Hub 内点项目 → 选中项目 + 切到看板（exit projects 覆盖视图）</li>
+  </ul>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="s1-ok" onclick="toggleSelect(this)">
+    <div class="letter">Y</div>
+    <div class="content"><h3>§1 没问题</h3><p>继续 §2 组件与数据</p></div>
+  </div>
+  <div class="option" data-choice="s1-revise" onclick="toggleSelect(this)">
+    <div class="letter">N</div>
+    <div class="content"><h3>要改</h3><p>在终端说明哪里不对</p></div>
+  </div>
+</div>

@@ -1,0 +1,59 @@
+<h2>Project &amp; Kanban 完整迁移：总体架构</h2>
+<p class="subtitle">权威源：craft-agents-max/260705-agent · 迁移策略：契约先行，纵向闭环</p>
+
+<div class="section">
+  <div class="label">产品层级</div>
+  <div style="display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:12px;align-items:center;margin-top:12px">
+    <div class="mockup"><div class="mockup-body"><strong>Agent Workspace</strong><br><span style="opacity:.7">隔离配置、会话与文件</span></div></div>
+    <div style="font-size:24px">→</div>
+    <div class="mockup"><div class="mockup-body"><strong>Project</strong><br><span style="opacity:.7">Sessions · Assets · Memory · Settings</span></div></div>
+    <div style="font-size:24px">→</div>
+    <div class="mockup"><div class="mockup-body"><strong>Kanban / Task</strong><br><span style="opacity:.7">拖拽状态 · DAG 执行 · 运行结果</span></div></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">四层边界</div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px">
+    <div class="card"><div class="card-body"><h3>1. Shared Contracts</h3><p>Project/Task/Session DTO、Zod schema、IPC channels。浏览器安全入口与 Node storage 严格分离。</p></div></div>
+    <div class="card"><div class="card-body"><h3>2. Main Runtime</h3><p>文件持久化、TaskRunner、SessionHost、Teambition gateway、事件广播与恢复对账。</p></div></div>
+    <div class="card"><div class="card-body"><h3>3. Preload Bridge</h3><p>类型安全 electronAPI；Projects、Tasks、Session commands、Teambition 四组 API。</p></div></div>
+    <div class="card"><div class="card-body"><h3>4. Renderer</h3><p>Jotai atoms、Project 面板、Kanban、TaskEditor、拖拽、运行进度与 Teambition 操作。</p></div></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">关键数据流</div>
+  <div class="mockup" style="margin-top:12px">
+    <div class="mockup-body" style="display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap">
+      <span class="mock-button">本地新建 / Teambition 领取</span><span>→</span>
+      <span class="mock-button">Project + Session 绑定</span><span>→</span>
+      <span class="mock-button">TaskSpec / task.yaml</span><span>→</span>
+      <span class="mock-button">TaskRunner DAG</span><span>→</span>
+      <span class="mock-button">子 Session 执行</span><span>→</span>
+      <span class="mock-button">看板状态 + 远端回写</span>
+    </div>
+  </div>
+</div>
+
+<div class="split">
+  <div class="pros">
+    <h4>保留并接入</h4>
+    <ul><li>现有 Agent Workspace 与全部普通 Session</li><li>Jotai、Electron 四层 IPC、本地文件优先</li><li>LuxAgents 主题与现有 AgentOrchestrator</li><li>Teambition 凭证与企业工作流</li></ul>
+  </div>
+  <div class="cons">
+    <h4>彻底删除</h4>
+    <ul><li>WorkTask / 九阶段 LangGraph</li><li>旧 Work IPC、atoms、components</li><li>THO 与 Work checkpoint/telemetry</li><li>所有迁移占位、@ts-nocheck 与兼容桩</li></ul>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="approve-architecture" onclick="toggleSelect(this)">
+    <div class="letter">✓</div>
+    <div class="content"><h3>批准总体架构</h3><p>继续进入组件职责与数据模型设计。</p></div>
+  </div>
+  <div class="option" data-choice="revise-architecture" onclick="toggleSelect(this)">
+    <div class="letter">↺</div>
+    <div class="content"><h3>需要调整</h3><p>在终端告诉我需要修改的边界。</p></div>
+  </div>
+</div>

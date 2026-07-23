@@ -1,0 +1,61 @@
+<h2>实施阶段、测试矩阵与完成标准</h2>
+<p class="subtitle">每一阶段都可独立验证；最终删除旧 Work 后，Project/Kanban 成为唯一入口。</p>
+
+<div class="section">
+  <div class="label">纵向实施阶段</div>
+  <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:12px">
+    <div class="card"><div class="card-body"><div class="label">P0</div><h3>边界清理</h3><p>锁定 source commit、版本契约、依赖、删除清单；保留用户未提交改动。</p></div></div>
+    <div class="card"><div class="card-body"><div class="label">P1</div><h3>Shared</h3><p>Project/Task/Protocol 完整对齐；storage 与 renderer-safe exports 分离。</p></div></div>
+    <div class="card"><div class="card-body"><div class="label">P2</div><h3>Runtime</h3><p>Session 字段、Project/Task IPC、Preload、TaskRunner/Host、事件恢复。</p></div></div>
+    <div class="card"><div class="card-body"><div class="label">P3</div><h3>Kanban UI</h3><p>Atoms、Board/Column/Tile、Project 面板、拖拽、编辑器、子任务与运行态。</p></div></div>
+    <div class="card"><div class="card-body"><div class="label">P4</div><h3>Teambition</h3><p>Picker、binding、徽标、claim、sync progress、status update、冲突状态。</p></div></div>
+    <div class="card"><div class="card-body"><div class="label">P5</div><h3>收口</h3><p>删除旧 Work/LangGraph/THO；去除 @ts-nocheck/TODO；文档与版本同步。</p></div></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">测试矩阵</div>
+  <div class="mockup" style="margin-top:12px">
+    <div class="mockup-body" style="padding:0;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <tr style="background:rgba(99,102,241,.1)"><th style="text-align:left;padding:10px">层</th><th style="text-align:left;padding:10px">必须覆盖</th><th style="text-align:left;padding:10px">证据</th></tr>
+        <tr><td style="padding:10px">Shared</td><td style="padding:10px">schema、slug、重复节点、yaml round-trip、storage atomicity</td><td style="padding:10px">Bun unit tests + typecheck</td></tr>
+        <tr><td style="padding:10px">Main</td><td style="padding:10px">IPC 参数、Project CRUD、Task CRUD、TaskRunner DAG、pause/resume/stop、rehydrate</td><td style="padding:10px">Bun integration tests</td></tr>
+        <tr><td style="padding:10px">Session</td><td style="padding:10px">字段持久化、父子关联、列移动、事件广播、旧 session 默认归类</td><td style="padding:10px">Session manager regression tests</td></tr>
+        <tr><td style="padding:10px">Renderer</td><td style="padding:10px">拖拽回滚、filter、subtask merge、editor validation、project tabs、responsive shell</td><td style="padding:10px">source tests + Playwright/Electron smoke</td></tr>
+        <tr><td style="padding:10px">Teambition</td><td style="padding:10px">capability、claim 幂等、binding、sync conflict、needsReauth、status update</td><td style="padding:10px">adapter/handler tests + mock gateway</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">最终验收清单</div>
+  <div class="split" style="margin-top:12px">
+    <div class="pros"><h4>用户可见能力</h4><ul>
+      <li>Workspace 内创建、编辑、归档、删除 Project</li>
+      <li>浏览 Project Sessions、Assets、Memory、Settings</li>
+      <li>普通 Session、quick-add task、spec task 均可进入看板</li>
+      <li>拖拽、筛选、列表切换、TaskEditor、子任务管理可用</li>
+      <li>运行/暂停/恢复/停止/修复/重启恢复可用</li>
+      <li>Teambition 领取、绑定、同步和冲突提示可用</li>
+    </ul></div>
+    <div class="cons"><h4>工程质量门槛</h4><ul>
+      <li><code>bun run typecheck</code> 通过</li>
+      <li>shared/main/renderer/Teambition 测试通过</li>
+      <li><code>bun run dev</code> 冷启动无白屏、无 Node fs renderer 错误</li>
+      <li>生产 renderer/main/preload build 通过</li>
+      <li>没有 @ts-nocheck、迁移 TODO、旧 Work 调用</li>
+      <li>只修改迁移相关文件，版本与文档按项目规则同步</li>
+    </ul></div>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="approve-plan-scope" onclick="toggleSelect(this)">
+    <div class="letter">✓</div><div class="content"><h3>批准阶段与验收标准</h3><p>进入整体设计确认，然后编写设计文档。</p></div>
+  </div>
+  <div class="option" data-choice="revise-plan-scope" onclick="toggleSelect(this)">
+    <div class="letter">↺</div><div class="content"><h3>需要调整</h3><p>在终端说明阶段顺序或验收项的变化。</p></div>
+  </div>
+</div>

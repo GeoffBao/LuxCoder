@@ -112,6 +112,9 @@ import XiaomiLogo from '@/assets/models/xiaomi.png'
 // OpenRouter
 import OpenRouterLogo from '@/assets/models/openrouter.svg'
 
+// NUWA
+import NuwaLogo from '@/assets/models/nuwa.svg'
+
 // LuxCoder
 import LuxCoderLogo from '@/assets/models/luxcoder.png'
 
@@ -259,6 +262,7 @@ const PROVIDER_LOGO_MAP: Record<ProviderType, string> = {
   'xiaomi-token-plan': XiaomiLogo,
   'openai-codex': OpenAILogo,
   openrouter: OpenRouterLogo,
+  nuwa: NuwaLogo,
   custom: DefaultLogo,
 }
 

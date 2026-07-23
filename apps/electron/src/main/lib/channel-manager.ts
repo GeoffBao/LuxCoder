@@ -599,6 +599,7 @@ export async function testChannel(channelId: string): Promise<ChannelTestResult>
       case 'doubao':
       case 'qwen':
       case 'openrouter':
+      case 'nuwa':
       case 'custom':
         return await testOpenAICompatible(channel.baseUrl, apiKey, proxyUrl, provider)
       case 'google':
@@ -1574,6 +1575,7 @@ export async function testChannelDirect(input: ChannelDirectTestInput): Promise<
       case 'doubao':
       case 'qwen':
       case 'openrouter':
+      case 'nuwa':
       case 'custom':
         return await testOpenAICompatible(input.baseUrl, input.apiKey, proxyUrl, provider)
       case 'google':
@@ -1652,6 +1654,7 @@ export async function fetchModels(input: FetchModelsInput): Promise<FetchModelsR
       case 'doubao':
       case 'qwen':
       case 'openrouter':
+      case 'nuwa':
       case 'custom':
         return await fetchOpenAICompatibleModels(input.baseUrl, input.apiKey, proxyUrl, provider)
       case 'google':

@@ -1,0 +1,2 @@
+[    1478ms] [WARNING] Error with Feature-Policy header: Unrecognized feature: '*'. @ :0
+[    5991ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ https://excalidraw.com/:0

@@ -1,0 +1,150 @@
+<style>
+  .intro-note { max-width: 920px; margin-bottom: 22px; }
+  .ia-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: start; }
+  .ia-card { border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: var(--surface); cursor: pointer; transition: 160ms ease; }
+  .ia-card:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(0,0,0,.08); }
+  .ia-card.selected { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .ia-card.recommended { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); }
+  .ia-title { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:16px 16px 12px; }
+  .ia-title h3 { margin:0 0 4px; font-size:17px; }
+  .ia-title p { margin:0; font-size:12px; color:var(--muted); line-height:1.5; }
+  .badge { white-space:nowrap; font-size:10px; font-weight:700; padding:4px 7px; border-radius:999px; background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--accent); }
+  .app { margin:0 12px 12px; min-height:520px; border-radius:12px; overflow:hidden; border:1px solid var(--border); background:#fbfbfa; color:#242424; display:grid; grid-template-columns:144px 1fr; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+  .rail { background:#f3f2ef; padding:10px 8px; border-right:1px solid #e5e3df; }
+  .window-dots { color:#aaa; letter-spacing:2px; font-size:10px; margin:0 5px 10px; }
+  .brand { font-size:12px; font-weight:700; padding:7px; display:flex; justify-content:space-between; }
+  .env { font-size:9px; padding:6px 7px; margin:0 2px 7px; border-radius:6px; background:#fff; border:1px solid #ddd; display:flex; justify-content:space-between; color:#555; }
+  .new { background:#242424; color:white; padding:7px 8px; margin:5px 2px 9px; border-radius:6px; font-size:10px; }
+  .nav { font-size:9px; color:#555; padding:6px 7px; border-radius:5px; }
+  .nav.active { background:#deddd9; color:#111; font-weight:650; }
+  .section-label { font-size:8px; letter-spacing:.08em; text-transform:uppercase; color:#999; padding:12px 7px 5px; display:flex; justify-content:space-between; }
+  .seg { display:flex; gap:2px; background:#e5e3df; border-radius:6px; padding:2px; margin:4px 2px 8px; }
+  .seg span { flex:1; text-align:center; font-size:8px; padding:5px 2px; border-radius:4px; color:#777; }
+  .seg .on { background:#fff; color:#111; box-shadow:0 1px 2px rgba(0,0,0,.08); }
+  .row { font-size:9px; padding:6px 7px; border-radius:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#555; }
+  .row.current { background:#dddcd8; color:#111; }
+  .row.indent { padding-left:16px; }
+  .dot { display:inline-block; width:5px; height:5px; border-radius:50%; margin-right:5px; vertical-align:1px; background:#aaa; }
+  .dot.red { background:#ff6469; } .dot.mint { background:#55dbc1; } .dot.gray { background:#777; }
+  .mini-badge { float:right; font-size:7px; color:#999; background:#eee; padding:1px 4px; border-radius:8px; }
+  .main { padding:14px; background:#fff; }
+  .crumb { font-size:9px; color:#888; margin-bottom:13px; }
+  .main h4 { font-size:15px; margin:0 0 5px; }
+  .main p { font-size:9px; line-height:1.55; color:#777; margin:0 0 12px; }
+  .surface { border-radius:10px; background:#f7f7f6; padding:12px; min-height:105px; margin-bottom:9px; }
+  .surface strong { font-size:10px; }
+  .tabs { display:flex; gap:12px; font-size:8px; border-bottom:1px solid #eee; margin:9px 0 12px; }
+  .tabs span { padding:0 0 7px; color:#888; }
+  .tabs .on { color:#111; border-bottom:2px solid #111; }
+  .task { display:grid; grid-template-columns:1fr auto; gap:8px; padding:8px 0; border-bottom:1px solid #e9e9e7; font-size:8px; color:#555; }
+  .foot { padding:2px 16px 15px; font-size:11px; line-height:1.5; color:var(--muted); }
+  .foot strong { color:var(--text); }
+  @media (max-width: 1050px) { .ia-grid { grid-template-columns:1fr; } .app { min-height:430px; } }
+</style>
+
+<h2>LuxCoder 侧栏：环境、项目、会话如何共存？</h2>
+<p class="subtitle intro-note">请重点看“每天打开应用时是否知道自己在哪里”。点击你更认可的布局。A 是当前推荐方向。</p>
+
+<div class="ia-grid">
+  <div class="ia-card recommended" data-choice="a-projection" onclick="toggleSelect(this)">
+    <div class="ia-title">
+      <div><h3>A · 一个会话列表，两种视图</h3><p>最近会话与按项目只是同一批 Session 的两种投影。</p></div>
+      <span class="badge">推荐</span>
+    </div>
+    <div class="app">
+      <aside class="rail">
+        <div class="window-dots">● ● ●</div>
+        <div class="brand">LuxCoder <span>⌄</span></div>
+        <div class="env">个人环境 <span>⌄</span></div>
+        <div class="new">＋ 新会话</div>
+        <div class="nav">◷ 自动任务</div>
+        <div class="nav">◇ Agent 技能</div>
+        <div class="nav">♙ Agent 专家</div>
+        <div class="section-label"><span>工作</span><span>＋</span></div>
+        <div class="seg"><span>最近会话</span><span class="on">按项目</span></div>
+        <div class="row"><span class="dot red"></span><b>AI Dev</b><span class="mini-badge">7</span></div>
+        <div class="row indent current">物理世界模型</div>
+        <div class="row indent">综合报告撰写</div>
+        <div class="row"><span class="dot mint"></span><b>LeedsA</b><span class="mini-badge">3</span></div>
+        <div class="row indent">SDK 交付件分析</div>
+        <div class="row"><span class="dot gray"></span><b>未归类会话</b></div>
+        <div class="row indent">临时排查下载问题</div>
+      </aside>
+      <main class="main">
+        <div class="crumb">个人环境 / AI Dev</div>
+        <h4>AI Dev</h4>
+        <p>项目是日常工作的主容器；环境能力在后台继承。</p>
+        <div class="tabs"><span class="on">概览</span><span>会话</span><span>任务</span><span>资料</span></div>
+        <div class="surface"><strong>正在进行</strong><div class="task"><span>物理世界模型调研</span><span>进行中</span></div><div class="task"><span>评估基准与数据集</span><span>待处理</span></div></div>
+      </main>
+    </div>
+    <div class="foot"><strong>核心：</strong>移除独立“项目中心”导航项；切换视图不改变数据，只改变组织方式。项目点击后打开项目主页。</div>
+  </div>
+
+  <div class="ia-card" data-choice="b-craft-sections" onclick="toggleSelect(this)">
+    <div class="ia-title">
+      <div><h3>B · Craft / Hermes 式双区并存</h3><p>置顶与最近会话在上，Projects 永久展示在下方。</p></div>
+    </div>
+    <div class="app">
+      <aside class="rail">
+        <div class="window-dots">● ● ●</div>
+        <div class="brand">LuxCoder <span>⌄</span></div>
+        <div class="env">个人环境 <span>⌄</span></div>
+        <div class="new">＋ 新会话</div>
+        <div class="section-label"><span>置顶</span></div>
+        <div class="row">物理世界模型调研</div>
+        <div class="row">SDK 交付件分析</div>
+        <div class="section-label"><span>最近会话</span></div>
+        <div class="row current">新 Agent 会话</div>
+        <div class="row">下载问题排查</div>
+        <div class="section-label"><span>项目</span><span>＋ ☷</span></div>
+        <div class="row"><span class="dot red"></span><b>AI Dev</b></div>
+        <div class="row indent">物理世界模型</div>
+        <div class="row indent">综合报告撰写</div>
+        <div class="row"><span class="dot mint"></span><b>LeedsA</b></div>
+        <div class="row indent">SDK 交付件分析</div>
+      </aside>
+      <main class="main">
+        <div class="crumb">新 Agent 会话</div>
+        <h4>今天想处理什么？</h4>
+        <p>创建时可选择项目，也可作为未归类会话开始。</p>
+        <div class="surface"><strong>上下文</strong><div class="task"><span>环境：个人环境</span><span>继承</span></div><div class="task"><span>项目：未选择</span><span>可选</span></div></div>
+      </main>
+    </div>
+    <div class="foot"><strong>优点：</strong>无需切换就能同时看到两类入口。<br><strong>代价：</strong>Session 会重复出现，项目多时侧栏会很长。</div>
+  </div>
+
+  <div class="ia-card" data-choice="c-hub" onclick="toggleSelect(this)">
+    <div class="ia-title">
+      <div><h3>C · 保留独立项目中心</h3><p>侧栏维持工作区树，同时通过项目中心管理 Project。</p></div>
+    </div>
+    <div class="app">
+      <aside class="rail">
+        <div class="window-dots">● ● ●</div>
+        <div class="brand">LuxCoder <span>⌄</span></div>
+        <div class="new">＋ 新会话</div>
+        <div class="nav">◷ 自动任务</div>
+        <div class="nav">◇ Agent 技能</div>
+        <div class="nav">♙ Agent 专家</div>
+        <div class="nav active">▣ 项目中心 <span class="mini-badge">4</span></div>
+        <div class="section-label"><span>工作区</span><span>＋</span></div>
+        <div class="row"><b>Personal Dev</b></div>
+        <div class="row"><b>AI Dev</b></div>
+        <div class="row"><b>Default Space</b></div>
+        <div class="row indent"><span class="dot red"></span>AI Dev</div>
+        <div class="row indent current">物理世界模型</div>
+        <div class="row indent"><span class="dot mint"></span>LeedsA</div>
+      </aside>
+      <main class="main">
+        <div class="crumb">项目中心 · 4</div>
+        <h4>项目中心</h4>
+        <p>新建、搜索和归档项目。</p>
+        <div class="surface"><strong>AI Dev</strong><div class="task"><span>默认专家：通用软件专家</span><span>ⓘ</span></div><div class="task"><span>新建任务</span><span>＋</span></div></div>
+        <div class="surface"><strong>LeedsA</strong><div class="task"><span>3 个会话</span><span>打开</span></div></div>
+      </main>
+    </div>
+    <div class="foot"><strong>优点：</strong>管理入口明确。<br><strong>代价：</strong>“工作区”和“项目”并列，项目又在侧栏与中心重复，认知成本最高。</div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:18px">请点击一个方向，然后回到对话告诉我：你认可哪一版，以及最想保留哪处细节。</p>

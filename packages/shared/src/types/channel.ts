@@ -30,6 +30,7 @@ export type ProviderType =
   | 'xiaomi-token-plan'
   | 'openai-codex'
   | 'openrouter'
+  | 'nuwa'
   /**
    * OpenAI Chat Completions 的自定义请求地址。
    *
@@ -65,6 +66,7 @@ export const PROVIDER_DEFAULT_URLS: Record<ProviderType, string> = {
   // ChatGPT 订阅登录：baseUrl 由 Pi SDK 内部管理（登录后从 OAuth token 派生），无需用户填写。
   'openai-codex': '',
   openrouter: 'https://openrouter.ai/api/v1',
+  nuwa: 'https://api.nuwaapi.com/v1',
   custom: '',
 }
 
@@ -93,6 +95,7 @@ export const PROVIDER_LABELS: Record<ProviderType, string> = {
   'xiaomi-token-plan': '小米 MiMo Token Plan',
   'openai-codex': 'ChatGPT 订阅 (Codex)',
   openrouter: 'OpenRouter',
+  nuwa: 'NUWA',
   custom: 'OpenAI Chat Completions（自定义地址）',
 }
 

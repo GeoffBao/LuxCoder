@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "Task Run Lifecycle",
+    "subtitle": "Actual RunStatus states plus pause, verification, bounded repair, recovery and terminal outcomes",
+    "output": "project-kanban-lifecycle.html",
+    "viewBox": [980, 680]
+  },
+  "lanes": [
+    { "id": "main", "label": "Primary run phases" },
+    { "id": "interruptions", "label": "Pause + repair events" },
+    { "id": "terminal", "label": "Terminal outcomes" }
+  ],
+  "states": [
+    { "id": "validated", "type": "start", "label": "Validated", "sublabel": "task.yaml accepted", "lane": "main", "col": 0, "step": "01", "tag": "precondition" },
+    { "id": "running", "type": "active", "label": "Running", "sublabel": "schedule ready nodes", "lane": "main", "col": 1, "step": "02", "tag": "RunStatus" },
+    { "id": "verifying", "type": "decision", "label": "Verifying", "sublabel": "orchestrator verdict", "lane": "main", "col": 3, "step": "03", "tag": "RunStatus" },
+    { "id": "completed", "type": "success", "label": "Completed", "sublabel": "PASS / no verify", "lane": "main", "col": 4, "step": "04", "tag": "terminal" },
+    { "id": "paused", "type": "waiting", "label": "Paused", "sublabel": "user or token budget", "lane": "interruptions", "col": 0, "tag": "RunStatus" },
+    { "id": "repair", "type": "active", "label": "Repair frontier", "sublabel": "re-enters running", "lane": "interruptions", "col": 2, "tag": "bounded loop" },
+    { "id": "stopped", "type": "failure", "label": "Stopped", "sublabel": "cancel active children", "lane": "terminal", "col": 0, "tag": "terminal" },
+    { "id": "failed", "type": "failure", "label": "Failed", "sublabel": "retry / repair exhausted", "lane": "terminal", "col": 2, "tag": "terminal" }
+  ],
+  "transitions": [
+    { "from": "validated", "to": "running", "variant": "emphasis" },
+    { "from": "running", "to": "verifying", "variant": "emphasis" },
+    { "from": "verifying", "to": "completed", "label": "PASS", "variant": "emphasis", "labelDy": -16 },
+    { "from": "running", "to": "paused", "label": "pause", "variant": "security", "fromSide": "bottom", "toSide": "top", "route": "drop", "labelDx": -20 },
+    { "from": "paused", "to": "running", "label": "resume / rehydrate", "variant": "dashed", "fromSide": "left", "toSide": "bottom", "route": "left-channel", "channelX": 88, "labelAt": [130, 244] },
+    { "from": "verifying", "to": "repair", "label": "FAIL", "variant": "security", "fromSide": "bottom", "toSide": "top", "route": "drop", "labelDx": 24 },
+    { "from": "repair", "to": "running", "label": "retry frontier", "variant": "dashed", "fromSide": "left", "toSide": "bottom", "route": "top-channel", "channelY": 235, "labelAt": [400, 225] },
+    { "from": "paused", "to": "stopped", "variant": "security", "fromSide": "bottom", "toSide": "top", "route": "straight" },
+    { "from": "repair", "to": "failed", "label": "budget exhausted", "variant": "security", "fromSide": "bottom", "toSide": "top", "route": "straight", "labelAt": [762, 350] },
+    { "from": "running", "to": "failed", "variant": "security", "fromSide": "bottom", "toSide": "left", "route": "bottom-channel", "channelY": 430 }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "Formal RunStatus", "items": ["running, paused, verifying", "completed, failed, stopped", "Repair is implemented by resetting a frontier and returning to running"] },
+    { "dot": "amber", "title": "Recovery semantics", "items": ["Resume rehydrates from run snapshot and JSONL when memory state is absent", "Done nodes require an output file or fall back to pending", "Already recorded spawned nodes are not duplicated"] },
+    { "dot": "rose", "title": "Bounded failure handling", "items": ["Node retry obeys per-node limits", "Malformed verdict re-asks have a separate cap", "Repair iterations and token budget can terminate as failed"] }
+  ]
+}

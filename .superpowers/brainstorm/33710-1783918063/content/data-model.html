@@ -1,0 +1,75 @@
+<h2>数据模型与职责边界</h2>
+<p class="subtitle">Session 是看板卡片的持久化主体；TaskSpec 描述可执行 DAG；Project 提供业务上下文。</p>
+
+<div class="section">
+  <div class="label">实体关系</div>
+  <div style="display:grid;grid-template-columns:1fr 1.15fr 1.15fr;gap:14px;margin-top:12px">
+    <div class="card"><div class="card-body">
+      <h3>ProjectConfig</h3>
+      <p><strong>1 Workspace : N Projects</strong></p>
+      <p>名称、描述、工作目录、details、颜色、自定义 Kanban 列。</p>
+      <p><code>projects/&lt;slug&gt;/config.json</code></p>
+      <p><code>assets/</code> + <code>MEMORY.md</code></p>
+    </div></div>
+    <div class="card"><div class="card-body">
+      <h3>SessionMeta</h3>
+      <p><strong>看板卡片的唯一事实源</strong></p>
+      <p><code>projectId</code> · <code>kanbanColumn</code> · <code>parentSessionId</code></p>
+      <p><code>taskSlug</code> · <code>taskRunId</code> · <code>taskNodeId</code> · <code>taskNodeCount</code></p>
+      <p>普通旧 Session 无绑定时自动进入 Inbox/Backlog。</p>
+    </div></div>
+    <div class="card"><div class="card-body">
+      <h3>TaskSpec</h3>
+      <p><strong>1 Parent Session : 0..1 TaskSpec</strong></p>
+      <p>goal、acceptance criteria、project、cwd、预算、并发、模型与 DAG nodes。</p>
+      <p><code>tasks/&lt;slug&gt;/task.yaml</code></p>
+      <p>TaskRun 通过 run-log 与 node output 追加记录。</p>
+    </div></div>
+  </div>
+  <div style="display:flex;justify-content:center;gap:36px;font-size:22px;margin:10px 0"><span>Project 1 ─── N Session</span><span>Session 1 ─── N Child Session</span><span>Session 1 ─── 0..1 TaskSpec</span></div>
+</div>
+
+<div class="section">
+  <div class="label">持久化 vs. 运行时派生</div>
+  <div class="split" style="margin-top:12px">
+    <div class="pros">
+      <h4>写入磁盘</h4>
+      <ul>
+        <li>Project 配置、资产、Memory</li>
+        <li>Session 的 Project/列/父子/Task 关联字段</li>
+        <li>task.yaml、run-log.jsonl、node output、run snapshot</li>
+        <li>Teambition binding 与 sync log</li>
+      </ul>
+    </div>
+    <div class="cons" style="background:rgba(99,102,241,.08);border-color:rgba(99,102,241,.28)">
+      <h4>仅运行时派生</h4>
+      <ul>
+        <li>KanbanTask / KanbanSubtask view-model</li>
+        <li>进度、cost、processing、relative time</li>
+        <li>Teambition 卡片徽标与 syncState join</li>
+        <li>过滤、搜索、选择态、拖拽态、编辑器目标</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">模块单一职责</div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px">
+    <div class="mockup"><div class="mockup-body"><strong>ProjectRepository</strong><br><span style="opacity:.7">只负责 Project 文件 CRUD、资产与 Memory</span></div></div>
+    <div class="mockup"><div class="mockup-body"><strong>TaskRepository</strong><br><span style="opacity:.7">只负责 TaskSpec 与 Run 工件，不创建 Session</span></div></div>
+    <div class="mockup"><div class="mockup-body"><strong>ConductorSessionHost</strong><br><span style="opacity:.7">TaskRunner 与现有 SessionManager 的唯一适配层</span></div></div>
+    <div class="mockup"><div class="mockup-body"><strong>TaskRunner</strong><br><span style="opacity:.7">DAG 调度、并发、重试、验证和恢复</span></div></div>
+    <div class="mockup"><div class="mockup-body"><strong>TeambitionService</strong><br><span style="opacity:.7">领取、绑定、同步、冲突检测与远端状态</span></div></div>
+    <div class="mockup"><div class="mockup-body"><strong>KanbanViewModel</strong><br><span style="opacity:.7">纯函数合并 Session + Project + Run + Binding</span></div></div>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="approve-data-model" onclick="toggleSelect(this)">
+    <div class="letter">✓</div><div class="content"><h3>批准数据模型</h3><p>继续设计 UI 结构与交互流程。</p></div>
+  </div>
+  <div class="option" data-choice="revise-data-model" onclick="toggleSelect(this)">
+    <div class="letter">↺</div><div class="content"><h3>需要调整</h3><p>在终端说明需要改变的实体或职责。</p></div>
+  </div>
+</div>

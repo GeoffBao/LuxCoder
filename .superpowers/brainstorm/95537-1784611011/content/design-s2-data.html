@@ -1,0 +1,46 @@
+<h2>设计 §2 · 组件与数据</h2>
+<p class="subtitle">§1′ 已锁：模块序 = 自动任务 → 技能 → 专家 → 项目中心（模块区末）；再工作区会话。</p>
+
+<div class="section">
+  <p class="label">导航 / 视图</p>
+  <ul style="font-size:13px">
+    <li><code>activeView</code> 扩展：<code>projects</code> · <code>agent-experts</code></li>
+    <li><code>SidebarModule</code>：四入口均 <code>collapsible:false</code>；删掉项目侧栏展开列表</li>
+    <li>看板仍 <code>codeMainView='work'</code> + <code>WorkBoardView</code></li>
+  </ul>
+</div>
+
+<div class="section">
+  <p class="label">项目中心 Hub</p>
+  <ul style="font-size:13px">
+    <li>新主区 <code>ProjectsHubView</code>（对齐 AgentSkillsView 壳）</li>
+    <li>卡片：名称、色点、任务摘要、默认专家徽标、归档态</li>
+    <li>点卡片 → 选中项目 + 进看板；ⓘ/菜单 → 详情（含默认专家选择器）</li>
+    <li><code>ProjectConfig.defaultExpertId?: string</code>（本阶段只持久化+展示，不注入运行时）</li>
+  </ul>
+</div>
+
+<div class="section">
+  <p class="label">Agent 专家</p>
+  <ul style="font-size:13px">
+    <li>新主区 <code>AgentExpertsView</code>：卡片网格</li>
+    <li>内置目录（本阶段）：通用、驱动、应用、系统、通信、交付经理、SE、架构师、测试、<strong>代码审查</strong></li>
+    <li>专家包目录（文件优先）：<code>~/.luxagents[-dev]/experts/{slug}/</code>
+      <br/>必有：<code>IDENTITY.md</code> · <code>SOUL.md</code> · <code>RULES.md</code> · <code>expert.json</code>
+      <br/><code>expert.json</code>：<code>skillSlugs[]</code> · <code>mcpIds[]</code> · <code>channelBindings[]</code>（空数组占位）
+    </li>
+    <li><strong>不</strong>做每专家 USER.md；用户档案继续全局</li>
+    <li>本阶段：列表/详情编辑壳 + 读写文件；<strong>不</strong>接 orchestrator 注入、不接飞书/Discord</li>
+  </ul>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="s2-ok" onclick="toggleSelect(this)">
+    <div class="letter">Y</div>
+    <div class="content"><h3>§2 没问题</h3><p>继续 §3 边界 / 测试 / 后续蜂群&amp;Bot</p></div>
+  </div>
+  <div class="option" data-choice="s2-revise" onclick="toggleSelect(this)">
+    <div class="letter">N</div>
+    <div class="content"><h3>要改</h3><p>终端说明</p></div>
+  </div>
+</div>
