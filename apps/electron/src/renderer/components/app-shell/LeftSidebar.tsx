@@ -138,6 +138,7 @@ import type { KanbanProject } from './kanban/types'
 import { buildProjectColorMap } from './sidebar-project-groups'
 import { SidebarModule } from './SidebarModule'
 import { WorkspaceSwitcher } from './WorkspaceSwitcher'
+import { ProjectSwitcher } from './ProjectSwitcher'
 import { CodeMainViewSwitchControl } from './CodeMainViewSwitcher'
 import { formatSidebarModuleCount } from './sidebar-module-model'
 import { AgentSessionItem, getSessionLeftAccent, SessionItemActions } from './AgentSessionItem'
@@ -2671,6 +2672,21 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             onCreate={handleStartCreateProject}
             onRequestDelete={handleRequestDeleteWorkspace}
             canDeleteWorkspace={canDeleteWorkspace}
+          />
+          <ProjectSwitcher
+            className="mt-1.5"
+            projects={currentWorkspaceProjects}
+            showArchivedProjects={showArchivedProjects}
+            onToggleShowArchived={() => setShowArchivedProjects((value) => !value)}
+            onSelectProject={handleOpenProjectDetail}
+            onAddScanRoot={() => { void handleAddScanRoot() }}
+            onBrowseFolder={() => {
+              // 先打开新任务流选择器再浏览，避免无 picker 时留下陈旧 browse token
+              setNewTaskProjectFlowOpen(true)
+              window.setTimeout(() => {
+                setBrowseRequest((value) => value + 1)
+              }, 0)
+            }}
           />
           {creatingProject && (
             <div className="mt-2 flex items-center gap-2 px-2 py-1.5 rounded-[10px] bg-foreground/[0.04]">
