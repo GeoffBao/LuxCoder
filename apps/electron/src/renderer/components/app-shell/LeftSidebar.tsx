@@ -136,8 +136,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import type { ConversationMeta, AgentSessionMeta, AgentWorkspace, WorkspaceCapabilities } from '@luxcoder/shared'
 import type { KanbanProject } from './kanban/types'
-import { buildProjectColorMap, buildSidebarProjectGroups } from './sidebar-project-groups'
-import { SidebarProjectSubgroup } from './SidebarProjectSubgroup'
+import { buildProjectColorMap } from './sidebar-project-groups'
 import { SidebarModule } from './SidebarModule'
 import { WorkspaceSwitcher } from './WorkspaceSwitcher'
 import { SidebarSessionViewToggle } from './SidebarSessionViewToggle'
@@ -3637,15 +3636,8 @@ interface AgentProjectGroupItemProps {
   canDeleteWorkspace: boolean
   /** 当前工作区的 craft Project 列表；非当前工作区组传 [] */
   projects: KanbanProject[]
-  /** 当前选中的 craft Project ID（驱动子分组高亮 / 自动展开 / 滚动） */
-  selectedProjectId: string | null
   /** 隐藏 Workspace 组头（当前 Workspace 已由顶栏 WorkspaceSwitcher 展示） */
   hideWorkspaceHeader?: boolean
-  /** 未归类会话分区标题 */
-  unboundSectionLabel?: string
-  onNewSessionInProject: (projectId: string) => Promise<void>
-  onOpenProjectDetail: (projectId: string) => void
-  onDeleteProject: (projectId: string) => void | Promise<void>
   onMoveToProject: (sessionId: string, projectId?: string) => void | Promise<void>
   onSelectSession: (id: string, title: string) => void
   onRequestDelete: (id: string) => void
@@ -3686,12 +3678,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
   onRequestDeleteWorkspace,
   canDeleteWorkspace,
   projects,
-  selectedProjectId,
   hideWorkspaceHeader = false,
-  unboundSectionLabel,
-  onNewSessionInProject,
-  onOpenProjectDetail,
-  onDeleteProject,
   onMoveToProject,
   onSelectSession,
   onRequestDelete,
@@ -3749,13 +3736,8 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
   // 状态如何，确保从搜索结果打开旧会话时左侧栏立即可见，不必等待 agent 完成。
   // 非活跃部分仍保留原"最近 3 天 + 至多 5 条"预览策略，作为额外补充展示。
   // 用户点击"显示更多"会在折叠基线之上每次再额外展开 PROJECT_SESSION_EXPAND_STEP 条。
-  // craft Project 子分组：绑定项目的会话进入各自子分组（始终全量展示），
-  // 未绑定会话沿用原有树形 + 折叠预览逻辑。
-  const { projectGroups, unboundSessions } = React.useMemo(
-    () => buildSidebarProjectGroups(group.sessions, projects, selectedProjectId),
-    [group.sessions, projects, selectedProjectId],
-  )
-  const treeItems = buildAgentSessionTrees(unboundSessions)
+  // 会话列表恒定按时间平铺（不再按 craft Project 分子组），项目导航已上移到 ProjectSwitcher。
+  const treeItems = buildAgentSessionTrees(group.sessions)
   /** 项目 ID → 主题色映射（归档项目的会话回退到未绑定列表，但 projectId 仍在，继续显示其项目色） */
   const projectColorMap = React.useMemo(() => buildProjectColorMap(projects), [projects])
   const prevActiveIdsRef = React.useRef<Set<string>>(new Set())
@@ -3959,36 +3941,8 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
         className={cn('sidebar-workspace-content mt-px', !hideWorkspaceHeader && 'ml-4')}
       >
         {!collapsed ? (
-          treeItems.length > 0 || projectGroups.length > 0 ? (
+          treeItems.length > 0 ? (
             <div className="flex flex-col gap-0.5">
-              {projectGroups.map((projectGroup) => (
-                <SidebarProjectSubgroup
-                  key={projectGroup.project.id}
-                  group={projectGroup}
-                  activeSessionId={activeSessionId}
-                  relativeTimeNow={relativeTimeNow}
-                  agentIndicatorMap={agentIndicatorMap}
-                  projects={projects}
-                  onNewSessionInProject={onNewSessionInProject}
-                  onOpenProjectDetail={onOpenProjectDetail}
-                  onDeleteProject={onDeleteProject}
-                  onMoveToProject={onMoveToProject}
-                  onSelectSession={onSelectSession}
-                  onRequestDelete={onRequestDelete}
-                  onRequestMove={onRequestMove}
-                  onRename={onRename}
-                  onTogglePin={onTogglePin}
-                  onToggleStar={onToggleStar}
-                  onToggleArchive={onToggleArchive}
-                />
-              ))}
-
-              {unboundSectionLabel && sessions.length > 0 && (
-                <div className="px-1.5 pt-1.5 pb-0.5 text-[11px] font-medium text-foreground/40 select-none">
-                  {unboundSectionLabel}
-                </div>
-              )}
-
               {sessions.map((item) => {
                 const childCount = item.childSessions.length
                 const rowStatus = getSessionTreeStatus(item, agentIndicatorMap)
