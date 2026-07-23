@@ -168,7 +168,9 @@ describe('buildMinimalTaskSpec', () => {
     expect(spec.goal).toBe('修复登录页报错')
     expect(spec.nodes).toHaveLength(1)
     expect(spec.nodes[0]).toMatchObject({ id: 'main', prompt: '修复登录页报错' })
-    expect(spec.nodes[0]!.kind).toBeUndefined()
+    // TaskSpecSchema 对 kind 有 z.enum(NODE_KINDS).default('session')，.parse() 后必定是 'session'，
+    // 不会是 undefined——这条断言验证 buildMinimalTaskSpec 没有把 kind 显式改写成别的值。
+    expect(spec.nodes[0]!.kind).toBe('session')
   })
 
   test('可选字段全部映射到对应 spec 字段', () => {
