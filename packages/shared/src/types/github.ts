@@ -2,20 +2,6 @@
  * GitHub Release 相关类型定义
  */
 
-/** Release 附件（安装包等） */
-export interface GitHubReleaseAsset {
-  /** 附件 ID */
-  id: number
-  /** 文件名 */
-  name: string
-  /** 字节大小 */
-  size: number
-  /** 浏览器可下载 URL（主进程静默下载用，勿直接暴露给用户 UI） */
-  browser_download_url: string
-  /** MIME */
-  content_type?: string
-}
-
 /** GitHub Release 资源（简化版） */
 export interface GitHubRelease {
   /** Release ID */
@@ -36,8 +22,6 @@ export interface GitHubRelease {
   published_at: string
   /** Release HTML URL */
   html_url: string
-  /** 附件列表（API 返回；类型可选以兼容旧缓存） */
-  assets?: GitHubReleaseAsset[]
 }
 
 /** GitHub Release 列表查询选项 */

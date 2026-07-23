@@ -10,7 +10,6 @@ import type { UpdateStatus } from './updater-types'
 import {
   checkForUpdates,
   getUpdateStatus,
-  openDownloadedPackage,
   quitAndInstall,
 } from './auto-updater'
 
@@ -36,13 +35,6 @@ export function registerUpdaterIpc(): void {
     UPDATER_IPC_CHANNELS.QUIT_AND_INSTALL,
     (): void => {
       quitAndInstall()
-    }
-  )
-
-  ipcMain.handle(
-    UPDATER_IPC_CHANNELS.OPEN_DOWNLOADED_PACKAGE,
-    async (): Promise<void> => {
-      await openDownloadedPackage()
     }
   )
 
