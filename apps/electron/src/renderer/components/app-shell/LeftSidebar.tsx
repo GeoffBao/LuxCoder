@@ -77,7 +77,6 @@ import {
 } from '@/atoms/tab-atoms'
 import { userProfileAtom } from '@/atoms/user-profile'
 import { selectedProjectIdAtom, serverKanbanProjectsAtom, workViewAtom, codeMainViewAtom } from '@/atoms/project-atoms'
-import { sidebarSessionViewModeAtom } from '@/atoms/sidebar-session-view'
 import { buildRecentSessionList } from './sidebar-session-views'
 import { sidebarViewModeAtom } from '@/atoms/sidebar-atoms'
 import { searchDialogOpenAtom } from '@/atoms/search-atoms'
@@ -139,7 +138,6 @@ import type { KanbanProject } from './kanban/types'
 import { buildProjectColorMap } from './sidebar-project-groups'
 import { SidebarModule } from './SidebarModule'
 import { WorkspaceSwitcher } from './WorkspaceSwitcher'
-import { SidebarSessionViewToggle } from './SidebarSessionViewToggle'
 import { CodeMainViewSwitchControl } from './CodeMainViewSwitcher'
 import { formatSidebarModuleCount } from './sidebar-module-model'
 import { AgentSessionItem, getSessionLeftAccent, SessionItemActions } from './AgentSessionItem'
@@ -699,7 +697,6 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   const kanbanProjects = useAtomValue(serverKanbanProjectsAtom)
   const setKanbanProjects = useSetAtom(serverKanbanProjectsAtom)
   const setSelectedProjectId = useSetAtom(selectedProjectIdAtom)
-  const [sidebarSessionViewMode] = useAtom(sidebarSessionViewModeAtom)
   const setWorkView = useSetAtom(workViewAtom)
   const setCodeMainView = useSetAtom(codeMainViewAtom)
 
@@ -2950,64 +2947,10 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             </div>
           )}
 
-          {/* 会话投影切换：最近会话｜项目（仅切换；新建项目只走顶栏两流） */}
-          <div className="px-2 pt-2 pb-1 flex items-center gap-1.5 flex-shrink-0 titlebar-no-drag">
-            <div className="flex-1 min-w-0">
-              <SidebarSessionViewToggle />
-            </div>
-            {/* 会话｜看板：切换主区视图（craft 式，挂在会话列表标题行；看板视图自带切回开关）。所在分支已限定 agent 模式，无需再加 mode 守卫 */}
+          {/* 会话｜看板：切换主区视图；项目导航已上移到 WorkspaceSwitcher 下方的 ProjectSwitcher */}
+          <div className="px-2 pt-2 pb-1 flex items-center justify-end flex-shrink-0 titlebar-no-drag">
             <CodeMainViewSwitchControl compact />
-            {sidebarSessionViewMode === 'projects' ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className="size-7 flex items-center justify-center rounded-md text-foreground/35 hover:bg-foreground/[0.06] hover:text-foreground/60 transition-colors"
-                    aria-label="项目管理"
-                  >
-                    <MoreHorizontal size={13} />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="z-[9999] min-w-[10rem]">
-                  <DropdownMenuItem
-                    onSelect={() => setShowArchivedProjects((value) => !value)}
-                  >
-                    {showArchivedProjects ? '隐藏已归档' : '显示已归档'}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={() => { void handleAddScanRoot() }}>
-                    添加扫描目录…
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onSelect={() => {
-                      // 先打开新任务流选择器再浏览，避免无 picker 时留下陈旧 browse token
-                      setNewTaskProjectFlowOpen(true)
-                      window.setTimeout(() => {
-                        setBrowseRequest((value) => value + 1)
-                      }, 0)
-                    }}
-                  >
-                    浏览文件夹…
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : null}
           </div>
-
-          {mode === 'agent'
-            && sidebarSessionViewMode === 'projects'
-            && kanbanProjects.filter((project) => showArchivedProjects || !project.archivedAt).length === 0 ? (
-            <div className="mx-2 mb-2 rounded-xl bg-foreground/[0.03] px-3 py-3 text-[12px] leading-relaxed text-foreground/55">
-              <p>用「新会话」或「新任务」开始，并在流程中选择或创建项目。</p>
-              <button
-                type="button"
-                className="mt-2 text-[12px] text-primary hover:underline"
-                onClick={() => { void handleAddScanRoot() }}
-              >
-                添加扫描目录…
-              </button>
-            </div>
-          ) : null}
 
           {/* 下区：当前 Workspace 会话投影（不再展示多 Workspace 树标题） */}
           <div className="sidebar-workspace-list flex-1 overflow-y-auto px-2 pb-3 scrollbar-thin min-h-0 titlebar-no-drag">
