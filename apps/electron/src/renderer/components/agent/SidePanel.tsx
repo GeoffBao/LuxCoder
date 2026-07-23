@@ -423,7 +423,7 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
       className={cn(
         'refined-inspector relative z-0 h-full flex-shrink-0 overflow-hidden titlebar-drag-region bg-content-area',
         isClassic && 'rounded-2xl shadow-xl dark:shadow-md',
-        shouldAnimate && 'transition-[width] duration-300 ease-in-out',
+        shouldAnimate && 'transition-[width] duration-slow ease-out',
         isOpen ? '' : '!w-0',
       )}
       style={isOpen ? { width } : undefined}
@@ -433,7 +433,7 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
         className={cn(
           'w-full h-full flex flex-col titlebar-no-drag',
           isWindows ? 'pt-[34px]' : 'pt-0',
-          shouldAnimate && 'transition-opacity duration-300',
+          shouldAnimate && 'transition-opacity duration-slow ease-out',
           isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none',
         )}
         >

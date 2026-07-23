@@ -302,7 +302,7 @@ export function QuickTaskApp(): React.ReactElement {
             <div className="flex gap-0.5 rounded-lg bg-muted/60 p-0.5">
               <button
                 type="button"
-                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
+                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors duration-fast ${
                   mode === 'chat'
                     ? 'bg-background text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
@@ -313,7 +313,7 @@ export function QuickTaskApp(): React.ReactElement {
               </button>
               <button
                 type="button"
-                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
+                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors duration-fast ${
                   mode === 'agent'
                     ? 'bg-background text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
@@ -463,7 +463,7 @@ function AttachmentChip({ filename, mediaType, previewUrl, onRemove }: Attachmen
       <button
         type="button"
         onClick={onRemove}
-        className="ml-0.5 size-3.5 rounded-full flex items-center justify-center text-muted-foreground/50 hover:text-foreground hover:bg-muted opacity-0 group-hover/chip:opacity-100 transition-all"
+        className="ml-0.5 size-3.5 rounded-full flex items-center justify-center text-muted-foreground/50 hover:text-foreground hover:bg-muted opacity-0 group-hover/chip:opacity-100 transition-[opacity,color,background-color] duration-fast"
       >
         <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
           <path d="M18 6 6 18" />

@@ -85,7 +85,7 @@ export function ModeSwitcher(): React.ReactElement {
         {/* 滑动背景指示器（双模式各占一半） */}
         <div
           className={cn(
-            'mode-slider pointer-events-none absolute top-1 bottom-1 left-1 w-[calc(50%-2px)] rounded-lg bg-background shadow-sm transition-transform duration-300 ease-in-out',
+            'mode-slider pointer-events-none absolute top-1 bottom-1 left-1 w-[calc(50%-2px)] rounded-lg bg-background shadow-sm transition-transform duration-base ease-out',
             sliderTranslate
           )}
         />

@@ -98,7 +98,7 @@ function StorageBar({ categories, totalBytes }: { categories: StorageCategory[];
         return (
           <div
             key={cat.key}
-            className={cn('h-full transition-all', BAR_COLORS[i % BAR_COLORS.length])}
+            className={cn('h-full transition-[width] duration-base ease-out', BAR_COLORS[i % BAR_COLORS.length])}
             style={{ width: `${pct}%` }}
             title={`${cat.label}: ${formatBytes(cat.bytes)}`}
           />

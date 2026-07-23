@@ -281,7 +281,7 @@ function PermissionsStep(): React.ReactElement {
           size="default"
           onClick={handleCopy}
           className={cn(
-            'gap-2 transition-all',
+            'gap-2 transition-colors duration-fast',
             copied && 'bg-green-600 hover:bg-green-600 text-white'
           )}
         >

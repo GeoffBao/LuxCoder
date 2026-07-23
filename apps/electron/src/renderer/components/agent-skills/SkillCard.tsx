@@ -33,7 +33,7 @@ export function SkillCard({ skill, isBuiltin, updating, onOpen, onToggle, onUpda
         }
       }}
       className={cn(
-        'group relative flex h-full flex-col gap-3 rounded-xl border border-border/60 bg-content-area p-4 text-left transition-all cursor-pointer',
+        'group relative flex h-full flex-col gap-3 rounded-xl border border-border/60 bg-content-area p-4 text-left transition-[border-color,box-shadow,background-color] duration-fast cursor-pointer',
         'hover:border-border hover:shadow-sm focus:outline-none focus-visible:ring-1 focus-visible:ring-ring',
         !skill.enabled && 'opacity-55',
       )}

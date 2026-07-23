@@ -2768,7 +2768,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         <div className="px-2.5 pb-2.5 md:px-[18px] md:pb-[18px]" data-input-mode="agent">
           <div
             className={cn(
-              'agent-composer-polished rounded-[17px] border-[0.5px] border-border bg-background/70 backdrop-blur-sm transition-all duration-200',
+              'agent-composer-polished rounded-[17px] border-[0.5px] border-border bg-background/70 transition-[border-color,box-shadow,background-color] duration-base ease-out',
               (isPlanMode || isPermissionPlanMode) && !isDragOver && 'plan-mode-border',
               isDragOver && 'border-[2px] border-dashed border-[#2ecc71] bg-[#2ecc71]/[0.03]'
             )}

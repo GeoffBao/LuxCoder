@@ -1,19 +1,18 @@
 /**
  * WelcomeEmptyState — 对话/会话空状态引导
  *
- * 在没有会话时展示：
- * 1. 个性化时段问候
- * 2. 平台感知的小 Tips
- * 3. Chat/Agent 模式切换 Tab
+ * 安静空态（对齐 Cursor / Codex）：
+ * 1. 个性化时段问候（大字号 + regular 字重，层级靠字号不靠加粗）
+ * 2. 一行弱化的平台感知 Tip
+ * 3. 幽灵态 Chat/Code 模式切换（无色块轨道，选中 = 墨水填充）
  */
 
 import * as React from 'react'
 import { useAtomValue, useAtom } from 'jotai'
-import { Lightbulb, MessageSquare, Code2 } from 'lucide-react'
+import { MessageSquare, Code2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { userProfileAtom } from '@/atoms/user-profile'
 import { appModeAtom } from '@/atoms/app-mode'
-import { themeStyleAtom } from '@/atoms/theme'
 import { normalizeAppModeForUi } from '@/components/app-shell/code-main-view-model'
 import { getRandomTip, getPlatform, type Tip } from '@/lib/tips'
 
@@ -34,7 +33,6 @@ const MODE_CONFIG: Record<'chat' | 'agent', { icon: React.ReactNode; label: stri
 export function WelcomeEmptyState(): React.ReactElement {
   const userProfile = useAtomValue(userProfileAtom)
   const [mode, setMode] = useAtom(appModeAtom)
-  const themeStyle = useAtomValue(themeStyleAtom)
 
   // 稳定的随机 Tip（组件挂载时选一条）
   const [tip] = React.useState<Tip>(() => getRandomTip(getPlatform()))
@@ -44,9 +42,6 @@ export function WelcomeEmptyState(): React.ReactElement {
   const displayName = userProfile.userName || '用户'
   const uiMode = normalizeAppModeForUi(mode)
 
-  // 森息晨光主题下选中按钮使用主色
-  const selectedColor = themeStyle === 'forest-light' ? '#4a7858' : undefined
-
   /** 切换模式：仅切换模式，不创建新会话；遗留 cowork 点 Chat/Code 正常切走 */
   const handleModeSwitch = React.useCallback((targetMode: 'chat' | 'agent'): void => {
     if (targetMode === uiMode) return
@@ -54,27 +49,19 @@ export function WelcomeEmptyState(): React.ReactElement {
   }, [uiMode, setMode])
 
   return (
-    <div className="welcome-empty-state flex h-full flex-col items-center justify-center gap-6 px-4">
-      {/* 问候语 */}
-      <h1 className="text-[26px] font-semibold tracking-tight text-foreground">
+    <div className="welcome-empty-state flex h-full flex-col items-center justify-center gap-5 px-4">
+      {/* 问候语：层级靠字号，不靠加粗 */}
+      <h1 className="text-[28px] font-normal tracking-tight text-foreground/90">
         {displayName}，{greeting}
       </h1>
 
-      {/* Tips */}
-      <div className="flex items-center gap-2.5 rounded-full bg-muted/50 px-4 py-2 text-[13px] text-muted-foreground">
-        <Lightbulb size={14} className="flex-shrink-0 text-amber-500/80" />
-        <span>{tip.text}</span>
-      </div>
+      {/* Tip：一行弱化文字，不做胶囊色块 */}
+      <p className="max-w-[52ch] text-center text-[13px] leading-relaxed text-foreground/40">
+        {tip.text}
+      </p>
 
-      {/* 模式切换 Tab */}
-      <div className="relative flex rounded-xl bg-muted/60 p-1">
-        {/* 滑动背景指示器 */}
-        <div
-          className={cn(
-            'absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg bg-background shadow-sm transition-transform duration-300 ease-in-out',
-            uiMode === 'agent' ? 'translate-x-0' : 'translate-x-full',
-          )}
-        />
+      {/* 模式切换：幽灵分段，选中 = 墨水填充 */}
+      <div className="mt-1 flex items-center gap-1">
         {(['agent', 'chat'] as const).map((m) => {
           const config = MODE_CONFIG[m]
           const isSelected = uiMode === m
@@ -82,12 +69,11 @@ export function WelcomeEmptyState(): React.ReactElement {
             <button
               key={m}
               onClick={() => handleModeSwitch(m)}
-              style={isSelected && selectedColor ? { color: selectedColor } : undefined}
               className={cn(
-                'relative z-[1] flex items-center gap-1.5 rounded-lg px-5 py-1.5 text-[13px] font-medium transition-colors duration-200',
+                'flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-[13px] transition-colors duration-150',
                 isSelected
-                  ? 'text-foreground'
-                  : 'text-muted-foreground hover:text-foreground',
+                  ? 'bg-foreground/10 text-foreground/90'
+                  : 'text-foreground/45 hover:bg-foreground/[0.05] hover:text-foreground/75',
               )}
             >
               {config.icon}

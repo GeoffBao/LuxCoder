@@ -61,46 +61,46 @@ interface TabItem {
   icon: React.ReactNode;
 }
 
-/** 基础 Tabs（所有模式都有） */
-const BASE_TABS: TabItem[] = [
-  { id: "general", label: "通用设置", icon: <Settings size={16} /> },
-  { id: "channels", label: "模型配置", icon: <Radio size={16} /> },
-  { id: "prompts", label: "提示词管理", icon: <BookOpen size={16} /> },
-  { id: "proxy", label: "代理设置", icon: <Globe size={16} /> },
-];
+/** 导航分组：macOS System Settings 式分组，组间留白 + 弱化组标题 */
+interface NavGroup {
+  /** 组标题（首组无标题） */
+  label?: string;
+  tabs: TabItem[];
+}
 
-const TOOLS_TAB: TabItem = {
-  id: "tools",
-  label: "Chat 工具",
-  icon: <Wrench size={16} />,
-};
-const BOTS_TAB: TabItem = {
-  id: "bots",
-  label: "远程连接",
-  icon: <Bot size={16} />,
-};
-const TUTORIAL_TAB: TabItem = {
-  id: "tutorial",
-  label: "使用指南",
-  icon: <GraduationCap size={16} />,
-};
-const SHORTCUTS_TAB: TabItem = {
-  id: "shortcuts",
-  label: "快捷键管理",
-  icon: <Keyboard size={16} />,
-};
-const VOICE_INPUT_TAB: TabItem = {
-  id: "voice-input",
-  label: "语音输入",
-  icon: <Mic size={16} />,
-};
-
-/** 尾部 Tabs */
-const TAIL_TABS: TabItem[] = [
-  { id: "migration", label: "数据迁移", icon: <HardDriveDownload size={16} /> },
-  { id: "storage", label: "磁盘管理", icon: <HardDrive size={16} /> },
-  { id: "appearance", label: "外观设置", icon: <Palette size={16} /> },
-  { id: "about", label: "关于/更新", icon: <Info size={16} /> },
+const NAV_GROUPS: NavGroup[] = [
+  {
+    tabs: [
+      { id: "general", label: "通用设置", icon: <Settings size={16} /> },
+      { id: "appearance", label: "外观设置", icon: <Palette size={16} /> },
+      { id: "shortcuts", label: "快捷键管理", icon: <Keyboard size={16} /> },
+    ],
+  },
+  {
+    label: "模型与工具",
+    tabs: [
+      { id: "channels", label: "模型配置", icon: <Radio size={16} /> },
+      { id: "prompts", label: "提示词管理", icon: <BookOpen size={16} /> },
+      { id: "tools", label: "Chat 工具", icon: <Wrench size={16} /> },
+      { id: "voice-input", label: "语音输入", icon: <Mic size={16} /> },
+      { id: "proxy", label: "代理设置", icon: <Globe size={16} /> },
+    ],
+  },
+  {
+    label: "连接与数据",
+    tabs: [
+      { id: "bots", label: "远程连接", icon: <Bot size={16} /> },
+      { id: "migration", label: "数据迁移", icon: <HardDriveDownload size={16} /> },
+      { id: "storage", label: "磁盘管理", icon: <HardDrive size={16} /> },
+    ],
+  },
+  {
+    label: "帮助",
+    tabs: [
+      { id: "tutorial", label: "使用指南", icon: <GraduationCap size={16} /> },
+      { id: "about", label: "关于/更新", icon: <Info size={16} /> },
+    ],
+  },
 ];
 
 /** 暂时隐藏的 Tab（功能代码保留，待后续重新开放） */
@@ -212,27 +212,20 @@ export function SettingsPanel({
   }, [closeRequested, activeTab, setCloseRequested])
 
   // 工具 tab 两种模式都显示，Agent Skills / MCP 独立在侧边栏能力中心管理。
-  const tabs = React.useMemo(() => {
-    const allTabs = [
-      ...BASE_TABS,
-      TOOLS_TAB,
-      VOICE_INPUT_TAB,
-      BOTS_TAB,
-      TUTORIAL_TAB,
-      SHORTCUTS_TAB,
-      ...TAIL_TABS,
-    ];
-    return allTabs.filter((t) => !HIDDEN_TABS.has(t.id));
+  const navGroups = React.useMemo(() => {
+    return NAV_GROUPS
+      .map((group) => ({ ...group, tabs: group.tabs.filter((t) => !HIDDEN_TABS.has(t.id)) }))
+      .filter((group) => group.tabs.length > 0);
   }, [appMode]);
 
   // 当前 tab 标题
-  const activeTabLabel = tabs.find((t) => t.id === activeTab)?.label ?? "设置";
+  const activeTabLabel = navGroups.flatMap((g) => g.tabs).find((t) => t.id === activeTab)?.label ?? "设置";
 
   return (
     <div className="flex flex-col h-full">
       {/* 顶部 Header 栏 */}
-      <div className="h-12 flex items-center justify-between px-5 border-b border-border/50 flex-shrink-0">
-        <h2 className="text-sm font-medium text-foreground">
+      <div className="h-12 flex items-center justify-between px-5 flex-shrink-0" style={{ boxShadow: 'inset 0 -1px 0 hsl(var(--foreground) / 0.06)' }}>
+        <h2 className="text-sm font-medium text-foreground/90">
           {activeTabLabel}
         </h2>
         {onClose && (
@@ -247,26 +240,37 @@ export function SettingsPanel({
 
       {/* 下方主体：左导航 + 右内容 */}
       <div className="flex flex-1 min-h-0">
-        {/* 左侧 Tab 导航 */}
-        <div className="w-[160px] border-r border-border/50 pt-3 px-2 flex-shrink-0 overflow-y-auto scrollbar-thin">
-          <nav className="flex flex-col gap-0.5">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => handleTabChange(tab.id)}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
-                  activeTab === tab.id
-                    ? "bg-muted text-foreground font-medium"
-                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+        {/* 左侧 Tab 导航：分组 + 弱化组标题，选中态走墨水填充 */}
+        <div className="w-[168px] pt-3 px-2.5 flex-shrink-0 overflow-y-auto scrollbar-thin" style={{ boxShadow: 'inset -1px 0 0 hsl(var(--foreground) / 0.06)' }}>
+          <nav className="flex flex-col">
+            {navGroups.map((group, groupIndex) => (
+              <React.Fragment key={group.label ?? groupIndex}>
+                {group.label && (
+                  <div className="mt-4 mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-foreground/35 select-none">
+                    {group.label}
+                  </div>
                 )}
-              >
-                {tab.icon}
-                <span>{tab.label}</span>
-                {tab.id === "about" && (hasUpdate || hasEnvironmentIssues) && (
-                  <span className="w-2 h-2 rounded-full bg-red-500" />
-                )}
-              </button>
+                <div className="flex flex-col gap-0.5">
+                  {group.tabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => handleTabChange(tab.id)}
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-1.5 rounded-lg text-[13px] transition-colors",
+                        activeTab === tab.id
+                          ? "bg-foreground/[0.08] text-foreground/90"
+                          : "text-foreground/55 hover:bg-foreground/[0.04] hover:text-foreground/80",
+                      )}
+                    >
+                      {tab.icon}
+                      <span>{tab.label}</span>
+                      {tab.id === "about" && (hasUpdate || hasEnvironmentIssues) && (
+                        <span className="w-2 h-2 rounded-full bg-red-500" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </React.Fragment>
             ))}
           </nav>
         </div>

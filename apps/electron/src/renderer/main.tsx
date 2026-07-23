@@ -4,10 +4,10 @@
  * 挂载 React 应用，初始化主题系统。
  */
 
-// 引入 Inter Variable 自托管字体（含 400/500/600/700 等所有字重）
-// index.css 声明了全部语言子集（latin/latin-ext/cyrillic/greek/vietnamese 等），
-// 但每个 @font-face 都带 unicode-range，浏览器仅按需下载实际用到的子集（本应用主要是 latin）。
-import '@fontsource-variable/inter/index.css'
+// 引入 Geist Variable 自托管字体（可变字重 100-900）
+// index.css 声明了全部语言子集且每个 @font-face 都带 unicode-range，
+// 浏览器仅按需下载实际用到的子集（本应用拉丁字符走 Geist，中文回退系统字体）。
+import '@fontsource-variable/geist/index.css'
 
 import React, { useEffect, useMemo, useRef } from 'react'
 import ReactDOM from 'react-dom/client'

@@ -1,0 +1,45 @@
+---
+description: LuxCoder 渲染层 design-engineering 规范：tokens 强制引用 + 交互物理规则 + UI Review Pass 检查清单
+globs:
+  - "apps/electron/src/renderer/**/*.tsx"
+  - "apps/electron/src/renderer/**/*.css"
+  - "packages/ui/**/*.tsx"
+alwaysApply: false
+---
+
+# Design Engineering 规范
+
+所有 UI 改动必须遵守本规范。token 唯一出处：`apps/electron/src/renderer/styles/globals.css`（`:root` 中的 `--ink-*` / `--duration-*` / `--ease-*` / `--shadow-*` / `--radius*`），Tailwind 映射见 `apps/electron/tailwind.config.js`。
+
+## Token 强制引用（禁止写死数值）
+
+- 颜色层级一律走 Ink 系统：文字 `text-foreground/92|55|37`（或 `--ink-text-hi/mid/lo`），填充 `--ink-fill`(4%)，hairline/边框 `--ink-line`(7%)，hover 7%，选中 `--ink-selected`(12%)，焦点 15%。**禁止**为单个主题写颜色覆写（CRT 终端特型主题除外，见 globals.css 专属覆写区）。
+- 动效时长只允许 `duration-fast`(120ms) / `duration-base`(180ms) / `duration-slow`(240ms)，**禁止**出现裸的 `duration-300`、`duration-500` 等任意毫秒数。
+- easing 只允许 `ease-out`（已映射为 expo-out `cubic-bezier(0.16,1,0.3,1)`）与 `ease-in-out`；**禁止** `ease-in` 入场、禁止浏览器默认 `ease`。
+- 阴影只允许 `shadow-sm/md/lg/xl` 语义档（仅用于弹出层/浮窗）；内容区层次靠亮度台阶，不靠投影。
+- 圆角走 `rounded-*`（由 `--radius` 派生）；chip 6 / 按钮·输入 8 / 卡片 10 / composer 12 同心制。
+
+## 交互物理规则
+
+1. **按钮 press 反馈**：所有可点击控件 `:active` 加 `scale(0.97)`（token `--press-scale`）；transform 过渡走 `duration-fast ease-out`。`ui/button.tsx` 基类与 globals.css 的 `.agent-workbench/.refined-sidebar/.refined-inspector button:active` 规则已内置，新组件不要绕开。
+2. **弹层入场**：popover / dropdown / tooltip / context-menu 必须从触发元素方向 scale 进入 —— `origin-[--radix-<primitive>-content-transform-origin]` + `zoom-in-95`。**禁止** `transform-origin: center` 弹层、禁止 `scale(0)` / `zoom-in-0` 从无到有入场。
+3. **Dialog**：中心 zoom 95→100 + fade，`duration-slow ease-out`；退场时长 ≤ 入场。
+4. **时长区间**：一切交互动效 120–250ms；hover/press 用 fast，弹层用 base，对话框/抽屉用 slow。
+5. **transition 属性**：**禁止** `transition-all` / `transition: all`，必须列出具体属性（如 `transition-[background-color,color,transform]`）。
+6. `prefers-reduced-motion: reduce` 下关闭 scale/闪烁类动画。
+
+## UI Review Pass 检查清单（提交 UI 改动前自查）
+
+```
+rg "transition-all|transition: all" apps/electron/src/renderer   # 应为 0（进度条类 width 过渡除外，须显式列属性）
+rg "ease-in(?!-out)" --pcre2 apps/electron/src/renderer          # 应为 0
+rg "zoom-in-0|scale\(0\)|scale-0[^.]" apps/electron/src/renderer # 应为 0
+rg "duration-(3|5|7)00" apps/electron/src/renderer               # 应为 0（用 fast/base/slow）
+```
+
+另人工确认：弹层 origin 是否来自触发点；按钮是否有 press 反馈；新颜色是否走 token。
+
+## 组件基座
+
+- 基于 shadcn/ui + Radix 改造（`renderer/components/ui/`），accessibility 与交互细节由原语保证，只在 token 层换皮；**不要**从零手写下拉/弹窗/滚动区。
+- 字体：拉丁字符 Geist Variable（自托管 @fontsource-variable/geist），中文 PingFang / 微软雅黑；不要引入新的 UI 字体。

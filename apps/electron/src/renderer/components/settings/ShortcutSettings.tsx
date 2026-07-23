@@ -531,7 +531,7 @@ export function ShortcutSettings(): React.ReactElement {
           <div className="flex items-center gap-1 ml-4 rounded-lg bg-muted/60 p-0.5">
             <button
               type="button"
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors duration-fast ${
                 !sendWithCmdEnter
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
@@ -542,7 +542,7 @@ export function ShortcutSettings(): React.ReactElement {
             </button>
             <button
               type="button"
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors duration-fast ${
                 sendWithCmdEnter
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'

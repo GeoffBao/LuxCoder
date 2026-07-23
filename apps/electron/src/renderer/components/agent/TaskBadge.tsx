@@ -84,7 +84,7 @@ export function TaskBadge({ task, onClick }: TaskBadgeProps): React.ReactElement
         'bg-background/70 backdrop-blur-sm',
         'border-[0.5px] border-border',
         'hover:bg-accent hover:border-accent-foreground/20',
-        'transition-all duration-200',
+        'transition-[background-color,border-color,color,opacity] duration-base ease-out',
         'text-xs font-medium',
         'cursor-pointer select-none'
       )}

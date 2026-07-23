@@ -2460,7 +2460,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         data-session-switch-hints={quickSwitchHintsVisible ? 'true' : undefined}
         className={cn(
           'refined-sidebar relative h-full flex flex-col items-center px-2',
-          !noTransition && 'transition-[width] duration-300',
+          !noTransition && 'transition-[width] duration-slow ease-out',
           isClassic
             ? 'bg-background rounded-2xl shadow-xl dark:shadow-md'
             : 'bg-[hsl(var(--sidebar-surface))]'
@@ -2706,7 +2706,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       className={cn(
         'relative h-full flex flex-col',
         'refined-sidebar',
-        !noTransition && 'transition-[width] duration-300',
+        !noTransition && 'transition-[width] duration-slow ease-out',
         isClassic
           ? 'bg-background rounded-2xl shadow-xl dark:shadow-md'
           : 'bg-[hsl(var(--sidebar-surface))]'

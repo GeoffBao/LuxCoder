@@ -219,7 +219,7 @@ export function AppShell({ contextValue }: AppShellProps): React.ReactElement {
             className={cn(
               'relative z-[60] flex items-stretch crt-sidebar',
               isClassic
-                ? 'transition-[padding] duration-300 ease-in-out'
+                ? 'transition-[padding] duration-slow ease-out'
                 : '',
               isClassic && (isPanelOpen ? 'p-2 pl-0' : 'p-0')
             )}

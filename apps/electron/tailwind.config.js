@@ -72,8 +72,7 @@ export default {
       // ===== 字体栈：Inter Variable 优先，回退 SF Pro Text / 系统中文字体 =====
       fontFamily: {
         sans: [
-          'Inter Variable',
-          'Inter',
+          'Geist Variable',
           '-apple-system',
           'BlinkMacSystemFont',
           'SF Pro Text',
@@ -104,6 +103,19 @@ export default {
         lg: 'var(--radius)',
         xl: 'calc(var(--radius) + var(--radius-xl-extra, 2px))',
         '2xl': 'calc(var(--radius) + var(--radius-2xl-extra, 4px))',
+      },
+      // ===== Motion token（唯一出处 globals.css :root）=====
+      // duration-fast/base/slow + ease-out/in-out；tailwindcss-animate 会让
+      // duration-* / ease-* 同时作用于 animation-*，因此 animate-in 一并生效。
+      // 注意：这里覆写了内置 ease-out —— 全站入场曲线统一为 expo-out。
+      transitionDuration: {
+        fast: 'var(--duration-fast)',
+        base: 'var(--duration-base)',
+        slow: 'var(--duration-slow)',
+      },
+      transitionTimingFunction: {
+        out: 'var(--ease-out)',
+        'in-out': 'var(--ease-in-out)',
       },
       // ===== 阴影：覆写 Tailwind 内置的 sm/md/lg/xl/DEFAULT =====
       // 现有 78 处 shadow-md / shadow-lg 等代码无需改动，自动吃多层柔阴影 + 主题自适应

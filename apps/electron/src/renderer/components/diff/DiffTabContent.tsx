@@ -1164,7 +1164,7 @@ export function DiffTabContent({ filePath, dirPath, sessionId, gitRoot, previewO
                 onClick={() => void saveMarkdownEdit()}
                 disabled={markdownSaving}
                 className={cn(
-                  'p-1 rounded hover:bg-foreground/[0.06] disabled:opacity-50 shrink-0 transition-colors duration-300',
+                  'p-1 rounded hover:bg-foreground/[0.06] disabled:opacity-50 shrink-0 transition-colors duration-base',
                   autosaveStatus === 'saved' && 'text-green-500 hover:text-green-500',
                   autosaveStatus === 'error' && 'text-red-500 hover:text-red-500',
                   autosaveStatus !== 'saved' && autosaveStatus !== 'error' && 'text-foreground/40 hover:text-foreground/60',

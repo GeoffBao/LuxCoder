@@ -31,7 +31,7 @@ SheetOverlay.displayName = SheetPrimitive.Overlay.displayName
 
 const sheetVariants = cva(
   // shadow-xl 多层柔阴影 + dialog 背景 token + hairline 边框。z-[100] 与 Overlay 对齐，高于 AppShell z-[60]
-  "fixed z-[100] gap-4 bg-dialog text-dialog-foreground p-6 shadow-xl transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500 data-[state=open]:animate-in data-[state=closed]:animate-out",
+  "fixed z-[100] gap-4 bg-dialog text-dialog-foreground p-6 shadow-xl transition ease-out data-[state=closed]:duration-200 data-[state=open]:duration-slow data-[state=open]:animate-in data-[state=closed]:animate-out",
   {
     variants: {
       side: {
