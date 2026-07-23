@@ -2,12 +2,12 @@
  * AboutSettings - 关于页面
  *
  * 显示应用版本号等基本信息，以及版本检测状态。
- * 主路径自动下载并「立即重启」；应用内安装失败后再静默下载 DMG 供打开。
+ * 检测到新版本后引导用户去 GitHub Releases 手动下载。
  */
 
 import * as React from 'react'
 import { useAtomValue, useSetAtom } from 'jotai'
-import { RefreshCw, Loader2, CheckCircle2, AlertCircle, Info, Terminal, ChevronDown, ChevronUp, ExternalLink, RotateCw, PackageOpen } from 'lucide-react'
+import { RefreshCw, Loader2, CheckCircle2, AlertCircle, Info, Terminal, ChevronDown, ChevronUp, ExternalLink, RotateCw } from 'lucide-react'
 import type { EnvironmentCheckResult, RuntimeStatus } from '@luxcoder/shared'
 import {
   SettingsSection,
@@ -29,23 +29,18 @@ import { VersionHistory } from './VersionHistory'
 declare const __APP_VERSION__: string
 const APP_VERSION = __APP_VERSION__
 
+const GITHUB_RELEASES_URL = 'https://github.com/GeoffBao/LuxCoder/releases'
+
 /** 更新状态卡片 */
 function UpdateCard(): React.ReactElement | null {
   const available = useAtomValue(updaterAvailableAtom)
   const status = useAtomValue(updateStatusAtom)
   const [checking, setChecking] = React.useState(false)
   const [showReleaseNotes, setShowReleaseNotes] = React.useState(false)
-  const [openingPackage, setOpeningPackage] = React.useState(false)
   const [release, setRelease] = React.useState<import('@luxcoder/shared').GitHubRelease | null>(null)
 
   // updater 不可用时不渲染
   if (!available) return null
-
-  const hasFallbackPackage = status.status === 'downloaded' && !!status.packagePath
-  const canQuitAndInstall = status.status === 'downloaded' && !status.packagePath
-  const canOpenPackage = hasFallbackPackage
-  // 主进程未显式声明不支持时默认支持应用内安装（未签名 macOS 为 false）
-  const installSupported = status.installSupported !== false
 
   const handleCheck = async (): Promise<void> => {
     setChecking(true)
@@ -57,28 +52,18 @@ function UpdateCard(): React.ReactElement | null {
     }
   }
 
+  const handleGoToDownload = (): void => {
+    const url = release?.html_url || GITHUB_RELEASES_URL
+    window.electronAPI.openExternal(url)
+  }
+
   const handleQuitAndInstall = (): void => {
     window.electronAPI.updater?.quitAndInstall()
   }
 
-  const handleOpenPackage = async (): Promise<void> => {
-    setOpeningPackage(true)
-    try {
-      await window.electronAPI.updater?.openDownloadedPackage()
-    } catch (err) {
-      console.error('[更新] 打开安装包失败:', err)
-    } finally {
-      setOpeningPackage(false)
-    }
-  }
-
-  // 获取更新日志（仅 notes，不打开下载页）
+  // 当检测到新版本时，获取完整的 release 信息
   React.useEffect(() => {
-    if (
-      (status.status === 'available' || status.status === 'downloaded' || status.status === 'downloading' || status.status === 'error') &&
-      status.version &&
-      !release
-    ) {
+    if (status.status === 'available' && status.version && !release) {
       window.electronAPI
         .getReleaseByTag(`v${status.version}`)
         .then((r) => {
@@ -100,15 +85,11 @@ function UpdateCard(): React.ReactElement | null {
     <SettingsCard>
       <SettingsRow label="软件更新">
         <div className="flex items-center gap-3">
-          <StatusText
-            status={status.status}
-            version={status.version}
-            error={status.error}
-            installSupported={installSupported}
-            progress={status.progress?.percent}
-          />
+          {/* 状态文字 */}
+          <StatusText status={status.status} version={status.version} error={status.error} />
 
-          {canQuitAndInstall ? (
+          {/* 操作按钮 */}
+          {status.status === 'downloaded' ? (
             <button
               onClick={handleQuitAndInstall}
               className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
@@ -116,18 +97,13 @@ function UpdateCard(): React.ReactElement | null {
               <RotateCw className="h-3.5 w-3.5" />
               立即重启
             </button>
-          ) : canOpenPackage ? (
+          ) : status.status === 'available' ? (
             <button
-              onClick={() => { void handleOpenPackage() }}
-              disabled={openingPackage}
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+              onClick={handleGoToDownload}
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
             >
-              {openingPackage ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <PackageOpen className="h-3.5 w-3.5" />
-              )}
-              打开安装包
+              <ExternalLink className="h-3.5 w-3.5" />
+              前往下载
             </button>
           ) : (
             <button
@@ -146,18 +122,8 @@ function UpdateCard(): React.ReactElement | null {
         </div>
       </SettingsRow>
 
-      {status.fallbackToPackage && status.status === 'downloading' && (
-        <div className="px-4 pb-3 text-xs text-muted-foreground border-t pt-3">
-          应用内安装失败，正在下载安装包…
-        </div>
-      )}
-      {hasFallbackPackage && (
-        <div className="px-4 pb-3 text-xs text-muted-foreground border-t pt-3">
-          应用内自动安装不可用，已改为下载安装包。打开后将 LuxCoder 拖入「应用程序」即可完成更新。
-        </div>
-      )}
-
-      {(status.status === 'available' || status.status === 'downloaded' || status.status === 'downloading' || (!installSupported && status.status === 'error' && status.version)) && hasReleaseNotes && (
+      {/* Release Notes（新版本可用时显示） */}
+      {status.status === 'available' && hasReleaseNotes && (
         <div className="px-4 pb-4 border-t">
           <button
             onClick={() => setShowReleaseNotes(!showReleaseNotes)}
@@ -187,12 +153,10 @@ function UpdateCard(): React.ReactElement | null {
 }
 
 /** 状态文字组件 */
-function StatusText({ status, version, error, installSupported, progress }: {
+function StatusText({ status, version, error }: {
   status: string
   version?: string
   error?: string
-  installSupported: boolean
-  progress?: number
 }): React.ReactElement {
   switch (status) {
     case 'checking':
@@ -209,14 +173,13 @@ function StatusText({ status, version, error, installSupported, progress }: {
         <span className="text-xs text-muted-foreground flex items-center gap-1">
           <Loader2 className="h-3 w-3 animate-spin" />
           正在下载 v{version}
-          {typeof progress === 'number' && progress > 0 ? ` ${Math.floor(progress)}%` : ''}
         </span>
       )
     case 'downloaded':
       return (
         <span className="text-xs text-primary flex items-center gap-1">
           <CheckCircle2 className="h-3 w-3" />
-          {installSupported ? `更新 v${version} 已就绪` : `安装包 v${version} 已下载`}
+          更新 v{version} 已就绪
         </span>
       )
     case 'not-available':
@@ -228,20 +191,15 @@ function StatusText({ status, version, error, installSupported, progress }: {
       )
     case 'error':
       return (
-        <span
-          className="text-xs text-destructive flex items-center gap-1 max-w-[280px]"
-          title={error}
-        >
-          <AlertCircle className="h-3 w-3 shrink-0" />
-          <span className="truncate">{error?.trim() ? error : '更新失败'}</span>
+        <span className="text-xs text-destructive flex items-center gap-1" title={error}>
+          <AlertCircle className="h-3 w-3" />
+          检查失败
         </span>
       )
     default:
       return <span className="text-xs text-muted-foreground">未检查</span>
   }
 }
-
-
 
 /** 环境检测卡片 */
 function EnvironmentCard(): React.ReactElement {
