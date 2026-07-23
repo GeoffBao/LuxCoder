@@ -1233,16 +1233,21 @@
   box-shadow: inset 0 -1px 0 hsl(var(--foreground) / 0.055);
 }
 
-:root:not(.ui-classic) .markdown-table-scroll {
+/* ===== Markdown 表格（消息正文）=====
+ * 组件层用 not-prose 剥掉了 typography 默认表格样式，此处是唯一样式来源，
+ * 因此不能只挂在 :root:not(.ui-classic) 作用域下（经典界面会裸奔成纯文本网格）。
+ * hairline 对比度按「浅色主题也能一眼读出表格结构」标定。
+ */
+.markdown-table-scroll {
   max-width: 100%;
   margin-block: 1em;
   overflow-x: auto;
   border-radius: 9px;
-  box-shadow: inset 0 0 0 0.5px hsl(var(--foreground) / 0.09);
+  box-shadow: inset 0 0 0 1px hsl(var(--foreground) / 0.12);
   scrollbar-width: thin;
 }
 
-:root:not(.ui-classic) .markdown-table-scroll table {
+.markdown-table-scroll table {
   width: 100%;
   min-width: 32rem;
   border-collapse: collapse;
@@ -1250,22 +1255,33 @@
   line-height: 1.5;
 }
 
-:root:not(.ui-classic) .markdown-table-scroll :is(th, td) {
+.markdown-table-scroll :is(th, td) {
   padding: 0.65em 0.8em;
-  border-bottom: 1px solid hsl(var(--foreground) / 0.065);
+  border-bottom: 1px solid hsl(var(--foreground) / 0.09);
   text-align: left;
   vertical-align: top;
 }
 
-:root:not(.ui-classic) .markdown-table-scroll th {
-  background: hsl(var(--foreground) / 0.025);
-  color: hsl(var(--foreground) / 0.72);
-  font-size: 0.92em;
-  font-weight: 650;
+.markdown-table-scroll td:not(:last-child),
+.markdown-table-scroll th:not(:last-child) {
+  border-right: 1px solid hsl(var(--foreground) / 0.06);
 }
 
-:root:not(.ui-classic) .markdown-table-scroll tr:last-child td {
+.markdown-table-scroll th {
+  background: hsl(var(--foreground) / 0.045);
+  color: hsl(var(--foreground) / 0.78);
+  font-size: 0.92em;
+  font-weight: 600;
+  border-bottom: 1px solid hsl(var(--foreground) / 0.12);
+}
+
+.markdown-table-scroll tr:last-child td {
   border-bottom: 0;
+}
+
+/* 偶数行微弱斑马纹，长表格不串行 */
+.markdown-table-scroll tbody tr:nth-child(even) td {
+  background: hsl(var(--foreground) / 0.015);
 }
 
 :root:not(.ui-classic) .message-time {
