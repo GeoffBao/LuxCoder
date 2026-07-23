@@ -59,14 +59,6 @@ export function shouldHonorBrowseRequest(input: {
   }
 }
 
-/** Draft 未绑定时应默认展开选择器，露出「使用现有文件夹…」等动作 */
-export function shouldDefaultOpenSessionPicker(input: {
-  mode: ProjectContextPickerMode
-  selectedProjectId?: string
-}): boolean {
-  return input.mode === 'session' && !input.selectedProjectId
-}
-
 export function clampDiscoveryDepth(depth: number | undefined): number {
   if (depth === undefined || Number.isNaN(depth)) return 3
   return Math.min(5, Math.max(1, Math.floor(depth)))
