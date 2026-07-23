@@ -51,7 +51,7 @@ export function ProjectSwitcher({
             'text-foreground/80 sidebar-control-surface hover:text-foreground transition-colors titlebar-no-drag',
             className,
           )}
-          aria-label="项目"
+          aria-label="打开项目列表"
         >
           <FolderKanban size={14} className="shrink-0 text-foreground/45" />
           <span className="flex-1 min-w-0 truncate text-left">项目</span>
