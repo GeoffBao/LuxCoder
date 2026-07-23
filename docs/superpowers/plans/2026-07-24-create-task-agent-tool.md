@@ -596,6 +596,7 @@ git commit -m "feat(main): register create-task in builtin MCP manifest"
  */
 
 import { buildMinimalTaskSpec } from '@luxcoder/shared/tasks'
+import { listTaskSlugs } from '@luxcoder/shared/tasks/storage'
 import { getAgentSessionMeta } from './agent-session-manager'
 import { getAgentWorkspace, getWorkspaceMcpConfig, getWorkspaceSkills } from './agent-workspace-manager'
 import { getAgentWorkspacePath } from './config-paths'
@@ -614,6 +615,27 @@ function jsonResult(payload: unknown): CreateTaskToolResult {
   return {
     content: [{ type: 'text', text: JSON.stringify(payload, null, 2) }],
   }
+}
+
+/**
+ * 若 baseSlug 已被占用，追加数字后缀直到唯一。
+ *
+ * 背景：`saveTaskSpec` 遇到同 slug 会直接覆盖已有 task.yaml，不做任何冲突检测——手动"新建任务"
+ * 表单场景下用户是显式命名、碰撞概率低，但 Agent 反复以相近标题调用 create_task 时碰撞概率高得多，
+ * 覆盖会静默丢失一个已存在的任务定义（残留的旧 orchestrator 会话则变成孤儿）。这个去重逻辑只加在
+ * 新工具这一侧，不改 materializeTaskFromSpec/表单既有行为——对齐 task-spec-form.ts 里 buildSpec()
+ * 给节点 ID 去重用的同一套"追加 -2 -3..."算法。
+ */
+function ensureUniqueTaskSlug(workspaceRoot: string, baseSlug: string): string {
+  const existing = new Set(listTaskSlugs(workspaceRoot))
+  if (!existing.has(baseSlug)) return baseSlug
+  let n = 2
+  let candidate = `${baseSlug}-${n}`
+  while (existing.has(candidate)) {
+    n += 1
+    candidate = `${baseSlug}-${n}`
+  }
+  return candidate
 }
 
 /** 校验 sources/skills 里的未知 slug，返回 warning 文案数组（不阻断创建，对齐 craft 语义）。 */
@@ -684,8 +706,10 @@ export async function injectCreateTaskMcpServer(
             workingDirectory: args.workingDirectory,
             projectId,
           })
+          const uniqueId = ensureUniqueTaskSlug(workspaceRoot, spec.id)
+          const finalSpec = uniqueId === spec.id ? spec : { ...spec, id: uniqueId }
 
-          const result = await materializeTaskFromSpec(workspaceRoot, ctx.workspaceId, spec)
+          const result = await materializeTaskFromSpec(workspaceRoot, ctx.workspaceId, finalSpec)
           return jsonResult({ ...result, warnings })
         },
       ),
@@ -702,6 +726,7 @@ export async function injectCreateTaskMcpServer(
 Run: `grep -n "^export function getAgentWorkspace\b\|^export function getWorkspaceSkills\b\|^export function getWorkspaceMcpConfig\b" apps/electron/src/main/lib/agent-workspace-manager.ts`
 Run: `grep -n "^export function getAgentWorkspacePath\b" apps/electron/src/main/lib/config-paths.ts`
 Run: `grep -n "^export function getAgentSessionMeta\b" apps/electron/src/main/lib/agent-session-manager.ts`
+Run: `grep -n "^export function listTaskSlugs\b" packages/shared/src/tasks/storage.ts`
 
 Expected: 每条都能找到对应导出。如果签名跟本文件假设的不一致（参数顺序、返回类型），照实际签名调整上面的代码，不要硬改成不存在的签名。
 
@@ -784,6 +809,7 @@ Run: `bun run dev`
 - [ ] Code 模式下跟 Agent 对话，明确要求"帮我创建一个任务，标题 XXX，做 YYY"，确认 Agent 调用了 `create_task` 工具
 - [ ] 看板上出现对应的 `todo` 卡片，**没有自动运行**
 - [ ] 不传 `projectId` 时，新任务继承了当前会话绑定的项目（先让会话绑定一个项目再测）
+- [ ] 连续用同一个 title 调用两次 `create_task`，确认看板上出现两张不同的卡片（第二张 slug 带 `-2` 后缀），第一张任务没有被覆盖/消失
 - [ ] 传一个不存在的 skill slug，确认任务仍然创建成功，工具返回里能看到 warning
 - [ ] 设置面板的能力列表能看到"创建任务"分类为"任务"、默认开启；手动关闭后新开的 Agent 对话里工具不再出现
 - [ ] 通过现有"新建任务"表单手动建一个任务，确认行为与改动前一致（Task 3 的回归检查在这里再确认一次，走完整应用而不是单测）

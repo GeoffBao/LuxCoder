@@ -85,7 +85,7 @@ export async function injectCreateTaskMcpServer(
 - **入参 Zod schema**：`title`（必填）、`description`（必填，成为 goal + 首节点 prompt）、`acceptanceCriteria`（可选）、`sources`/`skills`（可选字符串数组）、`llmConnection`/`model`（可选）、`workingDirectory`（可选）、`projectId`（可选——省略时从 `getAgentSessionMeta(ctx.sessionId)?.projectId` 继承，跟 `agent-collaboration-tools.ts` 里父子会话继承 `projectId` 的写法一致）。
 - **workspaceRoot 解析**：`getAgentWorkspace(ctx.workspaceId)?.slug` → `getAgentWorkspacePath(slug)`（均已存在于 `agent-workspace-manager.ts`/`config-paths.ts`，直接复用）。
 - **sources/skills 校验**：用 `getWorkspaceSkills(workspaceSlug)`（已存在）核对 `skills` 数组，`getWorkspaceMcpConfig(workspaceSlug)`（已存在）核对 `sources` 数组；未知 slug 收进 `warnings` 数组返回，不抛错、不阻断创建（对齐 craft 语义）。
-- **调用链**：`buildMinimalTaskSpec(args)` → `materializeTaskFromSpec(workspaceRoot, workspaceId, spec)` → 返回 `{ slug, orchestratorSessionId, warnings }`。
+- **调用链**：`buildMinimalTaskSpec(args)` → `ensureUniqueTaskSlug`（若 slug 已存在则追加 `-2`/`-3`...，`saveTaskSpec` 本身遇同名会静默覆盖，不做这一步的话 Agent 反复用相近标题调用会悄悄冲掉已有任务）→ `materializeTaskFromSpec(workspaceRoot, workspaceId, spec)` → 返回 `{ slug, orchestratorSessionId, warnings }`。
 - **工具描述**：参照 craft 原文本改写为中文，明确"CREATION ONLY，不会自动运行，需要用户或自动化显式启动"，避免 Agent 误以为调用后任务立刻执行。
 
 ### 4. 注册进内置 MCP 单一事实源（`default-mcp.json`）
