@@ -46,8 +46,13 @@ export function SessionHeader({
       setEditing(false)
       return
     }
-    await onRename(trimmed)
-    setEditing(false)
+    try {
+      await onRename(trimmed)
+    } catch (error) {
+      console.error('[SessionHeader] 更新标题失败:', error)
+    } finally {
+      setEditing(false)
+    }
   }
 
   /** 键盘事件 */
