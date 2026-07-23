@@ -695,7 +695,7 @@ function ChatViewInner({ conversationId }: ChatViewProps): React.ReactElement {
 
       {/* 提示词编辑侧栏 */}
       <div className={cn(
-        'relative flex-shrink-0 transition-[width] duration-300 ease-in-out overflow-hidden titlebar-drag-region',
+        'relative flex-shrink-0 transition-[width] duration-slow ease-out overflow-hidden titlebar-drag-region',
         promptSidebarOpen ? 'w-[300px] border-l' : 'w-10'
       )}>
         <div className={cn(

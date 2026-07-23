@@ -267,7 +267,7 @@ export function AgentSkillsView(): React.ReactElement {
         <div className="relative flex h-8 items-stretch rounded-xl bg-muted p-0.5">
           <div
             className={cn(
-              'absolute bottom-0.5 top-0.5 w-[calc(33.333%-3px)] rounded-lg bg-background shadow-sm transition-transform duration-300 ease-in-out',
+              'absolute bottom-0.5 top-0.5 w-[calc(33.333%-3px)] rounded-lg bg-background shadow-sm transition-transform duration-base ease-out',
               tab === 'skills' && 'translate-x-0',
               tab === 'mcp' && 'translate-x-full',
               tab === 'memory' && 'translate-x-[200%]',

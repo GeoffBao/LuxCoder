@@ -44,16 +44,16 @@
     "@earendil-works/pi-agent-core": "0.80.9",
     "@earendil-works/pi-ai": "0.80.9",
     "@earendil-works/pi-coding-agent": "0.80.9",
-    "@fontsource-variable/inter": "5.2.8",
+    "@fontsource-variable/geist": "5.3.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@pierre/diffs": "^1.1.20",
     "@xmldom/xmldom": "^0.8.11",
     "adm-zip": "^0.5.17",
     "dompurify": "^3.4.5",
     "iconv-lite": "^0.6.3",
+    "jszip": "^3.10.1",
     "mammoth": "^1.12.0",
     "pdfjs-dist": "^4.10.38",
-    "jszip": "^3.10.1",
     "typebox": "1.1.38"
   },
   "optionalDependencies": {

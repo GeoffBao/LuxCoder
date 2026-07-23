@@ -5,8 +5,8 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  // 基础：扁平安静（对齐 Cursor / macOS：按下只换色不形变、无立体阴影），保留原 svg 尺寸约定
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-[background-color,border-color,color,opacity] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 select-none",
+  // 基础：扁平无立体阴影 + 统一 press 反馈（active scale 0.97，transform 走 fast/ease-out）
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-[background-color,border-color,color,opacity,transform] duration-fast ease-out active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 select-none",
   {
     variants: {
       variant: {
@@ -23,8 +23,8 @@ const buttonVariants = cva(
           "bg-foreground/[0.05] text-foreground hover:bg-foreground/[0.08] active:bg-foreground/10",
         // ghost：无底，hover 仅浮出浅墨水
         ghost: "hover:bg-foreground/[0.06] hover:text-foreground",
-        // link：纯文字按钮
-        link: "text-primary underline-offset-4 hover:underline",
+        // link：纯文字按钮，关闭 scale 反馈以免视觉错位
+        link: "text-primary underline-offset-4 hover:underline active:scale-100",
       },
       size: {
         default: "h-9 px-4 py-2",

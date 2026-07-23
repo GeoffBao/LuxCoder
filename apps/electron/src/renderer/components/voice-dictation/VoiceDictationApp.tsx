@@ -459,7 +459,7 @@ export function VoiceDictationApp(): React.ReactElement {
                         {[0.6, 1, 0.75, 0.9, 0.5].map((scale, i) => (
                           <span
                             key={i}
-                            className="w-[3px] rounded-full bg-primary transition-all duration-100"
+                            className="w-[3px] rounded-full bg-primary transition-[height] duration-fast"
                             style={{ height: `${Math.max(4, Math.round(volume * scale * 16))}px` }}
                           />
                         ))}

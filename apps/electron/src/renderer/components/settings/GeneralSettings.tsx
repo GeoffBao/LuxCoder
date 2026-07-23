@@ -187,7 +187,7 @@ export function GeneralSettings(): React.ReactElement {
                       aria-label={`选择${avatar.label}头像`}
                       onClick={() => handleAvatarChange(avatar.id)}
                       className={cn(
-                        'aspect-square overflow-hidden rounded-xl transition-all hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                        'aspect-square overflow-hidden rounded-xl transition-transform duration-fast ease-out hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
                         userProfile.avatar === avatar.id
                           ? 'ring-2 ring-primary ring-offset-2 ring-offset-background'
                           : 'hover:bg-foreground/[0.06]'

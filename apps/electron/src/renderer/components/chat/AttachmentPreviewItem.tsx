@@ -167,7 +167,7 @@ export function AttachmentPreviewItem({
           'absolute top-1/2 right-1.5 -translate-y-1/2 size-[18px] rounded-full',
           'flex items-center justify-center',
           'text-[#37a5aa]/60 hover:text-[#37a5aa] hover:bg-[#37a5aa]/20',
-          'opacity-0 group-hover/attachment:opacity-100 transition-all duration-200'
+          'opacity-0 group-hover/attachment:opacity-100 transition-opacity duration-base'
         )}
       >
         <X className="size-3" />

@@ -52,7 +52,7 @@ export function SpeechButton({
           variant="ghost"
           size="icon"
           className={cn(
-            'relative size-8 transition-all duration-200 text-foreground/60 hover:text-foreground',
+            'relative size-8 transition-[color,background-color,opacity] duration-base text-foreground/60 hover:text-foreground',
             className
           )}
           onClick={handleClick}

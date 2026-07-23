@@ -228,7 +228,7 @@ export function ExitPlanModeBanner({ sessionId }: ExitPlanModeBannerProps): Reac
                 key={option.action}
                 type="button"
                 className={`
-                  flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-all outline-none text-left
+                  flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-colors duration-fast outline-none text-left
                   ${option.variant === 'destructive'
                     ? 'bg-muted/50 text-foreground/80 hover:bg-destructive/10 hover:text-destructive'
                     : 'bg-muted/50 text-foreground/80 hover:bg-muted'

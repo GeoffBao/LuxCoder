@@ -309,7 +309,7 @@ export function AskUserBanner({ sessionId }: AskUserBannerProps): React.ReactEle
                   key={idx}
                   type="button"
                   className={`
-                    px-2.5 py-1 rounded-lg text-xs font-medium transition-all outline-none
+                    px-2.5 py-1 rounded-lg text-xs font-medium transition-colors duration-fast outline-none
                     ${isActive
                       ? 'bg-primary text-primary-foreground shadow-sm'
                       : hasAnswer
@@ -486,7 +486,7 @@ function QuestionCard({
               key={option.label}
               type="button"
               className={`
-                flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-all outline-none text-left
+                flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-colors duration-fast outline-none text-left
                 ${isSelected
                   ? 'bg-primary text-primary-foreground shadow-sm'
                   : 'bg-muted/50 text-foreground/80 hover:bg-muted'
@@ -512,7 +512,7 @@ function QuestionCard({
         <button
           type="button"
           className={`
-            flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-all outline-none text-left
+            flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-colors duration-fast outline-none text-left
             ${answer.showCustom
               ? 'bg-primary text-primary-foreground shadow-sm'
               : 'bg-muted/50 text-foreground/80 hover:bg-muted'

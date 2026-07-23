@@ -373,7 +373,7 @@ function IconCard({
       type="button"
       onClick={onSelect}
       className={cn(
-        'relative flex flex-col items-center gap-1.5 rounded-lg p-2 transition-all',
+        'relative flex flex-col items-center gap-1.5 rounded-lg p-2 transition-[background-color,border-color,box-shadow] duration-fast',
         isSelected
           ? 'ring-2 ring-primary bg-primary/5'
           : 'hover:bg-muted/50'
@@ -424,7 +424,7 @@ function StyleCard({
       {/* 图片卡片本体 */}
       <div
         className={cn(
-          'relative rounded-lg overflow-hidden w-[99px] h-[183px] transition-all duration-150',
+          'relative rounded-lg overflow-hidden w-[99px] h-[183px] transition-[border-color,box-shadow,opacity] duration-fast',
           isSelected
             ? 'ring-2 ring-primary shadow-lg shadow-primary/20'
             : 'ring-1 ring-border/50 group-hover:ring-border group-focus-visible:ring-2 group-focus-visible:ring-primary group-focus-visible:ring-offset-1'

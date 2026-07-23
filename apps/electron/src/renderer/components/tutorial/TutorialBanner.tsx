@@ -52,7 +52,7 @@ export function TutorialBanner(): React.ReactElement | null {
 
   return (
     <div
-      className={`fixed bottom-6 right-6 z-[100] w-[340px] transition-all duration-500 ease-out ${
+      className={`fixed bottom-6 right-6 z-[100] w-[340px] transition-[opacity,transform] duration-slow ease-out ${
         visible
           ? 'translate-x-0 opacity-100'
           : 'translate-x-8 opacity-0 pointer-events-none'

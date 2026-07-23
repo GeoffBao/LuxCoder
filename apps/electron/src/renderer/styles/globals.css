@@ -5,14 +5,14 @@
 @tailwind utilities;
 
 /* ===== 全局字体与渲染优化 =====
- * 系统字体优先（对齐 Cursor / Codex：macOS 命中 SF Pro + PingFang，最便宜的「原生感」）；
- * Windows/Linux 上 -apple-system 被忽略，回退到自托管 Inter Variable（见 main.tsx 引入）。
+ * 拉丁字符用自托管 Geist Variable（比 Inter 更有性格的工具类无衬线，Vercel 出品），
+ * 中文回退 PingFang / 微软雅黑；Geist 缺字时由 -apple-system 兜底。
  * 数字使用 tabular-nums，配合 cv11/ss01/ss03 保持现代字形。
  */
 :root {
   font-family:
-    -apple-system, BlinkMacSystemFont, 'SF Pro Text',
-    'Inter Variable', 'Inter', 'PingFang SC', 'Segoe UI', 'Microsoft YaHei',
+    'Geist Variable', -apple-system, BlinkMacSystemFont, 'SF Pro Text',
+    'PingFang SC', 'Segoe UI', 'Microsoft YaHei',
     system-ui, sans-serif;
   font-feature-settings: 'cv11', 'ss01', 'ss03', 'tnum';
   -webkit-font-smoothing: antialiased;
@@ -113,6 +113,24 @@
     --ink-hover: hsl(var(--foreground) / 0.07);
     --ink-selected: hsl(var(--foreground) / 0.12);
     --ink-focus: hsl(var(--foreground) / 0.15);
+  }
+
+  /* ===== Motion 系统（design-engineering 规则，全局唯一出处）=====
+   * 交互动效只允许引用这些 token（tailwind.config.js 已映射）：
+   * - fast 120ms：hover / press / 图标旋转
+   * - base 180ms：popover / dropdown / tooltip 入场
+   * - slow 240ms：dialog / sheet / 面板级过渡
+   * easing 一律 ease-out 家族（快进缓停，符合物理直觉）；
+   * --ease-out 为 expo-out（Linear / Vercel 实测同款曲线），禁止 ease-in 入场。
+   */
+  :root {
+    --duration-fast: 120ms;
+    --duration-base: 180ms;
+    --duration-slow: 240ms;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    /* 按下反馈统一缩放比例 */
+    --press-scale: 0.97;
   }
 
   :root {
@@ -1328,16 +1346,28 @@
 :root:not(.ui-classic) .refined-sidebar button,
 :root:not(.ui-classic) .refined-inspector button {
   transition-property: color, background-color, border-color, opacity, box-shadow, transform;
-  transition-duration: 140ms;
-  transition-timing-function: ease-out;
+  transition-duration: var(--duration-fast);
+  transition-timing-function: var(--ease-out);
 }
 
-/* 按下不再 scale 缩放（Apple 系控件按下只换色不形变）；reduced-motion 下关闭过渡 */
+/* 统一 press 反馈：所有可点元素按下缩到 --press-scale（design-engineering 规则） */
+:root:not(.ui-classic) .agent-workbench button:active:not(:disabled),
+:root:not(.ui-classic) .refined-sidebar button:active:not(:disabled),
+:root:not(.ui-classic) .refined-inspector button:active:not(:disabled) {
+  transform: scale(var(--press-scale));
+}
+
 @media (prefers-reduced-motion: reduce) {
   :root:not(.ui-classic) .agent-workbench button,
   :root:not(.ui-classic) .refined-sidebar button,
   :root:not(.ui-classic) .refined-inspector button {
     transition-duration: 0ms;
+  }
+
+  :root:not(.ui-classic) .agent-workbench button:active:not(:disabled),
+  :root:not(.ui-classic) .refined-sidebar button:active:not(:disabled),
+  :root:not(.ui-classic) .refined-inspector button:active:not(:disabled) {
+    transform: none;
   }
 }
 
