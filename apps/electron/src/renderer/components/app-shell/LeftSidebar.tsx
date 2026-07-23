@@ -144,7 +144,7 @@ import { SidebarSessionViewToggle } from './SidebarSessionViewToggle'
 import { formatSidebarModuleCount } from './sidebar-module-model'
 import { AgentSessionItem, getSessionLeftAccent, SessionItemActions } from './AgentSessionItem'
 
-function getSidebarUpdateLabel(status: string, version?: string, installSupported = true): string {
+function getSidebarUpdateLabel(status: string, version?: string): string {
   const versionText = version ? ` v${version}` : ''
   switch (status) {
     case 'available':
@@ -152,22 +152,20 @@ function getSidebarUpdateLabel(status: string, version?: string, installSupporte
     case 'downloading':
       return `正在下载更新${versionText}`
     case 'downloaded':
-      return installSupported
-        ? `立即重启更新${versionText}`
-        : `打开安装包${versionText}`
+      return `立即重启更新${versionText}`
     default:
       return '软件更新'
   }
 }
 
-function getSidebarUpdateButtonText(status: string, installSupported = true): string {
+function getSidebarUpdateButtonText(status: string): string {
   switch (status) {
     case 'available':
       return '查看'
     case 'downloading':
       return '下载中'
     case 'downloaded':
-      return installSupported ? '更新' : '安装'
+      return '更新'
     default:
       return '更新'
   }
@@ -192,9 +190,8 @@ function SidebarUpdateButton({
   showText = false,
   hideIcon = false,
 }: SidebarUpdateButtonProps): React.ReactElement {
-  const useFallback = !!status.packagePath || status.fallbackToPackage === true
-  const label = getSidebarUpdateLabel(status.status, status.version, !useFallback)
-  const buttonText = getSidebarUpdateButtonText(status.status, !useFallback)
+  const label = getSidebarUpdateLabel(status.status, status.version)
+  const buttonText = getSidebarUpdateButtonText(status.status)
 
   return (
     <Tooltip>
@@ -209,7 +206,7 @@ function SidebarUpdateButton({
             status.status === 'downloading' ? (
               <Loader2 size={16} className="animate-spin" />
             ) : status.status === 'downloaded' ? (
-              useFallback ? <Download size={16} /> : <RotateCw size={16} />
+              <RotateCw size={16} />
             ) : (
               <Download size={16} />
             )
@@ -742,12 +739,6 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   }, [setSettingsOpen])
 
   const handleUpdateButtonClick = React.useCallback((): void => {
-    // 兜底包：打开本地 DMG/EXE
-    if (updateStatus.status === 'downloaded' && updateStatus.packagePath) {
-      void window.electronAPI.updater?.openDownloadedPackage()
-      return
-    }
-    // 主路径：立即重启安装
     if (updateStatus.status === 'downloaded') {
       void window.electronAPI.updater?.quitAndInstall()
       return
@@ -755,7 +746,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
     setSettingsTab('about')
     setSettingsOpen(true)
-  }, [setSettingsOpen, setSettingsTab, updateStatus.packagePath, updateStatus.status])
+  }, [setSettingsOpen, setSettingsTab, updateStatus.status])
 
   React.useEffect(() => {
     const id = window.setInterval(() => setRelativeTimeNow(Date.now()), 60_000)
