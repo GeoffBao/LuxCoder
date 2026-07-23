@@ -141,6 +141,7 @@ import { SidebarProjectSubgroup } from './SidebarProjectSubgroup'
 import { SidebarModule } from './SidebarModule'
 import { WorkspaceSwitcher } from './WorkspaceSwitcher'
 import { SidebarSessionViewToggle } from './SidebarSessionViewToggle'
+import { CodeMainViewSwitchControl } from './CodeMainViewSwitcher'
 import { formatSidebarModuleCount } from './sidebar-module-model'
 import { AgentSessionItem, getSessionLeftAccent, SessionItemActions } from './AgentSessionItem'
 
@@ -3015,6 +3016,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             <div className="flex-1 min-w-0">
               <SidebarSessionViewToggle />
             </div>
+            {/* 会话｜看板：切换主区视图（craft 式，挂在会话列表标题行；看板视图自带切回开关）。所在分支已限定 agent 模式，无需再加 mode 守卫 */}
+            <CodeMainViewSwitchControl compact />
             {sidebarSessionViewMode === 'projects' ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
