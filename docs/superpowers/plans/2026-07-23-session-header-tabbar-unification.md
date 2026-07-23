@@ -4,7 +4,7 @@
 
 **Goal:** 消灭 Chat / Code 两模式下顶部 chrome（TabBar + 会话标题行）的行数/样式不对称，统一为共享组件。
 
-**Architecture:** 把 `ChatHeader.tsx` / `AgentHeader.tsx` 里重复的标题编辑逻辑抽成共享的 `SessionHeader.tsx`；把独占一整行的「会话｜看板」切换条拆出一个可复用的 `CodeMainViewSwitchControl`，嵌入 `TabBar.tsx` 右侧（会话视图场景），原有整行版本继续用于看板视图自己的顶部（该场景下没有 TabBar 可嵌入，等同 craft-agents-oss 里 Board 模式下 header 自带一份切换控件的做法）；最后把 Chat/Code 模式切换器的左右顺序对调。
+**Architecture:** 把 `ChatHeader.tsx` / `AgentHeader.tsx` 里重复的标题编辑逻辑抽成共享的 `SessionHeader.tsx`；把独占一整行的「会话｜看板」切换条拆出一个可复用的 `CodeMainViewSwitchControl`，放入左侧栏「最近会话｜项目」行右侧（craft-agents-oss 式：视图开关挂在会话列表标题行），原有整行版本继续用于看板视图自己的顶部（承担从看板切回会话的入口，等同 craft 里 Board 模式下自带切换控件的做法）；TabBar 完全不动，两模式零差异；最后把 Chat/Code 模式切换器的左右顺序对调。
 
 **Tech Stack:** React 18 + TypeScript + Jotai + Tailwind CSS，Electron renderer 进程（无 React 组件测试基建，验证靠 `bun run typecheck` + `bun run dev` 手动过一遍）。
 
@@ -397,9 +397,9 @@ git commit -m "refactor(ui): AgentHeader uses shared SessionHeader"
  * CodeMainViewSwitcher / CodeMainViewSwitchControl - Code（agent）模式主区视图切换
  *
  * CodeMainViewSwitchControl 是纯控件（会话｜看板 segmented），两处复用：
- * 1. TabBar 右侧嵌入版（compact，会话视图场景，见 TabBar.tsx）
+ * 1. 左侧栏「最近会话｜项目」行嵌入版（compact，会话视图场景，见 LeftSidebar.tsx）
  * 2. 本文件的 CodeMainViewSwitcher：看板视图自己的顶部整行版
- *    （看板视图下没有 TabBar 可嵌入，需要独立一行承载切换入口，
+ *    （看板视图下侧栏可能折叠，需要自带切换入口保证能切回，
  *    对应 craft-agents-oss 里 Board 模式下 header 自带一份切换控件的做法）
  */
 
@@ -422,7 +422,7 @@ const OPTIONS: SwitcherOption[] = [
 ]
 
 export interface CodeMainViewSwitchControlProps {
-  /** 紧凑态：只显示图标，不显示文字（嵌入 TabBar 时用） */
+  /** 紧凑态：只显示图标，不显示文字（嵌入侧栏行内时用） */
   compact?: boolean
   className?: string
 }
@@ -463,7 +463,7 @@ export function CodeMainViewSwitchControl({ compact, className }: CodeMainViewSw
   )
 }
 
-/** 看板视图自己顶部的整行版本（会话视图场景改用嵌入 TabBar 的 CodeMainViewSwitchControl） */
+/** 看板视图自己顶部的整行版本（会话视图场景改用侧栏内嵌的 CodeMainViewSwitchControl） */
 export function CodeMainViewSwitcher(): React.ReactElement {
   return (
     <div className="primary-view-switcher titlebar-drag-region flex h-[34px] flex-shrink-0 items-center px-3.5">
@@ -482,131 +482,59 @@ Expected: 无报错（`CodeMainViewSwitcher` 对外接口不变，`MainArea.tsx`
 
 ```bash
 git add apps/electron/src/renderer/components/app-shell/CodeMainViewSwitcher.tsx
-git commit -m "refactor(ui): extract CodeMainViewSwitchControl for TabBar embedding"
+git commit -m "refactor(ui): extract CodeMainViewSwitchControl for sidebar embedding"
 ```
 
 ---
 
-### Task 6: 会话视图下把切换条嵌入 `TabBar`，移除独立一行
+### Task 6: 切换控件挪入左侧栏会话列表区，移除会话视图独立一行（craft 式）
+
+> 修订（2026-07-23）：原方案为嵌入 TabBar 右侧；对照 craft-agents-oss 实际 UI 后改为 craft 式——「列表｜看板」放在会话列表面板标题行。TabBar 完全不动（两模式 TabBar 零差异），避免绝对定位坐标耦合。设计文档第 2 节已同步修订。
 
 **Files:**
-- Modify: `apps/electron/src/renderer/components/tabs/TabBar.tsx`
-- Modify: `apps/electron/src/renderer/components/tabs/MainArea.tsx`
+- Modify: `apps/electron/src/renderer/components/app-shell/LeftSidebar.tsx`（「最近会话｜项目」行右侧加控件）
+- Modify: `apps/electron/src/renderer/components/tabs/MainArea.tsx`（会话视图分支移除独立切换行）
 
-- [ ] **Step 1: `TabBar.tsx` 导入新控件**
+- [ ] **Step 1: `LeftSidebar.tsx` 导入新控件**
 
-在文件顶部 import 区（现有 `import { TabBarItem } from './TabBarItem'` 附近）新增：
+在文件顶部 import 区新增：
 
 ```diff
 +import { CodeMainViewSwitchControl } from '@/components/app-shell/CodeMainViewSwitcher'
 ```
 
-- [ ] **Step 2: `TabBar`（外层导出组件）把 `appMode` 传给 `TabBarInner`**
+（LeftSidebar 与 CodeMainViewSwitcher 同目录，如果文件里同目录 import 用的是相对路径风格，跟随现状用 `./CodeMainViewSwitcher`。）
 
-`TabBar` 函数里已经有 `const appMode = useAtomValue(appModeAtom)`（用于 `handleActivate` 里判断 tab 类型），把它一并传给 `TabBarInner`：
+- [ ] **Step 2: 「最近会话｜项目」行右侧插入控件**
 
-```diff
-       <TabBarInner
-         tabs={tabs}
-         activeTabId={activeTabId}
-         streamingMap={indicatorMap}
-         workspaceNameBySessionId={workspaceNameBySessionId}
-         automationSessionIds={automationSessionIds}
-         delegationSessionIds={delegationSessionIds}
-+        appMode={appMode}
-         onActivate={handleActivate}
-         onClose={requestClose}
-         onDragStart={handleDragStart}
-         onTearOff={handleTearOff}
-       />
+找到「会话投影切换」行（约 3013-3053 行）：
+
+```tsx
+          {/* 会话投影切换：最近会话｜项目（仅切换；新建项目只走顶栏两流） */}
+          <div className="px-2 pt-2 pb-1 flex items-center gap-1.5 flex-shrink-0 titlebar-no-drag">
+            <div className="flex-1 min-w-0">
+              <SidebarSessionViewToggle />
+            </div>
+            {sidebarSessionViewMode === 'projects' ? (
+              <DropdownMenu>
+                ...（项目管理 MoreHorizontal 菜单）
+              </DropdownMenu>
+            ) : null}
+          </div>
 ```
 
-- [ ] **Step 3: `TabBarInner` 接收 `appMode` 并渲染切换控件**
-
-先在 import 区加上类型导入：
+在 `<SidebarSessionViewToggle />` 所在 flex 行内、`sidebarSessionViewMode === 'projects'` 条件块**之前**，插入紧凑版切换控件（该行已在 Code 模式分支内渲染；若该行同时服务 Chat 模式，需要包一层 `mode === 'agent' &&` —— 实现时以实际代码为准）：
 
 ```diff
-+import type { AppMode } from '@/atoms/app-mode'
+             <div className="flex-1 min-w-0">
+               <SidebarSessionViewToggle />
+             </div>
++            {/* 会话｜看板：切换主区视图（craft 式，挂在会话列表标题行；看板视图自带切回开关） */}
++            {mode === 'agent' && <CodeMainViewSwitchControl compact />}
+             {sidebarSessionViewMode === 'projects' ? (
 ```
 
-在 `TabBarInner` 的 props 类型里加一行：
-
-```diff
- function TabBarInner({
-   tabs,
-   activeTabId,
-   streamingMap,
-   workspaceNameBySessionId,
-   automationSessionIds,
-   delegationSessionIds,
-+  appMode,
-   onActivate,
-   onClose,
-   onDragStart,
-   onTearOff,
- }: {
-   tabs: TabItem[]
-   activeTabId: string | null
-   streamingMap: Map<string, SessionIndicatorStatus>
-   workspaceNameBySessionId: Map<string, string>
-   automationSessionIds: Set<string>
-   delegationSessionIds: Set<string>
-+  appMode: AppMode
-   onActivate: (tabId: string) => void
-   onClose: (tabId: string) => void
-   onDragStart: (tabId: string, e: React.PointerEvent) => void
-   onTearOff: (tabId: string) => void
- }): React.ReactElement {
-```
-
-在 `showOpenPanelButton` 定义下面新增一个派生值：
-
-```diff
-   const [isPanelOpen, setSidePanelOpen] = useAtom(agentSidePanelOpenAtom)
-   const activeTab = React.useMemo(() => tabs.find((t) => t.id === activeTabId), [tabs, activeTabId])
-   const showOpenPanelButton = !isPanelOpen && activeTab?.type === 'agent'
-+  // 会话｜看板切换：仅 Code 模式下出现（看板视图激活时 TabBar 整体不渲染，见 MainArea.tsx）
-+  const showCodeViewSwitch = appMode === 'agent'
-```
-
-滚动区的右侧留白逻辑要把新控件的宽度也算进去（原本只在 `showOpenPanelButton` 时留 `pr-10`）：
-
-```diff
-       <div
-         ref={scrollRef}
-         className={cn(
-           "relative flex items-end flex-1 min-w-0 overflow-x-auto scrollbar-none",
-           // Windows 始终避开 WindowControls（~126px）；非 Windows 打开按钮时给 scroll 预留空间
-           isWindows && WINDOW_CONTROLS_PADDING_RIGHT,
--          !isWindows && showOpenPanelButton && "pr-10",
-+          !isWindows && (showOpenPanelButton || showCodeViewSwitch) && "pr-16",
-         )}
-       >
-```
-
-在 `showOpenPanelButton && <AgentPanelOpenButton .../>` 之前插入新控件，用跟 `AgentPanelOpenButton` 同款的坐标方案（同一处注释里已经说明这块是"手动坐标耦合"，这里保持一致，只是把 `right-1` 换成 `right-9` 让出 `AgentPanelOpenButton` 的位置）：
-
-```diff
-+      {/* 会话｜看板切换：与 AgentPanelOpenButton 同款绝对定位方案，右移让出它的位置。
-+          Windows 上同样避开 WindowControls，溢出到 TabBar 下方。 */}
-+      {showCodeViewSwitch && (
-+        <div
-+          className={cn(
-+            "absolute flex titlebar-no-drag",
-+            isWindows
-+              ? "top-[37px] right-9 h-7 z-[52]"
-+              : "inset-y-0 right-9 items-end pb-[3px] z-10",
-+          )}
-+        >
-+          <CodeMainViewSwitchControl compact />
-+        </div>
-+      )}
-       {showOpenPanelButton && (
-         <AgentPanelOpenButton isWindows={isWindows} onToggle={togglePanel} />
-       )}
-```
-
-- [ ] **Step 4: `MainArea.tsx` 移除会话视图下的独立切换行**
+- [ ] **Step 3: `MainArea.tsx` 移除会话视图下的独立切换行**
 
 找到（约第 265-270 行附近）：
 
@@ -619,29 +547,30 @@ git commit -m "refactor(ui): extract CodeMainViewSwitchControl for TabBar embedd
                  {automationFormOpen ? (
 ```
 
-`CodeMainViewSwitcher` 的 import 保留（`showCodeWorkView` 分支里还在用），不要删除 import 语句。
+`CodeMainViewSwitcher` 的 import 保留（`showCodeWorkView` 看板分支里还在用，承担"从看板切回会话"的入口），不要删除 import 语句。`TabBar.tsx` 完全不改。
 
-- [ ] **Step 5: 类型检查**
+- [ ] **Step 4: 类型检查**
 
 Run: `cd apps/electron && bun run typecheck`
 Expected: 无报错
 
-- [ ] **Step 6: 手动验证（先做这一步的可视化确认，再继续后面任务）**
+- [ ] **Step 5: 手动验证（先做这一步的可视化确认，再继续后面任务）**
 
 Run: `bun run dev`
 
-1. 切到 Code 模式，打开任意会话 → TabBar 右侧应出现一个紧凑的「会话｜看板」图标切换按钮，不再有独立的整行切换条
-2. 点击"看板"图标 → 主区切到 WorkBoardView，顶部出现原来的整行 `CodeMainViewSwitcher`（文字版），可以点"会话"切回去
-3. 右侧文件面板打开时（`showOpenPanelButton` 为 false），确认新按钮没有跟已隐藏的面板按钮重叠、也没有跟最后一个 Tab 的关闭按钮重叠
-4. Chat 模式下 TabBar 右侧不出现这个切换按钮
+1. 切到 Code 模式 → 左侧栏「最近会话｜项目」行右侧出现紧凑的「会话｜看板」图标开关；主区 TabBar 上方不再有独立整行切换条
+2. 点击"看板"图标 → 主区切到 WorkBoardView，其顶部保留整行 `CodeMainViewSwitcher`（文字版），点"会话"可切回
+3. 侧栏「最近会话｜项目」在两种投影下（含项目模式的 MoreHorizontal 菜单同时出现时）行内布局不挤压、不换行
+4. Chat 模式下侧栏不出现该开关；Chat/Code 切换时主区 TabBar 起始位置不再跳动
+5. 折叠侧栏 → 该开关随侧栏隐藏（已知代价，看板视图自带切回开关兜底）
 
-如果第 3 步发现重叠或间距不对，在这一步直接调整 `right-9` / `pr-16` 的数值，不要留到后面任务。
+如果第 3 步发现布局挤压，调整该行 gap 或给控件加 `shrink-0`，不要留到后面任务。
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add apps/electron/src/renderer/components/tabs/TabBar.tsx apps/electron/src/renderer/components/tabs/MainArea.tsx
-git commit -m "feat(ui): embed code main view switch into TabBar, remove standalone row"
+git add apps/electron/src/renderer/components/app-shell/LeftSidebar.tsx apps/electron/src/renderer/components/tabs/MainArea.tsx
+git commit -m "feat(ui): move code main view switch into sidebar session list header"
 ```
 
 ---
@@ -709,7 +638,7 @@ Expected: 通过，无报错
 Run: `bun run dev`
 
 - [ ] Chat 模式：TabBar + SessionHeader 两行高度、背景、hairline 与 Code 模式一致（都应该能看到 TabBar 和标题行之间有清晰的一道分界线）
-- [ ] Code 模式会话视图：TabBar 右侧出现「会话｜看板」小开关，切换到看板后主区正确切到 `WorkBoardView`，chrome 行数不变
+- [ ] Code 模式会话视图：左侧栏「最近会话｜项目」行右侧出现「会话｜看板」小开关，切换到看板后主区正确切到 `WorkBoardView`；主区 TabBar 上方无独立切换行
 - [ ] Chat ⇄ Code 来回切换：TabBar 起始位置不跳动
 - [ ] 顶部 Chat/Code 胶囊按钮：Code 在左、Chat 在右，滑动指示器位置正确；折叠侧边栏时图标顺序一致（Code 在上、Chat 在下）
 - [ ] Chat 会话重命名（点 pencil 图标改标题）功能正常，标题栏和侧边栏同步更新

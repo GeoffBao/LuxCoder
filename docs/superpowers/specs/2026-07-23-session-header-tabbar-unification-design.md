@@ -73,17 +73,19 @@ export function ChatHeader({ conversation }: ChatHeaderProps) {
 
 两个文件都从 ~120 行降到 ~30 行，且样式/交互只有一份实现，未来的视觉改动天然两边同步。
 
-### 2. 「会话｜看板」切换嵌入 TabBar 行内
+### 2. 「会话｜看板」切换挪入左侧栏会话列表区（craft 式）
 
-`CodeMainViewSwitcher` 现有内部实现（34px 高的小 segmented 控件）本身形态就是对的，问题只在**渲染位置** —— 现在是 `MainArea.tsx` 里 TabBar 之上的独立一行。改法：
+> 修订（2026-07-23）：最初方案是把开关嵌入 TabBar 右侧；用户对照 craft-agents-oss 实际截图后指出其「列表｜看板」放在**会话列表面板的标题行**（"所有会话 [列表|看板] [filter]"），语义上更合理——这个开关切换的是"如何浏览会话集合"，操作对象是会话列表而非当前 Tab。采纳该方案，TabBar 完全不动，两模式 TabBar 达成零差异（连条件渲染都不需要），也避免了 TabBar 内绝对定位坐标耦合。
 
-- `MainArea.tsx` 去掉 `{appMode === 'agent' && <CodeMainViewSwitcher />}` 这一整行独立渲染。
-- `TabBar.tsx` 的 `TabBarInner` 里，在已有的 `AgentPanelOpenButton`（"打开文件面板"按钮，同样是"仅 Agent 模式下出现的右侧小控件"）旁边，新增一个条件渲染的 `CodeMainViewSwitcherCompact`（复用 `CodeMainViewSwitcher` 的选项数据和逻辑，去掉外层 `h-[34px] px-3.5` 这层"整行"包装，改成 TabBar 内部 flex 子项，跟 tabs 滚动区并排、`shrink-0`，垂直方向用 `items-end`/`self-center` 对齐现有 34px 行高）。
-- 两个右侧控件（会话/看板切换、文件面板按钮）在 TabBar 里左右排布共存，宽度不够时先收起文件面板按钮的 tooltip 文案，不改变 TabBar 整体高度。
+`CodeMainViewSwitcher` 现有内部实现（小 segmented 控件）本身形态是对的，问题只在**渲染位置** —— 现在是 `MainArea.tsx` 里 TabBar 之上的独立一行。改法：
 
-效果：TabBar 永远是同一行、同一高度，Code 模式下多了个右侧小开关，Chat 模式下这个位置就是空的 —— 不是"多一行"，是"同一行多一个可选控件"，与 craft-agents-oss 的 `BoardListToggle` 做法一致。
+- `MainArea.tsx` 会话视图分支去掉 `{appMode === 'agent' && <CodeMainViewSwitcher />}` 这一整行独立渲染。
+- 拆出纯控件 `CodeMainViewSwitchControl`（支持 `compact` 图标态），放进 `LeftSidebar.tsx` 的「最近会话｜项目」切换行（`SidebarSessionViewToggle` 所在行，约 3013-3053 行）右侧——该行右侧本来就有一个按需出现的操作位（项目模式下的 `MoreHorizontal` 菜单），结构与 craft 的"所有会话 [列表|看板] [filter]"同构。
+- 看板视图自己顶部的整行版 `CodeMainViewSwitcher`（`MainArea.tsx` 的 `showCodeWorkView` 分支）保留，承担"从看板切回会话"的入口——对应 craft 里 Board 模式下 navigator 收起、由 Board 自带开关切回的做法。
 
-看板视图激活后，`SessionHeader` 这一行如何呈现（复用会话标题位置显示"看板"标题 + 是否需要 actions）不在本次范围内单独设计，沿用 `WorkBoardView` 现状（`CodeMainViewSwitcher` 挪位置后，看板视图本身的 UI 不变，只是它上方多了两行固定 chrome：TabBar + 一个不显示具体会话标题的 SessionHeader-like 占位，或者直接不显示 SessionHeader —— 实现时按 `codeMainView === 'work'` 判断跳过 SessionHeader 渲染，因为看板视图没有"当前会话标题"这个概念，这与现状行为一致，只是消除了原来"会话/看板"整行）。
+效果：TabBar 两模式完全一致（无任何条件渲染）；会话/看板切换语义归位到会话列表；侧栏折叠时看不到入口是已知代价（craft 同样如此），看板视图自带开关保证不会被困住。
+
+看板视图激活后主区不渲染 TabBar + SessionHeader（现状行为，`showCodeWorkView` 分支整体替换主区），本次不改。
 
 ### 3. Mode 切换器顺序对调
 
@@ -109,11 +111,10 @@ export function ChatHeader({ conversation }: ChatHeaderProps) {
 | `apps/electron/src/renderer/components/tabs/SessionHeader.tsx` | 新增，从 ChatHeader/AgentHeader 抽取的共享组件 |
 | `apps/electron/src/renderer/components/chat/ChatHeader.tsx` | 收窄为 SessionHeader 的薄封装 |
 | `apps/electron/src/renderer/components/agent/AgentHeader.tsx` | 收窄为 SessionHeader 的薄封装 |
-| `apps/electron/src/renderer/components/tabs/TabBar.tsx` | 新增右侧「会话｜看板」小开关，与现有文件面板按钮共存 |
-| `apps/electron/src/renderer/components/tabs/MainArea.tsx` | 移除独立渲染的 `CodeMainViewSwitcher` 行 |
-| `apps/electron/src/renderer/components/app-shell/CodeMainViewSwitcher.tsx` | 去掉外层整行包装，改造成可嵌入 TabBar 的紧凑版本（或拆出 `CodeMainViewSwitcherCompact`） |
+| `apps/electron/src/renderer/components/tabs/MainArea.tsx` | 会话视图分支移除独立渲染的 `CodeMainViewSwitcher` 行（看板分支保留） |
+| `apps/electron/src/renderer/components/app-shell/CodeMainViewSwitcher.tsx` | 拆出纯控件 `CodeMainViewSwitchControl`（支持 compact 图标态），整行版保留给看板视图 |
 | `apps/electron/src/renderer/components/app-shell/ModeSwitcher.tsx` | `modes` 数组顺序对调 |
-| `apps/electron/src/renderer/components/app-shell/LeftSidebar.tsx` | 折叠态图标栏顺序对调，与展开态一致 |
+| `apps/electron/src/renderer/components/app-shell/LeftSidebar.tsx` | 「最近会话｜项目」行右侧加入 `CodeMainViewSwitchControl`（compact）；折叠态图标栏顺序核对 |
 | `apps/electron/src/renderer/styles/globals.css` | `agent-header-polished` 改名/复用为通用 class，供 `SessionHeader` 统一引用 |
 
 ## 验证计划
