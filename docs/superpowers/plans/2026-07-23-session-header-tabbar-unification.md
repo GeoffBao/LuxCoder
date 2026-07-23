@@ -575,52 +575,47 @@ git commit -m "feat(ui): move code main view switch into sidebar session list he
 
 ---
 
-### Task 7: Mode 切换器（展开态胶囊按钮）顺序对调
+### Task 7: Mode 切换器顺序对调 —— 已取消
+
+> 取消（2026-07-23）：用户确定后续 Chat/Code 全面对标 Claude Desktop，而 Claude 的切换是 Home(Chat) 左、Code 右。保持 `ModeSwitcher.tsx` 现状（Chat 左），不做任何改动。
+
+---
+
+### Task 8: 折叠态侧栏图标顺序对调（Chat 在上）
 
 **Files:**
-- Modify: `apps/electron/src/renderer/components/app-shell/ModeSwitcher.tsx:24-27`
+- Modify: `apps/electron/src/renderer/components/app-shell/LeftSidebar.tsx:2496-2532`
 
-- [ ] **Step 1: 调整 `modes` 数组顺序**
+Task 7 取消后，展开态保持 Chat 左；折叠态目前 Agent/Code 图标在上、Chat 在下，纵向顺序与展开态相反，需要交换。
 
-```diff
- const modes: { value: 'chat' | 'agent'; label: string; icon: React.ReactNode }[] = [
--  { value: 'chat', label: 'Chat', icon: <MessageSquare size={15} /> },
-   { value: 'agent', label: 'Code', icon: <Code2 size={15} /> },
-+  { value: 'chat', label: 'Chat', icon: <MessageSquare size={15} /> },
- ]
+- [ ] **Step 1: 交换两个按钮块的先后顺序**
+
+「模式切换」区域内（`{/* 模式切换 */}` 注释下的 `flex flex-col` 容器），把 Chat 的 `Tooltip` 块整体移到 `CollapsedWorkspacePopover`（Agent 按钮）块前面，两个块内部代码原样保留，不改任何 className / handler：
+
+```tsx
+        {/* 模式切换 */}
+        <div className="flex flex-col items-center gap-1.5">
+          <Tooltip>
+            {/* …Chat 按钮块（原样搬移）… */}
+          </Tooltip>
+
+          <CollapsedWorkspacePopover>
+            {/* …Agent/Code 按钮块（原样搬移）… */}
+          </CollapsedWorkspacePopover>
+        </div>
 ```
-
-`modeIndex` / `SLIDER_TRANSLATE` 都是按数组下标算的，不用改任何其他代码，滑动指示器会自动跟着换位。
 
 - [ ] **Step 2: 类型检查**
 
 Run: `cd apps/electron && bun run typecheck`
 Expected: 无报错
 
-- [ ] **Step 3: 手动验证**
-
-Run: `bun run dev`（如果 Task 6 已经在跑，刷新即可）
-
-确认展开态侧边栏顶部胶囊按钮顺序是 `</> Code | Chat`（Code 在左），点击切换、滑动背景指示器位置正确。
-
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
-git add apps/electron/src/renderer/components/app-shell/ModeSwitcher.tsx
-git commit -m "feat(ui): swap Code/Chat mode switcher order, Code first"
+git add apps/electron/src/renderer/components/app-shell/LeftSidebar.tsx
+git commit -m "feat(ui): collapsed rail puts Chat icon above Code, matching expanded order"
 ```
-
----
-
-### Task 8: 核对折叠态侧边栏图标顺序（预期无需改动）
-
-**Files:** 无（核对任务）
-
-折叠侧边栏是纵向图标栏，没有"左右"只有"上下"，纵向阅读顺序里"上"对应展开态的"左"。当前代码（`LeftSidebar.tsx:2496-2532`）里 Agent/Code 按钮在上、Chat 按钮在下，跟 Task 7 改完后展开态"Code 在左、Chat 在右"的语义已经一致，**不需要修改这个文件**。这一步只是手动核对，避免漏看。
-
-- [ ] **Step 1: 手动核对**
-
-Run: `bun run dev`，折叠侧边栏（点击折叠按钮或 `⌘B`），确认从上到下依次是 Code 图标、Chat 图标，与展开态从左到右 Code、Chat 顺序一致。若发现实际顺序相反，再回头交换 `LeftSidebar.tsx:2496-2532` 里 `CollapsedWorkspacePopover`（Agent 按钮）和 `Tooltip`（Chat 按钮）两个块的先后位置。
 
 ---
 
@@ -640,7 +635,7 @@ Run: `bun run dev`
 - [ ] Chat 模式：TabBar + SessionHeader 两行高度、背景、hairline 与 Code 模式一致（都应该能看到 TabBar 和标题行之间有清晰的一道分界线）
 - [ ] Code 模式会话视图：左侧栏「最近会话｜项目」行右侧出现「会话｜看板」小开关，切换到看板后主区正确切到 `WorkBoardView`；主区 TabBar 上方无独立切换行
 - [ ] Chat ⇄ Code 来回切换：TabBar 起始位置不跳动
-- [ ] 顶部 Chat/Code 胶囊按钮：Code 在左、Chat 在右，滑动指示器位置正确；折叠侧边栏时图标顺序一致（Code 在上、Chat 在下）
+- [ ] 顶部 Chat/Code 胶囊按钮：保持 Chat 左、Code 右（对标 Claude，Task 7 已取消）；折叠侧边栏时图标顺序一致（Chat 在上、Code 在下）
 - [ ] Chat 会话重命名（点 pencil 图标改标题）功能正常，标题栏和侧边栏同步更新
 - [ ] Agent 会话重命名功能正常，Tab 标题和侧边栏同步更新
 - [ ] Chat 模式下 `SystemPromptSelector` / 置顶 / 并排模式按钮仍然正常工作
