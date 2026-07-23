@@ -242,7 +242,7 @@ function PromptRow({ prompt, dimmed = false }: { prompt: string; dimmed?: boolea
 
         <ChevronRight
           className={cn(
-            'shrink-0 size-3 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity duration-fast',
+            'shrink-0 size-3 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-[opacity,transform] duration-fast',
             expanded && 'rotate-90 opacity-100',
           )}
         />
