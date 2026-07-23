@@ -42,7 +42,8 @@ export interface BuildMinimalTaskSpecInput {
 
 export function buildMinimalTaskSpec(input: BuildMinimalTaskSpecInput): TaskSpec {
   // slug 由 title 派生（复用/迁移 task-spec-form.ts 现有的 slugify 实现）
-  // 单节点 orchestrator spec：description 同时作为 goal 与首节点 prompt
+  // 单节点 spec：description 同时作为 goal 与唯一节点的 prompt，节点 kind 留空走 schema 默认值 'session'
+  //（核实过 task-spec-form.ts 的 buildSpec 对手写节点也从不显式设置 kind，此处保持同一约定）
   // sources/skills/acceptanceCriteria/workingDirectory/projectId 直接映射到 TaskSpec 对应字段
 }
 ```
