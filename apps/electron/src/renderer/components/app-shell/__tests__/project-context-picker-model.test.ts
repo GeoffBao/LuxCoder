@@ -3,7 +3,6 @@ import {
   allowsSkipProject,
   buildPickerSections,
   clampDiscoveryDepth,
-  shouldDefaultOpenSessionPicker,
   shouldHonorBrowseRequest,
   type PickerProject,
   type DiscoveredRepo,
@@ -93,11 +92,5 @@ describe('project-context-picker-model', () => {
     const zero = shouldHonorBrowseRequest({ browseRequest: 0, baseline: 3 })
     expect(zero.honor).toBe(false)
     expect(zero.nextBaseline).toBe(0)
-  })
-
-  test('shouldDefaultOpenSessionPicker：Draft 未绑定项目时默认展开', () => {
-    expect(shouldDefaultOpenSessionPicker({ mode: 'session' })).toBe(true)
-    expect(shouldDefaultOpenSessionPicker({ mode: 'session', selectedProjectId: 'p1' })).toBe(false)
-    expect(shouldDefaultOpenSessionPicker({ mode: 'task' })).toBe(false)
   })
 })

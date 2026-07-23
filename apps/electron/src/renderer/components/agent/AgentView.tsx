@@ -2724,6 +2724,10 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     [pendingImageFiles, handleAttachmentEditComplete]
   )
 
+  // 冷启动重开旧 draft 会话时，内存态 draftSessionIds 已丢失（不跨进程持久化）；
+  // 用"消息为空"兜底识别，避免刷新后项目选择器消失
+  const isEmptySession = messagesLoaded && persistedSDKMessages.length === 0 && liveMessages.length === 0
+
   return (
     <>
     <AgentSessionProvider sessionId={sessionId}>
@@ -2780,7 +2784,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
             <DraftProjectPicker
               sessionId={sessionId}
               projectId={sessionMeta?.projectId}
-              isDraft={isDraftSession}
+              isDraft={isDraftSession || isEmptySession}
               className="px-3 pt-2.5"
             />
             {/* 无 Agent 渠道或无可用模型提示 */}

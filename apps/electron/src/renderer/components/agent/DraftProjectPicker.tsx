@@ -8,7 +8,6 @@ import { useSetAtom } from 'jotai'
 import { toast } from 'sonner'
 import { agentSessionsAtom } from '@/atoms/agent-atoms'
 import { ProjectContextPicker } from '@/components/app-shell/ProjectContextPicker'
-import { shouldDefaultOpenSessionPicker } from '@/components/app-shell/project-context-picker-model'
 import { cn } from '@/lib/utils'
 import { canBindProjectBeforeSend } from './draft-session-lifecycle'
 
@@ -47,7 +46,6 @@ export function DraftProjectPicker({
       <ProjectContextPicker
         mode="session"
         selectedProjectId={projectId}
-        defaultOpen={shouldDefaultOpenSessionPicker({ mode: 'session', selectedProjectId: projectId })}
         onSelect={bindProject}
       />
     </div>
