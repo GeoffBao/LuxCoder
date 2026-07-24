@@ -45,7 +45,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Slider } from '@/components/ui/slider'
+import { ThinkingLevelSlider, normalizeToUiIndex, uiIndexToLevel, UI_THINKING_LEVELS } from '@/components/ui/thinking-level-slider'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -218,20 +218,7 @@ function isStaleAgentQueueError(error: unknown): boolean {
 
 // ===== 思考深度 Hover Popover（Pi / craft 对齐：会话级 ThinkingLevel） =====
 
-const PI_THINKING_LEVELS = ['off', 'low', 'medium', 'high', 'xhigh'] as const satisfies readonly AgentThinkingLevel[]
-type PiThinkingLevelOption = (typeof PI_THINKING_LEVELS)[number]
-const PI_THINKING_LABELS: Record<PiThinkingLevelOption, string> = {
-  off: '关闭',
-  low: '低',
-  medium: '中',
-  high: '高',
-  xhigh: '极高',
-}
-
-function normalizePiThinkingLevel(level: AgentThinkingLevel | undefined): PiThinkingLevelOption {
-  if (level === 'minimal') return 'low'
-  return PI_THINKING_LEVELS.includes(level as PiThinkingLevelOption) ? level as PiThinkingLevelOption : 'off'
-}
+const UI_THINKING_LABELS_MAP = UI_THINKING_LEVELS.map((l) => l.cn)
 
 interface SessionThinkingConfig {
   thinkingLevel: AgentThinkingLevel
@@ -246,9 +233,8 @@ interface AgentThinkingPopoverProps {
 function AgentThinkingPopover({ config }: AgentThinkingPopoverProps): React.ReactElement {
   const [open, setOpen] = React.useState(false)
   const hoverTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null)
-  const normalizedLevel = normalizePiThinkingLevel(config.thinkingLevel)
-  const isEnabled = normalizedLevel !== 'off'
-  const sliderPosition = PI_THINKING_LEVELS.indexOf(normalizedLevel)
+  const normalizedIndex = normalizeToUiIndex(config.thinkingLevel)
+  const isEnabled = config.thinkingLevel !== 'off'
 
   const handleMouseEnter = React.useCallback(() => {
     if (hoverTimeout.current) clearTimeout(hoverTimeout.current)
@@ -283,8 +269,8 @@ function AgentThinkingPopover({ config }: AgentThinkingPopoverProps): React.Reac
           onMouseLeave={handleMouseLeave}
           disabled={config.disabled}
           aria-pressed={isEnabled}
-          aria-label={isEnabled ? `思考深度：${PI_THINKING_LABELS[normalizedLevel]}` : '思考深度：关闭'}
-          title={isEnabled ? `思考深度：${PI_THINKING_LABELS[normalizedLevel]}（点击关闭）` : '思考深度：关（点击开启）'}
+          aria-label={isEnabled ? `思考深度：${UI_THINKING_LABELS_MAP[normalizedIndex]}` : '思考深度：关闭'}
+          title={isEnabled ? `思考深度：${UI_THINKING_LABELS_MAP[normalizedIndex]}（点击关闭）` : '思考深度：关（点击开启）'}
         >
           <Brain className="size-5" />
         </Button>
@@ -298,30 +284,20 @@ function AgentThinkingPopover({ config }: AgentThinkingPopoverProps): React.Reac
         onMouseLeave={handleMouseLeave}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <div className="space-y-2.5">
+        <div className="space-y-2">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 space-y-0.5">
-              <span className="text-xs font-medium text-foreground">思考深度</span>
               <p className="text-[10px] leading-snug text-muted-foreground">
-                本会话生效；默认展开思考过程请到「通用设置」
+                本会话生效；默认展开请到「通用设置」
               </p>
             </div>
-            <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-              {PI_THINKING_LABELS[normalizedLevel]}
-            </span>
           </div>
-          <Slider
-            value={[sliderPosition]}
-            onValueChange={([position]) => config.onThinkingLevelChange(PI_THINKING_LEVELS[position!]!)}
-            min={0}
-            max={PI_THINKING_LEVELS.length - 1}
-            step={1}
+          <ThinkingLevelSlider
+            value={normalizedIndex}
+            onValueChange={(i) => config.onThinkingLevelChange(uiIndexToLevel(i))}
             disabled={config.disabled}
-            aria-label="思考深度"
+            locale="cn"
           />
-          <div className="flex justify-between text-[10px] text-muted-foreground">
-            {PI_THINKING_LEVELS.map((level) => <span key={level}>{PI_THINKING_LABELS[level]}</span>)}
-          </div>
         </div>
       </PopoverContent>
     </Popover>

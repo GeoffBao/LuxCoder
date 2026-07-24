@@ -50,6 +50,7 @@ import { Button } from '../ui/button'
 import type { NotificationSoundId, NotificationSoundType, NotificationSoundSettings } from '@/types/settings'
 import type { AgentThinkingLevel } from '@luxcoder/shared'
 import { DEFAULT_AGENT_THINKING_LEVEL } from '@luxcoder/shared'
+import { ThinkingLevelSlider, normalizeToUiIndex, uiIndexToLevel } from '@/components/ui/thinking-level-slider'
 
 export function GeneralSettings(): React.ReactElement {
   const [userProfile, setUserProfile] = useAtom(userProfileAtom)
@@ -87,15 +88,13 @@ export function GeneralSettings(): React.ReactElement {
   }
 
   /** 更新新会话默认思考深度 */
-  const handleDefaultThinkingLevelChange = async (value: string): Promise<void> => {
-    const level = value as AgentThinkingLevel
+  const handleDefaultThinkingLevelIndexChange = React.useCallback((index: number): void => {
+    const level = uiIndexToLevel(index)
     setDefaultThinkingLevel(level)
-    try {
-      await window.electronAPI.updateSettings({ defaultThinkingLevel: level })
-    } catch (error) {
+    window.electronAPI.updateSettings({ defaultThinkingLevel: level }).catch((error) => {
       console.error('[通用设置] 更新默认思考深度失败:', error)
-    }
-  }
+    })
+  }, [])
 
   /** 更新头像 */
   const handleAvatarChange = async (avatar: string): Promise<void> => {
@@ -371,24 +370,13 @@ export function GeneralSettings(): React.ReactElement {
             label="新会话默认思考深度"
             description="仅作为新建会话的初始值，可在输入栏按会话覆盖"
           >
-            <Select value={defaultThinkingLevel} onValueChange={handleDefaultThinkingLevelChange}>
-              <SelectTrigger className="w-[120px] h-8 text-[13px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {([
-                  ['off', '关闭'],
-                  ['low', '低'],
-                  ['medium', '中'],
-                  ['high', '高'],
-                  ['xhigh', '极高'],
-                ] as const).map(([level, label]) => (
-                  <SelectItem key={level} value={level}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="w-56">
+              <ThinkingLevelSlider
+                value={normalizeToUiIndex(defaultThinkingLevel)}
+                onValueChange={handleDefaultThinkingLevelIndexChange}
+                locale="cn"
+              />
+            </div>
           </SettingsRow>
         </SettingsCard>
       </SettingsSection>
