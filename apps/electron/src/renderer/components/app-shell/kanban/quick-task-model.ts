@@ -1,4 +1,5 @@
 import { TaskSpecSchema } from '@luxcoder/shared/tasks/schema'
+import { slugify } from '@luxcoder/shared/utils'
 
 export interface QuickTaskDraft {
   title: string
@@ -21,15 +22,6 @@ export type SubmitQuickTaskResult =
   | { ok: false; draft: QuickTaskDraft; error: string }
 
 export const EMPTY_QUICK_TASK_DRAFT: QuickTaskDraft = { title: '', goal: '', projectId: '' }
-
-function slugify(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48)
-}
 
 export function buildQuickTaskRequest(draft: QuickTaskDraft, fallbackId: string): QuickTaskCreateRequest {
   const title = draft.title.trim()
