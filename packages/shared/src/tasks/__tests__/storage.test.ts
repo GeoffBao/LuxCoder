@@ -6,6 +6,7 @@ import type { TaskSpec } from '../schema.ts';
 import type { RunLogEntry } from '../storage.ts';
 import {
   appendRunLog,
+  ensureUniqueTaskSlug,
   isRunResumable,
   listResumableRuns,
   loadTaskSpec,
@@ -72,6 +73,19 @@ describe('task storage', () => {
     expect(fileContents).toContain('Updated task');
     expect(fileContents).not.toContain('Demo task');
     expect(readdirSync(taskDir(workspaceRoot, second.id)).some((entry) => entry.endsWith('.tmp'))).toBe(false);
+  });
+
+  test('ensureUniqueTaskSlug 在 slug 未被占用时原样返回', () => {
+    const workspaceRoot = createTempWorkspaceRoot();
+    expect(ensureUniqueTaskSlug(workspaceRoot, 'demo-task')).toBe('demo-task');
+  });
+
+  test('ensureUniqueTaskSlug 在 slug 已存在时追加 -2 -3... 直到唯一', () => {
+    const workspaceRoot = createTempWorkspaceRoot();
+    saveTaskSpec(workspaceRoot, buildSpec({ id: 'demo-task' }));
+    saveTaskSpec(workspaceRoot, buildSpec({ id: 'demo-task-2' }));
+
+    expect(ensureUniqueTaskSlug(workspaceRoot, 'demo-task')).toBe('demo-task-3');
   });
 
   test('saveTaskSpec 会拒绝 depends_on 指向未知节点的 spec', () => {

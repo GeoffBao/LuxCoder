@@ -303,4 +303,48 @@ describe('materializeTaskFromSpec', () => {
       rmSync(workspaceRoot, { recursive: true, force: true })
     }
   })
+
+  test('slug 已被占用时追加后缀，不覆盖既有 task.yaml 也不孤儿化其 orchestrator 会话', async () => {
+    const { loadTaskSpec } = await import('@luxcoder/shared/tasks/storage')
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'luxcoder-materialize-task-collision-'))
+    capturedCreateSessionCalls.length = 0
+    try {
+      const first = {
+        id: 'demo-task',
+        title: 'Demo Task',
+        goal: '完成第一件事',
+        runner: 'conduct' as const,
+        nodes: [{ id: 'main', kind: 'session' as const, prompt: '完成第一件事' }],
+      }
+      const second = {
+        id: 'demo-task',
+        title: 'Demo Task Again',
+        goal: '完成第二件事',
+        runner: 'conduct' as const,
+        nodes: [{ id: 'main', kind: 'session' as const, prompt: '完成第二件事' }],
+      }
+
+      const firstResult = await materializeTaskFromSpec(workspaceRoot, 'workspace-1', first)
+      const secondResult = await materializeTaskFromSpec(workspaceRoot, 'workspace-1', second)
+
+      expect(firstResult.slug).toBe('demo-task')
+      expect(secondResult.slug).toBe('demo-task-2')
+      expect(secondResult.orchestratorSessionId).not.toBe(firstResult.orchestratorSessionId)
+
+      const firstLoaded = loadTaskSpec(workspaceRoot, 'demo-task')
+      expect(firstLoaded?.spec?.goal).toBe('完成第一件事')
+
+      const secondLoaded = loadTaskSpec(workspaceRoot, 'demo-task-2')
+      expect(secondLoaded?.valid).toBe(true)
+      expect(secondLoaded?.spec?.id).toBe('demo-task-2')
+      expect(secondLoaded?.spec?.goal).toBe('完成第二件事')
+
+      expect(capturedCreateSessionCalls).toHaveLength(2)
+      expect(capturedCreateSessionCalls[1]?.options).toEqual(expect.objectContaining({
+        taskSlug: 'demo-task-2',
+      }))
+    } finally {
+      rmSync(workspaceRoot, { recursive: true, force: true })
+    }
+  })
 })
