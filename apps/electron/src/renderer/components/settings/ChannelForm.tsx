@@ -35,6 +35,9 @@ import {
   isAgentCompatibleProvider,
   parseZhipuTeamCredentials,
   parseCodexCredentials,
+  parseClaudeOAuthCredentials,
+  serializeClaudeOAuthCredentials,
+  isClaudeOAuthCredentialStale,
 } from '@luxcoder/shared'
 import type {
   Channel,
@@ -74,7 +77,7 @@ interface ChannelFormProps {
 }
 
 /** 所有可选供应商 */
-const PROVIDER_OPTIONS: ProviderType[] = ['anthropic', 'anthropic-compatible', 'openai', 'openai-responses', 'openai-codex', 'deepseek', 'google', 'kimi-api', 'kimi-coding', 'zhipu', 'zhipu-coding', 'zhipu-coding-team', 'ark-coding-plan', 'minimax', 'doubao', 'qwen', 'qwen-anthropic', 'qwen-token-plan', 'xiaomi', 'xiaomi-token-plan', 'openrouter', 'nuwa', 'custom']
+const PROVIDER_OPTIONS: ProviderType[] = ['anthropic', 'anthropic-compatible', 'anthropic-oauth', 'openai', 'openai-responses', 'openai-codex', 'google', 'deepseek', 'kimi-api', 'kimi-coding', 'zhipu', 'zhipu-coding', 'zhipu-coding-team', 'qwen', 'qwen-anthropic', 'qwen-token-plan', 'minimax', 'ark-coding-plan', 'doubao', 'xiaomi', 'xiaomi-token-plan', 'openrouter', 'nuwa', 'custom']
 
 /** 需要用 messages 端点测试的供应商预设模型 */
 const PROVIDER_TEST_MODEL_PRESETS: Partial<Record<ProviderType, string[]>> = {
@@ -219,6 +222,7 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
   const [apiKeyLoaded, setApiKeyLoaded] = React.useState(false)
   const [showExitDialog, setShowExitDialog] = React.useState(false)
   const [codexLoggingIn, setCodexLoggingIn] = React.useState(false)
+  const [claudeOAuthLoggingIn, setClaudeOAuthLoggingIn] = React.useState(false)
 
   const setChannelFormDirty = useSetAtom(channelFormDirtyAtom)
   const lastAgentEligibleRef = React.useRef(channel ? isAgentEligibleChannel(channel) : false)
@@ -245,6 +249,9 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
 
   const isZhipuTeamProvider = provider === 'zhipu-coding-team'
   const isCodexProvider = provider === 'openai-codex'
+  const isClaudeOAuthProvider = provider === 'anthropic-oauth'
+  // Claude 订阅登录：apiKey state 存的是登录后拿到的凭据 JSON；能解析出有效凭据即视为已登录。
+  const claudeOAuthCredentials = isClaudeOAuthProvider ? parseClaudeOAuthCredentials(apiKey) : null
   const effectiveApiKey = isZhipuTeamProvider ? buildZhipuTeamSecret(zhipuTeamSecret) : apiKey
   // ChatGPT (Codex)：apiKey state 存的是登录后拿到的凭据 JSON；能解析出有效凭据即视为已登录。
   const codexCredentials = isCodexProvider ? parseCodexCredentials(apiKey) : null
@@ -252,7 +259,9 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
     ? Boolean(zhipuTeamSecret.apiKey.trim())
     : isCodexProvider
       ? Boolean(codexCredentials)
-      : Boolean(apiKey.trim())
+      : isClaudeOAuthProvider
+        ? Boolean(claudeOAuthCredentials)
+        : Boolean(apiKey.trim())
 
   const updateZhipuTeamSecret = React.useCallback((patch: Partial<ZhipuTeamSecretForm>) => {
     setZhipuTeamSecret((prev) => {
@@ -500,6 +509,56 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
     }
   }
 
+  /** Claude Pro/Max 订阅登录成功后的精选模型预设，与 context-window.ts 的 AGENT_SDK_1M_CONTEXT_RULES.claude 同源 */
+  const CLAUDE_OAUTH_MODEL_PRESETS: ChannelModel[] = [
+    { id: 'claude-opus-4-8', name: 'Claude Opus 4.8', enabled: true },
+    { id: 'claude-sonnet-5', name: 'Claude Sonnet 5', enabled: true },
+    { id: 'claude-fable-5', name: 'Claude Fable 5', enabled: true },
+    { id: 'claude-opus-4-7', name: 'Claude Opus 4.7', enabled: false },
+  ]
+
+  /** 发起 Claude Pro/Max 订阅 OAuth 登录：spawn 真实 claude 二进制走 setup-token，成功后把凭据写入 apiKey */
+  const handleClaudeOAuthLogin = async (): Promise<void> => {
+    setClaudeOAuthLoggingIn(true)
+    setTestResult(null)
+    try {
+      const result = await window.electronAPI.claudeOAuthLogin()
+      if (!result.success || !result.credentials) {
+        toast.error(result.message ?? 'Claude 登录失败，请重试')
+        return
+      }
+      const credentials = result.credentials
+      setApiKey(credentials)
+      setModels(CLAUDE_OAUTH_MODEL_PRESETS)
+
+      // 与 handleCodexLogin 同样的理由：OAuth 流程中用户很容易在浏览器授权后
+      // 直接关闭表单，来不及点「创建」而丢失凭据。登录成功即明确的保存意图。
+      if (isEdit) {
+        toast.success('Claude 账号登录成功')
+      } else {
+        const input: ChannelCreateInput = {
+          name: name.trim() || PROVIDER_LABELS['anthropic-oauth'],
+          provider,
+          baseUrl,
+          apiKey: credentials,
+          models: CLAUDE_OAUTH_MODEL_PRESETS,
+          enabled,
+        }
+        const saved = await window.electronAPI.createChannel(input)
+        if (isAgentEligibleChannel(saved)) {
+          await onAgentEligibilityChange?.(saved, true)
+        }
+        toast.success('Claude 订阅渠道已创建')
+        onSaved(saved)
+      }
+    } catch (error) {
+      console.error('[模型配置表单] Claude 登录失败:', error)
+      toast.error('Claude 登录失败，请重试')
+    } finally {
+      setClaudeOAuthLoggingIn(false)
+    }
+  }
+
   /** 从供应商 API 拉取可用模型列表 */
   const handleFetchModels = async (): Promise<void> => {
     // ChatGPT (Codex) 走 SDK 内置目录，不依赖 baseUrl；其余 provider 仍要求 baseUrl。
@@ -717,8 +776,8 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
             placeholder="例如: My Anthropic"
             required
           />
-          {/* ChatGPT (Codex) 的请求地址由 Pi SDK 内置管理，无需用户填写 */}
-          {!isCodexProvider && (
+          {/* ChatGPT (Codex) / Claude Pro/Max 订阅登录的请求地址由官方二进制/SDK 内置管理，无需用户填写 */}
+          {!isCodexProvider && !isClaudeOAuthProvider && (
             <SettingsInput
               label={getUrlInputLabel(provider)}
               value={baseUrl}
@@ -731,10 +790,16 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
           <div className="px-4 py-3 space-y-2">
             <div className="flex items-center justify-between">
               <div className="text-sm font-medium text-foreground">
-                {isCodexProvider ? 'ChatGPT 登录' : isZhipuTeamProvider ? '智谱团队版凭证' : 'API Key'}
+                {isCodexProvider
+                  ? 'ChatGPT 登录'
+                  : isClaudeOAuthProvider
+                    ? 'Claude 账号登录'
+                    : isZhipuTeamProvider
+                      ? '智谱团队版凭证'
+                      : 'API Key'}
               </div>
-              {/* codex 无 baseUrl/apiKey，测试连接不适用，隐藏测试按钮 */}
-              {!isCodexProvider && (
+              {/* codex / Claude 订阅登录无 baseUrl/apiKey，测试连接不适用，隐藏测试按钮 */}
+              {!isCodexProvider && !isClaudeOAuthProvider && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -786,6 +851,47 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
                 ) : (
                   <div className="text-xs text-muted-foreground">
                     使用 ChatGPT Plus/Pro 订阅登录，通过 OAuth 授权，无需 API Key。授权将在系统浏览器中打开。
+                  </div>
+                )}
+              </div>
+            ) : isClaudeOAuthProvider ? (
+              <div className="space-y-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  type="button"
+                  onClick={handleClaudeOAuthLogin}
+                  disabled={claudeOAuthLoggingIn}
+                  className="w-full"
+                >
+                  {claudeOAuthLoggingIn ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <Zap size={14} />
+                  )}
+                  <span>
+                    {claudeOAuthLoggingIn
+                      ? '等待浏览器授权…'
+                      : hasRequiredSecret
+                        ? '重新登录 Claude 账号'
+                        : '登录 Claude 账号'}
+                  </span>
+                </Button>
+                {hasRequiredSecret ? (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-xs text-emerald-600">
+                      <CheckCircle2 size={12} className="shrink-0" />
+                      <span>已登录 Claude Pro/Max 订阅</span>
+                    </div>
+                    {claudeOAuthCredentials && isClaudeOAuthCredentialStale(claudeOAuthCredentials) && (
+                      <div className="text-xs text-amber-600">
+                        订阅登录已使用较久，建议重新登录以避免过期中断。
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-xs text-muted-foreground">
+                    使用 Claude Pro/Max/Team/Enterprise 订阅登录，通过官方浏览器授权，无需 API Key。仅支持 Code 模式。
                   </div>
                 )}
               </div>

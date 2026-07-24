@@ -51,6 +51,7 @@ const AGENT_SDK_1M_CONTEXT_RULES = {
 
 const AGENT_SDK_1M_CONTEXT_PROVIDER_RULES: Partial<Record<ProviderType, readonly string[]>> = {
   anthropic: AGENT_SDK_1M_CONTEXT_RULES.claude,
+  'anthropic-oauth': AGENT_SDK_1M_CONTEXT_RULES.claude,
   deepseek: AGENT_SDK_1M_CONTEXT_RULES.deepseek,
   'zhipu-coding': AGENT_SDK_1M_CONTEXT_RULES.glm,
   'zhipu-coding-team': AGENT_SDK_1M_CONTEXT_RULES.glm,

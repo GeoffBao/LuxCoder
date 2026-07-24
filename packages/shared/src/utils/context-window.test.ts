@@ -35,6 +35,7 @@ describe('模型上下文窗口', () => {
     expect(resolveAgentSdkModelId('k3', 'kimi-api')).toBe('k3[1m]')
     expect(resolveAgentSdkModelId('k3', 'kimi-coding')).toBe('k3[1m]')
     expect(resolveAgentSdkModelId('k3', 'ark-coding-plan')).toBe('k3[1m]')
+    expect(resolveAgentSdkModelId('claude-sonnet-5', 'anthropic-oauth')).toBe('claude-sonnet-5[1m]')
   })
 
   test('Given 已带后缀或未纳入 SDK 1M 的模型 When 解析 SDK 模型 Then 保持原值', () => {

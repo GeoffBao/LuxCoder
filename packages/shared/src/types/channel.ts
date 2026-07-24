@@ -98,8 +98,8 @@ export const PROVIDER_LABELS: Record<ProviderType, string> = {
   xiaomi: '小米 MiMo (API)',
   'xiaomi-token-plan': '小米 MiMo Token Plan',
   'openai-codex': 'ChatGPT 订阅 (Codex)',
-  openrouter: 'OpenRouter',
-  nuwa: 'NUWA',
+  openrouter: 'OpenRouter（聚合平台）',
+  nuwa: 'NUWA（聚合平台）',
   custom: 'OpenAI Chat Completions（自定义地址）',
 }
 
