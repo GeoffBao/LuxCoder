@@ -17,7 +17,14 @@ import type { ClaudeOAuthCredentials } from '@luxcoder/shared'
 import { resolveClaudeAgentBinaryPath } from './config-paths'
 
 const TOKEN_PATTERN = /sk-ant-oat[A-Za-z0-9_-]{6,}/
-const AUTH_URL_PATTERN = /https:\/\/claude\.ai\/oauth\/authorize\?[^\s"')]+/
+// 要求匹配的 URL 后紧跟真实空白字符才算"完整"。
+//
+// 注意：这里刻意只用 `(?=\s)`，不接受 `(?=\s|$)`——`$` 会在"当前已累积 buffer 的
+// 末尾"处零宽匹配成功，而 chunk 边界恰好落在 query string 中间时，"当前 buffer
+// 末尾"正好就是截断点，`$` 会把这个截断点误判为"字符串真的结束了"，导致截断 URL
+// 依然通过校验（等价于完全没做防护）。只有等下一个 chunk 补上真正的空白/换行符，
+// 匹配才会成立，从而正确等到 URL 在 stdout 里完整出现后才触发一次 onAuthUrl。
+const AUTH_URL_PATTERN = /https:\/\/claude\.ai\/oauth\/authorize\?[^\s"')]+(?=\s)/
 
 export interface ClaudeLoginCallbacks {
   /** 捕获到授权 URL 时回调（除自动打开浏览器外，供 UI 展示兜底链接）。 */
@@ -30,7 +37,10 @@ export interface ClaudeLoginCallbacks {
 let activeChild: ChildProcess | undefined
 
 function extractDiagnostic(stdout: string, stderr: string): string {
-  const tail = `${stdout}\n${stderr}`.trim()
+  // 防御性脱敏：token 本应已被 TOKEN_PATTERN 捕获并 resolve，不会走到这里；但若未来
+  // CLI 输出格式变化导致匹配失败，也不能让原始 token 明文出现在会透传给渲染进程 UI
+  // 的错误信息里。
+  const tail = `${stdout}\n${stderr}`.replace(TOKEN_PATTERN, '[redacted]').trim()
   return tail.slice(-500)
 }
 
