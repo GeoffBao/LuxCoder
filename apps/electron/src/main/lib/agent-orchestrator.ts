@@ -366,7 +366,7 @@ export class AgentOrchestrator {
     // loadShellEnv() 可能从 shell 配置文件（~/.zshrc 等）重新注入这些变量。
     const cleanEnv: Record<string, string | undefined> = {}
     for (const [key, value] of Object.entries(process.env)) {
-      if (!key.startsWith('ANTHROPIC_') && key !== 'CLAUDE_CODE_MAX_OUTPUT_TOKENS') {
+      if (!key.startsWith('ANTHROPIC_') && key !== 'CLAUDE_CODE_MAX_OUTPUT_TOKENS' && key !== 'CLAUDE_CODE_OAUTH_TOKEN') {
         cleanEnv[key] = value
       }
     }
@@ -1010,6 +1010,7 @@ export class AgentOrchestrator {
     delete process.env.ANTHROPIC_BASE_URL
     delete process.env.ANTHROPIC_CUSTOM_HEADERS
     delete process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS
+    delete process.env.CLAUDE_CODE_OAUTH_TOKEN
     applyAgentSdkAuthEnv(process.env, channel.provider, apiKey, getAppUserAgent(pkg.version))
     // 使用与 buildSdkEnv 相同的规范化逻辑，确保 process.env 和 sdkEnv 中的 URL 一致
     if (channel.baseUrl && channel.baseUrl !== 'https://api.anthropic.com') {
