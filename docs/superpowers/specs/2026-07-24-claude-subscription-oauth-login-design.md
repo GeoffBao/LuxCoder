@@ -1,7 +1,7 @@
 # Claude Pro/Max 订阅登录（Agent 模式）设计
 
 日期：2026-07-24
-状态：已评审（brainstorming）
+状态：已实现（代码完成，待人工浏览器登录验证——见实施计划 Task 10 Step 7）
 范围：仅 Code/Agent 模式；不改动 Chat 模式的 Anthropic 请求路径
 
 ## 1. 问题
@@ -187,4 +187,11 @@ claude-opus-4-7       Claude Opus 4.7（enabled: false，供选用）
 - 覆盖范围 → 仅 Agent 模式（用户已确认）
 - Provider 建模方式 → 独立 provider，对齐 Codex 先例（有代码先例支撑，未单独征求意见）
 - 下拉排序 + 聚合平台标注 → 用户已确认第 5 节顺序
+
+## 13. 实现偏差记录
+
+- **`normalizeAgentRuntime` 落点**：设计文档第 4.1 节原描述例外分支加在 `agent-orchestrator.ts` 内；实施阶段发现该文件依赖十几个 Electron 相关服务模块，为测试这一个纯函数需要拆到零依赖的新文件 `agent-runtime-normalize.ts`（对齐 Task 3 抽取 `resolveClaudeAgentBinaryPath` 的同一思路）。行为完全一致，只是物理位置变了。
+- **`CLAUDE_CODE_OAUTH_TOKEN` 未纳入既有 env 清理列表**：实施 Task 6 时代码质量评审发现，`agent-orchestrator.ts` 里两处清理"上一次会话遗留的 Anthropic 认证变量"的位置（`buildSdkEnv()` 的 `cleanEnv` 过滤、以及 `process.env` 同步前的显式 `delete` 列表）都没有把新引入的 `CLAUDE_CODE_OAUTH_TOKEN` 算进去，会导致切换渠道后订阅 token 残留在进程环境变量里。设计文档未预见这一点，已在实现时一并修复（两处都补上 `CLAUDE_CODE_OAUTH_TOKEN` 的清理）。
+- **`claude-oauth-service.ts` 的 URL 完整性正则**：Task 4 的参考实现最初给的 `AUTH_URL_PATTERN` 用 `(?=\s|$)` 判断"URL 后面是空白或字符串结尾才算完整"，实施时发现 `$` 在增量拼接 stdout 场景下会在"当前 buffer 恰好在截断点结束"时被误判为"字符串真的结束了"，等于完全没做防护。改为只接受 `(?=\s)`，接受的取舍：如果 CLI 进程退出前打印的最后一段 stdout 恰好就是 URL 本身、后面没有任何空白，`onAuthUrl` 不会触发——可接受，因为二进制自身会打开浏览器，这条路径只是兜底。
+- **`bun test` 全量套件运行时的已知不稳定**：`Task 11 Step 2` 全量测试预期"全部 PASS"，但实测下全量跑（102 个文件一起跑）会有约 14 个测试因为 `mock.module('electron', ...)` 在多个测试文件间的模块缓存互相污染而报 `SyntaxError: Export named 'X' not found` 之类的错误。逐个隔离运行涉及的每一个文件（`chat-service.test.ts`、`claude-oauth-service.test.ts`、`channel-runtime-api-key.test.ts`、`agent-session-manager.test.ts` 等）均 100% 通过。这是这个代码库在本次改动之前就存在的 `bun test` 测试隔离架构问题（vanilla worktree、未改动任何代码时跑全量套件也有 3 fail + 1 error 的同类基线），不是本次功能引入的回归，但也没有在本次范围内修复（需要重新设计测试隔离方式，工作量超出本次功能范畴）。
 - `CLAUDE_RUNTIME_ENABLED` 全局关闭导致的 runtime 强制回落问题 → 已定案，`normalizeAgentRuntime()` 按 provider 开例外，不动全局开关，Codex 不受影响（用户已确认）
