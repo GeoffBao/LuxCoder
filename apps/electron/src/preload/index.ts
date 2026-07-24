@@ -21,6 +21,7 @@ import type {
   FetchModelsResult,
   ChannelPlanQuotaResult,
   CodexOAuthLoginResult,
+  ClaudeOAuthLoginResult,
   ConversationMeta,
   ChatMessage,
   ChatSendInput,
@@ -375,6 +376,12 @@ export interface ElectronAPI {
 
   /** 取消进行中的 ChatGPT (Codex) OAuth 登录 */
   codexOAuthCancel: () => Promise<void>
+
+  /** 发起 Claude Pro/Max 订阅 OAuth 登录，返回序列化凭据（作为 apiKey 存储） */
+  claudeOAuthLogin: () => Promise<ClaudeOAuthLoginResult>
+
+  /** 取消进行中的 Claude 订阅 OAuth 登录 */
+  claudeOAuthCancel: () => Promise<void>
 
   // ===== 对话管理相关 =====
 
@@ -1448,6 +1455,14 @@ const electronAPI: ElectronAPI = {
 
   codexOAuthCancel: () => {
     return ipcRenderer.invoke(CHANNEL_IPC_CHANNELS.CODEX_OAUTH_CANCEL)
+  },
+
+  claudeOAuthLogin: () => {
+    return ipcRenderer.invoke(CHANNEL_IPC_CHANNELS.CLAUDE_OAUTH_LOGIN)
+  },
+
+  claudeOAuthCancel: () => {
+    return ipcRenderer.invoke(CHANNEL_IPC_CHANNELS.CLAUDE_OAUTH_CANCEL)
   },
 
   // 对话管理

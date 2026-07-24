@@ -133,7 +133,8 @@ import {
   getChannelPlanQuota,
 } from './lib/channel-manager'
 import { loginCodexOAuth, cancelCodexOAuthLogin } from './lib/codex-oauth-service'
-import { serializeCodexCredentials } from '@luxcoder/shared'
+import { serializeCodexCredentials, serializeClaudeOAuthCredentials } from '@luxcoder/shared'
+import { loginClaudeOAuth, cancelClaudeOAuthLogin } from './lib/claude-oauth-service'
 import {
   listConversations,
   createConversation,
@@ -1201,6 +1202,36 @@ export function registerIpcHandlers(): void {
     CHANNEL_IPC_CHANNELS.CODEX_OAUTH_CANCEL,
     async (): Promise<void> => {
       cancelCodexOAuthLogin()
+    }
+  )
+
+  // 发起 Claude Pro/Max 订阅 OAuth 登录。登录在主进程执行（spawn 真实 claude
+  // 二进制的 setup-token 子命令）；成功后返回序列化的凭据 JSON（明文），由渲染
+  // 层作为 apiKey 传给 create/update，channel-manager 加密后存储——与 Codex
+  // OAuth、以及现有 apiKey 明文回传模式一致。
+  ipcMain.handle(
+    CHANNEL_IPC_CHANNELS.CLAUDE_OAUTH_LOGIN,
+    async (): Promise<import('@luxcoder/shared').ClaudeOAuthLoginResult> => {
+      try {
+        const credentials = await loginClaudeOAuth()
+        return {
+          success: true,
+          credentials: serializeClaudeOAuthCredentials(credentials),
+        }
+      } catch (error) {
+        return {
+          success: false,
+          message: error instanceof Error ? error.message : String(error),
+        }
+      }
+    }
+  )
+
+  // 取消进行中的 Claude 订阅 OAuth 登录流程
+  ipcMain.handle(
+    CHANNEL_IPC_CHANNELS.CLAUDE_OAUTH_CANCEL,
+    async (): Promise<void> => {
+      cancelClaudeOAuthLogin()
     }
   )
 

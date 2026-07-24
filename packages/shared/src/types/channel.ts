@@ -515,6 +515,10 @@ export const CHANNEL_IPC_CHANNELS = {
   CODEX_OAUTH_LOGIN: 'channel:codex-oauth-login',
   /** 取消进行中的 ChatGPT OAuth 登录流程 */
   CODEX_OAUTH_CANCEL: 'channel:codex-oauth-cancel',
+  /** 发起 Claude Pro/Max 订阅 OAuth 登录，返回加密凭据与账号信息 */
+  CLAUDE_OAUTH_LOGIN: 'channel:claude-oauth-login',
+  /** 取消进行中的 Claude 订阅 OAuth 登录流程 */
+  CLAUDE_OAUTH_CANCEL: 'channel:claude-oauth-cancel',
 } as const
 
 /**
@@ -533,6 +537,24 @@ export interface CodexOAuthLoginResult {
   credentials?: string
   /** 登录账号标识，用于 UI 展示 */
   accountId?: string
+  /** 失败或取消时的用户可读原因 */
+  message?: string
+}
+
+/**
+ * Claude Pro/Max 订阅 OAuth 登录结果。
+ *
+ * 登录在主进程执行（spawn 真实 claude 二进制的 setup-token 子命令），成功后
+ * 返回已序列化的凭据 JSON（可直接作为 Channel.apiKey 存储）与展示信息。
+ */
+export interface ClaudeOAuthLoginResult {
+  /** 是否登录成功 */
+  success: boolean
+  /**
+   * 序列化后的凭据 JSON（明文）。与现有 apiKey 明文回传模式一致：
+   * 渲染层拿到后作为 Channel.apiKey 传给 create/update，由 channel-manager 加密存储。
+   */
+  credentials?: string
   /** 失败或取消时的用户可读原因 */
   message?: string
 }
