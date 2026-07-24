@@ -33,10 +33,9 @@ import { activeViewAtom } from '@/atoms/active-view'
 import { interfaceVariantAtom } from '@/atoms/theme'
 import { appModeAtom } from '@/atoms/app-mode'
 import { codeMainViewAtom } from '@/atoms/project-atoms'
-import { CodeMainViewSwitcher } from '@/components/app-shell/CodeMainViewSwitcher'
+import { cn } from '@/lib/utils'
 import { shouldShowWorkViewInCode } from '@/components/app-shell/code-main-view-model'
 import { WorkBoardView } from '@/components/work/WorkBoardView'
-import { cn } from '@/lib/utils'
 
 export function MainArea(): React.ReactElement {
   // 记录每个会话上次停留的视图（对话 / 预览），供切回时重建预览 Tab
@@ -56,11 +55,6 @@ export function MainArea(): React.ReactElement {
   const interfaceVariant = useAtomValue(interfaceVariantAtom)
   const isClassic = interfaceVariant === 'classic'
   const store = useStore()
-
-  // 项目中心 Hub 已移除：遗留 activeView='projects' 回退到会话主区
-  React.useEffect(() => {
-    if (activeView === 'projects') setActiveView('conversations')
-  }, [activeView, setActiveView])
 
   // Tab 内容渲染降级为非紧急：TabBar 立即高亮新 tab，主区域昂贵渲染（含 PreviewPanel 中
   // DiffTabContent → ProseMirror editor mount + Shiki tokenize）让出主线程，避免点击 tab
@@ -242,13 +236,7 @@ export function MainArea(): React.ReactElement {
               // 保留此分支避免迁移前一帧空白。
               <WorkBoardView />
             ) : showCodeWorkView ? (
-              // Code 模式 Work 视图：复用同一 WorkBoardView，顶部加「会话 | 看板」切换条
-              <div className="flex h-full min-h-0 flex-col">
-                <CodeMainViewSwitcher />
-                <div className="min-h-0 flex-1">
-                  <WorkBoardView />
-                </div>
-              </div>
+              <WorkBoardView />
             ) : activeView === 'automations' ? (
               automationFormOpen ? (
                 // 定时任务设置页：与列表同层级替换中间区，不经过 TabBar，避免切换时闪出会话 Tab。
