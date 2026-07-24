@@ -36,7 +36,6 @@ import {
   parseZhipuTeamCredentials,
   parseCodexCredentials,
   parseClaudeOAuthCredentials,
-  serializeClaudeOAuthCredentials,
   isClaudeOAuthCredentialStale,
 } from '@luxcoder/shared'
 import type {
