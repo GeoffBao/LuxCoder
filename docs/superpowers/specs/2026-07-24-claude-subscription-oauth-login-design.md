@@ -35,7 +35,7 @@ LuxCoder 的 Anthropic 渠道目前只支持 API Key 认证，用户无法像 cr
     → 真实 claude 二进制自行完成鉴权与请求，按订阅额度计费
 ```
 
-Chat 模式选中该渠道发消息：直接返回错误提示，引导切换到 Agent 模式（与 `openai-codex` 现有行为一致）。
+Chat 模式选中该渠道发消息：直接返回错误提示，引导切换到 **Code 模式**（UI 顶栏用户可见名称；与 `openai-codex` 现有行为一致，且顺带修正该现有文案同样的用词问题——现网写的是"Agent 模式"，用户在界面上看到的入口名叫「Code」，不是「Agent」）。
 
 ## 4. 组件边界
 
@@ -111,7 +111,7 @@ claude-opus-4-7       Claude Opus 4.7（enabled: false，供选用）
 | 用户账号无有效 Pro/Max/Team/Enterprise 订阅 | `setup-token` 授权后报错，原样透传（"此账号没有可用的 Claude 订阅"） |
 | 用户中途取消/关闭浏览器 | 新增 `CLAUDE_OAUTH_CANCEL`，同一时刻仅允许一个登录流程（对齐 Codex 的 `activeLoginAbort`） |
 | spawn 进程异常退出（非 0）且无 token | toast 通用失败提示 + 控制台记录 stderr |
-| Chat 模式选中该渠道发消息 | 直接报错阻止发送，引导切换到 Agent 模式 |
+| Chat 模式选中该渠道发消息 | 直接报错阻止发送，文案："Chat 模式暂不支持 Claude 订阅登录，请切换到 Code 模式使用。"（同时把 `openai-codex` 现有的同类文案从"请切换到 Agent 模式使用"改成"请切换到 Code 模式使用"，统一用词） |
 | Agent 模式下 token 已过期（服务端 401） | 复用现有错误映射链路，提示重新登录（不做静默重试） |
 
 ## 9. 测试
