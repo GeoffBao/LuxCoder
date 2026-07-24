@@ -27,5 +27,10 @@ export function applyAgentSdkAuthEnv(
     return
   }
 
+  if (provider === 'anthropic-oauth') {
+    target.CLAUDE_CODE_OAUTH_TOKEN = apiKey
+    return
+  }
+
   target.ANTHROPIC_API_KEY = apiKey
 }

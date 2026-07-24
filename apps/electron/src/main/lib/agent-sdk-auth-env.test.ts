@@ -39,4 +39,14 @@ describe('Agent SDK 认证环境变量', () => {
     expect(env.ANTHROPIC_AUTH_TOKEN).toBeUndefined()
     expect(env.ANTHROPIC_CUSTOM_HEADERS).toBeUndefined()
   })
+
+  test('Given Claude 订阅 OAuth 渠道 When 写入 SDK 认证 env Then 使用 CLAUDE_CODE_OAUTH_TOKEN', () => {
+    const env: Record<string, string | undefined> = {}
+
+    applyAgentSdkAuthEnv(env, 'anthropic-oauth', 'sk-ant-oat01-token', 'LuxCoder/test')
+
+    expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBe('sk-ant-oat01-token')
+    expect(env.ANTHROPIC_API_KEY).toBeUndefined()
+    expect(env.ANTHROPIC_AUTH_TOKEN).toBeUndefined()
+  })
 })
