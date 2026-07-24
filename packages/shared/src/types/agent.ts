@@ -923,7 +923,7 @@ export interface McpToolSummary {
 }
 
 /** LuxCoder 内置 MCP 分类 */
-export type BuiltinMcpCategory = 'system' | 'automation' | 'collaboration' | 'memory' | 'media' | 'browser'
+export type BuiltinMcpCategory = 'system' | 'automation' | 'collaboration' | 'memory' | 'media' | 'browser' | 'task'
 
 /** LuxCoder 内置 MCP 摘要，不写入工作区 mcp.json */
 export interface BuiltinMcpServerSummary {

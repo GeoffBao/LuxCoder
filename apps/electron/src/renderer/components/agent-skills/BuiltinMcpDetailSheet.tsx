@@ -23,6 +23,7 @@ const CATEGORY_LABELS: Record<BuiltinMcpServerSummary['category'], string> = {
   memory: '记忆',
   media: '媒体',
   browser: '浏览器',
+  task: '任务',
 }
 
 interface BuiltinMcpConfigInfo {
