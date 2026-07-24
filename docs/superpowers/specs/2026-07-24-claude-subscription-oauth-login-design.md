@@ -177,7 +177,10 @@ claude-opus-4-7       Claude Opus 4.7（enabled: false，供选用）
 - `apps/electron/src/main/lib/ipc.ts`（新增两个 IPC handler）
 - `apps/electron/src/preload/index.ts`（暴露 `claudeOAuthLogin` / `claudeOAuthCancel`）
 - `apps/electron/src/renderer/components/settings/ChannelForm.tsx`（下拉排序、标签、登录按钮、过期提醒）
-- `packages/shared/package.json` / `apps/electron/package.json` patch +1
+- `apps/electron/src/renderer/lib/model-logo.ts`（`PROVIDER_LOGO_MAP` 补 `anthropic-oauth` 条目，否则 `Record<ProviderType, string>` 编译报错）
+- `packages/shared/src/utils/context-window.ts`（`AGENT_SDK_1M_CONTEXT_PROVIDER_RULES` 补 `anthropic-oauth` 复用 `.claude` 规则，否则该渠道拿不到 1M 上下文的 SDK `[1m]` 后缀）
+
+不改动任何包的 `version` 字段（CLAUDE.md：日常功能 PR 不 bump version，等显式 release 时统一处理）。
 
 ## 12. 开放项（已关闭）
 
