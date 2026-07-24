@@ -46,10 +46,32 @@ Chat 模式选中该渠道发消息：直接返回错误提示，引导切换到
 | `AGENT_COMPATIBLE_PROVIDERS` | 同上 | 加入 `'anthropic-oauth'`，使其可被 Agent 模式识别为兼容 provider |
 | `claude-oauth-service.ts`（新建） | `apps/electron/src/main/lib/` | 封装「spawn 真实二进制 setup-token → 捕获 stdout → 解析 token → 打开浏览器 → 取消支持」，对齐 `codex-oauth-service.ts` 的接口形状（`loginClaudeOAuth(callbacks)`） |
 | `resolveSDKCliPath()` 复用 | `agent-orchestrator.ts` | `claude-oauth-service.ts` 复用同一路径解析逻辑定位二进制，避免重复实现 |
-| `buildSdkEnv()` 分支 | `agent-orchestrator.ts` | `channel.provider === 'anthropic-oauth'` 时设置 `CLAUDE_CODE_OAUTH_TOKEN`，跳过 `ANTHROPIC_API_KEY` |
+| `buildSdkEnv()` 分支（经 `applyAgentSdkAuthEnv`） | `apps/electron/src/main/lib/agent-sdk-auth-env.ts` | `provider === 'anthropic-oauth'` 时设置 `target.CLAUDE_CODE_OAUTH_TOKEN = apiKey`，不设置 `ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN` |
+| `resolveChannelRuntimeApiKey()` 分支 | `channel-manager.ts` | 新增 `resolveClaudeOAuthAccessToken(channelId)`，对齐 `resolveCodexAccessToken` 的位置，从加密的 `apiKey` 字段解析出 `ClaudeOAuthCredentials.token` |
+| **`normalizeAgentRuntime()` 例外分支（关键，见第 4.1 节）** | `agent-orchestrator.ts:106` | `provider === 'anthropic-oauth'` 时强制返回 `'claude'`，绕过全局 `CLAUDE_RUNTIME_ENABLED` 开关 |
 | Chat 模式 guard | `chat-service.ts` | 仿 `openai-codex` 现有 guard，新增 `channel.provider === 'anthropic-oauth'` 分支 |
 | IPC：`CLAUDE_OAUTH_LOGIN` / `CLAUDE_OAUTH_CANCEL` | `channel.ts` + `ipc.ts` + `preload/index.ts` | 对齐 `CODEX_OAUTH_LOGIN` / `CODEX_OAUTH_CANCEL` |
 | `ChannelForm.tsx` UI | `renderer/components/settings/` | 新增下拉项 + 登录按钮 + 过期提醒条，逻辑对齐 `handleCodexLogin` |
+
+### 4.1 `CLAUDE_RUNTIME_ENABLED` 例外（写计划前发现，已与用户确认）
+
+`packages/shared/src/types/agent-provider.ts:21` 当前是 `export const CLAUDE_RUNTIME_ENABLED = false`——这是此前为避免在对话框里暴露"Claude SDK / Pi"双内核选择、让普通用户困惑而特意关闭的（用户已确认此前动机）。这个开关不只影响前端 UI，`agent-orchestrator.ts:106` 的 `normalizeAgentRuntime()` 在后端**硬编码强制**：只要开关是 false，不管调用方传什么 runtime，一律返回 `'pi'`，包括历史会话。
+
+若不处理，`anthropic-oauth` 渠道的会话会被摁回 Pi runtime 执行——Pi 不理解 `CLAUDE_CODE_OAUTH_TOKEN`，也不会 spawn 真实 claude 二进制，功能直接失效。
+
+**修复**：`normalizeAgentRuntime()` 增加 `provider` 参数，仅为 `anthropic-oauth` 开例外，不改动全局开关、不影响其它任何渠道：
+
+```ts
+function normalizeAgentRuntime(value: unknown, provider?: ProviderType): AgentRuntime {
+  if (provider === 'anthropic-oauth') return 'claude'
+  if (!CLAUDE_RUNTIME_ENABLED) return 'pi'
+  return value === 'pi' ? 'pi' : 'claude'
+}
+```
+
+调用处（`agent-orchestrator.ts:1000-1001`）在 `channel` 已解析的作用域内，补上 `channel.provider` 实参即可。
+
+**回归确认**：`openai-codex` 不在 `AGENT_COMPATIBLE_PROVIDERS` 里、也不会命中新分支，改动前后都解析为 `'pi'`（因为 Codex 本来就是靠 Pi runtime 跑的），Codex 订阅登录行为不受影响。
 
 ## 5. Provider 下拉排序与文案调整
 
@@ -123,7 +145,9 @@ claude-opus-4-7       Claude Opus 4.7（enabled: false，供选用）
 
 **electron 主进程**
 - `claude-oauth-service.ts`：mock child_process，验证 stdout 解析 token 的正则/逻辑、取消流程、二进制缺失分支
-- `buildSdkEnv()`：`anthropic-oauth` 渠道 → 断言 `CLAUDE_CODE_OAUTH_TOKEN` 存在且 `ANTHROPIC_API_KEY` 不存在
+- `agent-sdk-auth-env.ts` 的 `applyAgentSdkAuthEnv()`：`anthropic-oauth` 渠道 → 断言 `CLAUDE_CODE_OAUTH_TOKEN` 存在且 `ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN` 不存在
+- `channel-manager.ts` 的 `resolveClaudeOAuthAccessToken()` / `resolveChannelRuntimeApiKey()`：正确从凭据 JSON 中取出 token
+- `agent-orchestrator.ts` 的 `normalizeAgentRuntime()`：`provider === 'anthropic-oauth'` → 恒为 `'claude'`（`CLAUDE_RUNTIME_ENABLED` 为 true/false 均需覆盖）；`provider === 'openai-codex'` 或未传 provider → 行为与改动前一致（回归用例）
 - `chat-service.ts`：选中 `anthropic-oauth` 渠道发消息 → 断言返回引导错误，不发起请求
 
 **手动验证（需要真实浏览器登录，无法自动化）**
@@ -143,10 +167,13 @@ claude-opus-4-7       Claude Opus 4.7（enabled: false，供选用）
 
 - `packages/shared/src/types/channel.ts`（新增 provider 枚举、凭据结构、常量）
 - `packages/shared/src/types/channel.test.ts`（若无则新建，覆盖凭据序列化/过期判断）
+- `packages/shared/src/types/agent-provider.test.ts`（若无则新建，或就近放在 orchestrator 测试里）
 - `apps/electron/src/main/lib/claude-oauth-service.ts`（新建）
 - `apps/electron/src/main/lib/claude-oauth-service.test.ts`（新建）
-- `apps/electron/src/main/lib/agent-orchestrator.ts`（`buildSdkEnv()` 分支）
-- `apps/electron/src/main/lib/chat-service.ts`（guard 分支）
+- `apps/electron/src/main/lib/agent-sdk-auth-env.ts`（`applyAgentSdkAuthEnv()` 新分支）
+- `apps/electron/src/main/lib/channel-manager.ts`（新增 `resolveClaudeOAuthAccessToken`，`resolveChannelRuntimeApiKey` 加分支）
+- `apps/electron/src/main/lib/agent-orchestrator.ts`（`normalizeAgentRuntime()` 加 `provider` 参数与例外分支，调用处传入 `channel.provider`）
+- `apps/electron/src/main/lib/chat-service.ts`（guard 分支 + 修正 Codex 现有文案用词）
 - `apps/electron/src/main/lib/ipc.ts`（新增两个 IPC handler）
 - `apps/electron/src/preload/index.ts`（暴露 `claudeOAuthLogin` / `claudeOAuthCancel`）
 - `apps/electron/src/renderer/components/settings/ChannelForm.tsx`（下拉排序、标签、登录按钮、过期提醒）
@@ -157,3 +184,4 @@ claude-opus-4-7       Claude Opus 4.7（enabled: false，供选用）
 - 覆盖范围 → 仅 Agent 模式（用户已确认）
 - Provider 建模方式 → 独立 provider，对齐 Codex 先例（有代码先例支撑，未单独征求意见）
 - 下拉排序 + 聚合平台标注 → 用户已确认第 5 节顺序
+- `CLAUDE_RUNTIME_ENABLED` 全局关闭导致的 runtime 强制回落问题 → 已定案，`normalizeAgentRuntime()` 按 provider 开例外，不动全局开关，Codex 不受影响（用户已确认）
