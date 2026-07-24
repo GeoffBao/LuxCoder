@@ -2440,7 +2440,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
           <CollapsedWorkspacePopover>
             <button
               type="button"
-              aria-label="切换到 Agent 模式（悬停查看工作区）"
+              aria-label="切换到 Code 模式（悬停查看工作区）"
               onClick={() => handleRailModeSwitch('agent')}
               className={cn(
                 'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag',

@@ -1,9 +1,9 @@
 /**
  * AgentRecommendBanner — Agent 模式推荐横幅
  *
- * 当 AI 通过 suggest_agent_mode 工具推荐切换到 Agent 模式时，
+ * 当 AI 通过 suggest_agent_mode 工具推荐切换到 Code 模式时，
  * 在 ChatInput 上方展示推荐横幅（与 AskUserBanner 同风格同位置）。
- * 用户可点击"切换到 Agent 模式"按钮迁移，或点击 × 关闭。
+ * 用户可点击"切换到 Code 模式"按钮迁移，或点击 × 关闭。
  *
  * 迁移流程：
  * 1. 清除推荐状态（先清再切换，避免 ChatView 副作用）
@@ -108,12 +108,12 @@ export function AgentRecommendBanner(): React.ReactElement | null {
       })
 
       // 8. 通知用户
-      toast.success('已切换到 Agent 模式', {
+      toast.success('已切换到 Code 模式', {
         description: '对话历史已迁移到新的 Agent 会话',
       })
     } catch (error) {
       console.error('[AgentRecommendBanner] 迁移失败:', error)
-      toast.error('切换到 Agent 模式失败')
+      toast.error('切换到 Code 模式失败')
     } finally {
       setMigrating(false)
     }
@@ -154,7 +154,7 @@ export function AgentRecommendBanner(): React.ReactElement | null {
           disabled={migrating}
           className="h-7 px-3 text-xs"
         >
-          {migrating ? '切换中...' : '切换到 Agent 模式'}
+          {migrating ? '切换中...' : '切换到 Code 模式'}
           {!migrating && <ArrowRight className="size-3 ml-1" />}
         </Button>
       </div>

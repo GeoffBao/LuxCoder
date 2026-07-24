@@ -24,7 +24,7 @@ export const AGENT_RECOMMEND_TOOL_META: ChatToolMeta = {
   executorType: 'builtin',
   systemPromptAppend: `
 <agent_mode_recommendation>
-你有能力推荐用户切换到 Agent 模式。**请积极主动地识别适合 Agent 模式的任务**，在回复用户之前先调用 suggest_agent_mode 工具。
+你有能力推荐用户切换到 Code 模式。**请积极主动地识别适合 Agent 模式的任务**，在回复用户之前先调用 suggest_agent_mode 工具。
 
 ## Agent 模式的能力
 
