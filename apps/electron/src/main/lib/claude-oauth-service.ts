@@ -17,6 +17,10 @@ import type { ClaudeOAuthCredentials } from '@luxcoder/shared'
 import { resolveClaudeAgentBinaryPath } from './config-paths'
 
 const TOKEN_PATTERN = /sk-ant-oat[A-Za-z0-9_-]{6,}/
+// 仅用于 extractDiagnostic 的脱敏场景：需要一次性替换掉诊断文本里所有 token 形状的
+// 子串（可能同时出现在 stdout 和 stderr，或同一流里出现多次），而不是只替换第一个。
+// TOKEN_PATTERN 本身保持非 global，供 handleChunk 用 .match() 做单值捕获，不能改。
+const TOKEN_PATTERN_GLOBAL = new RegExp(TOKEN_PATTERN.source, 'g')
 // 要求匹配的 URL 后紧跟真实空白字符才算"完整"。
 //
 // 注意：这里刻意只用 `(?=\s)`，不接受 `(?=\s|$)`——`$` 会在"当前已累积 buffer 的
@@ -24,6 +28,9 @@ const TOKEN_PATTERN = /sk-ant-oat[A-Za-z0-9_-]{6,}/
 // 末尾"正好就是截断点，`$` 会把这个截断点误判为"字符串真的结束了"，导致截断 URL
 // 依然通过校验（等价于完全没做防护）。只有等下一个 chunk 补上真正的空白/换行符，
 // 匹配才会成立，从而正确等到 URL 在 stdout 里完整出现后才触发一次 onAuthUrl。
+// 已知取舍：如果 CLI 在进程退出前打印的最后一段 stdout 恰好就是 URL 本身、后面
+// 没有任何空白/换行，这里就不会触发 onAuthUrl——可接受，因为二进制自己会打开浏览器，
+// 这条路径本来就只是兜底，不依赖它也能完成登录。
 const AUTH_URL_PATTERN = /https:\/\/claude\.ai\/oauth\/authorize\?[^\s"')]+(?=\s)/
 
 export interface ClaudeLoginCallbacks {
@@ -40,7 +47,7 @@ function extractDiagnostic(stdout: string, stderr: string): string {
   // 防御性脱敏：token 本应已被 TOKEN_PATTERN 捕获并 resolve，不会走到这里；但若未来
   // CLI 输出格式变化导致匹配失败，也不能让原始 token 明文出现在会透传给渲染进程 UI
   // 的错误信息里。
-  const tail = `${stdout}\n${stderr}`.replace(TOKEN_PATTERN, '[redacted]').trim()
+  const tail = `${stdout}\n${stderr}`.replace(TOKEN_PATTERN_GLOBAL, '[redacted]').trim()
   return tail.slice(-500)
 }
 

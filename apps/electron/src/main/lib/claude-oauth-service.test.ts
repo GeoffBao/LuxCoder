@@ -113,6 +113,33 @@ describe('Claude 订阅 OAuth 登录服务', () => {
     expect(caughtMessage).not.toContain('sk-ant-oat01-leakedSECRET_-123')
   })
 
+  test('Given 诊断信息里 token 形状字符串出现两次 When 登录失败 Then 两处都被脱敏', async () => {
+    mock.module('./config-paths', () => ({
+      resolveClaudeAgentBinaryPath: () => '/fake/path/to/claude',
+    }))
+    const { loginClaudeOAuth } = await loadService()
+    fakeChild = new FakeChildProcess()
+
+    const loginPromise = loginClaudeOAuth()
+    // 两个不同的 token 形状字符串分别出现在 stderr 里两次（也覆盖"同一流多次出现"的
+    // 情形），验证非 global 的 TOKEN_PATTERN.replace() 只会脱敏第一个、放过第二个的
+    // 回归——脱敏必须使用 global 变体一次性替换掉所有出现。
+    fakeChild.stderr.emit('data', Buffer.from('first attempt token sk-ant-oat01-firstLEAK_-111 failed\n'))
+    fakeChild.stderr.emit('data', Buffer.from('retry token sk-ant-oat01-secondLEAK_-222 also failed\n'))
+    fakeChild.emit('close', 1)
+
+    let caughtMessage = ''
+    try {
+      await loginPromise
+    } catch (error) {
+      caughtMessage = error instanceof Error ? error.message : String(error)
+    }
+
+    expect(caughtMessage).not.toContain('sk-ant-oat01-firstLEAK_-111')
+    expect(caughtMessage).not.toContain('sk-ant-oat01-secondLEAK_-222')
+    expect(caughtMessage.match(/sk-ant-oat[A-Za-z0-9_-]{6,}/g)).toBeNull()
+  })
+
   test('Given 授权 URL 跨 chunk 边界截断 When 登录 Then onAuthUrl 仅以完整 URL 触发一次', async () => {
     mock.module('./config-paths', () => ({
       resolveClaudeAgentBinaryPath: () => '/fake/path/to/claude',
