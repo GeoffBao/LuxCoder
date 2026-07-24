@@ -56,7 +56,7 @@ export function AppShell({ contextValue }: AppShellProps): React.ReactElement {
   // 定时任务表单打开时隐藏右侧文件面板，让中间区域扩展到全宽（表单内含自己的右栏配置）；
   // Code 模式切到看板 / 项目详情（codeMainView === 'work'）时同样隐藏，面板属于会话上下文
   const [activeView, setActiveView] = useAtom(activeViewAtom)
-  const showRightPanel = appMode === 'agent' && codeMainView === 'session' && !!currentSessionId && !automationForm.open && activeView !== 'automations' && activeView !== 'agent-skills' && activeView !== 'projects' && activeView !== 'agent-experts'
+  const showRightPanel = appMode === 'agent' && codeMainView === 'session' && !!currentSessionId && !automationForm.open && activeView !== 'automations' && activeView !== 'agent-skills' && activeView !== 'agent-experts'
   const isWindows = React.useMemo(() => detectIsWindows(), [])
 
   // 遗留顶栏 Work（cowork）持久化值：一次性迁移到 Code 主区看板

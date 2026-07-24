@@ -5,10 +5,34 @@
  */
 
 import * as React from 'react'
-import {
-  BUILTIN_EXPERT_OPTIONS,
-  type ExpertOption,
-} from '@/components/work/projects-hub-model'
+
+export interface ExpertOption {
+  id: string
+  label: string
+}
+
+/** 内置专家选项 */
+export const BUILTIN_EXPERT_OPTIONS: readonly ExpertOption[] = [
+  { id: 'general', label: '通用软件专家' },
+  { id: 'driver', label: '驱动软件专家' },
+  { id: 'application', label: '应用软件专家' },
+  { id: 'system', label: '系统软件专家' },
+  { id: 'communication', label: '通信软件专家' },
+  { id: 'delivery-manager', label: '软件交付经理' },
+  { id: 'se', label: '软件 SE' },
+  { id: 'architect', label: '软件架构师' },
+  { id: 'qa', label: '软件测试' },
+  { id: 'reviewer', label: '代码审查' },
+]
+
+/** 根据 expertId 解析显示标签 */
+export function resolveExpertLabel(
+  expertId: string | undefined,
+  experts: readonly ExpertOption[],
+): string {
+  if (!expertId) return '未设置'
+  return experts.find((item) => item.id === expertId)?.label ?? '未设置'
+}
 
 export interface ExpertOptionsState {
   options: ExpertOption[]

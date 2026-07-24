@@ -15,7 +15,6 @@ export type ActiveView =
   | 'conversations'
   | 'automations'
   | 'agent-skills'
-  | 'projects'
   | 'agent-experts'
 export type AgentSkillsCapabilityTab = 'skills' | 'mcp' | 'memory'
 

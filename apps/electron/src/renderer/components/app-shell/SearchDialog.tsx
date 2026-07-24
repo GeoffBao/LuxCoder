@@ -17,7 +17,7 @@
 
 import * as React from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
-import { Search, X, MessageSquare, Bot, Archive, Loader2 } from 'lucide-react'
+import { Search, X, MessageSquare, Bot, Archive, Loader2, FolderKanban } from 'lucide-react'
 import { Dialog, DialogContent, DialogPortal, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { searchDialogOpenAtom } from '@/atoms/search-atoms'
@@ -29,6 +29,11 @@ import {
   agentPendingPromptAtom,
 } from '@/atoms/agent-atoms'
 import { activeViewAtom } from '@/atoms/active-view'
+import {
+  codeMainViewAtom,
+  selectedProjectIdAtom,
+  serverKanbanProjectsAtom,
+} from '@/atoms/project-atoms'
 import { useOpenSession } from '@/hooks/useOpenSession'
 import { useCreateSession } from '@/hooks/useCreateSession'
 import {
@@ -61,10 +66,23 @@ interface ContentResult {
   archived?: boolean
 }
 
-type SearchResult = TitleResult | ContentResult
+/** 项目搜索结果 */
+interface ProjectResult {
+  id: string
+  title: string
+  type: 'project'
+  color?: string
+  workspaceSlug?: string
+}
+
+type SearchResult = TitleResult | ContentResult | ProjectResult
 
 function isContentResult(result: SearchResult): result is ContentResult {
   return 'snippet' in result
+}
+
+function isProjectResult(result: SearchResult): result is ProjectResult {
+  return result.type === 'project'
 }
 
 /** 高亮文本中的匹配部分 */
@@ -119,6 +137,15 @@ function HighlightSnippet({ snippet, matchStart, matchLength }: {
 }
 
 function SearchResultIcon({ result }: { result: SearchResult }): React.ReactElement {
+  if (result.type === 'project') {
+    return (
+      <span
+        className="size-3 shrink-0 rounded-full"
+        style={{ backgroundColor: (result as ProjectResult).color ?? 'hsl(var(--muted-foreground))' }}
+        aria-hidden="true"
+      />
+    )
+  }
   return result.type === 'chat' ? (
     <MessageSquare size={14} className="flex-shrink-0 text-foreground/40" />
   ) : (
@@ -166,7 +193,7 @@ function SearchResultRow({
           isSelected
             ? 'bg-primary/10'
             : 'hover:bg-foreground/[0.04]',
-          result.archived && 'opacity-60'
+          'archived' in result && result.archived && 'opacity-60'
         )}
       >
         <div className="flex items-center gap-2.5">
@@ -179,7 +206,7 @@ function SearchResultRow({
               {wsName}
             </span>
           )}
-          {result.archived && (
+          {'archived' in result && result.archived && (
             <Archive size={12} className="flex-shrink-0 text-foreground/30" />
           )}
         </div>
@@ -193,6 +220,7 @@ function SearchResultRow({
           </div>
         )}
       </button>
+      {result.type !== 'project' && (
       <SessionMiniMapPopover
         target={{
           type: result.type,
@@ -206,6 +234,7 @@ function SearchResultRow({
         onMouseEnter={preview.handlePanelMouseEnter}
         onMouseLeave={preview.handlePanelMouseLeave}
       />
+      )}
     </>
   )
 }
@@ -219,6 +248,13 @@ export function SearchDialog(): React.ReactElement {
   const currentAgentChannelId = useAtomValue(agentChannelIdAtom)
   const setAgentPendingPrompt = useSetAtom(agentPendingPromptAtom)
   const setActiveView = useSetAtom(activeViewAtom)
+  const kanbanProjects = useAtomValue(serverKanbanProjectsAtom)
+  const setSelectedProjectId = useSetAtom(selectedProjectIdAtom)
+  const setCodeMainView = useSetAtom(codeMainViewAtom)
+  const currentWorkspaceSlug = React.useMemo(() => {
+    const currentId = agentWorkspaces.find((w) => w.id === agentSessions.find((s) => s.workspaceId)?.workspaceId)?.slug
+    return currentId ?? null
+  }, [agentSessions, agentWorkspaces])
   const openSession = useOpenSession()
   const { createAgent } = useCreateSession()
 
@@ -240,6 +276,7 @@ export function SearchDialog(): React.ReactElement {
   const [committedQuery, setCommittedQuery] = React.useState('')
   const [titleResults, setTitleResults] = React.useState<TitleResult[]>([])
   const [contentResults, setContentResults] = React.useState<ContentResult[]>([])
+  const [projectResults, setProjectResults] = React.useState<ProjectResult[]>([])
   const [selectedIndex, setSelectedIndex] = React.useState(0)
   const [loading, setLoading] = React.useState(false)
   const [hasSearched, setHasSearched] = React.useState(false)
@@ -266,6 +303,7 @@ export function SearchDialog(): React.ReactElement {
     setCommittedQuery('')
     setTitleResults([])
     setContentResults([])
+    setProjectResults([])
     setHasSearched(false)
     setSelectedIndex(0)
     searchTokenRef.current += 1
@@ -283,6 +321,7 @@ export function SearchDialog(): React.ReactElement {
     if (!q || q.length < 2) {
       setTitleResults([])
       setContentResults([])
+      setProjectResults([])
       setHasSearched(false)
       setCommittedQuery('')
       return
@@ -307,6 +346,20 @@ export function SearchDialog(): React.ReactElement {
       .slice(0, 20)
 
     setTitleResults(titles)
+
+    // 项目搜索
+    const projectMatches: ProjectResult[] = kanbanProjects
+      .filter((p) => p.name.toLowerCase().includes(qLower))
+      .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))
+      .slice(0, 10)
+      .map((p) => ({
+        id: p.id,
+        title: p.name,
+        type: 'project' as const,
+        color: p.color,
+        workspaceSlug: p.workspaceId ?? undefined,
+      }))
+    setProjectResults(projectMatches)
 
     try {
       const [chatResults, agentResults] = await Promise.all([
@@ -383,13 +436,22 @@ export function SearchDialog(): React.ReactElement {
 
   // 全部结果列表（标题在前、内容在后）
   const allResults = React.useMemo<SearchResult[]>(
-    () => [...titleResults, ...contentResults],
-    [titleResults, contentResults]
+    () => [...projectResults, ...titleResults, ...contentResults],
+    [projectResults, titleResults, contentResults]
   )
 
   // 导航到对话/会话
-  const navigateToResult = React.useCallback((result: TitleResult | ContentResult) => {
+  const navigateToResult = React.useCallback((result: SearchResult) => {
     setOpen(false)
+
+    if (result.type === 'project') {
+      const project = result as ProjectResult
+      setSelectedProjectId(project.id)
+      setCodeMainView('work')
+      setActiveView('conversations')
+      return
+    }
+
     setActiveView('conversations')
 
     if (result.type === 'chat') {
@@ -401,7 +463,7 @@ export function SearchDialog(): React.ReactElement {
       const title = session?.title ?? result.title
       openSession('agent', result.id, title)
     }
-  }, [setOpen, setActiveView, openSession, conversations, agentSessions])
+  }, [setOpen, setActiveView, openSession, conversations, agentSessions, setSelectedProjectId, setCodeMainView])
 
   /**
    * Enter 键语义：
@@ -447,6 +509,7 @@ export function SearchDialog(): React.ReactElement {
       setCommittedQuery('')
       setTitleResults([])
       setContentResults([])
+      setProjectResults([])
       setHasSearched(false)
       setSelectedIndex(0)
       setLoading(false)
@@ -564,24 +627,49 @@ export function SearchDialog(): React.ReactElement {
             </div>
           )}
 
+          {/* 项目匹配区域 */}
+          {projectResults.length > 0 && (
+            <div className="py-1 animate-in fade-in duration-150">
+              <div className="flex items-center gap-1.5 px-4 pt-2 pb-1 text-[11px] font-medium text-foreground/40 select-none">
+                <FolderKanban size={11} />
+                <span>项目</span>
+              </div>
+              {projectResults.map((result, idx) => (
+                <SearchResultRow
+                  key={`project-${result.id}`}
+                  result={result}
+                  index={idx}
+                  isSelected={selectedIndex === idx}
+                  committedQuery={committedQuery}
+                  getAgentWorkspaceName={() => undefined}
+                  onSelect={navigateToResult}
+                  onHover={setSelectedIndex}
+                />
+              ))}
+            </div>
+          )}
+
           {/* 标题匹配区域 */}
           {titleResults.length > 0 && (
             <div className="py-1 animate-in fade-in duration-150">
               <div className="px-4 pt-2 pb-1 text-[11px] font-medium text-foreground/40 select-none">
                 标题匹配
               </div>
-              {titleResults.map((result, idx) => (
+              {titleResults.map((result, idx) => {
+                const globalIdx = projectResults.length + idx
+                return (
                 <SearchResultRow
                   key={`title-${result.id}`}
                   result={result}
-                  index={idx}
-                  isSelected={selectedIndex === idx}
+                  index={globalIdx}
+                  isSelected={selectedIndex === globalIdx}
                   committedQuery={committedQuery}
                   getAgentWorkspaceName={getAgentWorkspaceName}
                   onSelect={navigateToResult}
                   onHover={setSelectedIndex}
                 />
-              ))}
+                )
+              })}
             </div>
           )}
 
@@ -592,18 +680,21 @@ export function SearchDialog(): React.ReactElement {
                 <span>消息内容匹配</span>
                 {loading && <Loader2 size={12} className="animate-spin text-foreground/30" />}
               </div>
-              {contentResults.map((result, i) => (
+              {contentResults.map((result, i) => {
+                const globalIdx = projectResults.length + titleResults.length + i
+                return (
                 <SearchResultRow
                   key={`content-${result.id}-${result.messageId}`}
                   result={result}
-                  index={titleResults.length + i}
-                  isSelected={selectedIndex === titleResults.length + i}
+                  index={globalIdx}
+                  isSelected={selectedIndex === globalIdx}
                   committedQuery={committedQuery}
                   getAgentWorkspaceName={getAgentWorkspaceName}
                   onSelect={navigateToResult}
                   onHover={setSelectedIndex}
                 />
-              ))}
+                )
+              })}
             </div>
           )}
           </div>
