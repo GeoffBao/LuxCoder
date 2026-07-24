@@ -55,3 +55,6 @@ pnpm-workspace.yaml
 
 # Proma 会话/工作区文档（不应入仓，见 CLAUDE.md 红线）
 .context/
+
+# superpowers brainstorming 可视化配套（本地临时 mockup，不入仓）
+.superpowers/
