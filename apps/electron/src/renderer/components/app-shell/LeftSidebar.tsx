@@ -11,7 +11,7 @@
 import * as React from 'react'
 import { useAtom, useSetAtom, useAtomValue, useStore } from 'jotai'
 import { toast } from 'sonner'
-import { Pin, PinOff, Settings, Plus, Trash2, Pencil, PanelLeftClose, PanelLeftOpen, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, FolderKanban, MessageSquare, MoreHorizontal, FolderOpen, GripVertical, Clock, AlarmClock, ChevronRight, Blocks, GitBranch, Download, Loader2, RotateCw, Layers } from 'lucide-react'
+import { Pin, PinOff, Settings, Plus, Trash2, Pencil, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, FolderKanban, MessageSquare, MoreHorizontal, FolderOpen, GripVertical, Clock, AlarmClock, ChevronRight, Blocks, GitBranch, Download, Loader2, RotateCw, Layers, UserRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { ModeSwitcher } from './ModeSwitcher'
@@ -713,7 +713,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   const [activeTabId, setActiveTabId] = useAtom(activeTabIdAtom)
   // 会话高亮按"激活 Tab 所属会话"判定：预览 Tab 激活时其 owner 会话仍保持高亮
   const activeSessionId = useAtomValue(activeSessionIdAtom)
-  const [sidebarCollapsed, setSidebarCollapsed] = useAtom(sidebarCollapsedAtom)
+  // 折叠/展开的触发按钮固定在 TabBar（紧邻第一个标签），这里只读取状态用于决定渲染哪个分支。
+  const sidebarCollapsed = useAtomValue(sidebarCollapsedAtom)
   const openSession = useOpenSession()
   const { createAgent } = useCreateSession()
   const setNewTaskProjectFlowOpen = useSetAtom(newTaskProjectFlowOpenAtom)
@@ -2376,6 +2377,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   )
 
   // ===== 折叠状态：精简图标视图 =====
+  // 折叠/展开按钮已迁移至 TabBar（紧邻标签标题，见 TabBar.tsx），与标签栏天然对齐，
+  // 这里不重复渲染。点击该按钮才切换折叠态，不再有悬停自动预览。
   if (sidebarCollapsed) {
     return (
       <div
@@ -2394,25 +2397,9 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
           height={isMac ? SIDEBAR_DRAG_STRIP_HEIGHT.collapsedMac : SIDEBAR_DRAG_STRIP_HEIGHT.collapsed}
         />
 
-        {/* macOS 需要避开左上角红绿灯；边栏覆盖全局标题栏拖拽层，因此留白自身也要可拖拽。 */}
+        {/* macOS 需要避开左上角红绿灯；边栏覆盖全局标题栏拖拽层，因此留白自身也要可拖拽。
+            折叠/展开切换按钮固定放在 TabBar（紧邻第一个标签），这里不重复渲染。 */}
         <div className={cn('w-full flex-shrink-0 titlebar-drag-region', isMac ? 'h-[50px]' : 'h-2')} />
-
-        {/* 展开按钮：mini rail 的唯一布局控制入口 */}
-        <div className="pt-2">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                aria-label="展开侧边栏"
-                onClick={() => setSidebarCollapsed(false)}
-                className="size-10 flex items-center justify-center rounded-[12px] text-foreground/60 bg-muted hover:bg-foreground/[0.08] hover:text-foreground transition-colors titlebar-no-drag"
-              >
-                <PanelLeftOpen size={17} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">展开侧边栏 ({navigator.platform.includes('Mac') ? '⌘B' : 'Ctrl+B'})</TooltipContent>
-          </Tooltip>
-        </div>
 
         <div className="my-3 h-px w-8 bg-border/70" />
 
@@ -2452,12 +2439,24 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               <Bot size={18} />
             </button>
           </CollapsedWorkspacePopover>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label="搜索"
+                onClick={() => setSearchDialogOpen(true)}
+                className="size-10 flex items-center justify-center rounded-[12px] text-foreground/45 hover:bg-foreground/[0.08] hover:text-foreground/80 transition-colors duration-150 titlebar-no-drag"
+              >
+                <Search size={16} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">搜索</TooltipContent>
+          </Tooltip>
         </div>
 
-        <div className="my-3 h-px w-8 bg-border/70" />
-
         {/* 高频操作 */}
-        <div className="flex flex-col items-center gap-1.5">
+        <div className="mt-1.5 flex flex-col items-center gap-1.5">
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -2489,20 +2488,6 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               <TooltipContent side="right">新任务</TooltipContent>
             </Tooltip>
           ) : null}
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                aria-label="搜索"
-                onClick={() => setSearchDialogOpen(true)}
-                className="size-10 flex items-center justify-center rounded-[12px] text-foreground/45 sidebar-control-surface hover:text-foreground/70 transition-[background-color,color] duration-150 titlebar-no-drag"
-              >
-                <Search size={16} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">搜索</TooltipContent>
-          </Tooltip>
 
           <Tooltip>
             <TooltipTrigger asChild>
@@ -2558,6 +2543,41 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                 </button>
               </TooltipTrigger>
               <TooltipContent side="right">Agent 技能</TooltipContent>
+            </Tooltip>
+          )}
+
+          {mode === 'agent' && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={`Agent 专家，${expertsCount} 个角色`}
+                  onClick={handleOpenAgentExperts}
+                  className={cn(
+                    'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag border',
+                    activeView === 'agent-experts'
+                      ? 'border-primary/80 bg-primary text-primary-foreground shadow-sm'
+                      : 'border-border/45 bg-foreground/[0.025] text-foreground/45 hover:border-border/70 hover:bg-foreground/[0.045] hover:text-primary',
+                  )}
+                >
+                  <UserRound size={16} />
+                  {expertsCount > 0 && (
+                    <span
+                      className={cn(
+                        'absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-medium tabular-nums',
+                        activeView === 'agent-experts'
+                          ? 'bg-primary-foreground text-primary'
+                          : 'bg-primary text-primary-foreground',
+                      )}
+                    >
+                      {formatSidebarModuleCount(expertsCount)}
+                    </span>
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                Agent 专家（{expertsCount} 个角色）
+              </TooltipContent>
             </Tooltip>
           )}
 
@@ -2643,9 +2663,29 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       {/* macOS 需要避开左上角红绿灯；边栏覆盖全局标题栏拖拽层，因此留白自身也要可拖拽。 */}
       <div className={cn('w-full flex-shrink-0 titlebar-drag-region', isMac ? 'h-[30px]' : 'h-1')} />
 
-      {/* 模式切换器（全宽，Chat/Work/Code 对称居中） */}
-      <div className="titlebar-drag-region px-3">
-        <ModeSwitcher />
+      {/* 模式切换器 + 搜索：并列一行 */}
+      <div className="px-3 flex items-center gap-1.5">
+        <div className="flex-1 min-w-0 titlebar-drag-region">
+          <ModeSwitcher />
+        </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              aria-label="搜索"
+              onClick={() => setSearchDialogOpen(true)}
+              className={cn(
+                'mt-2 size-8 flex items-center justify-center rounded-lg text-foreground/50 transition-colors duration-150 titlebar-no-drag',
+                isClassic
+                  ? 'sidebar-control-surface hover:text-foreground/70'
+                  : 'hover:bg-foreground/[0.08] hover:text-foreground/85'
+              )}
+            >
+              <Search size={15} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">搜索 ({getAcceleratorDisplay(getActiveAccelerator('global-search'))})</TooltipContent>
+        </Tooltip>
       </div>
 
       {mode === 'agent' && (
@@ -2684,7 +2724,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         </div>
       )}
 
-      {/* 新对话/新会话 + 新任务 + 搜索 + 折叠 */}
+      {/* 新对话/新会话 + 新任务 */}
       <div className="px-3 pt-2 flex items-center gap-1.5">
         <button
           onClick={mode === 'agent' ? handleNewAgentSession : handleNewConversation}
@@ -2703,28 +2743,6 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             <span>新任务</span>
           </button>
         )}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              onClick={() => setSearchDialogOpen(true)}
-              className="flex-shrink-0 size-10 flex items-center justify-center rounded-[10px] text-foreground/40 sidebar-control-surface hover:text-foreground/60 transition-[background-color,color] duration-150 titlebar-no-drag"
-            >
-              <Search size={14} />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">搜索 ({getAcceleratorDisplay(getActiveAccelerator('global-search'))})</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              onClick={() => setSidebarCollapsed(true)}
-              className="sidebar-collapse-button flex-shrink-0 size-[36px] flex items-center justify-center rounded-[10px] text-foreground/40 sidebar-control-surface hover:text-foreground/60 transition-[background-color,color] duration-150 titlebar-no-drag"
-            >
-              <PanelLeftClose size={14} />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">收起侧边栏 ({navigator.platform.includes('Mac') ? '⌘B' : 'Ctrl+B'})</TooltipContent>
-        </Tooltip>
       </div>
 
       {/* 自动任务入口：作为任务中心入口放在置顶区上方，不参与置顶列表层级。 */}

@@ -10,11 +10,12 @@
 
 import * as React from 'react'
 import { useAtom, useAtomValue, useSetAtom, useStore } from 'jotai'
-import { PanelRight } from 'lucide-react'
+import { PanelRight, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import {
   tabsAtom,
   activeTabIdAtom,
   tabIndicatorMapAtom,
+  sidebarCollapsedAtom,
 } from '@/atoms/tab-atoms'
 import type { TabItem } from '@/atoms/tab-atoms'
 import type { SessionIndicatorStatus } from '@/atoms/agent-atoms'
@@ -177,7 +178,13 @@ export function TabBar(): React.ReactElement {
     document.addEventListener('pointerup', handleUp)
   }, [tabs])
 
-  if (tabs.length === 0) return <div className="h-[34px] titlebar-drag-region" />
+  if (tabs.length === 0) {
+    return (
+      <div className="h-[34px] flex items-center titlebar-drag-region">
+        <SidebarToggleButton />
+      </div>
+    )
+  }
 
   return (
     <>
@@ -194,6 +201,41 @@ export function TabBar(): React.ReactElement {
         onTearOff={handleTearOff}
       />
     </>
+  )
+}
+
+/**
+ * 折叠/展开侧边栏：紧邻第一个标签标题（如"草稿"），不随标签横向滚动。
+ * 纯点击切换，没有悬停自动预览——之前做过悬停展开浮层的版本，会被浮层本身、
+ * Tooltip 的高 z-index portal 抢事件等好几层问题反复卡住收起时机，体验不稳定，
+ * 权衡后放弃悬停预览，只保留最简单可靠的点击展开/收起（同 VS Code）。
+ * 用 h-[34px] + flex 居中包裹，和 TabBarItem 的 h-[34px] items-center 走同一套
+ * "整行高度内居中"机制，和标签天然对齐。
+ */
+function SidebarToggleButton(): React.ReactElement {
+  const [sidebarCollapsed, setSidebarCollapsed] = useAtom(sidebarCollapsedAtom)
+  const shortcutLabel = navigator.platform.includes('Mac') ? '⌘B' : 'Ctrl+B'
+
+  return (
+    <div className="flex h-[34px] w-7 flex-shrink-0 items-center justify-center">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={sidebarCollapsed ? `展开侧边栏 (${shortcutLabel})` : `收起侧边栏 (${shortcutLabel})`}
+            className="relative h-7 w-7 titlebar-no-drag"
+            onClick={() => setSidebarCollapsed((prev) => !prev)}
+          >
+            {sidebarCollapsed ? <PanelLeftOpen className="size-3.5" /> : <PanelLeftClose className="size-3.5" />}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">
+          {sidebarCollapsed ? `展开侧边栏 (${shortcutLabel})` : `收起侧边栏 (${shortcutLabel})`}
+        </TooltipContent>
+      </Tooltip>
+    </div>
   )
 }
 
@@ -381,6 +423,11 @@ function TabBarInner({
       {tearingOff && (
         <div className="pointer-events-none absolute -bottom-px left-0 right-0 h-px bg-primary/60 shadow-[0_0_8px_rgba(0,0,0,0.2)]" />
       )}
+
+      {/* 折叠/展开侧边栏：紧邻第一个标签，不随标签横向滚动 */}
+      <div className="flex-shrink-0 pl-1.5">
+        <SidebarToggleButton />
+      </div>
 
       <div
         ref={scrollRef}
