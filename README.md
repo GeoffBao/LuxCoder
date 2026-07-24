@@ -102,10 +102,10 @@ LuxCoder/
 
 | 包 | 版本 | 职责 |
 |---|---|---|
-| `@luxcoder/electron` | `0.9.5` | Electron 桌面应用 |
-| `@luxcoder/shared` | `0.1.15` | 共享类型、IPC 常量、配置和工具 |
-| `@luxcoder/core` | `0.2.2` | Provider Adapter、SSE、Shiki 高亮 |
-| `@luxcoder/ui` | `0.1.3` | 共享 React UI 组件 |
+| `@luxcoder/electron` | `0.3.0` | Electron 桌面应用 |
+| `@luxcoder/shared` | `0.1.32` | 共享类型、IPC 常量、配置和工具 |
+| `@luxcoder/core` | `0.1.7` | Provider Adapter、SSE、Shiki 高亮 |
+| `@luxcoder/ui` | `0.1.1` | 共享 React UI 组件 |
 
 常用命令：
 
