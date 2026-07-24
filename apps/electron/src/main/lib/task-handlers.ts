@@ -21,6 +21,7 @@ import type {
   UpdateProjectInput,
   UploadProjectAssetInput,
 } from '@luxcoder/shared'
+import type { TaskSpec } from '@luxcoder/shared/tasks/schema'
 import {
   buildGeneratorPrompt,
   buildRepairPrompt,
@@ -91,6 +92,32 @@ export async function stopTaskRun(
 function getSessionHost(): Promise<LuxCoderConductorSessionHost> {
   sessionHostPromise ??= createLuxCoderConductorSessionHost()
   return sessionHostPromise
+}
+
+/**
+ * 落盘 task.yaml 并创建全新的 orchestrator 会话（sessionStatus: 'todo'，只创建不运行）。
+ * tasks:create IPC（新建路径）与 create_task Agent 工具共用此函数，避免两条创建路径分叉。
+ * 不支持"挂接到既有会话"——那是 IPC handler 自己的分支，调用方是表单 UI 的编辑场景，
+ * Agent 工具没有这个场景，不需要覆盖。
+ */
+export async function materializeTaskFromSpec(
+  workspaceRoot: string,
+  workspaceId: string,
+  spec: TaskSpec,
+): Promise<{ slug: string; orchestratorSessionId: string }> {
+  saveTaskSpec(workspaceRoot, spec)
+  const seed = buildTaskSessionSeed(spec, workspaceRoot)
+  const session = await (await getSessionHost()).createSession(workspaceId, {
+    name: spec.title,
+    projectId: spec.project,
+    taskSlug: spec.id,
+    sessionStatus: 'todo',
+    ...(seed.workingDirectory ? { workingDirectory: seed.workingDirectory } : {}),
+    ...(seed.modelId ? { model: seed.modelId } : {}),
+    ...(seed.channelId ? { llmConnection: seed.channelId } : {}),
+    ...(spec.defaults?.permissionMode ? { permissionMode: spec.defaults.permissionMode } : {}),
+  })
+  return { slug: spec.id, orchestratorSessionId: session.id }
 }
 
 async function getRunnerFor(workspaceRoot: string, workspaceId: string): Promise<TaskRunner> {
@@ -452,11 +479,11 @@ export function registerTaskHandlers(window: BrowserWindow): void {
     if (!parsed.valid || !parsed.spec) {
       throw new Error(`task.yaml 验证失败: ${parsed.errors?.map((error) => error.message).join(', ')}`)
     }
-    saveTaskSpec(workspaceRoot, parsed.spec)
 
     const sessionId = request.attachToExistingSessionId ?? request.orchestratorSessionId
-    const seed = buildTaskSessionSeed(parsed.spec, workspaceRoot)
     if (sessionId) {
+      saveTaskSpec(workspaceRoot, parsed.spec)
+      const seed = buildTaskSessionSeed(parsed.spec, workspaceRoot)
       if (!getAgentSessionMeta(sessionId)) throw new Error(`Agent 会话不存在: ${sessionId}`)
       await updateAgentSessionMeta(
         sessionId,
@@ -468,23 +495,11 @@ export function registerTaskHandlers(window: BrowserWindow): void {
               ...seed,
             },
       )
-    } else {
-      const session = await (await getSessionHost()).createSession(workspaceId, {
-        name: parsed.spec.title,
-        projectId: parsed.spec.project,
-        taskSlug: parsed.spec.id,
-        sessionStatus: 'todo',
-        ...(seed.workingDirectory ? { workingDirectory: seed.workingDirectory } : {}),
-        ...(seed.modelId ? { model: seed.modelId } : {}),
-        ...(seed.channelId ? { llmConnection: seed.channelId } : {}),
-        ...(parsed.spec.defaults?.permissionMode
-          ? { permissionMode: parsed.spec.defaults.permissionMode }
-          : {}),
-      })
-      return { slug: parsed.spec.id, orchestratorSessionId: session.id, valid: true }
+      return { slug: parsed.spec.id, orchestratorSessionId: sessionId, valid: true }
     }
 
-    return { slug: parsed.spec.id, orchestratorSessionId: sessionId, valid: true }
+    const result = await materializeTaskFromSpec(workspaceRoot, workspaceId, parsed.spec)
+    return { ...result, valid: true }
   })
 
   ipcMain.handle(TASK_IPC_CHANNELS.GENERATE, async (_event, workspaceRoot: string, workspaceId: string, request: {

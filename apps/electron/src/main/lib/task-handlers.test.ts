@@ -9,6 +9,14 @@ type RegisteredHandler = (...args: unknown[]) => unknown
 
 const registeredHandlers = new Map<string, RegisteredHandler>()
 
+mock.module('./conductor-session-host', () => ({
+  createLuxCoderConductorSessionHost: async () => ({
+    createSession: async (_workspaceId: string, options: { name?: string }) => ({
+      id: `fake-session-${options.name ?? 'untitled'}`,
+    }),
+  }),
+}))
+
 mock.module('electron', () => ({
   BrowserWindow: class BrowserWindow {
     isDestroyed(): boolean { return false }
@@ -40,6 +48,7 @@ mock.module('electron', () => ({
 const {
   pauseTaskRun,
   stopTaskRun,
+  materializeTaskFromSpec,
 }: typeof import('./task-handlers') = await import('./task-handlers')
 const taskHandlers = await import('./task-handlers')
 type TaskRunnerController = import('./task-handlers').TaskRunnerController
@@ -243,5 +252,32 @@ describe('task handler Kanban payloads', () => {
       taskDraft: undefined,
       sessionStatus: 'todo',
     })
+  })
+})
+
+describe('materializeTaskFromSpec', () => {
+  test('落盘 task.yaml 并创建 todo 状态的新会话', async () => {
+    const { loadTaskSpec } = await import('@luxcoder/shared/tasks/storage')
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'luxcoder-materialize-task-'))
+    try {
+      const spec = {
+        id: 'demo-task',
+        title: 'Demo Task',
+        goal: '完成一件事',
+        runner: 'conduct' as const,
+        nodes: [{ id: 'main', kind: 'session' as const, prompt: '完成一件事' }],
+      }
+
+      const result = await materializeTaskFromSpec(workspaceRoot, 'workspace-1', spec)
+
+      expect(result.slug).toBe('demo-task')
+      expect(result.orchestratorSessionId).toBe('fake-session-Demo Task')
+
+      const loaded = loadTaskSpec(workspaceRoot, 'demo-task')
+      expect(loaded?.valid).toBe(true)
+      expect(loaded?.spec?.title).toBe('Demo Task')
+    } finally {
+      rmSync(workspaceRoot, { recursive: true, force: true })
+    }
   })
 })
