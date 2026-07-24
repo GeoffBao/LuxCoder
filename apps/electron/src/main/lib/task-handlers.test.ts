@@ -9,11 +9,19 @@ type RegisteredHandler = (...args: unknown[]) => unknown
 
 const registeredHandlers = new Map<string, RegisteredHandler>()
 
+interface CapturedCreateSessionCall {
+  workspaceId: string
+  options: Record<string, unknown>
+}
+
+const capturedCreateSessionCalls: CapturedCreateSessionCall[] = []
+
 mock.module('./conductor-session-host', () => ({
   createLuxCoderConductorSessionHost: async () => ({
-    createSession: async (_workspaceId: string, options: { name?: string }) => ({
-      id: `fake-session-${options.name ?? 'untitled'}`,
-    }),
+    createSession: async (workspaceId: string, options: Record<string, unknown>) => {
+      capturedCreateSessionCalls.push({ workspaceId, options })
+      return { id: `fake-session-${(options.name as string | undefined) ?? 'untitled'}` }
+    },
   }),
 }))
 
@@ -256,14 +264,16 @@ describe('task handler Kanban payloads', () => {
 })
 
 describe('materializeTaskFromSpec', () => {
-  test('落盘 task.yaml 并创建 todo 状态的新会话', async () => {
+  test('落盘 task.yaml 并创建 todo 状态的新会话，且向 createSession 转发完整字段', async () => {
     const { loadTaskSpec } = await import('@luxcoder/shared/tasks/storage')
     const workspaceRoot = mkdtempSync(join(tmpdir(), 'luxcoder-materialize-task-'))
+    capturedCreateSessionCalls.length = 0
     try {
       const spec = {
         id: 'demo-task',
         title: 'Demo Task',
         goal: '完成一件事',
+        project: 'demo-project',
         runner: 'conduct' as const,
         nodes: [{ id: 'main', kind: 'session' as const, prompt: '完成一件事' }],
       }
@@ -276,6 +286,19 @@ describe('materializeTaskFromSpec', () => {
       const loaded = loadTaskSpec(workspaceRoot, 'demo-task')
       expect(loaded?.valid).toBe(true)
       expect(loaded?.spec?.title).toBe('Demo Task')
+
+      // 核实 createSession 收到的完整 options —— 防止未来重构悄悄丢掉
+      // taskSlug / sessionStatus / projectId 等字段导致新建的任务会话状态不对。
+      expect(capturedCreateSessionCalls).toHaveLength(1)
+      const call = capturedCreateSessionCalls[0]
+      if (!call) throw new Error('createSession 未被调用')
+      expect(call.workspaceId).toBe('workspace-1')
+      expect(call.options).toEqual(expect.objectContaining({
+        name: 'Demo Task',
+        taskSlug: 'demo-task',
+        sessionStatus: 'todo',
+        projectId: 'demo-project',
+      }))
     } finally {
       rmSync(workspaceRoot, { recursive: true, force: true })
     }
