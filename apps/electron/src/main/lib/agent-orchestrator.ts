@@ -18,7 +18,7 @@ import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import type { AgentRuntime, AgentSendInput, AgentMessage, AgentGenerateTitleInput, AgentProviderAdapter, AgentSessionMeta, CodexOAuthCredentials, TypedError, RetryAttempt, SDKMessage, SDKAssistantMessage, AgentStreamPayload, RewindSessionResult, ProviderType, AgentThinkingLevel } from '@luxcoder/shared'
+import type { AgentSendInput, AgentMessage, AgentGenerateTitleInput, AgentProviderAdapter, AgentSessionMeta, CodexOAuthCredentials, TypedError, RetryAttempt, SDKMessage, SDKAssistantMessage, AgentStreamPayload, RewindSessionResult, ProviderType, AgentThinkingLevel } from '@luxcoder/shared'
 import {
   LUXCODER_DEFAULT_PERMISSION_MODE,
   LUXCODER_PERMISSION_MODE_CONFIG,
@@ -30,10 +30,10 @@ import {
   inferAgentSdkContextWindow,
   isOpenAIReasoningSupportedModel,
   isAgentCompatibleProvider,
-  CLAUDE_RUNTIME_ENABLED,
 } from '@luxcoder/shared'
 import type { LuxCoderPermissionMode, AskUserRequest, ExitPlanModeRequest, SDKSystemMessage } from '@luxcoder/shared'
 import type { ClaudeAgentQueryOptions } from './adapters/claude-agent-adapter'
+import { normalizeAgentRuntime } from './agent-runtime-normalize'
 import { isPromptTooLongError, isThinkingSignatureError, friendlyErrorMessage, mapSDKErrorToTypedError, extractErrorDetails, shouldKeepChannelOpen } from './adapters/claude-agent-adapter'
 import type { PiAgentQueryOptions } from './adapters/pi-agent-adapter'
 import { isTransientNetworkError, isMalformedResponseError, isSessionNotFoundError } from './error-patterns'
@@ -99,12 +99,6 @@ type RecoverableAgentQueryOptions = {
 
 function sdkPermissionModeForLuxCoderMode(mode: LuxCoderPermissionMode): LuxCoderPermissionMode {
   return LUXCODER_PERMISSION_MODE_CONFIG[mode].sdkMode
-}
-
-function normalizeAgentRuntime(value: unknown): AgentRuntime {
-  // Claude 内核默认关闭时，所有执行（含历史会话）强制回落到 Pi。
-  if (!CLAUDE_RUNTIME_ENABLED) return 'pi'
-  return value === 'pi' ? 'pi' : 'claude'
 }
 
 function buildPiRuntimeEnv(env: Record<string, string | undefined>): AgentRuntimeEnv {
@@ -921,8 +915,8 @@ export class AgentOrchestrator {
     const appSettings = getSettings()
     let sessionMeta = getAgentSessionMeta(sessionId)
     // 历史会话缺失 runtime 时按 Claude 兼容；新会话创建时已持久化其默认 runtime。
-    const previousAgentRuntime = normalizeAgentRuntime(sessionMeta?.agentRuntime ?? 'claude')
-    const agentRuntime = normalizeAgentRuntime(inputAgentRuntime ?? sessionMeta?.agentRuntime ?? 'claude')
+    const previousAgentRuntime = normalizeAgentRuntime(sessionMeta?.agentRuntime ?? 'claude', channel.provider)
+    const agentRuntime = normalizeAgentRuntime(inputAgentRuntime ?? sessionMeta?.agentRuntime ?? 'claude', channel.provider)
     if (!sessionMeta?.agentRuntime || previousAgentRuntime !== agentRuntime) {
       try {
         sessionMeta = updateAgentSessionMeta(sessionId, {
