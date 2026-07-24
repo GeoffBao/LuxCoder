@@ -32,6 +32,7 @@ import {
   parseCodexCredentials,
   serializeCodexCredentials,
   isCodexCredentialExpired,
+  parseClaudeOAuthCredentials,
 } from '@luxcoder/shared'
 import { refreshCodexOAuth } from './codex-oauth-service'
 import { parseCodexPlanQuotaResponse } from './codex-plan-quota'
@@ -496,10 +497,32 @@ export async function resolveCodexAccessToken(channelId: string): Promise<string
 }
 
 /**
+ * 解析 Claude Pro/Max 订阅登录渠道的运行时 token。
+ *
+ * 与 Codex 不同：`setup-token` 生成的是不可刷新的长效 token，这里只做纯解析，
+ * 没有刷新逻辑；真正过期时由运行时 401 错误链路提示用户重新登录。
+ */
+function resolveClaudeOAuthAccessToken(channelId: string): string {
+  const channel = getChannelById(channelId)
+  if (!channel || channel.provider !== 'anthropic-oauth') {
+    throw new Error(`Claude 订阅登录渠道不存在或类型不匹配: ${channelId}`)
+  }
+
+  const credentials = parseClaudeOAuthCredentials(decryptKey(channel.apiKey))
+  if (!credentials) {
+    throw new Error('Claude 订阅登录凭据无效或缺失，请重新登录')
+  }
+
+  return credentials.token
+}
+
+/**
  * 解析渠道运行时实际使用的认证 token。
  *
  * 普通渠道直接解密 API Key；ChatGPT (Codex) OAuth 渠道的 apiKey 字段存储的是
- * OAuth 凭据 JSON，运行时必须取出 access token 并按需刷新。
+ * OAuth 凭据 JSON，运行时必须取出 access token 并按需刷新；Claude Pro/Max
+ * 订阅登录渠道的 apiKey 字段存储的是 Claude OAuth 凭据 JSON，运行时只需取出
+ * token（不可刷新）。
  */
 export async function resolveChannelRuntimeApiKey(channelId: string): Promise<string> {
   const channel = getChannelById(channelId)
@@ -507,9 +530,9 @@ export async function resolveChannelRuntimeApiKey(channelId: string): Promise<st
     throw new Error(`渠道不存在: ${channelId}`)
   }
 
-  return channel.provider === 'openai-codex'
-    ? resolveCodexAccessToken(channelId)
-    : decryptApiKey(channelId)
+  if (channel.provider === 'openai-codex') return resolveCodexAccessToken(channelId)
+  if (channel.provider === 'anthropic-oauth') return resolveClaudeOAuthAccessToken(channelId)
+  return decryptApiKey(channelId)
 }
 
 /**

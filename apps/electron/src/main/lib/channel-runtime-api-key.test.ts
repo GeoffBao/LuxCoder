@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, mock, test } from 'b
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import * as os from 'node:os'
 import { join } from 'node:path'
-import { serializeCodexCredentials } from '@luxcoder/shared'
+import { serializeCodexCredentials, serializeClaudeOAuthCredentials } from '@luxcoder/shared'
 
 type ChannelManagerModule = typeof import('./channel-manager')
 
@@ -114,5 +114,46 @@ describe('渠道运行时认证解析', () => {
 
     await expect(channelManager.resolveChannelRuntimeApiKey('api-key-channel'))
       .resolves.toBe('plain-api-key')
+  })
+
+  test('Given Claude 订阅 OAuth 渠道 When 解析运行时 key Then 返回 token 而不是凭据 JSON', async () => {
+    writeChannels([
+      {
+        id: 'claude-oauth-channel',
+        name: 'Claude Pro/Max',
+        provider: 'anthropic-oauth',
+        baseUrl: '',
+        apiKey: serializeClaudeOAuthCredentials({
+          token: 'sk-ant-oat01-runtime-token',
+          obtainedAt: Date.now(),
+        }),
+        models: [],
+        enabled: true,
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    ])
+
+    await expect(channelManager.resolveChannelRuntimeApiKey('claude-oauth-channel'))
+      .resolves.toBe('sk-ant-oat01-runtime-token')
+  })
+
+  test('Given Claude 订阅渠道凭据损坏 When 解析运行时 key Then 抛出可读错误', async () => {
+    writeChannels([
+      {
+        id: 'claude-oauth-broken',
+        name: 'Claude Pro/Max',
+        provider: 'anthropic-oauth',
+        baseUrl: '',
+        apiKey: 'not-valid-json',
+        models: [],
+        enabled: true,
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    ])
+
+    await expect(channelManager.resolveChannelRuntimeApiKey('claude-oauth-broken'))
+      .rejects.toThrow(/重新登录/)
   })
 })
