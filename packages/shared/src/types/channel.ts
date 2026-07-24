@@ -250,6 +250,62 @@ export function isCodexCredentialExpired(credentials: CodexOAuthCredentials, ske
 }
 
 /**
+ * Claude Pro/Max 订阅登录（`claude setup-token`）凭据。
+ *
+ * 复用 Channel.apiKey 字段承载：序列化为 JSON 后经 safeStorage 加密存储，
+ * 与 CodexOAuthCredentials 同一套「凭据塞进 apiKey 字段」模式。
+ *
+ * 与 Codex 的关键区别：`setup-token` 生成的是不可刷新的长效 token（约 1 年），
+ * 没有 refresh token，所以没有 expires/refresh 字段，只有 obtainedAt 用于本地
+ * 估算"是否该提醒用户重新登录"（并非精确过期时间，服务端才是权威判定）。
+ */
+export interface ClaudeOAuthCredentials {
+  /** 长效 OAuth token（`sk-ant-oat...`），直接作为 CLAUDE_CODE_OAUTH_TOKEN 使用 */
+  token: string
+  /** 登录成功时间戳（Unix 毫秒），用于本地估算提醒阈值 */
+  obtainedAt: number
+  /** 可选：账号标识，用于展示登录身份 */
+  accountId?: string
+}
+
+/** 将 OAuth 凭据序列化为存入 apiKey 字段的 JSON 字符串。 */
+export function serializeClaudeOAuthCredentials(credentials: ClaudeOAuthCredentials): string {
+  return JSON.stringify(credentials)
+}
+
+/** 从 apiKey 字段解析 Claude 订阅 OAuth 凭据；非合法 JSON 或缺少必需字段时返回 null。 */
+export function parseClaudeOAuthCredentials(secret: string): ClaudeOAuthCredentials | null {
+  const trimmed = secret.trim()
+  if (!trimmed) return null
+  try {
+    const parsed = JSON.parse(trimmed) as Partial<ClaudeOAuthCredentials>
+    if (typeof parsed.token === 'string' && parsed.token
+      && typeof parsed.obtainedAt === 'number') {
+      return {
+        token: parsed.token,
+        obtainedAt: parsed.obtainedAt,
+        ...(typeof parsed.accountId === 'string' && parsed.accountId ? { accountId: parsed.accountId } : {}),
+      }
+    }
+  } catch {
+    return null
+  }
+  return null
+}
+
+/**
+ * 判断 Claude 订阅登录是否该提醒用户重新登录。
+ *
+ * `setup-token` 生成的 token 官方文档只说"约 1 年"，没有精确过期时间返回。
+ * 按 335 天（1 年减 30 天缓冲）本地估算阈值，纯 UI 提醒，不阻塞使用——
+ * 真正过期时服务端会返回 401，运行时错误处理走既有链路提示重新登录。
+ */
+export function isClaudeOAuthCredentialStale(credentials: ClaudeOAuthCredentials): boolean {
+  const STALE_AFTER_MS = 335 * 86_400_000
+  return Date.now() - credentials.obtainedAt >= STALE_AFTER_MS
+}
+
+/**
  * 渠道中的模型配置
  */
 export interface ChannelModel {
