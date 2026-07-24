@@ -11,6 +11,7 @@
 export type ProviderType =
   | 'anthropic'
   | 'anthropic-compatible'
+  | 'anthropic-oauth'
   | 'openai'
   | 'openai-responses'
   | 'deepseek'
@@ -45,6 +46,8 @@ export type ProviderType =
 export const PROVIDER_DEFAULT_URLS: Record<ProviderType, string> = {
   anthropic: 'https://api.anthropic.com',
   'anthropic-compatible': '',
+  // Claude Pro/Max 订阅登录：baseUrl 由官方 claude 二进制内部管理，无需用户填写。
+  'anthropic-oauth': '',
   openai: 'https://api.openai.com/v1',
   'openai-responses': 'https://api.openai.com/v1',
   deepseek: 'https://api.deepseek.com/anthropic',
@@ -76,6 +79,7 @@ export const PROVIDER_DEFAULT_URLS: Record<ProviderType, string> = {
 export const PROVIDER_LABELS: Record<ProviderType, string> = {
   anthropic: 'Anthropic',
   'anthropic-compatible': 'Anthropic 兼容格式',
+  'anthropic-oauth': 'Claude Pro/Max（订阅登录）',
   openai: 'OpenAI',
   'openai-responses': 'OpenAI Responses 格式',
   deepseek: 'DeepSeek',
@@ -108,6 +112,7 @@ export const PROVIDER_LABELS: Record<ProviderType, string> = {
 export const AGENT_COMPATIBLE_PROVIDERS: ReadonlySet<ProviderType> = new Set<ProviderType>([
   'anthropic',
   'anthropic-compatible',
+  'anthropic-oauth',
   'deepseek',
   'kimi-api',
   'kimi-coding',
