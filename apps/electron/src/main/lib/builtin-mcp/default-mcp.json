@@ -129,6 +129,20 @@
         { "name": "performance_start_trace", "description": "开始性能追踪。" },
         { "name": "performance_stop_trace", "description": "停止性能追踪并返回结果。", "readOnly": true }
       ]
+    },
+    {
+      "id": "create-task",
+      "name": "create_task",
+      "displayName": "创建任务",
+      "description": "在 Agent 对话中直接创建看板任务（写 task.yaml + 建 orchestrator 会话），只创建不运行。",
+      "category": "task",
+      "kind": "internal",
+      "deletable": false,
+      "defaultEnabled": true,
+      "toggleable": true,
+      "tools": [
+        { "name": "create_task", "description": "创建一个 todo 状态的看板任务，不自动运行。" }
+      ]
     }
   ]
 }
