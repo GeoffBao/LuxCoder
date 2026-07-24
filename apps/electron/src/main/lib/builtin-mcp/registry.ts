@@ -8,6 +8,7 @@
 import type { AgentRuntime, AgentSessionMeta, LuxCoderPermissionMode } from '@luxcoder/shared'
 import { injectAgentCollaborationMcpServer } from '../agent-collaboration-tools'
 import { injectAutomationMcpServer } from '../automation-agent-tools'
+import { injectCreateTaskMcpServer } from '../create-task-agent-tool'
 import { injectNanoBananaMcpServer } from '../chat-tools/nano-banana-mcp'
 import { isBuiltinMcpUserEnabled } from './settings'
 
@@ -52,6 +53,13 @@ export async function injectBuiltinMcpServers(ctx: BuiltinMcpInjectContext): Pro
       agentRuntime: ctx.agentRuntime,
       workspaceId: ctx.workspaceId,
       triggeredBy: ctx.triggeredBy,
+    }))
+  }
+
+  if (isBuiltinMcpUserEnabled('create-task') && !!ctx.workspaceId) {
+    await injectBuiltinSafely('create-task', () => injectCreateTaskMcpServer(ctx.sdk, ctx.mcpServers, {
+      sessionId: ctx.sessionId,
+      workspaceId: ctx.workspaceId!,
     }))
   }
 
