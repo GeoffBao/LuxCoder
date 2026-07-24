@@ -36,7 +36,7 @@ const AGENT_SDK_1M_CONTEXT_RULES = {
   // MiniMax
   minimax: ['minimax-m3'],
   // Kimi
-  kimi: ['k3'],
+  kimi: ['kimi-k3'],
   // 通义千问
   qwen: [
     'qwen3.8',
