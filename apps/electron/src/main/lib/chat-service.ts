@@ -217,7 +217,18 @@ export async function sendMessage(
   if (channel.provider === 'openai-codex') {
     webContents.send(CHAT_IPC_CHANNELS.STREAM_ERROR, {
       conversationId,
-      error: 'Chat 模式暂不支持 ChatGPT 订阅（Codex OAuth），请切换到 Agent 模式使用。',
+      error: 'Chat 模式暂不支持 ChatGPT 订阅（Codex OAuth），请切换到 Code 模式使用。',
+    })
+    return
+  }
+
+  // anthropic-oauth 渠道只在 Agent（Code）模式下可用：其 apiKey 字段存储的是
+  // CLAUDE_CODE_OAUTH_TOKEN，只能喂给真实 claude 二进制，Chat 走的裸 Messages
+  // API 请求无法使用它。
+  if (channel.provider === 'anthropic-oauth') {
+    webContents.send(CHAT_IPC_CHANNELS.STREAM_ERROR, {
+      conversationId,
+      error: 'Chat 模式暂不支持 Claude 订阅登录，请切换到 Code 模式使用。',
     })
     return
   }
@@ -602,6 +613,12 @@ export async function generateTitle(input: GenerateTitleInput): Promise<string |
   if (channel.provider === 'openai-codex') {
     const fallbackTitle = createFallbackTitle(userMessage)
     console.log('[标题生成] ChatGPT OAuth 渠道使用本地标题:', fallbackTitle)
+    return fallbackTitle
+  }
+
+  if (channel.provider === 'anthropic-oauth') {
+    const fallbackTitle = createFallbackTitle(userMessage)
+    console.log('[标题生成] Claude 订阅 OAuth 渠道使用本地标题:', fallbackTitle)
     return fallbackTitle
   }
 

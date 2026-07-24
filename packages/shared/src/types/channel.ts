@@ -11,6 +11,7 @@
 export type ProviderType =
   | 'anthropic'
   | 'anthropic-compatible'
+  | 'anthropic-oauth'
   | 'openai'
   | 'openai-responses'
   | 'deepseek'
@@ -45,6 +46,8 @@ export type ProviderType =
 export const PROVIDER_DEFAULT_URLS: Record<ProviderType, string> = {
   anthropic: 'https://api.anthropic.com',
   'anthropic-compatible': '',
+  // Claude Pro/Max 订阅登录：baseUrl 由官方 claude 二进制内部管理，无需用户填写。
+  'anthropic-oauth': '',
   openai: 'https://api.openai.com/v1',
   'openai-responses': 'https://api.openai.com/v1',
   deepseek: 'https://api.deepseek.com/anthropic',
@@ -76,6 +79,7 @@ export const PROVIDER_DEFAULT_URLS: Record<ProviderType, string> = {
 export const PROVIDER_LABELS: Record<ProviderType, string> = {
   anthropic: 'Anthropic',
   'anthropic-compatible': 'Anthropic 兼容格式',
+  'anthropic-oauth': 'Claude Pro/Max（订阅登录）',
   openai: 'OpenAI',
   'openai-responses': 'OpenAI Responses 格式',
   deepseek: 'DeepSeek',
@@ -94,8 +98,8 @@ export const PROVIDER_LABELS: Record<ProviderType, string> = {
   xiaomi: '小米 MiMo (API)',
   'xiaomi-token-plan': '小米 MiMo Token Plan',
   'openai-codex': 'ChatGPT 订阅 (Codex)',
-  openrouter: 'OpenRouter',
-  nuwa: 'NUWA',
+  openrouter: 'OpenRouter（聚合平台）',
+  nuwa: 'NUWA（聚合平台）',
   custom: 'OpenAI Chat Completions（自定义地址）',
 }
 
@@ -108,6 +112,7 @@ export const PROVIDER_LABELS: Record<ProviderType, string> = {
 export const AGENT_COMPATIBLE_PROVIDERS: ReadonlySet<ProviderType> = new Set<ProviderType>([
   'anthropic',
   'anthropic-compatible',
+  'anthropic-oauth',
   'deepseek',
   'kimi-api',
   'kimi-coding',
@@ -242,6 +247,62 @@ export function parseCodexCredentials(secret: string): CodexOAuthCredentials | n
  */
 export function isCodexCredentialExpired(credentials: CodexOAuthCredentials, skewMs = 60_000): boolean {
   return Date.now() >= credentials.expires - skewMs
+}
+
+/**
+ * Claude Pro/Max 订阅登录（`claude setup-token`）凭据。
+ *
+ * 复用 Channel.apiKey 字段承载：序列化为 JSON 后经 safeStorage 加密存储，
+ * 与 CodexOAuthCredentials 同一套「凭据塞进 apiKey 字段」模式。
+ *
+ * 与 Codex 的关键区别：`setup-token` 生成的是不可刷新的长效 token（约 1 年），
+ * 没有 refresh token，所以没有 expires/refresh 字段，只有 obtainedAt 用于本地
+ * 估算"是否该提醒用户重新登录"（并非精确过期时间，服务端才是权威判定）。
+ */
+export interface ClaudeOAuthCredentials {
+  /** 长效 OAuth token（`sk-ant-oat...`），直接作为 CLAUDE_CODE_OAUTH_TOKEN 使用 */
+  token: string
+  /** 登录成功时间戳（Unix 毫秒），用于本地估算提醒阈值 */
+  obtainedAt: number
+  /** 可选：账号标识，用于展示登录身份 */
+  accountId?: string
+}
+
+/** 将 OAuth 凭据序列化为存入 apiKey 字段的 JSON 字符串。 */
+export function serializeClaudeOAuthCredentials(credentials: ClaudeOAuthCredentials): string {
+  return JSON.stringify(credentials)
+}
+
+/** 从 apiKey 字段解析 Claude 订阅 OAuth 凭据；非合法 JSON 或缺少必需字段时返回 null。 */
+export function parseClaudeOAuthCredentials(secret: string): ClaudeOAuthCredentials | null {
+  const trimmed = secret.trim()
+  if (!trimmed) return null
+  try {
+    const parsed = JSON.parse(trimmed) as Partial<ClaudeOAuthCredentials>
+    if (typeof parsed.token === 'string' && parsed.token
+      && typeof parsed.obtainedAt === 'number') {
+      return {
+        token: parsed.token,
+        obtainedAt: parsed.obtainedAt,
+        ...(typeof parsed.accountId === 'string' && parsed.accountId ? { accountId: parsed.accountId } : {}),
+      }
+    }
+  } catch {
+    return null
+  }
+  return null
+}
+
+/**
+ * 判断 Claude 订阅登录是否该提醒用户重新登录。
+ *
+ * `setup-token` 生成的 token 官方文档只说"约 1 年"，没有精确过期时间返回。
+ * 按 335 天（1 年减 30 天缓冲）本地估算阈值，纯 UI 提醒，不阻塞使用——
+ * 真正过期时服务端会返回 401，运行时错误处理走既有链路提示重新登录。
+ */
+export function isClaudeOAuthCredentialStale(credentials: ClaudeOAuthCredentials): boolean {
+  const STALE_AFTER_MS = 335 * 86_400_000
+  return Date.now() - credentials.obtainedAt >= STALE_AFTER_MS
 }
 
 /**
@@ -454,6 +515,10 @@ export const CHANNEL_IPC_CHANNELS = {
   CODEX_OAUTH_LOGIN: 'channel:codex-oauth-login',
   /** 取消进行中的 ChatGPT OAuth 登录流程 */
   CODEX_OAUTH_CANCEL: 'channel:codex-oauth-cancel',
+  /** 发起 Claude Pro/Max 订阅 OAuth 登录，返回加密凭据与账号信息 */
+  CLAUDE_OAUTH_LOGIN: 'channel:claude-oauth-login',
+  /** 取消进行中的 Claude 订阅 OAuth 登录流程 */
+  CLAUDE_OAUTH_CANCEL: 'channel:claude-oauth-cancel',
 } as const
 
 /**
@@ -472,6 +537,24 @@ export interface CodexOAuthLoginResult {
   credentials?: string
   /** 登录账号标识，用于 UI 展示 */
   accountId?: string
+  /** 失败或取消时的用户可读原因 */
+  message?: string
+}
+
+/**
+ * Claude Pro/Max 订阅 OAuth 登录结果。
+ *
+ * 登录在主进程执行（spawn 真实 claude 二进制的 setup-token 子命令），成功后
+ * 返回已序列化的凭据 JSON（可直接作为 Channel.apiKey 存储）与展示信息。
+ */
+export interface ClaudeOAuthLoginResult {
+  /** 是否登录成功 */
+  success: boolean
+  /**
+   * 序列化后的凭据 JSON（明文）。与现有 apiKey 明文回传模式一致：
+   * 渲染层拿到后作为 Channel.apiKey 传给 create/update，由 channel-manager 加密存储。
+   */
+  credentials?: string
   /** 失败或取消时的用户可读原因 */
   message?: string
 }

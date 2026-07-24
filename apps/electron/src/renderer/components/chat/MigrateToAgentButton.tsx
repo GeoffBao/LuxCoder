@@ -1,5 +1,5 @@
 /**
- * MigrateToAgentButton — 切换到 Agent 模式按钮
+ * MigrateToAgentButton — 切换到 Code 模式按钮
  *
  * 常驻在助手消息 Action Bar 中，点击后：
  * 1. 创建 Agent 会话（绑定默认工作区）
@@ -71,7 +71,7 @@ export function MigrateToAgentButton({ conversationId }: MigrateToAgentButtonPro
         }).catch(console.error)
       }
 
-      // 5. 切换到 Agent 模式
+      // 5. 切换到 Code 模式
       store.set(appModeAtom, 'agent')
       store.set(activeViewAtom, 'conversations')
 
@@ -88,12 +88,12 @@ export function MigrateToAgentButton({ conversationId }: MigrateToAgentButtonPro
       store.set(currentAgentSessionIdAtom, session.id)
 
       // 7. 通知用户
-      toast.success('已切换到 Agent 模式', {
+      toast.success('已切换到 Code 模式', {
         description: '对话历史已迁移到新的 Agent 会话',
       })
     } catch (error) {
       console.error('[MigrateToAgentButton] 迁移失败:', error)
-      toast.error('切换到 Agent 模式失败')
+      toast.error('切换到 Code 模式失败')
     } finally {
       setMigrating(false)
     }
@@ -101,7 +101,7 @@ export function MigrateToAgentButton({ conversationId }: MigrateToAgentButtonPro
 
   return (
     <MessageAction
-      tooltip={migrating ? '切换中...' : '切换到 Agent 模式'}
+      tooltip={migrating ? '切换中...' : '切换到 Code 模式'}
       onClick={() => { void handleMigrate() }}
       disabled={migrating}
     >
