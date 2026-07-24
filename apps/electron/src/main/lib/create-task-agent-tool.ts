@@ -100,7 +100,7 @@ export async function injectCreateTaskMcpServer(
         },
         async (args) => {
           const workspace = getAgentWorkspace(ctx.workspaceId)
-          if (!workspace) return jsonResult({ error: `工作区不存在: ${ctx.workspaceId}` })
+          if (!workspace) throw new Error(`工作区不存在: ${ctx.workspaceId}`)
           const workspaceRoot = getAgentWorkspacePath(workspace.slug)
 
           const projectId = args.projectId ?? getAgentSessionMeta(ctx.sessionId)?.projectId
@@ -117,6 +117,8 @@ export async function injectCreateTaskMcpServer(
             workingDirectory: args.workingDirectory,
             projectId,
           })
+          // 下面这行读 slug 集合和 materializeTaskFromSpec 内部的 saveTaskSpec 写入之间没有任何 await，
+          // 是这个同步无交错特性让唯一性检查免于 TOCTOU 竞态——以后若在两者之间插入 await，会悄悄重新引入这个竞态。
           const uniqueId = ensureUniqueTaskSlug(workspaceRoot, spec.id)
           const finalSpec = uniqueId === spec.id ? spec : { ...spec, id: uniqueId }
 
