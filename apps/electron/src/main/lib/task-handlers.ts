@@ -28,6 +28,7 @@ import {
   extractYaml,
 } from '@luxcoder/shared/tasks'
 import {
+  ensureUniqueTaskSlug,
   listResumableRuns,
   listTaskSlugs,
   loadTaskSpec,
@@ -99,25 +100,32 @@ function getSessionHost(): Promise<LuxCoderConductorSessionHost> {
  * tasks:create IPC（新建路径）与 create_task Agent 工具共用此函数，避免两条创建路径分叉。
  * 不支持"挂接到既有会话"——那是 IPC handler 自己的分支，调用方是表单 UI 的编辑场景，
  * Agent 工具没有这个场景，不需要覆盖。
+ *
+ * slug 冲突通过 ensureUniqueTaskSlug 追加 -2/-3... 规避，两条创建路径共用同一份保护：
+ * `saveTaskSpec` 对同 slug 是无条件覆盖，若不在这里去重，后到的任务会静默顶掉先到的
+ * task.yaml，把它的 orchestrator 会话变成孤儿。这里读 slug 集合和随后 saveTaskSpec 的
+ * 写入之间没有 await，去重检查因此不会有 TOCTOU 竞态。
  */
 export async function materializeTaskFromSpec(
   workspaceRoot: string,
   workspaceId: string,
   spec: TaskSpec,
 ): Promise<{ slug: string; orchestratorSessionId: string }> {
-  saveTaskSpec(workspaceRoot, spec)
-  const seed = buildTaskSessionSeed(spec, workspaceRoot)
+  const uniqueId = ensureUniqueTaskSlug(workspaceRoot, spec.id)
+  const finalSpec = uniqueId === spec.id ? spec : { ...spec, id: uniqueId }
+  saveTaskSpec(workspaceRoot, finalSpec)
+  const seed = buildTaskSessionSeed(finalSpec, workspaceRoot)
   const session = await (await getSessionHost()).createSession(workspaceId, {
-    name: spec.title,
-    projectId: spec.project,
-    taskSlug: spec.id,
+    name: finalSpec.title,
+    projectId: finalSpec.project,
+    taskSlug: finalSpec.id,
     sessionStatus: 'todo',
     ...(seed.workingDirectory ? { workingDirectory: seed.workingDirectory } : {}),
     ...(seed.modelId ? { model: seed.modelId } : {}),
     ...(seed.channelId ? { llmConnection: seed.channelId } : {}),
     ...(spec.defaults?.permissionMode ? { permissionMode: spec.defaults.permissionMode } : {}),
   })
-  return { slug: spec.id, orchestratorSessionId: session.id }
+  return { slug: finalSpec.id, orchestratorSessionId: session.id }
 }
 
 async function getRunnerFor(workspaceRoot: string, workspaceId: string): Promise<TaskRunner> {

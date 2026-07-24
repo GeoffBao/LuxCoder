@@ -3,11 +3,11 @@
  *
  * 通过 SDK MCP Server 暴露 create_task：对话中直接把一张 todo 状态的看板任务
  * 落到当前工作区（task.yaml + orchestrator 会话），只创建不运行，是否启动交给
- * 用户或自动化决定。跟"新建任务"表单共用 materializeTaskFromSpec，不重复实现落盘逻辑。
+ * 用户或自动化决定。跟"新建任务"表单共用 materializeTaskFromSpec，不重复实现落盘逻辑，
+ * slug 冲突去重也由 materializeTaskFromSpec 统一处理（见该函数注释）。
  */
 
 import { buildMinimalTaskSpec } from '@luxcoder/shared/tasks'
-import { listTaskSlugs } from '@luxcoder/shared/tasks/storage'
 import { getAgentSessionMeta } from './agent-session-manager'
 import { getAgentWorkspace, getWorkspaceMcpConfig, getWorkspaceSkills } from './agent-workspace-manager'
 import { getAgentWorkspacePath } from './config-paths'
@@ -26,27 +26,6 @@ function jsonResult(payload: unknown): CreateTaskToolResult {
   return {
     content: [{ type: 'text', text: JSON.stringify(payload, null, 2) }],
   }
-}
-
-/**
- * 若 baseSlug 已被占用，追加数字后缀直到唯一。
- *
- * 背景：`saveTaskSpec` 遇到同 slug 会直接覆盖已有 task.yaml，不做任何冲突检测——手动"新建任务"
- * 表单场景下用户是显式命名、碰撞概率低，但 Agent 反复以相近标题调用 create_task 时碰撞概率高得多，
- * 覆盖会静默丢失一个已存在的任务定义（残留的旧 orchestrator 会话则变成孤儿）。这个去重逻辑只加在
- * 新工具这一侧，不改 materializeTaskFromSpec/表单既有行为——对齐 task-spec-form.ts 里 buildSpec()
- * 给节点 ID 去重用的同一套"追加 -2 -3..."算法。
- */
-function ensureUniqueTaskSlug(workspaceRoot: string, baseSlug: string): string {
-  const existing = new Set(listTaskSlugs(workspaceRoot))
-  if (!existing.has(baseSlug)) return baseSlug
-  let n = 2
-  let candidate = `${baseSlug}-${n}`
-  while (existing.has(candidate)) {
-    n += 1
-    candidate = `${baseSlug}-${n}`
-  }
-  return candidate
 }
 
 /** 校验 sources/skills 里的未知 slug，返回 warning 文案数组（不阻断创建，对齐 craft 语义）。 */
@@ -117,12 +96,7 @@ export async function injectCreateTaskMcpServer(
             workingDirectory: args.workingDirectory,
             projectId,
           })
-          // 下面这行读 slug 集合和 materializeTaskFromSpec 内部的 saveTaskSpec 写入之间没有任何 await，
-          // 是这个同步无交错特性让唯一性检查免于 TOCTOU 竞态——以后若在两者之间插入 await，会悄悄重新引入这个竞态。
-          const uniqueId = ensureUniqueTaskSlug(workspaceRoot, spec.id)
-          const finalSpec = uniqueId === spec.id ? spec : { ...spec, id: uniqueId }
-
-          const result = await materializeTaskFromSpec(workspaceRoot, ctx.workspaceId, finalSpec)
+          const result = await materializeTaskFromSpec(workspaceRoot, ctx.workspaceId, spec)
           return jsonResult({ ...result, warnings })
         },
       ),

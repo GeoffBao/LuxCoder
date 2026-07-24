@@ -194,6 +194,26 @@ export function listTaskSlugs(workspaceRoot: string): string[] {
     .sort();
 }
 
+/**
+ * 若 baseSlug 已被占用，追加数字后缀直到唯一（-2、-3...）。
+ *
+ * `saveTaskSpec` 对同 slug 直接覆盖已有 task.yaml，不做任何冲突检测——供"新建任务"场景
+ * （而非编辑既有任务）的调用方在写入前调用本函数，避免静默覆盖一个已存在的任务定义（残留的
+ * 旧 orchestrator 会话会变成孤儿）。调用方需保证本函数与随后的 saveTaskSpec 之间没有 await，
+ * 否则会重新引入 TOCTOU 竞态。
+ */
+export function ensureUniqueTaskSlug(workspaceRoot: string, baseSlug: string): string {
+  const existing = new Set(listTaskSlugs(workspaceRoot));
+  if (!existing.has(baseSlug)) return baseSlug;
+  let n = 2;
+  let candidate = `${baseSlug}-${n}`;
+  while (existing.has(candidate)) {
+    n += 1;
+    candidate = `${baseSlug}-${n}`;
+  }
+  return candidate;
+}
+
 // ---------------------------------------------------------------------------
 // 运行日志
 // ---------------------------------------------------------------------------
