@@ -4,7 +4,6 @@
  */
 
 import * as React from 'react'
-import { useAtomValue } from 'jotai'
 import {
   Pin,
   PinOff,
@@ -25,7 +24,6 @@ import {
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { MarqueeText } from '@/components/ui/marquee-text'
-import { interfaceVariantAtom } from '@/atoms/theme'
 import type { SessionIndicatorStatus } from '@/atoms/agent-atoms'
 import {
   SessionMiniMapPopover,
@@ -210,16 +208,16 @@ export function SessionItemActions({
 
   return (
     <div
-      className="session-item-actions relative flex-shrink-0 h-[18px] w-[22px]"
-      title={`最后更新：${new Date(updatedAt).toLocaleString('zh-CN')}`}
+      className="session-item-actions pointer-events-none absolute right-0 top-1/2 z-[7] flex h-[18px] -translate-y-1/2 items-center"
       onClick={(e) => e.stopPropagation()}
     >
       {/* 置顶/星标/归档不再占用行内固定位置——全部收进这个「...」菜单（以及同一份
           menuItems 供的右键/双指点按菜单），把行内空间留给标题。相对时间戳也不再常驻展示，
-          完整时间通过本容器的 title 属性 hover 呈现（参考截图里 Claude 客户端本身也不在行内展示时间戳）。 */}
+          完整时间通过本容器的 title 属性 hover 呈现。按钮整体 absolute 悬浮在行右侧，
+          不占布局宽度——标题因此可以顶到行尾。 */}
       <div
         className={cn(
-          'absolute right-1 top-0 flex items-center transition-opacity duration-100',
+          'flex items-center transition-opacity duration-100',
           forceVisible
             ? 'opacity-100 pointer-events-auto'
             : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto',
@@ -228,6 +226,7 @@ export function SessionItemActions({
         <DropdownMenu onOpenChange={handleMenuOpenChange}>
           <DropdownMenuTrigger asChild>
             <button
+              title={`最后更新：${new Date(updatedAt).toLocaleString('zh-CN')}`}
               className={cn(
                 'p-0.5 rounded text-foreground/30 hover:bg-foreground/[0.08] hover:text-foreground/60 transition-colors',
                 'data-[state=open]:bg-foreground/[0.08] data-[state=open]:text-foreground/60',
@@ -247,18 +246,16 @@ export function SessionItemActions({
 
 // ===== Agent 会话列表项 =====
 
-/** 会话行左侧状态条的颜色 — 与 SessionIndicatorStatus 呼应 */
-export type SessionLeftAccent = 'orange' | 'blue' | 'green'
-const SESSION_ACCENT_ROW_CLASS: Record<SessionLeftAccent, string> = {
-  orange: 'bg-orange-500/[0.08] text-foreground font-medium',
-  blue: 'text-foreground font-medium hover:bg-foreground/[0.03]',
-  green: 'text-foreground font-medium hover:bg-foreground/[0.03]',
-}
-
-const SESSION_ACCENT_INDICATOR_CLASS: Record<SessionLeftAccent, string> = {
-  orange: 'bg-orange-500',
-  blue: 'bg-blue-500',
-  green: 'bg-green-500',
+/**
+ * 会话行状态点（对齐 Claude 客户端：无竖条，只有小圆点）：
+ * idle=空心圆（占位对齐），running=蓝点脉冲，blocked=橙点，completed=绿点。
+ * 原 leftAccent 3px 状态竖条 / projectColor 2px 项目色条 / blocked 行底色已下线。
+ */
+const STATUS_DOT_CLASS: Record<SessionIndicatorStatus, string> = {
+  idle: 'border border-foreground/25 bg-transparent',
+  running: 'bg-blue-500 animate-pulse',
+  blocked: 'bg-orange-500',
+  completed: 'bg-green-500',
 }
 
 const DELEGATION_STATUS_ICON_CLASS: Record<SessionIndicatorStatus, string> = {
@@ -266,13 +263,6 @@ const DELEGATION_STATUS_ICON_CLASS: Record<SessionIndicatorStatus, string> = {
   running: 'text-blue-500',
   blocked: 'text-orange-500',
   completed: 'text-green-500',
-}
-
-export function getSessionLeftAccent(status: SessionIndicatorStatus): SessionLeftAccent | undefined {
-  if (status === 'blocked') return 'orange'
-  if (status === 'running') return 'blue'
-  if (status === 'completed') return 'green'
-  return undefined
 }
 
 export interface AgentSessionItemProps {
@@ -286,14 +276,16 @@ export interface AgentSessionItemProps {
     expanded: boolean
     onToggle: () => void
   }
-  /** 行左侧状态色块；未传则不显示 */
-  leftAccent?: SessionLeftAccent
+  /** 行左侧状态色块（已移除：状态统一由行首小圆点表达）
+   * @deprecated 不再渲染任何色条 */
+  leftAccent?: never
   /** 是否禁用悬浮 Mini 地图 */
   disableMiniMap?: boolean
   /** 工作区名称 Badge（跨工作区列表时显示） */
   workspaceName?: string
-  /** 所属项目主题色；渲染左缘 2px 色条 */
-  projectColor?: string
+  /** 所属项目主题色（已移除：原左缘 2px 色条随竖条一起去掉）
+   * @deprecated 不再渲染任何色条 */
+  projectColor?: never
   /** 当前工作区项目列表；空数组时不渲染「移动到项目」入口 */
   projects?: KanbanProject[]
   onMoveToProject?: (sessionId: string, projectId?: string) => void | Promise<void>
@@ -319,10 +311,8 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
   indicatorStatus,
   showPinIcon,
   delegationSummary,
-  leftAccent,
   disableMiniMap,
   workspaceName,
-  projectColor,
   projects,
   onMoveToProject,
   sessionGroups,
@@ -344,8 +334,6 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
   const justStartedEditing = React.useRef(false)
   // 菜单打开时关闭迷你地图预览，避免预览面板盖住菜单项导致点不动
   const preview = useSessionMiniMapHover(600, disableMiniMap || menuOpen)
-  const interfaceVariant = useAtomValue(interfaceVariantAtom)
-  const isClassic = interfaceVariant === 'classic'
 
   const startEdit = (): void => {
     setEditTitle(session.title)
@@ -520,32 +508,18 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
           onMouseEnter={preview.handleMouseEnter}
           onMouseLeave={preview.handleMouseLeave}
           className={cn(
-            'session-quick-switch-row group relative w-full flex items-center gap-1.5 rounded-md py-1 pl-2.5 pr-1.5 transition-colors duration-100 titlebar-no-drag text-left',
+            'session-quick-switch-row group relative w-full flex items-center gap-1.5 rounded-md py-1 pl-2 pr-1.5 transition-colors duration-100 titlebar-no-drag text-left',
+            'hover:bg-foreground/[0.03]',
             active && 'agent-session-item-active',
-            leftAccent
-              ? SESSION_ACCENT_ROW_CLASS[leftAccent]
-              : 'hover:bg-foreground/[0.03]',
             // 选中态背景：浅色叠加深色变深、深色叠加浅色变浅，自动适配主题。
-            // orange accent 自带橙色底色，不再叠加，避免视觉过重。
-            active && leftAccent !== 'orange' && 'bg-foreground/[0.08]',
+            active && 'bg-foreground/[0.08]',
           )}
         >
-          {(leftAccent || (isClassic && active)) && (
-            <span
-              className={cn(
-                'absolute inset-y-0 left-0 w-[3px] rounded-l-md pointer-events-none',
-                leftAccent ? SESSION_ACCENT_INDICATOR_CLASS[leftAccent] : 'bg-primary',
-              )}
-            />
-          )}
-          {/* 状态色优先于项目装饰色：状态条或经典激活指示条渲染时不再叠加项目色条 */}
-          {projectColor && !leftAccent && !(isClassic && active) && (
-            <span
-              aria-hidden="true"
-              className="absolute left-0 top-1 bottom-1 w-0.5 rounded-full pointer-events-none"
-              style={{ backgroundColor: projectColor }}
-            />
-          )}
+          {/* 状态小圆点（对齐 Claude）：idle=空心占位，running=蓝脉冲，blocked=橙，completed=绿 */}
+          <span
+            aria-hidden="true"
+            className={cn('size-2 shrink-0 rounded-full', STATUS_DOT_CLASS[indicatorStatus])}
+          />
           <div className="flex-1 min-w-0">
             {editing ? (
               <input

@@ -68,9 +68,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { CreateProjectDialog } from '@/components/work/CreateProjectDialog'
 import { ProjectSettingsDialog } from '@/components/work/ProjectSettingsDialog'
-import { AgentSessionItem, getSessionLeftAccent } from './AgentSessionItem'
+import { AgentSessionItem } from './AgentSessionItem'
 import type { KanbanProject } from './kanban/types'
 import { sortSessions } from './sidebar-session-views'
 import {
@@ -113,6 +112,9 @@ const ATTENTION_DOT_CLASS: Record<string, string> = {
   completed: 'bg-emerald-500',
 }
 
+/** 项目分组视图每个 project 下默认展示的会话数量上限；超出部分折叠在「显示全部」按钮后 */
+const PROJECT_MODE_PREVIEW_LIMIT = 8
+
 export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sortBy }: SidebarProjectsTabProps): React.ReactElement {
   const workspaces = useAtomValue(agentWorkspacesAtom)
   const currentWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
@@ -133,8 +135,8 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sor
   const showArchived = status !== 'active'
 
   const [collapsedIds, setCollapsedIds] = React.useState<Set<string>>(new Set())
-  const [createOpen, setCreateOpen] = React.useState(false)
-  const [creating, setCreating] = React.useState(false)
+  /** 已完全展开的项目 ID（点击「显示全部」后展示全部会话，不再分批） */
+  const [expandedProjectIds, setExpandedProjectIds] = React.useState<Set<string>>(new Set())
   const [deleteTarget, setDeleteTarget] = React.useState<KanbanProject | null>(null)
   const [deleting, setDeleting] = React.useState(false)
   const [settingsTarget, setSettingsTarget] = React.useState<KanbanProject | null>(null)
@@ -207,25 +209,6 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sor
     enterWork()
   }, [enterWork, setPendingTaskEditorTarget, setSelectedProjectId])
 
-  const handleCreateProject = React.useCallback(async (
-    input: Parameters<typeof window.electronAPI.projects.create>[1],
-  ): Promise<void> => {
-    if (!workspaceRoot) return
-    setCreating(true)
-    try {
-      const project = await window.electronAPI.projects.create(workspaceRoot, input)
-      setProjects((prev) => [project, ...prev.filter((existing) => existing.id !== project.id)])
-      setCreateOpen(false)
-      toast.success('项目已创建')
-      openBoard(project.id)
-    } catch (cause) {
-      toast.error('创建项目失败', {
-        description: cause instanceof Error ? cause.message : String(cause),
-      })
-    } finally {
-      setCreating(false)
-    }
-  }, [openBoard, setProjects, workspaceRoot])
 
   const handleToggleArchive = React.useCallback(async (project: KanbanProject): Promise<void> => {
     if (!workspaceRoot || !project.slug) return
@@ -274,7 +257,7 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sor
   const hasProjects = scopedProjects.length > 0
   const hasVisible = sortedProjects.length > 0
 
-  const renderSessionRow = (session: AgentSessionMeta, projectColor?: string): React.ReactElement => {
+  const renderSessionRow = (session: AgentSessionMeta): React.ReactElement => {
     const status = indicatorMap.get(session.id) ?? 'idle'
     return (
       <AgentSessionItem
@@ -283,8 +266,6 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sor
         active={session.id === activeSessionId}
         indicatorStatus={status}
         showPinIcon={false}
-        leftAccent={getSessionLeftAccent(status)}
-        projectColor={projectColor}
         projects={scopedProjects}
         onMoveToProject={sessionHandlers.onMoveToProject}
         sessionGroups={sessionHandlers.sessionGroups}
@@ -304,22 +285,6 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sor
 
   return (
     <div className="flex min-h-0 flex-1 flex-col titlebar-no-drag">
-      {/* 新建项目：归档可见性已并入侧边栏统一的「状态」筛选，这里只保留新建入口 */}
-      <div className="flex items-center justify-end px-3 pt-2 pb-1">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              aria-label="新建项目"
-              onClick={() => setCreateOpen(true)}
-              className="grid size-6 place-items-center rounded-md text-foreground/50 transition-colors hover:bg-foreground/[0.06] hover:text-foreground/80"
-            >
-              <Plus size={14} />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">新建项目</TooltipContent>
-        </Tooltip>
-      </div>
 
       {/* 项目 → 会话分组 */}
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3 scrollbar-thin">
@@ -386,13 +351,6 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sor
                         }}
                         className="group relative flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-foreground/[0.04]"
                       >
-                        <ChevronRight
-                          size={12}
-                          className={cn(
-                            'shrink-0 text-foreground/30 transition-transform',
-                            expanded && 'rotate-90',
-                          )}
-                        />
                         <MarqueeText text={project.name} className="min-w-0 flex-1 text-[13px]" />
 
                         {/* 聚合注意力点 + 会话计数（非 hover 时显示） */}
@@ -446,6 +404,21 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sor
                               {renderProjectMenuItems(DropdownMenuItem, DropdownMenuSeparator)}
                             </DropdownMenuContent>
                           </DropdownMenu>
+                          {/* 折叠按钮：对齐「分组方式：日期」的日期标题行——hover 才浮现，放在「⋯」右边 */}
+                          <button
+                            type="button"
+                            aria-label={expanded ? `折叠${project.name}` : `展开${project.name}`}
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              toggleCollapsed(project.id)
+                            }}
+                            className="grid size-5 place-items-center rounded text-foreground/50 hover:bg-foreground/[0.08] hover:text-foreground/80"
+                          >
+                            <ChevronRight
+                              size={12}
+                              className={cn('transition-transform duration-150', expanded && 'rotate-90')}
+                            />
+                          </button>
                         </span>
                       </div>
                     </ContextMenuTrigger>
@@ -454,15 +427,33 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sor
                     </ContextMenuContent>
                   </ContextMenu>
 
-                  {/* 项目下会话列表（时间倒序） */}
+                  {/* 项目下会话列表（时间倒序）；超过 PREVIEW_LIMIT 时折叠，点击「显示全部」展开。
+                      空项目不渲染占位文本（对齐 Claude：空项目只有一行标题，新建入口就是行内 hover 的「+」）。
+                      不再额外缩进——与「日期」「状态」等其他分组下的会话行左对齐，保持同一套视觉层级。 */}
                   {expanded && projectSessions.length > 0 && (
-                    <div className="ml-4 mt-0.5 flex flex-col gap-0.5 border-l border-foreground/[0.06] pl-2 pb-1">
-                      {projectSessions.map((session) => renderSessionRow(session, project.color))}
-                    </div>
-                  )}
-                  {expanded && projectSessions.length === 0 && (
-                    <div className="ml-9 pb-1.5 pt-0.5 text-[11px] text-foreground/30">
-                      暂无会话，点「+」新建
+                    <div className="mt-0.5 flex flex-col gap-0.5 pb-1">
+                      {(expandedProjectIds.has(project.id) || projectSessions.length <= PROJECT_MODE_PREVIEW_LIMIT
+                        ? projectSessions
+                        : projectSessions.slice(0, PROJECT_MODE_PREVIEW_LIMIT)
+                      ).map(renderSessionRow)}
+                      {projectSessions.length > PROJECT_MODE_PREVIEW_LIMIT && !expandedProjectIds.has(project.id) && (
+                        <button
+                          type="button"
+                          onClick={() => setExpandedProjectIds((prev) => new Set(prev).add(project.id))}
+                          className="text-left px-1.5 py-1 rounded-md text-[12px] text-foreground/35 hover:bg-foreground/[0.03] hover:text-foreground/60 transition-colors titlebar-no-drag"
+                        >
+                          显示全部 ({projectSessions.length})
+                        </button>
+                      )}
+                      {expandedProjectIds.has(project.id) && projectSessions.length > PROJECT_MODE_PREVIEW_LIMIT && (
+                        <button
+                          type="button"
+                          onClick={() => setExpandedProjectIds((prev) => { const next = new Set(prev); next.delete(project.id); return next })}
+                          className="text-left px-1.5 py-1 rounded-md text-[12px] text-foreground/35 hover:bg-foreground/[0.03] hover:text-foreground/60 transition-colors titlebar-no-drag"
+                        >
+                          收起
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -472,13 +463,6 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sor
         )}
       </div>
 
-      {/* 新建对话框 */}
-      <CreateProjectDialog
-        open={createOpen}
-        busy={creating}
-        onOpenChange={setCreateOpen}
-        onSubmit={(input) => { void handleCreateProject(input) }}
-      />
 
       {/* 项目设置弹窗（⋯ 菜单入口；修复原「设置」项跳看板的问题） */}
       {settingsTarget?.slug && (

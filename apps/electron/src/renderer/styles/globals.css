@@ -929,20 +929,13 @@
 
 :root:not(.ui-classic) .sidebar-workspace-content {
   position: relative;
-  margin-left: 14px;
-  padding-left: 7px;
+  padding-left: 0;
 }
 
-:root:not(.ui-classic) .sidebar-workspace-content::before {
-  position: absolute;
-  inset-block: 2px 4px;
-  left: 0;
-  width: 1px;
-  border-radius: 999px;
-  background: hsl(var(--foreground) / 0.055);
-  content: '';
-  pointer-events: none;
-}
+/* 原 ::before 伪元素竖线已移除：副作用是给 date 模式的会话列表左边加了 1px 的灰线，
+   与 AgentSessionItem 的状态小圆点（本轮对齐 Claude 的新设计）风格冲突。
+   不再固定 margin-left：缩进改由 JSX 的 ml-4（仅在有可见工作区标题时，如「自动任务」组）
+   条件添加，隐藏标题的当前工作区主列表保持 0 缩进，与上方「置顶」「会话」标题行左对齐。 */
 
 :root:not(.ui-classic) .sidebar-project-group + .sidebar-project-group {
   margin-top: 2px;
@@ -960,11 +953,13 @@
 :root:not(.ui-classic) .session-quick-switch-row {
   min-height: 28px;
   border-radius: 8px;
+  border-left: none !important;
 }
 
 :root:not(.ui-classic) .session-quick-switch-row.session-item-selected,
 :root:not(.ui-classic) .session-quick-switch-row.agent-session-item-active {
   box-shadow: none;
+  border-left: none !important;
 }
 
 :root:not(.ui-classic) .sidebar-footer {
@@ -1784,6 +1779,12 @@
 [data-session-switch-hints="true"] .session-quick-switch-row[data-quick-switch-label] .session-delegation-toggle {
   opacity: 0;
   pointer-events: none;
+}
+
+/* 会话行 ⋯ 悬浮按钮：absolute 浮在行右侧，hover 才显示，不占布局宽度。
+   标题 truncate 自带 ellipsis 自然裁断，无需渐变遮罩。 */
+.session-item-actions {
+  padding-right: 2px;
 }
 
 /* CRT 终端：minimap 指示器 — 工业指示灯短条（对齐 mode slider 点亮灯珠色并略微提亮） */

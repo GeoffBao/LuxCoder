@@ -136,13 +136,13 @@ import {
 } from '@/components/ui/dropdown-menu'
 import type { ConversationMeta, AgentSessionMeta, AgentWorkspace, WorkspaceCapabilities, SessionGroup } from '@luxcoder/shared'
 import type { KanbanProject } from './kanban/types'
-import { buildProjectColorMap } from './sidebar-project-groups'
 import { SidebarModule } from './SidebarModule'
 import { WorkspaceSwitcher } from './WorkspaceSwitcher'
 import { SidebarProjectsTab, type ProjectSessionHandlers } from './SidebarProjectsTab'
 import { formatSidebarModuleCount } from './sidebar-module-model'
 
-import { AgentSessionItem, getSessionLeftAccent, SessionItemActions } from './AgentSessionItem'
+import { CreateProjectDialog } from '@/components/work/CreateProjectDialog'
+import { AgentSessionItem, SessionItemActions } from './AgentSessionItem'
 
 function getSidebarUpdateLabel(status: string, version?: string): string {
   const versionText = version ? ` v${version}` : ''
@@ -231,7 +231,7 @@ export interface LeftSidebarProps {
 }
 
 /** 日期分组标签 */
-type DateGroup = '今天' | '昨天' | '更早'
+type DateGroup = '今天' | '昨天' | '前天' | '更早'
 
 interface AgentProjectGroup {
   workspace: AgentWorkspace
@@ -251,11 +251,11 @@ const noopAsync = async (): Promise<void> => {}
 const noopDragEvent = (_e: React.DragEvent, _workspaceId?: string): void => {}
 /** 非当前工作区组的空项目列表；模块级常量保证引用稳定，不破坏 React.memo */
 /** 项目组内会话预览数量（折叠态显示的非活跃会话上限） */
-const PROJECT_SESSION_PREVIEW_LIMIT = 20
+const PROJECT_SESSION_PREVIEW_LIMIT = 10
 /** 最近会话窗口（ms），超过此窗口的旧会话仅在"显示更多"后出现 */
 const PROJECT_SESSION_RECENT_WINDOW_MS = 7 * 86_400_000
-/** 已弃用：保留以兼容旧引用——「显示更多」现改为一次性展开全部剩余会话 */
-const PROJECT_SESSION_EXPAND_STEP = 15
+/** 「显示更多」每次点击额外展开的会话数（增量分页，可多次点击叠加，对齐 Claude 的「Show N more」） */
+const PROJECT_SESSION_EXPAND_STEP = 20
 /** 非当前工作区组的空项目列表；模块级常量保证引用稳定，不破坏 React.memo */
 const EMPTY_PROJECTS: KanbanProject[] = []
 /** 置顶区最多占用约 6 条会话的高度，超过后在置顶区内部滚动 */
@@ -341,33 +341,38 @@ function SessionQuickSwitchKeycap(): React.ReactElement {
   )
 }
 
-/** 单条记录所属的日期分组（今天 / 昨天 / 更早）；供分组标题与列表内联日期标签复用 */
+/** 单条记录所属的日期分组（今天 / 昨天 / 前天 / 更早），对齐 Claude */
 function getDateGroupLabel(updatedAt: number, now: number): DateGroup {
   const nowDate = new Date(now)
   const todayStart = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate()).getTime()
   const yesterdayStart = todayStart - 86_400_000
+  const dayBeforeYesterdayStart = yesterdayStart - 86_400_000
   if (updatedAt >= todayStart) return '今天'
   if (updatedAt >= yesterdayStart) return '昨天'
+  if (updatedAt >= dayBeforeYesterdayStart) return '前天'
   return '更早'
 }
 
-/** 按 updatedAt 将条目分为 今天 / 昨天 / 更早 三组 */
+/** 按 updatedAt 将条目分为 今天 / 昨天 / 前天 / 更早 四组 */
 function groupByDate<T extends { updatedAt: number }>(items: T[]): Array<{ label: DateGroup; items: T[] }> {
   const now = Date.now()
   const today: T[] = []
   const yesterday: T[] = []
+  const dayBeforeYesterday: T[] = []
   const earlier: T[] = []
 
   for (const item of items) {
     const label = getDateGroupLabel(item.updatedAt, now)
     if (label === '今天') today.push(item)
     else if (label === '昨天') yesterday.push(item)
+    else if (label === '前天') dayBeforeYesterday.push(item)
     else earlier.push(item)
   }
 
   const groups: Array<{ label: DateGroup; items: T[] }> = []
   if (today.length > 0) groups.push({ label: '今天', items: today })
   if (yesterday.length > 0) groups.push({ label: '昨天', items: yesterday })
+  if (dayBeforeYesterday.length > 0) groups.push({ label: '前天', items: dayBeforeYesterday })
   if (earlier.length > 0) groups.push({ label: '更早', items: earlier })
   return groups
 }
@@ -657,7 +662,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   /** 待迁移会话所属的工作区 ID（用于对话框排除当前分区） */
   const [moveSourceWorkspaceId, setMoveSourceWorkspaceId] = React.useState<string | undefined>()
   /** 已完全展开的工作区 ID 集合（"显示更多"后展示全部剩余会话，不再分批） */
-  const [expandedWorkspaceIds, setExpandedWorkspaceIds] = React.useState<Set<string>>(new Set())
+  /** 每个工作区已额外展开的会话数量（Map<workspaceId, count>）；每次「显示更多」+ PROJECT_SESSION_EXPAND_STEP，直至全量 */
+  const [expandedExtraCounts, setExpandedExtraCounts] = React.useState<Map<string, number>>(new Map())
   /** 记录被用户手动折叠的工作区 ID（点击当前工作区标题时折叠/展开）。刻意不持久化：折叠被视为临时查看行为，刷新/重启后恢复默认展开 */
   const [collapsedWorkspaceIds, setCollapsedWorkspaceIds] = React.useState<Set<string>>(new Set())
   /** 记录已展开的委派母会话；默认收起，避免批量派遣后撑满侧栏 */
@@ -888,12 +894,6 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       return true
     })
   }, [currentWorkspaceSlug, kanbanProjects, agentStatusFilter])
-
-  /** craft Project ID → 主题色映射（置顶区 / 会话行色条；仅当前工作区项目有数据） */
-  const kanbanProjectColorMap = React.useMemo(
-    () => buildProjectColorMap(currentWorkspaceProjects),
-    [currentWorkspaceProjects],
-  )
 
   const pendingDeleteWorkspace = React.useMemo(
     () => workspaces.find((workspace) => workspace.id === pendingDeleteWorkspaceId) ?? null,
@@ -1296,6 +1296,26 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     }
   }, [setAgentSessions])
 
+  /** 项目模式下全局「+」新建项目（KanbanProject，不是 Workspace） */
+  const handleCreateKanbanProject = React.useCallback(async (input: Parameters<typeof window.electronAPI.projects.create>[1]): Promise<void> => {
+    if (!workspaceRoot) return
+    setCreatingProject(true)
+    try {
+      const project = await window.electronAPI.projects.create(workspaceRoot, input)
+      setKanbanProjects((prev) => [project, ...prev.filter((existing) => existing.id !== project.id)])
+      setCreateProjectOpen(false)
+      toast.success('项目已创建')
+      // 新建后跳到该项目的看板
+      setSelectedProjectId(project.id)
+      setCodeMainView('work')
+      setActiveView('conversations')
+    } catch (cause) {
+      toast.error('创建项目失败', { description: cause instanceof Error ? cause.message : String(cause) })
+    } finally {
+      setCreatingProject(false)
+    }
+  }, [setActiveView, setCodeMainView, setKanbanProjects, setSelectedProjectId, workspaceRoot])
+
   const handleMoveToGroup = React.useCallback(async (sessionId: string, groupId?: string): Promise<void> => {
     try {
       const updated = await window.electronAPI.sendSessionCommand(sessionId, { kind: 'set_custom_group', groupId })
@@ -1466,7 +1486,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       setWorkspaces(remainingWorkspaces)
       setAgentSessions(sessions)
 
-      setExpandedWorkspaceIds((prev) => { const next = new Set(prev); next.delete(workspaceId); return next })
+      setExpandedExtraCounts((prev) => { const next = new Map(prev); next.delete(workspaceId); return next })
 
       setCollapsedWorkspaceIds((prev) => deleteSetEntry(prev, workspaceId))
       setExpandedDelegationParentIds((prev) => {
@@ -1516,14 +1536,23 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     setCurrentWorkspaceId,
   ])
 
-  /** 展开某个工作区：一次性显示全部剩余会话，不再分批 */
+  /** 展开某个工作区：每次额外展示 PROJECT_SESSION_EXPAND_STEP 条，可多次点击叠加（对齐 Claude 的「Show 20 more」增量分页） */
   const handleShowMoreSessions = React.useCallback((workspaceId: string): void => {
-    setExpandedWorkspaceIds((prev) => { const next = new Set(prev); next.add(workspaceId); return next })
+    setExpandedExtraCounts((prev) => {
+      const next = new Map(prev)
+      const current = prev.get(workspaceId) ?? 0
+      next.set(workspaceId, current + PROJECT_SESSION_EXPAND_STEP)
+      return next
+    })
   }, [])
 
   /** 收起某个工作区额外展开的会话 */
   const handleCollapseExtraSessions = React.useCallback((workspaceId: string): void => {
-    setExpandedWorkspaceIds((prev) => { const next = new Set(prev); next.delete(workspaceId); return next })
+    setExpandedExtraCounts((prev) => {
+      const next = new Map(prev)
+      next.delete(workspaceId)
+      return next
+    })
   }, [])
 
   /** 开始拖拽工作区排序 */
@@ -1801,7 +1830,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     pinnedConversations,
     pinnedAgentSessions,
     conversationGroups,
-    expandedWorkspaceIds,
+    expandedExtraCounts,
     collapsedWorkspaceIds,
     expandedDelegationParentIds,
     collapsedDelegationParentIds,
@@ -2132,7 +2161,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     })
   }
 
-  /** Agent 普通历史按工作区分组（排除置顶 / 归档 / draft） */
+  /** Agent 普通历史按工作区分组（排除置顶 / draft；归档状态由「筛选与排序」的状态筛选决定，
+   * 不再有单独的「已归档」区块——活跃/已归档/全部统一走这套日期分组渲染） */
   const agentProjectGroups = React.useMemo<AgentProjectGroup[]>(
     () => {
       const sessionsByWorkspaceId = new Map<string, AgentSessionMeta[]>()
@@ -2142,7 +2172,9 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
       const visibleHistory = sortAgentSessionsByUpdatedAtDesc(
         agentSessions.filter((session) =>
-          !session.archived
+          (agentStatusFilter === 'active' ? !session.archived
+            : agentStatusFilter === 'archived' ? session.archived
+              : true)
           && !session.pinned
           && !draftSessionIds.has(session.id)
           // 自动任务会话不进入工作区列表，统一归到「自动任务」视图
@@ -2166,7 +2198,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         sessions: sessionsByWorkspaceId.get(workspace.id) ?? [],
       }))
     },
-    [agentSessions, draftSessionIds, workspaces],
+    [agentSessions, draftSessionIds, workspaces, agentStatusFilter],
   )
 
   /**
@@ -2183,17 +2215,6 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     },
     [agentProjectGroups, automationGroup, automationGroupOrder],
   )
-
-  /** Agent 归档会话按日期分组（跨项目），含委派树 */
-  const archivedAgentSessionTrees = React.useMemo(() => {
-    const archived = sortAgentSessionsByUpdatedAtDesc(
-      agentSessions.filter((s) => s.archived && !draftSessionIds.has(s.id))
-    )
-    const trees = buildAgentSessionTrees(archived)
-    // groupByDate 要求 T extends { updatedAt: number }，AgentSessionTreeItem 不直接满足
-    const wrapped = trees.map((tree) => ({ updatedAt: tree.session.updatedAt, tree }))
-    return groupByDate(wrapped).map((g) => ({ label: g.label, items: g.items.map((w) => w.tree) }))
-  }, [agentSessions, draftSessionIds])
 
   /**
    * 「分组方式：状态 / 自定义分组 / 不分组」用的扁平会话列表——排除 draft / 委派子会话 /
@@ -2219,6 +2240,13 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     if (agentGroupBy === 'customGroup') return groupSessionsByCustomGroup(agentFlatModeSessions, sessionGroups)
     return []
   }, [agentGroupBy, agentFlatModeSessions, agentIndicatorMap, sessionGroups])
+
+  // 扁平模式（state/customGroup/none）折叠态
+  const [flatModeExpanded, setFlatModeExpanded] = React.useState(false)
+  /** 扁平模式下已折叠的分组（状态/自定义分组）标题；hover 标题行显示折叠按钮，对齐日期分组 */
+  const [collapsedFlatGroupIds, setCollapsedFlatGroupIds] = React.useState<Set<string>>(new Set())
+  // 项目模式下「新建项目」弹窗（状态已在顶层声明 creatingProject/setCreatingProject）
+  const [createProjectOpen, setCreateProjectOpen] = React.useState(false)
 
   /** Projects Tab 会话行操作包：与会话 Tab 共享同一批 handler，保证两个 Tab 行为一致 */
   const projectTabSessionHandlers = React.useMemo<ProjectSessionHandlers>(() => ({
@@ -2763,13 +2791,11 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         active={session.id === activeSessionId}
         indicatorStatus={status}
         showPinIcon={!!session.pinned}
-        leftAccent={getSessionLeftAccent(status)}
         workspaceName={
           session.workspaceId && session.workspaceId !== currentWorkspaceId
             ? workspaceNameMap.get(session.workspaceId)
             : undefined
         }
-        projectColor={session.projectId ? kanbanProjectColorMap.get(session.projectId) : undefined}
         projects={session.workspaceId === currentWorkspaceId ? currentWorkspaceProjects : EMPTY_PROJECTS}
         onMoveToProject={handleMoveToProject}
         sessionGroups={sessionGroups}
@@ -3005,14 +3031,12 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                             onToggle: () => handleToggleDelegationParent(item.session.id, expandedChildren),
                           }
                           : undefined}
-                        leftAccent={getSessionLeftAccent(rowStatus)}
                         workspaceName={
                           item.session.workspaceId
                           && item.session.workspaceId !== currentWorkspaceId
                             ? workspaceNameMap.get(item.session.workspaceId)
                             : undefined
                         }
-                        projectColor={item.session.projectId ? kanbanProjectColorMap.get(item.session.projectId) : undefined}
                         projects={item.session.workspaceId === currentWorkspaceId ? currentWorkspaceProjects : EMPTY_PROJECTS}
                         onMoveToProject={handleMoveToProject}
                         sessionGroups={sessionGroups}
@@ -3029,7 +3053,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                       />
 
                       {childCount > 0 && expandedChildren && (
-                        <div className="ml-3 border-l border-foreground/10 pl-2 flex flex-col gap-0.5">
+                        <div className="ml-3 pl-2 flex flex-col gap-0.5">
                           {item.childSessions.map((childSession) => (
                             <DelegatedChildSessionItem
                               key={childSession.id}
@@ -3068,10 +3092,32 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         </div>
       )}
 
-      {/* 会话列表紧凑筛选菜单：取代原「会话|项目」大 Tab（参考 Claude 客户端） */}
+      {/* 会话列表筛选行：对标 Claude 的分组标题行（如「Today」右侧筛选图标），
+          不再是孤立的图标，而是左边带标签、右边带筛选的全宽标题行；
+          项目模式下额外包含「新建项目 +」按钮 */}
       {mode === 'agent' && (
-        <div className="flex items-center justify-end px-3 pt-1 pb-1">
-          <SessionListFilterMenu />
+        <div className="flex items-center justify-between px-3 pt-1 pb-1 border-b border-border/50">
+          <span className="px-1.5 text-[11px] font-medium text-foreground/35 select-none">
+            {agentGroupBy === 'project' ? '项目' : '会话'}
+          </span>
+          <span className="flex items-center gap-0.5">
+            {agentGroupBy === 'project' && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="新建项目"
+                    onClick={() => setCreateProjectOpen(true)}
+                    className="grid size-6 place-items-center rounded-md text-foreground/50 transition-colors hover:bg-foreground/[0.06] hover:text-foreground/80"
+                  >
+                    <Plus size={14} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">新建项目</TooltipContent>
+              </Tooltip>
+            )}
+            <SessionListFilterMenu />
+          </span>
         </div>
       )}
 
@@ -3111,11 +3157,9 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         </div>
       ) : mode === 'agent' && agentGroupBy === 'date' ? (
         <div className="flex-1 overflow-y-auto px-3 pb-3 scrollbar-thin min-h-0 titlebar-no-drag">
-          {/* 分组方式：日期（默认）——状态筛选「全部」时活跃 + 已归档依次叠加展示 */}
-          {agentStatusFilter !== 'archived' && (
-            <>
-              <div className="mx-0 border-t border-border/50" />
-              <div className="sidebar-workspace-list pt-2">
+          {/* 分组方式：日期（默认）——活跃 / 已归档 / 全部统一走这套渲染，
+              具体显示哪些会话由 agentProjectGroups 内部按 agentStatusFilter 过滤决定 */}
+          <div className="sidebar-workspace-list pt-2">
                 <div className="flex flex-col gap-0.5">
                   {displayProjectGroups
                     .filter((group) =>
@@ -3136,7 +3180,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                     isAutomationGroup={isAuto}
                     workspaceNameMap={isAuto ? workspaceNameMap : undefined}
                     currentWorkspaceId={currentWorkspaceId}
-                    expanded={expandedWorkspaceIds.has(group.workspace.id)}
+                    extraCount={expandedExtraCounts.get(group.workspace.id) ?? 0}
                     collapsed={isAuto ? collapsedWorkspaceIds.has(group.workspace.id) : false}
                     activeSessionId={activeSessionId}
                     agentIndicatorMap={agentIndicatorMap}
@@ -3179,105 +3223,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                 )
               })}
                 </div>
-              </div>
-            </>
-          )}
-
-          {agentStatusFilter !== 'active' && (
-            <div className="pt-2">
-              {agentStatusFilter === 'all' && (
-                <div className="px-1.5 pb-1 text-[11px] font-medium text-foreground/40 select-none">已归档</div>
-              )}
-              {archivedAgentSessionTrees.map((group) => (
-                <div key={group.label} className="mb-1">
-                  <div className="px-1.5 pt-2 pb-1 text-[11px] font-medium text-foreground/40 select-none">
-                    {group.label}
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    {group.items.map((item) => {
-                      const childCount = item.childSessions.length
-                      const rowStatus = getSessionTreeStatus(item, agentIndicatorMap)
-                      const treeActive = treeContainsSessionId(item, activeSessionId)
-                      const activeChildVisible = item.childSessions.some((child) => child.id === activeSessionId)
-                      const expandedChildren = expandedDelegationParentIds.has(item.session.id)
-                        || (activeChildVisible && !collapsedDelegationParentIds.has(item.session.id))
-
-                      return (
-                        <div key={item.session.id} className="flex flex-col gap-0.5">
-                          <AgentSessionItem
-                            session={item.session}
-                            active={treeActive}
-                            indicatorStatus={rowStatus}
-                            showPinIcon={!!item.session.pinned}
-                            delegationSummary={childCount > 0
-                              ? {
-                                total: childCount,
-                                completed: countCompletedDelegatedChildren(item.childSessions),
-                                expanded: expandedChildren,
-                                onToggle: () => handleToggleDelegationParent(item.session.id, expandedChildren),
-                              }
-                              : undefined}
-                            leftAccent={getSessionLeftAccent(rowStatus)}
-                            workspaceName={
-                              item.session.workspaceId
-                              && item.session.workspaceId !== currentWorkspaceId
-                                ? workspaceNameMap.get(item.session.workspaceId)
-                                : undefined
-                            }
-                            projects={item.session.workspaceId === currentWorkspaceId ? currentWorkspaceProjects : EMPTY_PROJECTS}
-                            onMoveToProject={handleMoveToProject}
-                            sessionGroups={sessionGroups}
-                            onMoveToGroup={handleMoveToGroup}
-                            onCreateGroup={handleRequestCreateGroup}
-                            relativeTimeNow={relativeTimeNow}
-                            onSelect={handleSelectAgentSession}
-                            onRequestDelete={handleRequestDelete}
-                            onRequestMove={handleRequestMove}
-                            onRename={handleAgentRename}
-                            onTogglePin={handleTogglePinAgent}
-                            onToggleStar={handleToggleStarAgent}
-                            onToggleArchive={handleToggleArchiveAgent}
-                          />
-
-                          {childCount > 0 && expandedChildren && (
-                            <div className="ml-3 border-l border-foreground/10 pl-2 flex flex-col gap-0.5">
-                              {item.childSessions.map((childSession) => (
-                                <DelegatedChildSessionItem
-                                  key={childSession.id}
-                                  session={childSession}
-                                  activeSessionId={activeSessionId}
-                                  agentIndicatorMap={agentIndicatorMap}
-                                  relativeTimeNow={relativeTimeNow}
-                                  workspaceName={
-                                    childSession.workspaceId
-                                    && childSession.workspaceId !== currentWorkspaceId
-                                      ? workspaceNameMap.get(childSession.workspaceId)
-                                      : undefined
-                                  }
-                                  projects={childSession.workspaceId === currentWorkspaceId ? currentWorkspaceProjects : EMPTY_PROJECTS}
-                                  onMoveToProject={handleMoveToProject}
-                                  sessionGroups={sessionGroups}
-                                  onMoveToGroup={handleMoveToGroup}
-                                  onCreateGroup={handleRequestCreateGroup}
-                                  onSelect={handleSelectAgentSession}
-                                  onRequestDelete={handleRequestDelete}
-                                  onRequestMove={handleRequestMove}
-                                  onRename={handleAgentRename}
-                                  onTogglePin={handleTogglePinAgent}
-                                  onToggleStar={handleToggleStarAgent}
-                                  onToggleArchive={handleToggleArchiveAgent}
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          </div>
         </div>
       ) : mode === 'agent' && agentGroupBy === 'project' ? (
         <div className="flex-1 flex flex-col min-h-0">
@@ -3291,28 +3237,92 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       ) : mode === 'agent' ? (
         <div className="flex-1 overflow-y-auto px-3 pt-2 pb-3 scrollbar-thin min-h-0 titlebar-no-drag">
           {/* 分组方式：状态 / 自定义分组 / 不分组——比日期模式简化，不含委派树展开 */}
-          {agentGroupBy === 'none' ? (
-            agentFlatModeSessions.length > 0 ? (
-              <div className="flex flex-col gap-0.5">
-                {agentFlatModeSessions.map((session) => renderAgentFlatSessionRow(session))}
-              </div>
+          {(() => {
+            // 折叠：超出 PROJECT_SESSION_PREVIEW_LIMIT 的会话默认隐藏，点击「显示更多」展开全部
+            const totalFlatSessions = agentFlatModeSessions.length
+            const hiddenFlat = !flatModeExpanded && totalFlatSessions > PROJECT_SESSION_PREVIEW_LIMIT
+              ? totalFlatSessions - PROJECT_SESSION_PREVIEW_LIMIT
+              : 0
+
+            const flatContent = agentGroupBy === 'none' ? (
+              agentFlatModeSessions.length > 0 ? (
+                <div className="flex flex-col gap-0.5">
+                  {agentFlatModeSessions.slice(0, hiddenFlat > 0 ? PROJECT_SESSION_PREVIEW_LIMIT : undefined).map(renderAgentFlatSessionRow)}
+                </div>
+              ) : (
+                <div className="px-2 py-8 text-center text-[13px] text-foreground/35">暂无会话</div>
+              )
+            ) : agentFlatModeGroups.length > 0 ? (
+              (() => {
+                let rendered = 0
+                const visibleGroups: React.ReactElement[] = []
+                for (const group of agentFlatModeGroups) {
+                  if (hiddenFlat > 0 && rendered >= PROJECT_SESSION_PREVIEW_LIMIT) break
+                  const groupItems = hiddenFlat > 0
+                    ? group.items.slice(0, Math.max(0, PROJECT_SESSION_PREVIEW_LIMIT - rendered))
+                    : group.items
+                  rendered += groupItems.length
+                  const flatGroupKey = group.groupId ?? group.label
+                  const isFlatGroupCollapsed = collapsedFlatGroupIds.has(flatGroupKey)
+                  visibleGroups.push(
+                    <div key={flatGroupKey} className="mb-1">
+                      <div className="group/date-header flex items-center justify-between px-1.5 pt-2 pb-1 first:pt-0">
+                        <span className="text-[11px] font-medium text-foreground/40 select-none">{group.label}</span>
+                        <button
+                          type="button"
+                          aria-label={isFlatGroupCollapsed ? `展开${group.label}` : `折叠${group.label}`}
+                          onClick={() => setCollapsedFlatGroupIds((prev) => {
+                            const next = new Set(prev)
+                            if (next.has(flatGroupKey)) next.delete(flatGroupKey)
+                            else next.add(flatGroupKey)
+                            return next
+                          })}
+                          className="grid size-5 place-items-center rounded text-foreground/35 opacity-0 transition-opacity titlebar-no-drag hover:bg-foreground/[0.08] hover:text-foreground/70 group-hover/date-header:opacity-100"
+                        >
+                          <ChevronRight
+                            size={12}
+                            className={cn('transition-transform duration-150', isFlatGroupCollapsed ? '' : 'rotate-90')}
+                          />
+                        </button>
+                      </div>
+                      {!isFlatGroupCollapsed && (
+                        <div className="flex flex-col gap-0.5">
+                          {groupItems.map(renderAgentFlatSessionRow)}
+                        </div>
+                      )}
+                    </div>
+                  )
+                }
+                return <>{visibleGroups}</>
+              })()
             ) : (
               <div className="px-2 py-8 text-center text-[13px] text-foreground/35">暂无会话</div>
             )
-          ) : agentFlatModeGroups.length > 0 ? (
-            agentFlatModeGroups.map((group) => (
-              <div key={group.groupId ?? group.label} className="mb-1">
-                <div className="px-1.5 pt-2 pb-1 text-[11px] font-medium text-foreground/40 select-none first:pt-0">
-                  {group.label}
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  {group.items.map((session) => renderAgentFlatSessionRow(session))}
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="px-2 py-8 text-center text-[13px] text-foreground/35">暂无会话</div>
-          )}
+
+            return (
+              <>
+                {flatContent}
+                {hiddenFlat > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setFlatModeExpanded(true)}
+                    className="text-left px-1.5 py-1 rounded-md text-[12px] text-foreground/35 hover:bg-foreground/[0.03] hover:text-foreground/60 transition-colors titlebar-no-drag"
+                  >
+                    显示更多 ({hiddenFlat})
+                  </button>
+                )}
+                {flatModeExpanded && totalFlatSessions > PROJECT_SESSION_PREVIEW_LIMIT && (
+                  <button
+                    type="button"
+                    onClick={() => setFlatModeExpanded(false)}
+                    className="text-left px-1.5 py-1 rounded-md text-[12px] text-foreground/35 hover:bg-foreground/[0.03] hover:text-foreground/60 transition-colors titlebar-no-drag"
+                  >
+                    收起
+                  </button>
+                )}
+              </>
+            )
+          })()}
         </div>
       ) : (
         <>
@@ -3428,6 +3438,13 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         onOpenChange={(open) => { if (!open && !creatingSessionGroup) setCreateGroupTargetSessionId(null) }}
         onSubmit={(name) => { void handleSubmitCreateGroup(name) }}
       />
+      {/* 项目模式下全局「+」按钮触发的新建项目弹窗 */}
+      <CreateProjectDialog
+        open={createProjectOpen}
+        busy={creatingProject}
+        onOpenChange={setCreateProjectOpen}
+        onSubmit={(input) => { void handleCreateKanbanProject(input) }}
+      />
     </div>
   )
 }
@@ -3467,8 +3484,6 @@ const ConversationItem = React.memo(function ConversationItem({
   const justStartedEditing = React.useRef(false)
   // 菜单打开时关闭迷你地图预览，避免预览面板盖住菜单项导致点不动
   const preview = useSessionMiniMapHover(600, menuOpen)
-  const interfaceVariant = useAtomValue(interfaceVariantAtom)
-  const isClassic = interfaceVariant === 'classic'
 
   /** 进入编辑模式 */
   const startEdit = (): void => {
@@ -3551,7 +3566,7 @@ const ConversationItem = React.memo(function ConversationItem({
             startEdit()
           }}
           className={cn(
-            'session-quick-switch-row group relative w-full flex items-center gap-1.5 rounded-md py-1 pl-2.5 pr-1.5 transition-colors duration-100 titlebar-no-drag text-left',
+            'session-quick-switch-row group relative w-full flex items-center gap-1.5 rounded-md py-1 pl-2 pr-1.5 transition-colors duration-100 titlebar-no-drag text-left',
             active && 'session-item-selected',
             streaming
               ? 'text-foreground font-medium hover:bg-foreground/[0.03]'
@@ -3559,15 +3574,13 @@ const ConversationItem = React.memo(function ConversationItem({
             active && 'bg-foreground/[0.08]',
           )}
         >
-          {(streaming || (isClassic && active)) && (
-            <span
-              className={cn(
-                'absolute inset-y-0 left-0 w-[3px] rounded-l-md pointer-events-none',
-                streaming ? 'bg-blue-500 animate-pulse' : 'bg-primary',
-              )}
-              aria-hidden="true"
-            />
-          )}
+          <span
+            aria-hidden="true"
+            className={cn(
+              'size-2 shrink-0 rounded-full',
+              streaming ? 'bg-blue-500 animate-pulse' : 'border border-foreground/25 bg-transparent',
+            )}
+          />
           <div className="flex-1 min-w-0">
             {editing ? (
               <input
@@ -3701,7 +3714,8 @@ interface AgentProjectGroupItemProps {
   isAutomationGroup?: boolean
   /** 工作区 ID → 名称映射，仅合成组用来给跨工作区会话渲染角标 */
   workspaceNameMap?: Map<string, string>
-  expanded: boolean
+  /** 用户已点击「显示更多」累积展开的额外会话数（增量分页，每次 +PROJECT_SESSION_EXPAND_STEP，对齐 Claude） */
+  extraCount: number
   collapsed: boolean
   activeSessionId: string | null
   agentIndicatorMap: Map<string, SessionIndicatorStatus>
@@ -3746,7 +3760,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
   currentWorkspaceId,
   isAutomationGroup = false,
   workspaceNameMap,
-  expanded,
+  extraCount,
   collapsed,
   activeSessionId,
   agentIndicatorMap,
@@ -3789,6 +3803,8 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
   const [workspaceEditName, setWorkspaceEditName] = React.useState('')
   const workspaceEditRef = React.useRef<HTMLInputElement>(null)
   const justStartedRenamingRef = React.useRef(false)
+  /** 已折叠的日期分组标签（今天/昨天/前天/更早）；hover 标题行显示折叠按钮，对齐 Claude 客户端 */
+  const [collapsedDateLabels, setCollapsedDateLabels] = React.useState<Set<DateGroup>>(new Set())
 
   const handleStartWorkspaceRename = (): void => {
     setWorkspaceEditName(group.workspace.name)
@@ -3832,8 +3848,6 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
   // 用户点击"显示更多"会在折叠基线之上每次再额外展开 PROJECT_SESSION_EXPAND_STEP 条。
   // 会话列表恒定按时间平铺（不再按 craft Project 分子组），项目导航已上移到 ProjectSwitcher。
   const treeItems = buildAgentSessionTrees(group.sessions)
-  /** 项目 ID → 主题色映射（归档项目的会话回退到未绑定列表，但 projectId 仍在，继续显示其项目色） */
-  const projectColorMap = React.useMemo(() => buildProjectColorMap(projects), [projects])
   const prevActiveIdsRef = React.useRef<Set<string>>(new Set())
   const activeSessions = treeItems
     .filter((item) =>
@@ -3864,7 +3878,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
   const collapsedSessions = [...activeSessions, ...fillSessions]
   const collapsedIds = new Set(collapsedSessions.map((item) => item.session.id))
   const remainingSessions = treeItems.filter((item) => !collapsedIds.has(item.session.id))
-  const extraSessions = expanded ? remainingSessions : []
+  const extraSessions = extraCount > 0 ? remainingSessions.slice(0, extraCount) : []
   const sessionsWithoutPinned = [...collapsedSessions, ...extraSessions]
   // 仅当选中会话不在当前可见列表中时才置顶（如搜索结果打开旧会话），
   // 若会话已在可见区域则保持原位不跳
@@ -4049,14 +4063,32 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
                   const dateLabel = getDateGroupLabel(item.session.updatedAt, relativeTimeNow)
                   const showDateHeader = dateLabel !== lastDateLabel
                   lastDateLabel = dateLabel
+                  const isDateCollapsed = collapsedDateLabels.has(dateLabel)
 
                   return (
                     <React.Fragment key={item.session.id}>
                       {showDateHeader && (
-                        <div className="px-1.5 pt-2 pb-1 text-[11px] font-medium text-foreground/35 select-none first:pt-0.5">
-                          {dateLabel}
+                        <div className="group/date-header flex items-center justify-between px-1.5 pt-2 pb-1 first:pt-0.5">
+                          <span className="text-[11px] font-medium text-foreground/35 select-none">{dateLabel}</span>
+                          <button
+                            type="button"
+                            aria-label={isDateCollapsed ? `展开${dateLabel}` : `折叠${dateLabel}`}
+                            onClick={() => setCollapsedDateLabels((prev) => {
+                              const next = new Set(prev)
+                              if (next.has(dateLabel)) next.delete(dateLabel)
+                              else next.add(dateLabel)
+                              return next
+                            })}
+                            className="grid size-5 place-items-center rounded text-foreground/35 opacity-0 transition-opacity titlebar-no-drag hover:bg-foreground/[0.08] hover:text-foreground/70 group-hover/date-header:opacity-100"
+                          >
+                            <ChevronRight
+                              size={12}
+                              className={cn('transition-transform duration-150', isDateCollapsed ? '' : 'rotate-90')}
+                            />
+                          </button>
                         </div>
                       )}
+                      {!isDateCollapsed && (
                       <div className="flex flex-col gap-0.5">
                         <AgentSessionItem
                           session={item.session}
@@ -4071,10 +4103,8 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
                               onToggle: () => onToggleDelegationParent(item.session.id, expandedChildren),
                             }
                             : undefined}
-                          leftAccent={getSessionLeftAccent(rowStatus)}
                           relativeTimeNow={relativeTimeNow}
                           workspaceName={isAutomationGroup && item.session.workspaceId ? workspaceNameMap?.get(item.session.workspaceId) : undefined}
-                          projectColor={item.session.projectId ? projectColorMap.get(item.session.projectId) : undefined}
                           projects={projects}
                           onMoveToProject={onMoveToProject}
                           sessionGroups={sessionGroups}
@@ -4090,7 +4120,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
                         />
 
                         {childCount > 0 && expandedChildren && (
-                          <div className="ml-3 border-l border-foreground/10 pl-2 flex flex-col gap-0.5">
+                          <div className="ml-3 pl-2 flex flex-col gap-0.5">
                             {item.childSessions.map((childSession) => (
                               <DelegatedChildSessionItem
                                 key={childSession.id}
@@ -4116,14 +4146,14 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
                           </div>
                         )}
                       </div>
+                      )}
                     </React.Fragment>
                   )
                 })
               })()}
 
-              {/* 「显示更多」与「收起」可能同时成立（还有隐藏项 + 已手动展开过）：
-                  并排放在同一行，避免两条同款文字按钮堆叠看起来像重复/重叠的控件 */}
-              {(hiddenCount > 0 || expanded) && (
+              {/* 「显示更多」与「收起」：增量分页（对齐 Claude 的「Show 20 more」），可多次点击 */}
+              {(hiddenCount > 0 || extraCount > 0) && (
                 <div className="flex items-center gap-1">
                   {hiddenCount > 0 && (
                     <button
@@ -4131,13 +4161,13 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
                       onClick={() => onShowMore(group.workspace.id)}
                       className={cn(
                         'text-left px-1.5 py-1 rounded-md text-[12px] text-foreground/35 hover:bg-foreground/[0.03] hover:text-foreground/60 transition-colors titlebar-no-drag',
-                        expanded ? 'flex-1' : 'w-full',
+                        extraCount > 0 ? 'flex-1' : 'w-full',
                       )}
                     >
-                      显示更多
+                      显示更多 ({Math.min(PROJECT_SESSION_EXPAND_STEP, hiddenCount)})
                     </button>
                   )}
-                  {expanded && (
+                  {extraCount > 0 && (
                     <button
                       type="button"
                       onClick={() => onCollapseExtra(group.workspace.id)}
