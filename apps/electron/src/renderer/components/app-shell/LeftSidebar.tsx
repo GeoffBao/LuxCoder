@@ -249,7 +249,7 @@ const noopAsync = async (): Promise<void> => {}
 const noopDragEvent = (_e: React.DragEvent, _workspaceId?: string): void => {}
 /** 非当前工作区组的空项目列表；模块级常量保证引用稳定，不破坏 React.memo */
 /** 项目组内会话预览数量（折叠态显示的非活跃会话上限） */
-const PROJECT_SESSION_PREVIEW_LIMIT = 25
+const PROJECT_SESSION_PREVIEW_LIMIT = 20
 /** 最近会话窗口（ms），超过此窗口的旧会话仅在"显示更多"后出现 */
 const PROJECT_SESSION_RECENT_WINDOW_MS = 7 * 86_400_000
 /** 已弃用：保留以兼容旧引用——「显示更多」现改为一次性展开全部剩余会话 */
