@@ -45,6 +45,7 @@ import {
 } from './atoms/agent-atoms'
 import { updateStatusAtom, initializeUpdater } from './atoms/updater'
 import { automationsAtom } from './atoms/automation-atoms'
+import { draftSessionIdsAtom } from './atoms/draft-session-atoms'
 import {
   notificationsEnabledAtom,
   notificationSoundEnabledAtom,
@@ -364,16 +365,32 @@ function UpdaterInitializer(): null {
 function AutomationInitializer(): null {
   const setAutomations = useSetAtom(automationsAtom)
   const setAgentSessions = useSetAtom(agentSessionsAtom)
+  const setDraftSessionIds = useSetAtom(draftSessionIdsAtom)
 
   useEffect(() => {
     const load = (): void => {
       window.electronAPI.listAutomations().then(setAutomations).catch(console.error)
-      window.electronAPI.listAgentSessions().then(setAgentSessions).catch(console.error)
+      window.electronAPI.listAgentSessions().then((sessions) => {
+        setAgentSessions(sessions)
+        // 一次性迁移：将未发送过消息的空 draft 会话补入持久化 draft 集合
+        // （createdAt === updatedAt → 创建后从未更新过，视为空会话）
+        setDraftSessionIds((prev) => {
+          const next = new Set(prev)
+          let changed = false
+          for (const s of sessions) {
+            if (s.createdAt === s.updatedAt && s.title === '新 Agent 会话' && !next.has(s.id)) {
+              next.add(s.id)
+              changed = true
+            }
+          }
+          return changed ? next : prev
+        })
+      }).catch(console.error)
     }
     load()
     const unsub = window.electronAPI.onAutomationChanged(load)
     return unsub
-  }, [setAutomations, setAgentSessions])
+  }, [setAutomations, setAgentSessions, setDraftSessionIds])
 
   return null
 }
