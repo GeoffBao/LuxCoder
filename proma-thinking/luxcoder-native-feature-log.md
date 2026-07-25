@@ -18,4 +18,4 @@
 | AgentSessionItem 抽离 | app-shell/AgentSessionItem.tsx | SHIPPED | keep | 星标 port 在此 |
 | SidebarProjectSubgroup | Code 侧栏项目子分组 | SHIPPED | keep | 共享 project atoms |
 | Kanban workContext | triggeredBy=work | SHIPPED | keep on conflict | Conductor 跟全局 Pi |
-| 品牌 / 路径 | @luxcoder · ~/.luxcoder · luxcoder_event | EVOLVING | rename-map | migration 可读 ~/.proma |
+| 品牌 / 路径 | @luxcoder · ~/.luxcoder · luxcoder_event | EVOLVING | rename-map | migration 可读 ~/.luxcoder |
