@@ -68,7 +68,7 @@ import { isVisibleRunMessage } from './agent-run-message-visibility'
 import { applyAgentSdkAuthEnv } from './agent-sdk-auth-env'
 import { getAgentSdkMaxOutputTokens } from './agent-sdk-output-limits'
 import { resolvePiThinkingLevel } from './agent-thinking-level'
-import { createFallbackTitle, sanitizeGeneratedTitle, stripContextWrappersForTitle, TITLE_PROMPT } from './title-generation'
+import { buildRegenerateTitlePrompt, createFallbackTitle, sanitizeGeneratedTitle, selectSpreadMessages, stripContextWrappersForTitle, TITLE_PROMPT } from './title-generation'
 
 // ===== 类型定义 =====
 
@@ -243,6 +243,9 @@ function getRetryDelayMs(attempt: number, elapsedRetryDelayMs: number): number {
 
 /** 默认会话标题（用于判断是否需要自动生成） */
 const DEFAULT_SESSION_TITLE = '新 Agent 会话'
+
+/** 触发"中段重新生成标题"的用户消息数节点，命中即重新生成一次（详见 maybeRegenerateTitle） */
+const TITLE_REGENERATION_USER_MESSAGE_COUNTS = new Set([6, 14, 26])
 
 /** 默认模型 ID */
 const DEFAULT_MODEL_ID = 'claude-sonnet-5'
@@ -508,6 +511,29 @@ export class AgentOrchestrator {
   }
 
   /**
+   * 调用渠道对应的标题模型，返回清理后的标题。渠道不存在 / ChatGPT OAuth 渠道（无标题模型）/
+   * API 报错均返回 null，由调用方决定是否使用本地兜底。
+   */
+  private async callTitleModel(channelId: string, modelId: string, prompt: string): Promise<string | null> {
+    const channels = listChannels()
+    const channel = channels.find((c) => c.id === channelId)
+    if (!channel) {
+      console.warn('[Agent 标题生成] 渠道不存在:', channelId)
+      return null
+    }
+    if (channel.provider === 'openai-codex') return null
+
+    const apiKey = await resolveChannelRuntimeApiKey(channelId)
+    const providerAdapter = getAdapter(channel.provider)
+    const request = providerAdapter.buildTitleRequest({ baseUrl: channel.baseUrl, apiKey, modelId, prompt })
+
+    const proxyUrl = await getEffectiveProxyUrl()
+    const fetchFn = getFetchFn(proxyUrl)
+    const title = await fetchTitle(request, providerAdapter, fetchFn)
+    return title ? sanitizeGeneratedTitle(title) : null
+  }
+
+  /**
    * 生成 Agent 会话标题
    *
    * 使用 Provider 适配器系统，支持所有渠道。任何错误返回 null。
@@ -521,36 +547,13 @@ export class AgentOrchestrator {
     try {
       const channels = listChannels()
       const channel = channels.find((c) => c.id === channelId)
-      if (!channel) {
-        console.warn('[Agent 标题生成] 渠道不存在:', channelId)
-        return null
-      }
-
-      if (channel.provider === 'openai-codex') {
+      if (channel?.provider === 'openai-codex') {
         const fallbackTitle = createFallbackTitle(userMessage)
         console.log('[Agent 标题生成] ChatGPT OAuth 渠道使用本地标题:', fallbackTitle)
         return fallbackTitle
       }
 
-      const apiKey = await resolveChannelRuntimeApiKey(channelId)
-      const providerAdapter = getAdapter(channel.provider)
-      const request = providerAdapter.buildTitleRequest({
-        baseUrl: channel.baseUrl,
-        apiKey,
-        modelId,
-        prompt: TITLE_PROMPT + userMessage,
-      })
-
-      const proxyUrl = await getEffectiveProxyUrl()
-      const fetchFn = getFetchFn(proxyUrl)
-      const title = await fetchTitle(request, providerAdapter, fetchFn)
-      if (!title) {
-        console.warn('[Agent 标题生成] API 返回空标题')
-        return null
-      }
-
-      const result = sanitizeGeneratedTitle(title)
-
+      const result = await this.callTitleModel(channelId, modelId, TITLE_PROMPT + userMessage)
       console.log(`[Agent 标题生成] 生成标题成功: "${result}"`)
       return result
     } catch (error) {
@@ -583,6 +586,42 @@ export class AgentOrchestrator {
       console.log(`[Agent 编排] 自动标题生成完成: "${title}"`)
     } catch (error) {
       console.warn('[Agent 编排] 自动标题生成失败:', error)
+    }
+  }
+
+  /**
+   * 会话进行到中段后，用首/中/尾用户消息 + 最新回复重新生成标题（参考 craft-agents-oss）。
+   *
+   * 首条消息生成的标题只反映最初的引子，用户聊开后主题经常已经偏移。仅在用户消息数命中
+   * TITLE_REGENERATION_USER_MESSAGE_COUNTS 这几个固定节点时触发一次，节点值本身随消息数
+   * 单调递增只会命中一次，因此不需要额外持久化"是否已重新生成过"的状态。
+   */
+  private async maybeRegenerateTitle(
+    sessionId: string,
+    channelId: string,
+    modelId: string,
+    callbacks: SessionCallbacks,
+  ): Promise<void> {
+    try {
+      const messages = getAgentSessionMessages(sessionId)
+      const userMessages = messages.filter((m) => m.role === 'user')
+      if (!TITLE_REGENERATION_USER_MESSAGE_COUNTS.has(userMessages.length)) return
+
+      const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant')
+      if (!lastAssistant) return
+
+      const spread = selectSpreadMessages(userMessages.map((m) => stripContextWrappersForTitle(m.content)))
+      if (spread.length === 0) return
+
+      const prompt = buildRegenerateTitlePrompt(spread, lastAssistant.content)
+      const title = await this.callTitleModel(channelId, modelId, prompt)
+      if (!title) return
+
+      updateAgentSessionMeta(sessionId, { title })
+      callbacks.onTitleUpdated(title)
+      console.log(`[Agent 编排] 中段标题重新生成完成: "${title}"（用户消息数=${userMessages.length}）`)
+    } catch (error) {
+      console.warn('[Agent 编排] 中段标题重新生成失败:', error)
     }
   }
 
@@ -977,6 +1016,11 @@ export class AgentOrchestrator {
     ): void => {
       releaseActiveRun()
       callbacks.onComplete(messages, opts)
+      // 用户中途打断的 turn 可能没有完整的最新回复，不适合作为标题重新生成的素材
+      if (!opts?.stoppedByUser) {
+        this.maybeRegenerateTitle(sessionId, channelId, resolvedModel, callbacks)
+          .catch((err) => console.warn('[Agent 编排] 中段标题重新生成未捕获异常:', err))
+      }
     }
     // 轻量完成：turn 主体结束但仍有后台任务在飞行。
     // 关键区别——不调用 releaseActiveRun，保留 activeSessions/activeChannels/sessionPermissionModes，

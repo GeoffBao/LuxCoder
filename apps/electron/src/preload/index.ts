@@ -6,7 +6,7 @@
  */
 
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import { PROJECT_IPC_CHANNELS, TASK_IPC_CHANNELS, SESSION_COMMAND_CHANNEL, TEAMBITION_IPC_CHANNELS, EXPERT_IPC_CHANNELS } from '@luxcoder/shared/channels'
+import { PROJECT_IPC_CHANNELS, TASK_IPC_CHANNELS, SESSION_COMMAND_CHANNEL, SESSION_GROUP_IPC_CHANNELS, TEAMBITION_IPC_CHANNELS, EXPERT_IPC_CHANNELS } from '@luxcoder/shared/channels'
 import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS } from '@luxcoder/shared'
 import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, SCRATCH_PAD_IPC_CHANNELS, APP_ICON_IPC_CHANNELS, DOCK_BADGE_IPC_CHANNELS, STORAGE_IPC_CHANNELS } from '../types'
 import type {
@@ -44,6 +44,7 @@ import type {
   AgentStreamEvent,
   AgentStreamCompletePayload,
   AgentWorkspace,
+  SessionGroup,
   AgentGenerateTitleInput,
   AgentSaveFilesInput,
   AgentSaveWorkspaceFilesInput,
@@ -1272,6 +1273,12 @@ export interface ElectronAPI {
       newPath: string,
     ) => Promise<BrowserProject>
     onChanged: (callback: (event: BrowserProjectChangedEvent) => void) => () => void
+  }
+  sessionGroups: {
+    list: (workspaceSlug: string) => Promise<SessionGroup[]>
+    create: (workspaceSlug: string, name: string) => Promise<SessionGroup>
+    rename: (workspaceSlug: string, id: string, name: string) => Promise<SessionGroup>
+    delete: (workspaceSlug: string, id: string) => Promise<void>
   }
   tasks: {
     validate: (yaml: string) => Promise<TaskValidationResult>
@@ -2823,6 +2830,17 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.on(PROJECT_IPC_CHANNELS.CHANGED, listener)
       return () => { ipcRenderer.removeListener(PROJECT_IPC_CHANNELS.CHANGED, listener) }
     },
+  },
+
+  sessionGroups: {
+    list: (workspaceSlug: string): Promise<SessionGroup[]> =>
+      invokeTyped<SessionGroup[]>(SESSION_GROUP_IPC_CHANNELS.LIST, workspaceSlug),
+    create: (workspaceSlug: string, name: string): Promise<SessionGroup> =>
+      invokeTyped<SessionGroup>(SESSION_GROUP_IPC_CHANNELS.CREATE, workspaceSlug, name),
+    rename: (workspaceSlug: string, id: string, name: string): Promise<SessionGroup> =>
+      invokeTyped<SessionGroup>(SESSION_GROUP_IPC_CHANNELS.RENAME, workspaceSlug, id, name),
+    delete: (workspaceSlug: string, id: string): Promise<void> =>
+      invokeTyped<void>(SESSION_GROUP_IPC_CHANNELS.DELETE, workspaceSlug, id),
   },
   tasks: {
     validate: (yaml: string): Promise<TaskValidationResult> => invokeTyped<TaskValidationResult>(TASK_IPC_CHANNELS.VALIDATE, yaml),

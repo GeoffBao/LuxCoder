@@ -1,12 +1,14 @@
 /**
- * SidebarProjectsTab — Projects Tab 内容（Hermes 风格：项目 → 会话分组）
+ * SidebarProjectsTab — 会话列表「分组方式：项目」视图（Hermes 风格：项目 → 会话分组）
  *
- * 用于 LeftSidebar 的「项目」Tab：
- * - 项目按最近会话活跃度排序，点击项目行展开/折叠其下会话（updatedAt 倒序）
+ * 挂载于 LeftSidebar 筛选菜单 groupBy === 'project' 时（原独立的「项目」大 Tab 已取消，
+ * 由紧凑筛选菜单统一接管）：
+ * - 项目按最近会话活跃度排序，点击项目行展开/折叠其下会话（updatedAt 倒序，再按 sortBy 重排）
  * - hover 项目行浮现「+」（新建该项目会话）、「归档」快捷按钮与「⋯」（看板/新建任务/项目设置/归档/删除）
  * - 右键 / 双指点击项目行 = 与「⋯」相同的操作菜单（ContextMenu 与 DropdownMenu 共用同一份菜单项）
  * - 项目行右侧聚合注意力点：取组内会话最高优先级状态（blocked > running > completed）
- * - 纯粹的「按项目浏览」视图：无项目的会话不在此展示，统一去「会话」Tab 查看/迁移
+ * - 纯粹的「按项目浏览」视图：无项目的会话不在此展示，统一去「分组方式：日期/不分组」查看/迁移
+ * - 归档项目可见性对齐侧边栏统一的「状态」筛选（status prop），不再有独立开关
  * - 对齐品类收敛方向：项目分组 + 组内时间倒序（Conductor/Superset/Synara/Orca/craft 均如此）
  */
 
@@ -23,7 +25,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import type { AgentSessionMeta } from '@luxcoder/shared'
+import type { AgentSessionMeta, SessionGroup, SessionListSortBy, SessionListStatusFilter } from '@luxcoder/shared'
 import { cn } from '@/lib/utils'
 import {
   agentSessionsAtom,
@@ -40,8 +42,7 @@ import {
   serverKanbanProjectsAtom,
 } from '@/atoms/project-atoms'
 import { activeViewAtom } from '@/atoms/active-view'
-import { showArchivedProjectsAtom } from '@/atoms/project-context-picker'
-import { Switch } from '@/components/ui/switch'
+import { MarqueeText } from '@/components/ui/marquee-text'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   DropdownMenu,
@@ -71,6 +72,7 @@ import { CreateProjectDialog } from '@/components/work/CreateProjectDialog'
 import { ProjectSettingsDialog } from '@/components/work/ProjectSettingsDialog'
 import { AgentSessionItem, getSessionLeftAccent } from './AgentSessionItem'
 import type { KanbanProject } from './kanban/types'
+import { sortSessions } from './sidebar-session-views'
 import {
   filterGroupableSessions,
   groupSessionsByProject,
@@ -90,11 +92,18 @@ export interface ProjectSessionHandlers {
   onMoveToProject: (sessionId: string, projectId?: string) => void | Promise<void>
   /** 在项目下新建会话（draft，预绑定 projectId） */
   onNewSessionInProject: (projectId: string) => void | Promise<void>
+  sessionGroups: SessionGroup[]
+  onMoveToGroup: (sessionId: string, groupId?: string) => void | Promise<void>
+  onCreateGroup: (sessionId: string) => void
 }
 
 interface SidebarProjectsTabProps {
   workspaceRoot: string | null
   sessionHandlers: ProjectSessionHandlers
+  /** 状态筛选：控制归档项目是否可见（复用侧边栏统一的「状态」筛选，语义对齐原 showArchivedProjectsAtom） */
+  status: SessionListStatusFilter
+  /** 排序方式：只影响每个项目内会话行的顺序，项目本身仍按活跃度排序 */
+  sortBy: SessionListSortBy
 }
 
 /** 项目行聚合注意力点的优先级：blocked > running > completed（学 Synara/Superset 聚合指示） */
@@ -104,7 +113,7 @@ const ATTENTION_DOT_CLASS: Record<string, string> = {
   completed: 'bg-emerald-500',
 }
 
-export function SidebarProjectsTab({ workspaceRoot, sessionHandlers }: SidebarProjectsTabProps): React.ReactElement {
+export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sortBy }: SidebarProjectsTabProps): React.ReactElement {
   const workspaces = useAtomValue(agentWorkspacesAtom)
   const currentWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
   const workspace = workspaces.find((candidate) => candidate.id === currentWorkspaceId) ?? workspaces[0] ?? null
@@ -119,7 +128,9 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers }: SidebarPr
   const setCodeMainView = useSetAtom(codeMainViewAtom)
   const setActiveView = useSetAtom(activeViewAtom)
   const setPendingTaskEditorTarget = useSetAtom(pendingTaskEditorTargetAtom)
-  const [showArchived, setShowArchived] = useAtom(showArchivedProjectsAtom)
+  // 归档项目的可见性对齐统一的「状态」筛选：活跃时隐藏，已归档/全部时显示
+  // （会话本身的归档态与此无关——filterGroupableSessions 一直只展示未归档会话）
+  const showArchived = status !== 'active'
 
   const [collapsedIds, setCollapsedIds] = React.useState<Set<string>>(new Set())
   const [createOpen, setCreateOpen] = React.useState(false)
@@ -157,10 +168,13 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers }: SidebarPr
     [agentSessions, draftSessionIds, workspace?.id],
   )
 
-  const sessionsByProject = React.useMemo(
-    () => groupSessionsByProject(groupableSessions),
-    [groupableSessions],
-  )
+  const sessionsByProject = React.useMemo(() => {
+    const byProject = groupSessionsByProject(groupableSessions)
+    for (const [projectId, sessions] of byProject) {
+      byProject.set(projectId, sortSessions(sessions, sortBy))
+    }
+    return byProject
+  }, [groupableSessions, sortBy])
 
   /** 项目排序：有会话的按最新会话活跃度排，无会话的按项目自身 updatedAt 排在后面 */
   const sortedProjects = React.useMemo(
@@ -273,6 +287,9 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers }: SidebarPr
         projectColor={projectColor}
         projects={scopedProjects}
         onMoveToProject={sessionHandlers.onMoveToProject}
+        sessionGroups={sessionHandlers.sessionGroups}
+        onMoveToGroup={sessionHandlers.onMoveToGroup}
+        onCreateGroup={sessionHandlers.onCreateGroup}
         relativeTimeNow={relativeTimeNow}
         onSelect={sessionHandlers.onSelectSession}
         onRequestDelete={sessionHandlers.onRequestDelete}
@@ -287,16 +304,8 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers }: SidebarPr
 
   return (
     <div className="flex min-h-0 flex-1 flex-col titlebar-no-drag">
-      {/* 归档过滤 + 新建项目：合并成一行，避免侧边栏堆叠太多整行区块 */}
-      <div className="flex items-center justify-between px-3 pt-2 pb-1">
-        <label className="flex cursor-pointer items-center gap-2 px-1 text-[11px] text-foreground/50">
-          <Switch
-            checked={showArchived}
-            onCheckedChange={setShowArchived}
-            className="scale-75"
-          />
-          显示已归档
-        </label>
+      {/* 新建项目：归档可见性已并入侧边栏统一的「状态」筛选，这里只保留新建入口 */}
+      <div className="flex items-center justify-end px-3 pt-2 pb-1">
         <Tooltip>
           <TooltipTrigger asChild>
             <button
@@ -384,7 +393,7 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers }: SidebarPr
                             expanded && 'rotate-90',
                           )}
                         />
-                        <span className="min-w-0 flex-1 truncate text-[13px]">{project.name}</span>
+                        <MarqueeText text={project.name} className="min-w-0 flex-1 text-[13px]" />
 
                         {/* 聚合注意力点 + 会话计数（非 hover 时显示） */}
                         {attention && (

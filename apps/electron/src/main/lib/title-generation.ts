@@ -72,6 +72,75 @@ export function sanitizeGeneratedTitle(title: string): string | null {
   return cleaned.slice(0, MAX_TITLE_LENGTH) || null
 }
 
+// 参考 craft-agents-oss（packages/shared/src/utils/title-generator.ts）：会话进行到中段后，
+// 仅靠第一条消息生成的标题往往已经跑题（用户提了个引子，实际聊的是完全不同的方向）。
+// 这里移植其"挑首/中/尾几条消息 + 最新回复"重新生成标题的机制。
+
+// 判断一条消息是否是低信息量的简短确认语（"好的""谢谢""继续"），不代表会话主题。
+// craft-agents-oss 原版按"字符数 + 空格分词数"判断，对英文成立（12 字符 ≈ 2 个单词）；
+// 但中文按字符数编码信息密度更高，同样 12 字符可能是一句完整的实质性提问，且中文不靠
+// 空格分词导致"分词数"这条约束对中文永远满足。因此中文用更短的字符数阈值单独判断。
+const LOW_SIGNAL_MAX_CHARS_CJK = 5
+const LOW_SIGNAL_MAX_CHARS_LATIN = 12
+const LOW_SIGNAL_MAX_WORDS = 2
+const CJK_PATTERN = /[一-鿿぀-ヿ가-힯]/
+
+export function isLowSignalMessage(message: string): boolean {
+  const trimmed = message.trim()
+  if (trimmed.includes('?') || trimmed.includes('？')) return false
+  const maxChars = CJK_PATTERN.test(trimmed) ? LOW_SIGNAL_MAX_CHARS_CJK : LOW_SIGNAL_MAX_CHARS_LATIN
+  if (trimmed.length > maxChars) return false
+  if (trimmed.split(/\s+/).length > LOW_SIGNAL_MAX_WORDS) return false
+  return true
+}
+
+/**
+ * 从全部用户消息中挑出能代表会话主题演进的一个子集：首条（最初意图）+ 偏后段的一条
+ * （话题实际走向）+ 末条（当前状态）。生成前先剥离末尾的低信息量确认语，避免"标题：好的"
+ * 这类消息掩盖真正的主题；若全部消息都是低信息量的，则不过滤，原样使用。
+ */
+export function selectSpreadMessages(allUserMessages: string[]): string[] {
+  const count = allUserMessages.length
+  if (count === 0) return []
+
+  let filtered = allUserMessages
+  let trimEnd = allUserMessages.length
+  while (trimEnd > 0 && isLowSignalMessage(allUserMessages[trimEnd - 1]!)) trimEnd--
+  if (trimEnd > 0) filtered = allUserMessages.slice(0, trimEnd)
+
+  const n = filtered.length
+  if (n <= 3) return filtered
+
+  const midIndex = Math.floor((n * 2) / 3)
+  return [filtered[0]!, filtered[midIndex]!, filtered[n - 1]!]
+}
+
+function sliceAtWord(text: string, max: number): string {
+  if (text.length <= max) return text
+  const lastSpace = text.lastIndexOf(' ', max)
+  return lastSpace > 0 ? text.slice(0, lastSpace) : text.slice(0, max)
+}
+
+/** 用于中途重新生成标题的 Prompt：给模型看首/中/尾用户消息 + 最新一次回复，而非只看第一条。 */
+export function buildRegenerateTitlePrompt(recentUserMessages: string[], lastAssistantResponse: string): string {
+  const userContext = recentUserMessages.map((message) => sliceAtWord(message, 500)).join('\n\n')
+  const assistantSnippet = sliceAtWord(lastAssistantResponse, 500)
+
+  return [
+    '根据以下对话内容判断这个会话真正的主题，生成一个简短的标题（10字以内）。',
+    '忽略"好的""谢谢""继续"等无实质信息的简短确认语，标题应反映对话实际讨论的内容而非最初的引子。',
+    '只输出标题，不要有任何其他内容、标点符号或引号。',
+    '',
+    '用户消息（按对话顺序）：',
+    userContext,
+    '',
+    '最新一次回复：',
+    assistantSnippet,
+    '',
+    '标题：',
+  ].join('\n')
+}
+
 /**
  * 无法调用标题模型时，基于首条用户消息生成一个稳定兜底标题。
  *

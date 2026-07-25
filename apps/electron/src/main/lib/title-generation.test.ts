@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { createFallbackTitle, sanitizeGeneratedTitle, stripContextWrappersForTitle } from './title-generation'
+import { buildRegenerateTitlePrompt, createFallbackTitle, isLowSignalMessage, sanitizeGeneratedTitle, selectSpreadMessages, stripContextWrappersForTitle } from './title-generation'
 
 describe('标题生成辅助逻辑', () => {
   test('Given ChatGPT OAuth 无标题适配器 When 本地兜底 Then 使用首个有效行并限制长度', () => {
@@ -72,5 +72,63 @@ describe('stripContextWrappersForTitle', () => {
     const raw = '<attached_files>\n/Users/eason/Desktop/screenshot.png\n</attached_files>\n\n看看这个报错'
 
     expect(createFallbackTitle(stripContextWrappersForTitle(raw))).toBe('看看这个报错')
+  })
+})
+
+describe('isLowSignalMessage', () => {
+  test('Given 简短确认语 When 判断 Then 视为低信息量', () => {
+    expect(isLowSignalMessage('好的')).toBe(true)
+    expect(isLowSignalMessage('谢谢')).toBe(true)
+    expect(isLowSignalMessage('ok')).toBe(true)
+  })
+
+  test('Given 带问号的简短消息 When 判断 Then 不视为低信息量（可能是真实提问）', () => {
+    expect(isLowSignalMessage('为什么？')).toBe(false)
+  })
+
+  test('Given 有实质内容的长消息 When 判断 Then 不视为低信息量', () => {
+    expect(isLowSignalMessage('帮我看看这个登录超时的问题')).toBe(false)
+  })
+})
+
+describe('selectSpreadMessages', () => {
+  test('Given 4 条以上用户消息 When 挑选 Then 取首条 + 约 2/3 处 + 末条', () => {
+    const messages = ['最初想优化侧边栏显示', '中间的补充说明内容一', '中间的补充说明内容二', '中间的补充说明内容三', '发现其实是标题生成的问题', '最后确认修复方案']
+
+    expect(selectSpreadMessages(messages)).toEqual(['最初想优化侧边栏显示', '发现其实是标题生成的问题', '最后确认修复方案'])
+  })
+
+  test('Given 3 条及以下用户消息 When 挑选 Then 全部保留', () => {
+    expect(selectSpreadMessages(['第一条实质内容', '第二条实质内容'])).toEqual(['第一条实质内容', '第二条实质内容'])
+  })
+
+  test('Given 末尾是简短确认语 When 挑选 Then 先剥离确认语再取首尾', () => {
+    const messages = ['最初想优化侧边栏显示', '中间的补充说明内容', '继续', '发现其实是标题生成的问题', '好的', '谢谢']
+
+    const result = selectSpreadMessages(messages)
+
+    expect(result).not.toContain('好的')
+    expect(result).not.toContain('谢谢')
+    expect(result[0]).toBe('最初想优化侧边栏显示')
+    expect(result[result.length - 1]).toBe('发现其实是标题生成的问题')
+  })
+
+  test('Given 全部消息都是低信息量 When 挑选 Then 不过滤，原样取首尾', () => {
+    expect(selectSpreadMessages(['好的', '谢谢', '继续'])).toEqual(['好的', '谢谢', '继续'])
+  })
+
+  test('Given 空数组 When 挑选 Then 返回空数组', () => {
+    expect(selectSpreadMessages([])).toEqual([])
+  })
+})
+
+describe('buildRegenerateTitlePrompt', () => {
+  test('Given 首尾用户消息与最新回复 When 构建 Prompt Then 包含全部消息与回复内容', () => {
+    const prompt = buildRegenerateTitlePrompt(['最初想优化侧边栏', '后来发现是标题生成的问题'], '已定位到根因并修复')
+
+    expect(prompt).toContain('最初想优化侧边栏')
+    expect(prompt).toContain('后来发现是标题生成的问题')
+    expect(prompt).toContain('已定位到根因并修复')
+    expect(prompt).toContain('标题：')
   })
 })

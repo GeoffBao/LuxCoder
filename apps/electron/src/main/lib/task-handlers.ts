@@ -8,6 +8,7 @@ import { basename, join } from 'node:path'
 import {
   PROJECT_IPC_CHANNELS,
   SESSION_COMMAND_CHANNEL,
+  SESSION_GROUP_IPC_CHANNELS,
   TASK_IPC_CHANNELS,
   TEAMBITION_IPC_CHANNELS,
 } from '@luxcoder/shared/channels'
@@ -40,6 +41,7 @@ import {
 } from '@luxcoder/shared/tasks/storage'
 import { createLuxCoderConductorSessionHost, type LuxCoderConductorSessionHost } from './conductor-session-host'
 import { getAgentSessionMeta, updateAgentSessionMeta } from './agent-session-manager'
+import { createSessionGroup, deleteSessionGroup, listSessionGroups, renameSessionGroup } from './agent-session-group-service'
 import { isAgentSessionActive } from './agent-service'
 import { getAgentWorkspace, listAgentWorkspaces } from './agent-workspace-manager'
 import { getAgentWorkspacePath, getExpertsDir } from './config-paths'
@@ -575,6 +577,22 @@ export function registerTaskHandlers(window: BrowserWindow): void {
     }
   })
 
+  ipcMain.handle(SESSION_GROUP_IPC_CHANNELS.LIST, (_event, workspaceSlug: string) => {
+    return listSessionGroups(workspaceSlug)
+  })
+
+  ipcMain.handle(SESSION_GROUP_IPC_CHANNELS.CREATE, (_event, workspaceSlug: string, name: string) => {
+    return createSessionGroup(workspaceSlug, name)
+  })
+
+  ipcMain.handle(SESSION_GROUP_IPC_CHANNELS.RENAME, (_event, workspaceSlug: string, id: string, name: string) => {
+    return renameSessionGroup(workspaceSlug, id, name)
+  })
+
+  ipcMain.handle(SESSION_GROUP_IPC_CHANNELS.DELETE, (_event, workspaceSlug: string, id: string) => {
+    deleteSessionGroup(workspaceSlug, id)
+  })
+
   ipcMain.handle(SESSION_COMMAND_CHANNEL, async (_event, sessionId: string, command: SessionKanbanCommand) => {
     const host = await getSessionHost()
     switch (command.kind) {
@@ -594,6 +612,8 @@ export function registerTaskHandlers(window: BrowserWindow): void {
           buildSetProjectIdUpdates(command.projectId, resolvedWorkingDirectory, meta?.kanbanColumn),
         )
       }
+      case 'set_custom_group':
+        return updateAgentSessionMeta(sessionId, { customGroupId: command.groupId })
       case 'set_kanban_column': {
         const sessionStatus = resolveSessionDropStatus(sessionId, command.kanbanColumn)
         return setSessionKanbanColumn(sessionId, command.kanbanColumn, updateAgentSessionMeta, {

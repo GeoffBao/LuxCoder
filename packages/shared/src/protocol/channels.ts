@@ -41,6 +41,13 @@ export const SESSION_KANBAN_IPC_CHANNELS = {
   COMMAND: 'session:command',
 } as const;
 
+export const SESSION_GROUP_IPC_CHANNELS = {
+  LIST:   'session-group:list',
+  CREATE: 'session-group:create',
+  RENAME: 'session-group:rename',
+  DELETE: 'session-group:delete',
+} as const;
+
 export const TEAMBITION_IPC_CHANNELS = {
   LIST_TASKS:    'teambition:listMyTasks',
   CLAIM_TASK:    'teambition:claimTask',

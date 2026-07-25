@@ -16,12 +16,15 @@ import {
   ArchiveRestore,
   MoreHorizontal,
   FolderInput,
+  Tag,
+  Plus,
   Clock,
   ChevronRight,
   GitBranch,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { MarqueeText } from '@/components/ui/marquee-text'
 import { interfaceVariantAtom } from '@/atoms/theme'
 import type { SessionIndicatorStatus } from '@/atoms/agent-atoms'
 import {
@@ -48,7 +51,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu'
-import type { AgentSessionMeta } from '@luxcoder/shared'
+import type { AgentSessionMeta, SessionGroup } from '@luxcoder/shared'
 import type { KanbanProject } from './kanban/types'
 
 export function formatRelativeUpdatedAt(updatedAt: number, now: number): string {
@@ -71,7 +74,6 @@ export function formatRelativeUpdatedAt(updatedAt: number, now: number): string 
 
 export interface SessionItemActionsProps {
   updatedAt: number
-  relativeTimeNow: number
   menuItems: (
     MenuItem: typeof DropdownMenuItem,
     MenuSeparator: typeof DropdownMenuSeparator,
@@ -172,7 +174,6 @@ function SessionQuickSwitchKeycap(): React.ReactElement {
 
 export function SessionItemActions({
   updatedAt,
-  relativeTimeNow,
   menuItems,
   onMenuOpenChange,
 }: SessionItemActionsProps): React.ReactElement {
@@ -209,20 +210,13 @@ export function SessionItemActions({
 
   return (
     <div
-      className="session-item-actions relative flex-shrink-0 h-[18px] w-[42px]"
+      className="session-item-actions relative flex-shrink-0 h-[18px] w-[22px]"
+      title={`最后更新：${new Date(updatedAt).toLocaleString('zh-CN')}`}
       onClick={(e) => e.stopPropagation()}
     >
-      <span
-        title={`最后更新：${new Date(updatedAt).toLocaleString('zh-CN')}`}
-        className={cn(
-          'absolute inset-y-0 right-0 block w-full overflow-hidden whitespace-nowrap text-right text-[11px] leading-[18px] tabular-nums text-foreground/35 transition-opacity duration-100',
-          forceVisible ? 'opacity-0' : 'opacity-100 group-hover:opacity-0',
-        )}
-      >
-        {formatRelativeUpdatedAt(updatedAt, relativeTimeNow)}
-      </span>
       {/* 置顶/星标/归档不再占用行内固定位置——全部收进这个「...」菜单（以及同一份
-          menuItems 供的右键/双指点按菜单），把行内空间留给标题。 */}
+          menuItems 供的右键/双指点按菜单），把行内空间留给标题。相对时间戳也不再常驻展示，
+          完整时间通过本容器的 title 属性 hover 呈现（参考截图里 Claude 客户端本身也不在行内展示时间戳）。 */}
       <div
         className={cn(
           'absolute right-1 top-0 flex items-center transition-opacity duration-100',
@@ -303,6 +297,11 @@ export interface AgentSessionItemProps {
   /** 当前工作区项目列表；空数组时不渲染「移动到项目」入口 */
   projects?: KanbanProject[]
   onMoveToProject?: (sessionId: string, projectId?: string) => void | Promise<void>
+  /** 当前工作区自定义分组列表；undefined 时不渲染「移动到分组」入口 */
+  sessionGroups?: SessionGroup[]
+  onMoveToGroup?: (sessionId: string, groupId?: string) => void | Promise<void>
+  /** 打开「新建分组」对话框（点击「+ 新建分组...」时调用，创建后由调用方自行归组） */
+  onCreateGroup?: (sessionId: string) => void
   /** 用同一个时间戳刷新相对时间，避免每行独立计时 */
   relativeTimeNow: number
   onSelect: (id: string, title: string) => void
@@ -326,6 +325,9 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
   projectColor,
   projects,
   onMoveToProject,
+  sessionGroups,
+  onMoveToGroup,
+  onCreateGroup,
   relativeTimeNow,
   onSelect,
   onRequestDelete,
@@ -451,6 +453,43 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
           </MenuSubContent>
         </MenuSub>
       )}
+      {sessionGroups && onMoveToGroup && (
+        <MenuSub>
+          <MenuSubTrigger className="text-xs py-1 [&>svg]:size-3.5">
+            <Tag size={14} />
+            移动到分组
+          </MenuSubTrigger>
+          <MenuSubContent className="w-44 z-[9999] min-w-0 p-0.5">
+            {onCreateGroup && (
+              <>
+                <MenuItem className="text-xs py-1 [&>svg]:size-3.5" onSelect={() => onCreateGroup(session.id)}>
+                  <Plus size={14} />
+                  新建分组...
+                </MenuItem>
+                {sessionGroups.length > 0 && <MenuSeparator className="my-0.5" />}
+              </>
+            )}
+            {sessionGroups.map((group) => (
+              <MenuItem
+                key={group.id}
+                disabled={group.id === session.customGroupId}
+                className="text-xs py-1"
+                onSelect={() => onMoveToGroup(session.id, group.id)}
+              >
+                {group.name}
+              </MenuItem>
+            ))}
+            {session.customGroupId && (
+              <>
+                <MenuSeparator className="my-0.5" />
+                <MenuItem className="text-xs py-1" onSelect={() => onMoveToGroup(session.id, undefined)}>
+                  移出分组
+                </MenuItem>
+              </>
+            )}
+          </MenuSubContent>
+        </MenuSub>
+      )}
       <MenuItem className="text-xs py-1 [&>svg]:size-3.5" onSelect={() => startEdit()}>
         <Pencil size={14} />
         重命名
@@ -533,15 +572,13 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
                 {session.sourceDelegationId && (
                   <GitBranch size={11} className={cn('flex-shrink-0', DELEGATION_STATUS_ICON_CLASS[indicatorStatus])} />
                 )}
-                <span
-                  className="truncate"
+                <MarqueeText
+                  text={session.title}
                   onDoubleClick={(event) => {
                     event.stopPropagation()
                     startEdit()
                   }}
-                >
-                  {session.title}
-                </span>
+                />
                 {/* 星标不再是行内可交互按钮——切换动作移进「...」菜单，这里只保留一个
                     静态标记，让已加星标的会话仍能一眼看出来，同时不占用标题空间。 */}
                 {session.starred && (
@@ -596,7 +633,6 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
               )}
               <SessionItemActions
                 updatedAt={session.updatedAt}
-                relativeTimeNow={relativeTimeNow}
                 onMenuOpenChange={setMenuOpen}
                 menuItems={menuItems}
               />

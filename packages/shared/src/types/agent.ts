@@ -658,6 +658,7 @@ export type KanbanIpcEventPayload =
 export type SessionKanbanCommand =
   | { kind: 'move_to_workspace'; workspaceId: string }
   | { kind: 'set_project_id'; projectId?: string }
+  | { kind: 'set_custom_group'; groupId?: string }
   | { kind: 'set_kanban_column'; kanbanColumn: string | null }
   | { kind: 'set_session_status'; status: string }
   | { kind: 'set_task_node_count'; taskNodeCount: number }
@@ -749,6 +750,8 @@ export interface AgentSessionMeta {
   delegationGoal?: string
   /** 绑定的项目 ID（project.config.id），看板过滤用 */
   projectId?: string
+  /** 用户自建分组 ID（SessionGroup.id），与 projectId 独立，用于侧边栏「分组方式：自定义分组」 */
+  customGroupId?: string
   /** 项目继承的工作目录绝对路径（Conductor / additionalDirectories） */
   workingDirectory?: string
   /** 看板列 ID（'todo' | 'in-progress' | 'done'），与 sessionStatus 独立 */
@@ -767,6 +770,32 @@ export interface AgentSessionMeta {
   createdAt: number
   /** 更新时间戳 */
   updatedAt: number
+}
+
+/**
+ * 用户自建会话分组（侧边栏「移动到分组」/「分组方式：自定义分组」用）
+ *
+ * 按工作区隔离存储在 ~/.luxcoder/agent-workspaces/{slug}/session-groups.json。
+ */
+export interface SessionGroup {
+  id: string
+  name: string
+  createdAt: number
+  updatedAt: number
+}
+
+/** Code 侧边栏会话列表的状态筛选：活跃 / 已归档 / 全部 */
+export type SessionListStatusFilter = 'active' | 'archived' | 'all'
+/** Code 侧边栏会话列表的分组方式 */
+export type SessionListGroupBy = 'date' | 'project' | 'state' | 'customGroup' | 'none'
+/** Code 侧边栏会话列表的排序方式（只影响每个分组桶内部的顺序） */
+export type SessionListSortBy = 'recency' | 'alphabetical' | 'createdAt'
+
+/** Code 侧边栏会话列表筛选/分组/排序偏好，持久化到 settings.json */
+export interface SessionListPreference {
+  status: SessionListStatusFilter
+  groupBy: SessionListGroupBy
+  sortBy: SessionListSortBy
 }
 
 /** Agent 委派子会话的任务角色 */

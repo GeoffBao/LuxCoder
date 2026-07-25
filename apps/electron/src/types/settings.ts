@@ -4,7 +4,7 @@
  * 主题模式、IPC 通道等设置相关定义。
  */
 
-import type { AgentRuntime, AgentThinkingLevel, EnvironmentCheckResult, ThinkingConfig, AgentEffort, FeishuSessionMirrorSettings } from '@luxcoder/shared'
+import type { AgentRuntime, AgentThinkingLevel, EnvironmentCheckResult, ThinkingConfig, AgentEffort, FeishuSessionMirrorSettings, SessionListPreference } from '@luxcoder/shared'
 
 /** 通知音场景类型 */
 export type NotificationSoundType = 'taskComplete' | 'permissionRequest' | 'exitPlanMode'
@@ -269,6 +269,8 @@ export interface AppSettings {
   mainWindowState?: MainWindowState
   /** 左栏模块折叠态（key = `${mode}:${moduleId}`，如 `agent:projects`） */
   sidebarModuleCollapsed?: Record<string, boolean>
+  /** Code 侧边栏会话列表的状态筛选 / 分组方式 / 排序方式偏好 */
+  sessionListPreference?: SessionListPreference
 }
 
 /** 主窗口大小、位置和最大化状态 */

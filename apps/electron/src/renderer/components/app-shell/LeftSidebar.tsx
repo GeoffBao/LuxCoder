@@ -11,9 +11,10 @@
 import * as React from 'react'
 import { useAtom, useSetAtom, useAtomValue, useStore } from 'jotai'
 import { toast } from 'sonner'
-import { Pin, PinOff, Settings, Plus, Trash2, Pencil, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, FolderKanban, MessageSquare, MoreHorizontal, FolderOpen, GripVertical, Clock, AlarmClock, ChevronRight, Blocks, GitBranch, Download, Loader2, RotateCw, Layers, UserRound } from 'lucide-react'
+import { Pin, PinOff, Settings, Plus, Trash2, Pencil, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MessageSquare, MoreHorizontal, FolderOpen, GripVertical, Clock, AlarmClock, ChevronRight, Blocks, GitBranch, Download, Loader2, RotateCw, Layers, UserRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { MarqueeText } from '@/components/ui/marquee-text'
 import { ModeSwitcher } from './ModeSwitcher'
 import { SearchDialog } from './SearchDialog'
 import { UserAvatar } from '@/components/chat/UserAvatar'
@@ -77,7 +78,11 @@ import {
 } from '@/atoms/tab-atoms'
 import { userProfileAtom } from '@/atoms/user-profile'
 import { selectedProjectIdAtom, serverKanbanProjectsAtom, workViewAtom, codeMainViewAtom } from '@/atoms/project-atoms'
-import { buildRecentSessionList } from './sidebar-session-views'
+import { sessionGroupsAtom } from '@/atoms/session-groups-atoms'
+import { sessionListPreferenceAtom } from '@/atoms/session-list-preference-atoms'
+import { buildRecentSessionList, groupSessionsByCustomGroup, groupSessionsByState, sortSessions } from './sidebar-session-views'
+import { SessionListFilterMenu } from './SessionListFilterMenu'
+import { CreateSessionGroupDialog } from './CreateSessionGroupDialog'
 import { sidebarViewModeAtom, MIN_LEFT_SIDEBAR_WIDTH } from '@/atoms/sidebar-atoms'
 import { searchDialogOpenAtom } from '@/atoms/search-atoms'
 import { hasUpdateAtom, updateStatusAtom, type UpdateStatus } from '@/atoms/updater'
@@ -85,10 +90,7 @@ import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
 import { hasEnvironmentIssuesAtom } from '@/atoms/environment'
 import { promptConfigAtom, selectedPromptIdAtom, conversationPromptIdAtom } from '@/atoms/system-prompt-atoms'
 import { interfaceVariantAtom } from '@/atoms/theme'
-import {
-  newTaskProjectFlowOpenAtom,
-  showArchivedProjectsAtom,
-} from '@/atoms/project-context-picker'
+import { newTaskProjectFlowOpenAtom } from '@/atoms/project-context-picker'
 import { useOpenSession } from '@/hooks/useOpenSession'
 import { useCreateSession } from '@/hooks/useCreateSession'
 import { useSyncActiveTabSideEffects } from '@/hooks/useSyncActiveTabSideEffects'
@@ -132,7 +134,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
-import type { ConversationMeta, AgentSessionMeta, AgentWorkspace, WorkspaceCapabilities } from '@luxcoder/shared'
+import type { ConversationMeta, AgentSessionMeta, AgentWorkspace, WorkspaceCapabilities, SessionGroup } from '@luxcoder/shared'
 import type { KanbanProject } from './kanban/types'
 import { buildProjectColorMap } from './sidebar-project-groups'
 import { SidebarModule } from './SidebarModule'
@@ -724,7 +726,6 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   const openSession = useOpenSession()
   const { createAgent } = useCreateSession()
   const setNewTaskProjectFlowOpen = useSetAtom(newTaskProjectFlowOpenAtom)
-  const [showArchivedProjects, setShowArchivedProjects] = useAtom(showArchivedProjectsAtom)
   const syncActiveTabSideEffects = useSyncActiveTabSideEffects()
   const store = useStore()
   const sidebarRootRef = React.useRef<HTMLDivElement>(null)
@@ -737,8 +738,12 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   const [viewMode, setViewMode] = useAtom(sidebarViewModeAtom)
   const [searchDialogOpen, setSearchDialogOpen] = useAtom(searchDialogOpenAtom)
 
-  // Sessions | Projects Tab 切换
-  const [sidebarTab, setSidebarTab] = React.useState<'sessions' | 'projects'>('sessions')
+  // Code 侧边栏会话列表：状态筛选 / 分组方式 / 排序方式（取代原「会话|项目」大 Tab）
+  const sessionListPreference = useAtomValue(sessionListPreferenceAtom)
+  const { status: agentStatusFilter, groupBy: agentGroupBy, sortBy: agentSortBy } = sessionListPreference
+  const [sessionGroups, setSessionGroups] = useAtom(sessionGroupsAtom)
+  const [createGroupTargetSessionId, setCreateGroupTargetSessionId] = React.useState<string | null>(null)
+  const [creatingSessionGroup, setCreatingSessionGroup] = React.useState(false)
 
   // 当前工作区根目录（Projects Tab 需要传给 SidebarProjectsTab）
   const [workspaceRoot, setWorkspaceRoot] = React.useState<string | null>(null)
@@ -877,10 +882,12 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     if (!currentWorkspaceSlug) return EMPTY_PROJECTS
     return kanbanProjects.filter((project) => {
       if (project.workspaceId && project.workspaceId !== currentWorkspaceSlug) return false
-      if (!showArchivedProjects && project.archivedAt) return false
+      // 归档项目的可见性对齐统一的「状态」筛选（原独立的 showArchivedProjectsAtom 开关已随
+      // SidebarProjectsTab 头部精简一并移除）
+      if (agentStatusFilter === 'active' && project.archivedAt) return false
       return true
     })
-  }, [currentWorkspaceSlug, kanbanProjects, showArchivedProjects])
+  }, [currentWorkspaceSlug, kanbanProjects, agentStatusFilter])
 
   /** craft Project ID → 主题色映射（置顶区 / 会话行色条；仅当前工作区项目有数据） */
   const kanbanProjectColorMap = React.useMemo(
@@ -972,12 +979,6 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   const archivedConversationCount = React.useMemo(
     () => conversations.filter((c) => c.archived).length,
     [conversations]
-  )
-
-  /** 已归档 Agent 会话数量（跨工作区） */
-  const archivedAgentSessionCount = React.useMemo(
-    () => agentSessions.filter((s) => s.archived && !draftSessionIds.has(s.id)).length,
-    [agentSessions, draftSessionIds]
   )
 
   // 初始加载对话列表 + 用户档案 + Agent 会话
@@ -1294,6 +1295,38 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       toast.error('移动到项目失败')
     }
   }, [setAgentSessions])
+
+  const handleMoveToGroup = React.useCallback(async (sessionId: string, groupId?: string): Promise<void> => {
+    try {
+      const updated = await window.electronAPI.sendSessionCommand(sessionId, { kind: 'set_custom_group', groupId })
+      setAgentSessions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
+    } catch (error) {
+      console.error('[侧边栏] 移动到分组失败:', error)
+      toast.error('移动到分组失败')
+    }
+  }, [setAgentSessions])
+
+  /** 打开「新建分组」对话框，记录发起会话，创建成功后自动把该会话归入新分组 */
+  const handleRequestCreateGroup = React.useCallback((sessionId: string): void => {
+    setCreateGroupTargetSessionId(sessionId)
+  }, [])
+
+  const handleSubmitCreateGroup = React.useCallback(async (name: string): Promise<void> => {
+    if (!currentWorkspaceSlug || !createGroupTargetSessionId) return
+    setCreatingSessionGroup(true)
+    try {
+      const group = await window.electronAPI.sessionGroups.create(currentWorkspaceSlug, name)
+      setSessionGroups((prev) => [...prev, group])
+      await handleMoveToGroup(createGroupTargetSessionId, group.id)
+      setCreateGroupTargetSessionId(null)
+      toast.success('分组已创建')
+    } catch (error) {
+      console.error('[侧边栏] 新建分组失败:', error)
+      toast.error('新建分组失败')
+    } finally {
+      setCreatingSessionGroup(false)
+    }
+  }, [createGroupTargetSessionId, currentWorkspaceSlug, handleMoveToGroup, setSessionGroups])
 
   /** Code 侧边栏打开项目详情：留在当前模式，主区切到项目详情（Work 视图） */
   const handleOpenProjectDetail = React.useCallback((projectId: string): void => {
@@ -2162,6 +2195,31 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     return groupByDate(wrapped).map((g) => ({ label: g.label, items: g.items.map((w) => w.tree) }))
   }, [agentSessions, draftSessionIds])
 
+  /**
+   * 「分组方式：状态 / 自定义分组 / 不分组」用的扁平会话列表——排除 draft / 委派子会话 /
+   * 隐藏的自动任务会话，按当前工作区过滤，再按状态筛选（活跃/已归档/全部）与排序方式排列。
+   * 不含委派树展开（子会话与母会话平铺展示），是比「日期」模式更轻量的视图。
+   */
+  const agentFlatModeSessions = React.useMemo(() => {
+    if (agentGroupBy === 'date' || agentGroupBy === 'project') return []
+    const base = agentSessions.filter((session) => {
+      if (draftSessionIds.has(session.id)) return false
+      if (session.parentSessionId) return false
+      if (isHiddenAutomationSession(session)) return false
+      if (currentWorkspaceId && session.workspaceId && session.workspaceId !== currentWorkspaceId) return false
+      if (agentStatusFilter === 'active' && session.archived) return false
+      if (agentStatusFilter === 'archived' && !session.archived) return false
+      return true
+    })
+    return sortSessions(base, agentSortBy)
+  }, [agentGroupBy, agentSessions, draftSessionIds, currentWorkspaceId, agentStatusFilter, agentSortBy])
+
+  const agentFlatModeGroups = React.useMemo<Array<{ label: string; groupId?: string; items: AgentSessionMeta[] }>>(() => {
+    if (agentGroupBy === 'state') return groupSessionsByState(agentFlatModeSessions, agentIndicatorMap)
+    if (agentGroupBy === 'customGroup') return groupSessionsByCustomGroup(agentFlatModeSessions, sessionGroups)
+    return []
+  }, [agentGroupBy, agentFlatModeSessions, agentIndicatorMap, sessionGroups])
+
   /** Projects Tab 会话行操作包：与会话 Tab 共享同一批 handler，保证两个 Tab 行为一致 */
   const projectTabSessionHandlers = React.useMemo<ProjectSessionHandlers>(() => ({
     onSelectSession: handleSelectAgentSession,
@@ -2173,16 +2231,22 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     onToggleArchive: handleToggleArchiveAgent,
     onMoveToProject: handleMoveToProject,
     onNewSessionInProject: createAgentSessionInProject,
+    sessionGroups,
+    onMoveToGroup: handleMoveToGroup,
+    onCreateGroup: handleRequestCreateGroup,
   }), [
     createAgentSessionInProject,
     handleAgentRename,
     handleMoveToProject,
+    handleMoveToGroup,
+    handleRequestCreateGroup,
     handleRequestDelete,
     handleRequestMove,
     handleSelectAgentSession,
     handleToggleArchiveAgent,
     handleTogglePinAgent,
     handleToggleStarAgent,
+    sessionGroups,
   ])
 
   const handleRailModeSwitch = React.useCallback((targetMode: AppMode) => {
@@ -2686,6 +2750,43 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     )
   }
 
+  /**
+   * 「分组方式：状态 / 自定义分组 / 不分组」下的单条会话行——不含委派树展开，
+   * 平铺展示母子会话（比「日期」模式的 AgentProjectGroupItem 简化）。
+   */
+  const renderAgentFlatSessionRow = (session: AgentSessionMeta): React.ReactElement => {
+    const status = agentIndicatorMap.get(session.id) ?? 'idle'
+    return (
+      <AgentSessionItem
+        key={session.id}
+        session={session}
+        active={session.id === activeSessionId}
+        indicatorStatus={status}
+        showPinIcon={!!session.pinned}
+        leftAccent={getSessionLeftAccent(status)}
+        workspaceName={
+          session.workspaceId && session.workspaceId !== currentWorkspaceId
+            ? workspaceNameMap.get(session.workspaceId)
+            : undefined
+        }
+        projectColor={session.projectId ? kanbanProjectColorMap.get(session.projectId) : undefined}
+        projects={session.workspaceId === currentWorkspaceId ? currentWorkspaceProjects : EMPTY_PROJECTS}
+        onMoveToProject={handleMoveToProject}
+        sessionGroups={sessionGroups}
+        onMoveToGroup={handleMoveToGroup}
+        onCreateGroup={handleRequestCreateGroup}
+        relativeTimeNow={relativeTimeNow}
+        onSelect={handleSelectAgentSession}
+        onRequestDelete={handleRequestDelete}
+        onRequestMove={handleRequestMove}
+        onRename={handleAgentRename}
+        onTogglePin={handleTogglePinAgent}
+        onToggleStar={handleToggleStarAgent}
+        onToggleArchive={handleToggleArchiveAgent}
+      />
+    )
+  }
+
   // ===== 展开状态：完整侧边栏 =====
   return (
     <div
@@ -2743,7 +2844,6 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             onRequestDelete={handleRequestDeleteWorkspace}
             canDeleteWorkspace={canDeleteWorkspace}
           />
-          {/* Sessions | Projects Tab 导航 - 已移到最后 */}
           {creatingProject && (
             <div className="mt-2 flex items-center gap-2 px-2 py-1.5 rounded-[10px] bg-foreground/[0.04]">
               <Layers size={14} className="flex-shrink-0 text-foreground/40" />
@@ -2871,7 +2971,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         </div>
       )}
 
-      {mode === 'agent' && viewMode === 'active' && pinnedAgentSessions.length > 0 && (
+      {mode === 'agent' && agentStatusFilter !== 'archived' && pinnedAgentSessions.length > 0 && (
         <div className="pt-2 pb-1 flex-shrink-0 titlebar-no-drag">
           <div className="px-3.5 pb-1 text-[11px] font-medium text-foreground/40 select-none">
             置顶
@@ -2915,6 +3015,9 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                         projectColor={item.session.projectId ? kanbanProjectColorMap.get(item.session.projectId) : undefined}
                         projects={item.session.workspaceId === currentWorkspaceId ? currentWorkspaceProjects : EMPTY_PROJECTS}
                         onMoveToProject={handleMoveToProject}
+                        sessionGroups={sessionGroups}
+                        onMoveToGroup={handleMoveToGroup}
+                        onCreateGroup={handleRequestCreateGroup}
                         relativeTimeNow={relativeTimeNow}
                         onSelect={handleSelectAgentSession}
                         onRequestDelete={handleRequestDelete}
@@ -2942,6 +3045,9 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                               }
                               projects={childSession.workspaceId === currentWorkspaceId ? currentWorkspaceProjects : EMPTY_PROJECTS}
                               onMoveToProject={handleMoveToProject}
+                              sessionGroups={sessionGroups}
+                              onMoveToGroup={handleMoveToGroup}
+                              onCreateGroup={handleRequestCreateGroup}
                               onSelect={handleSelectAgentSession}
                               onRequestDelete={handleRequestDelete}
                               onRequestMove={handleRequestMove}
@@ -2962,41 +3068,14 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         </div>
       )}
 
-      {/* Sessions | Projects Tab 导航 */}
+      {/* 会话列表紧凑筛选菜单：取代原「会话|项目」大 Tab（参考 Claude 客户端） */}
       {mode === 'agent' && (
-        <div className="px-3 pt-1 pb-1">
-          <div className="flex rounded-xl bg-foreground/[0.05] p-0.5">
-            <button
-              type="button"
-              onClick={() => setSidebarTab('sessions')}
-              className={cn(
-                'flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-[13px] font-medium transition-colors',
-                sidebarTab === 'sessions'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-foreground/50 hover:text-foreground/70',
-              )}
-            >
-              <MessageSquare size={13} />
-              会话
-            </button>
-            <button
-              type="button"
-              onClick={() => setSidebarTab('projects')}
-              className={cn(
-                'flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-[13px] font-medium transition-colors',
-                sidebarTab === 'projects'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-foreground/50 hover:text-foreground/70',
-              )}
-            >
-              <FolderKanban size={13} />
-              项目
-            </button>
-          </div>
+        <div className="flex items-center justify-end px-3 pt-1 pb-1">
+          <SessionListFilterMenu />
         </div>
       )}
 
-      {/* Chat 模式 active 视图：对话历史（置顶区已上移至会话/项目 Tab 切换器上方） */}
+      {/* Chat 模式 active 视图：对话历史（置顶区已上移至筛选菜单上方） */}
       {mode === 'chat' && viewMode === 'active' ? (
         <div className="flex-1 flex flex-col min-h-0">
           <div className="px-3 pt-2 pb-1 flex-shrink-0 border-t border-border/50">
@@ -3030,14 +3109,13 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             ))}
           </div>
         </div>
-      ) : mode === 'agent' && viewMode === 'active' ? (
-        <div className="flex-1 flex flex-col min-h-0">
-          {/* Sessions Tab: 会话列表; Projects Tab: 项目树（置顶区已上移至 Tab 切换器上方） */}
-          {sidebarTab === 'sessions' ? (
+      ) : mode === 'agent' && agentGroupBy === 'date' ? (
+        <div className="flex-1 overflow-y-auto px-3 pb-3 scrollbar-thin min-h-0 titlebar-no-drag">
+          {/* 分组方式：日期（默认）——状态筛选「全部」时活跃 + 已归档依次叠加展示 */}
+          {agentStatusFilter !== 'archived' && (
             <>
-              <div className="mx-3 border-t border-border/50" />
-              {/* 下区：当前 Workspace 会话投影（不再展示多 Workspace 树标题） */}
-              <div className="sidebar-workspace-list flex-1 overflow-y-auto px-3 pb-3 scrollbar-thin min-h-0 titlebar-no-drag">
+              <div className="mx-0 border-t border-border/50" />
+              <div className="sidebar-workspace-list pt-2">
                 <div className="flex flex-col gap-0.5">
                   {displayProjectGroups
                     .filter((group) =>
@@ -3086,6 +3164,9 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                     projects={!isAuto && group.workspace.id === currentWorkspaceId ? currentWorkspaceProjects : EMPTY_PROJECTS}
                     hideWorkspaceHeader={!isAuto}
                     onMoveToProject={handleMoveToProject}
+                    sessionGroups={sessionGroups}
+                    onMoveToGroup={handleMoveToGroup}
+                    onCreateGroup={handleRequestCreateGroup}
                     onSelectSession={handleSelectAgentSession}
                     onRequestDelete={handleRequestDelete}
                     onRequestMove={handleRequestMove}
@@ -3097,57 +3178,19 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                   />
                 )
               })}
-            </div>
-          </div>
-            </>
-          ) : (
-            <SidebarProjectsTab workspaceRoot={workspaceRoot} sessionHandlers={projectTabSessionHandlers} />
-          )}
-        </div>
-      ) : (
-        <>
-          {/* 归档视图标题栏 */}
-          {viewMode === 'archived' && (
-            <div className="px-6 pt-3 pb-1">
-              <div className="text-[12px] font-medium text-foreground/40">
-                已归档{mode === 'agent' ? '会话' : '对话'}
+                </div>
               </div>
-            </div>
+            </>
           )}
 
-          {/* 归档视图：单列表布局 */}
-          <div className="flex-1 overflow-y-auto px-3 pt-2 pb-3 scrollbar-thin titlebar-no-drag">
-            {mode === 'chat' ? (
-              /* Chat 归档：对话按日期分组 */
-              conversationGroups.map((group) => (
+          {agentStatusFilter !== 'active' && (
+            <div className="pt-2">
+              {agentStatusFilter === 'all' && (
+                <div className="px-1.5 pb-1 text-[11px] font-medium text-foreground/40 select-none">已归档</div>
+              )}
+              {archivedAgentSessionTrees.map((group) => (
                 <div key={group.label} className="mb-1">
-                  <div className="px-3 pt-2 pb-1 text-[11px] font-medium text-foreground/40 select-none">
-                    {group.label}
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    {group.items.map((conv) => (
-                      <ConversationItem
-                        key={conv.id}
-                        conversation={conv}
-                        active={conv.id === activeSessionId}
-                        streaming={streamingIds.has(conv.id)}
-                        showPinIcon={!!conv.pinned}
-                        relativeTimeNow={relativeTimeNow}
-                        onSelect={handleSelectConversation}
-                        onRequestDelete={handleRequestDelete}
-                        onRename={handleRename}
-                        onTogglePin={handleTogglePin}
-                        onToggleArchive={handleToggleArchive}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))
-            ) : (
-              /* Agent 模式归档：Agent 会话按日期分组，含委派树 */
-              archivedAgentSessionTrees.map((group) => (
-                <div key={group.label} className="mb-1">
-                  <div className="px-3 pt-2 pb-1 text-[11px] font-medium text-foreground/40 select-none">
+                  <div className="px-1.5 pt-2 pb-1 text-[11px] font-medium text-foreground/40 select-none">
                     {group.label}
                   </div>
                   <div className="flex flex-col gap-0.5">
@@ -3181,6 +3224,11 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                                 ? workspaceNameMap.get(item.session.workspaceId)
                                 : undefined
                             }
+                            projects={item.session.workspaceId === currentWorkspaceId ? currentWorkspaceProjects : EMPTY_PROJECTS}
+                            onMoveToProject={handleMoveToProject}
+                            sessionGroups={sessionGroups}
+                            onMoveToGroup={handleMoveToGroup}
+                            onCreateGroup={handleRequestCreateGroup}
                             relativeTimeNow={relativeTimeNow}
                             onSelect={handleSelectAgentSession}
                             onRequestDelete={handleRequestDelete}
@@ -3206,6 +3254,11 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                                       ? workspaceNameMap.get(childSession.workspaceId)
                                       : undefined
                                   }
+                                  projects={childSession.workspaceId === currentWorkspaceId ? currentWorkspaceProjects : EMPTY_PROJECTS}
+                                  onMoveToProject={handleMoveToProject}
+                                  sessionGroups={sessionGroups}
+                                  onMoveToGroup={handleMoveToGroup}
+                                  onCreateGroup={handleRequestCreateGroup}
                                   onSelect={handleSelectAgentSession}
                                   onRequestDelete={handleRequestDelete}
                                   onRequestMove={handleRequestMove}
@@ -3222,17 +3275,92 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                     })}
                   </div>
                 </div>
-              ))
-            )}
+              ))}
+            </div>
+          )}
+        </div>
+      ) : mode === 'agent' && agentGroupBy === 'project' ? (
+        <div className="flex-1 flex flex-col min-h-0">
+          <SidebarProjectsTab
+            workspaceRoot={workspaceRoot}
+            sessionHandlers={projectTabSessionHandlers}
+            status={agentStatusFilter}
+            sortBy={agentSortBy}
+          />
+        </div>
+      ) : mode === 'agent' ? (
+        <div className="flex-1 overflow-y-auto px-3 pt-2 pb-3 scrollbar-thin min-h-0 titlebar-no-drag">
+          {/* 分组方式：状态 / 自定义分组 / 不分组——比日期模式简化，不含委派树展开 */}
+          {agentGroupBy === 'none' ? (
+            agentFlatModeSessions.length > 0 ? (
+              <div className="flex flex-col gap-0.5">
+                {agentFlatModeSessions.map((session) => renderAgentFlatSessionRow(session))}
+              </div>
+            ) : (
+              <div className="px-2 py-8 text-center text-[13px] text-foreground/35">暂无会话</div>
+            )
+          ) : agentFlatModeGroups.length > 0 ? (
+            agentFlatModeGroups.map((group) => (
+              <div key={group.groupId ?? group.label} className="mb-1">
+                <div className="px-1.5 pt-2 pb-1 text-[11px] font-medium text-foreground/40 select-none first:pt-0">
+                  {group.label}
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  {group.items.map((session) => renderAgentFlatSessionRow(session))}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="px-2 py-8 text-center text-[13px] text-foreground/35">暂无会话</div>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* 归档视图标题栏（仅 Chat 模式可达：Agent 模式归档已并入上方「分组方式：日期」+「状态：已归档/全部」） */}
+          {viewMode === 'archived' && (
+            <div className="px-6 pt-3 pb-1">
+              <div className="text-[12px] font-medium text-foreground/40">
+                已归档对话
+              </div>
+            </div>
+          )}
+
+          {/* 归档视图：单列表布局 */}
+          <div className="flex-1 overflow-y-auto px-3 pt-2 pb-3 scrollbar-thin titlebar-no-drag">
+            {/* Chat 归档：对话按日期分组 */}
+            {conversationGroups.map((group) => (
+              <div key={group.label} className="mb-1">
+                <div className="px-3 pt-2 pb-1 text-[11px] font-medium text-foreground/40 select-none">
+                  {group.label}
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  {group.items.map((conv) => (
+                    <ConversationItem
+                      key={conv.id}
+                      conversation={conv}
+                      active={conv.id === activeSessionId}
+                      streaming={streamingIds.has(conv.id)}
+                      showPinIcon={!!conv.pinned}
+                      relativeTimeNow={relativeTimeNow}
+                      onSelect={handleSelectConversation}
+                      onRequestDelete={handleRequestDelete}
+                      onRename={handleRename}
+                      onTogglePin={handleTogglePin}
+                      onToggleArchive={handleToggleArchive}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </>
       )}
 
-      {/* 已归档入口 / 返回活跃对话 */}
-      <div className="px-3 pb-1">
-        {viewMode === 'active' ? (
-          <>
-            {mode === 'chat' && archivedConversationCount > 0 && (
+      {/* 已归档入口 / 返回活跃对话：仅 Chat 模式——Agent 模式已并入上方筛选菜单的「状态」 */}
+      {mode === 'chat' && (
+        <div className="px-3 pb-1">
+          {viewMode === 'active' ? (
+            archivedConversationCount > 0 && (
               <button
                 onClick={() => setViewMode('archived')}
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-[10px] text-[12px] text-foreground/40 hover:bg-foreground/[0.04] hover:text-foreground/60 transition-colors titlebar-no-drag"
@@ -3240,27 +3368,18 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                 <Archive size={13} className="text-foreground/30" />
                 <span>已归档对话 ({archivedConversationCount})</span>
               </button>
-            )}
-            {mode === 'agent' && archivedAgentSessionCount > 0 && (
-              <button
-                onClick={() => setViewMode('archived')}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-[10px] text-[12px] text-foreground/40 hover:bg-foreground/[0.04] hover:text-foreground/60 transition-colors titlebar-no-drag"
-              >
-                <Archive size={13} className="text-foreground/30" />
-                <span>已归档会话 ({archivedAgentSessionCount})</span>
-              </button>
-            )}
-          </>
-        ) : (
-          <button
-            onClick={() => setViewMode('active')}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-[10px] text-[12px] text-foreground/60 bg-foreground/[0.04] hover:bg-foreground/[0.07] hover:text-foreground/80 transition-colors titlebar-no-drag"
-          >
-            <ArrowLeft size={13} className="text-foreground/50" />
-            <span>返回活跃{mode === 'agent' ? '会话' : '对话'}</span>
-          </button>
-        )}
-      </div>
+            )
+          ) : (
+            <button
+              onClick={() => setViewMode('active')}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-[10px] text-[12px] text-foreground/60 bg-foreground/[0.04] hover:bg-foreground/[0.07] hover:text-foreground/80 transition-colors titlebar-no-drag"
+            >
+              <ArrowLeft size={13} className="text-foreground/50" />
+              <span>返回活跃对话</span>
+            </button>
+          )}
+        </div>
+      )}
 
       {/* 底部：用户资料 + 设置入口 */}
       <div className="sidebar-footer px-3 pb-3">
@@ -3303,6 +3422,12 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       {projectDeleteDialog}
       {moveDialog}
       <NewTaskProjectFlowDialog />
+      <CreateSessionGroupDialog
+        open={createGroupTargetSessionId !== null}
+        busy={creatingSessionGroup}
+        onOpenChange={(open) => { if (!open && !creatingSessionGroup) setCreateGroupTargetSessionId(null) }}
+        onSubmit={(name) => { void handleSubmitCreateGroup(name) }}
+      />
     </div>
   )
 }
@@ -3464,7 +3589,7 @@ const ConversationItem = React.memo(function ConversationItem({
                 {showPinIcon && (
                   <Pin size={11} className="flex-shrink-0 text-primary/60" />
                 )}
-                <span className="truncate">{conversation.title}</span>
+                <MarqueeText text={conversation.title} />
               </div>
             )}
           </div>
@@ -3474,7 +3599,6 @@ const ConversationItem = React.memo(function ConversationItem({
             <>
               <SessionItemActions
                 updatedAt={conversation.updatedAt}
-                relativeTimeNow={relativeTimeNow}
                 onMenuOpenChange={setMenuOpen}
                 menuItems={menuItems}
               />
@@ -3511,6 +3635,10 @@ interface DelegatedChildSessionItemProps {
   /** 当前工作区项目列表 + 移动回调；透传给会话行的「移动到项目」子菜单 */
   projects?: KanbanProject[]
   onMoveToProject?: (sessionId: string, projectId?: string) => void | Promise<void>
+  /** 当前工作区自定义分组 + 移动/新建回调；透传给会话行的「移动到分组」子菜单 */
+  sessionGroups?: SessionGroup[]
+  onMoveToGroup?: (sessionId: string, groupId?: string) => void | Promise<void>
+  onCreateGroup?: (sessionId: string) => void
   onSelect: (id: string, title: string) => void
   onRequestDelete: (id: string) => void
   onRequestMove: (id: string) => void
@@ -3528,6 +3656,9 @@ const DelegatedChildSessionItem = React.memo(function DelegatedChildSessionItem(
   workspaceName,
   projects,
   onMoveToProject,
+  sessionGroups,
+  onMoveToGroup,
+  onCreateGroup,
   onSelect,
   onRequestDelete,
   onRequestMove,
@@ -3547,6 +3678,9 @@ const DelegatedChildSessionItem = React.memo(function DelegatedChildSessionItem(
       workspaceName={workspaceName}
       projects={projects}
       onMoveToProject={onMoveToProject}
+      sessionGroups={sessionGroups}
+      onMoveToGroup={onMoveToGroup}
+      onCreateGroup={onCreateGroup}
       onSelect={onSelect}
       onRequestDelete={onRequestDelete}
       onRequestMove={onRequestMove}
@@ -3594,6 +3728,9 @@ interface AgentProjectGroupItemProps {
   /** 隐藏 Workspace 组头（当前 Workspace 已由顶栏 WorkspaceSwitcher 展示） */
   hideWorkspaceHeader?: boolean
   onMoveToProject: (sessionId: string, projectId?: string) => void | Promise<void>
+  sessionGroups?: SessionGroup[]
+  onMoveToGroup?: (sessionId: string, groupId?: string) => void | Promise<void>
+  onCreateGroup?: (sessionId: string) => void
   onSelectSession: (id: string, title: string) => void
   onRequestDelete: (id: string) => void
   onRequestMove: (id: string) => void
@@ -3634,6 +3771,9 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
   projects,
   hideWorkspaceHeader = false,
   onMoveToProject,
+  sessionGroups,
+  onMoveToGroup,
+  onCreateGroup,
   onSelectSession,
   onRequestDelete,
   onRequestMove,
@@ -3802,9 +3942,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
               : <FolderOpen size={13} className="flex-shrink-0 text-foreground/40" />
             }
             <span className="flex min-w-0 items-center">
-              <span className="min-w-0 truncate text-[13px] font-medium leading-[18px]">
-                {group.workspace.name}
-              </span>
+              <MarqueeText text={group.workspace.name} className="min-w-0 text-[13px] font-medium leading-[18px]" />
               {isCurrent && (
                 <span className="workspace-selected-triangle flex-shrink-0" aria-hidden="true" />
               )}
@@ -3939,6 +4077,9 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
                           projectColor={item.session.projectId ? projectColorMap.get(item.session.projectId) : undefined}
                           projects={projects}
                           onMoveToProject={onMoveToProject}
+                          sessionGroups={sessionGroups}
+                          onMoveToGroup={onMoveToGroup}
+                          onCreateGroup={onCreateGroup}
                           onSelect={onSelectSession}
                           onRequestDelete={onRequestDelete}
                           onRequestMove={onRequestMove}
@@ -3960,6 +4101,9 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
                                 workspaceName={isAutomationGroup && childSession.workspaceId ? workspaceNameMap?.get(childSession.workspaceId) : undefined}
                                 projects={projects}
                                 onMoveToProject={onMoveToProject}
+                                sessionGroups={sessionGroups}
+                                onMoveToGroup={onMoveToGroup}
+                                onCreateGroup={onCreateGroup}
                                 onSelect={onSelectSession}
                                 onRequestDelete={onRequestDelete}
                                 onRequestMove={onRequestMove}

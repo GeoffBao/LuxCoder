@@ -66,6 +66,10 @@ import {
   sidebarModuleCollapsedMapAtom,
   initializeSidebarModuleCollapsed,
 } from './atoms/sidebar-module-atoms'
+import {
+  sessionListPreferenceValueAtom,
+  initializeSessionListPreference,
+} from './atoms/session-list-preference-atoms'
 import { useGlobalAgentListeners } from './hooks/useGlobalAgentListeners'
 import { useGlobalChatListeners } from './hooks/useGlobalChatListeners'
 import { tabsAtom, activeTabIdAtom, ensureScratchPadTab, getPersistableTabState, scratchPadContentAtom, scratchPadLoadedAtom, SCRATCH_PAD_ID } from './atoms/tab-atoms'
@@ -500,6 +504,21 @@ function SidebarModuleInitializer(): null {
   useEffect(() => {
     void initializeSidebarModuleCollapsed(setCollapsedMap)
   }, [setCollapsedMap])
+
+  return null
+}
+
+/**
+ * 会话列表偏好初始化组件
+ *
+ * 从主进程加载 settings.json 中的 sessionListPreference 并写入 atom。
+ */
+function SessionListPreferenceInitializer(): null {
+  const setPreference = useSetAtom(sessionListPreferenceValueAtom)
+
+  useEffect(() => {
+    void initializeSessionListPreference(setPreference)
+  }, [setPreference])
 
   return null
 }
@@ -963,6 +982,7 @@ if (isQuickTaskWindow) {
       <UiPreferencesInitializer />
       <MarkdownFontSizeInitializer />
       <SidebarModuleInitializer />
+      <SessionListPreferenceInitializer />
       <ChatListenersInitializer />
       <AgentListenersInitializer />
       <ChatToolInitializer />

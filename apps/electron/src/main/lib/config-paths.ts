@@ -297,6 +297,16 @@ export function getWorkspaceMcpPath(slug: string): string {
 }
 
 /**
+ * 获取指定工作区的会话自定义分组存储文件路径
+ *
+ * @param slug 工作区 slug
+ * @returns ~/.luxcoder/agent-workspaces/{slug}/session-groups.json
+ */
+export function getSessionGroupsPath(slug: string): string {
+  return join(getAgentWorkspacePath(slug), 'session-groups.json')
+}
+
+/**
  * 获取指定工作区的 Skills 目录路径
  *
  * 如果目录不存在则自动创建。

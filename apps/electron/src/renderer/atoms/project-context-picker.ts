@@ -13,6 +13,3 @@ export const newTaskProjectFlowOpenAtom = atom(false)
  * 若需先打开对话框再浏览（⌘O 无 Draft / 项目菜单），应在 host 挂载后再递增。
  */
 export const projectContextBrowseRequestAtom = atom(0)
-
-/** 项目投影是否显示已归档项目 */
-export const showArchivedProjectsAtom = atom(false)

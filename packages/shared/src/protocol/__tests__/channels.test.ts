@@ -31,6 +31,8 @@ function readSessionCommandKind(command: SessionKanbanCommand): string {
       return command.workspaceId;
     case 'set_project_id':
       return command.projectId ?? 'none';
+    case 'set_custom_group':
+      return command.groupId ?? 'none';
     case 'set_kanban_column':
       return command.kanbanColumn ?? 'none';
     case 'set_session_status':
@@ -123,6 +125,7 @@ describe('kanban protocol contracts', () => {
     const commands: SessionKanbanCommand[] = [
       { kind: 'move_to_workspace', workspaceId: 'workspace-beta' },
       { kind: 'set_project_id', projectId: 'project-1' },
+      { kind: 'set_custom_group', groupId: 'group-1' },
       { kind: 'set_kanban_column', kanbanColumn: 'in-progress' },
       { kind: 'set_session_status', status: 'running' },
       { kind: 'set_task_node_count', taskNodeCount: 3 },
@@ -135,6 +138,7 @@ describe('kanban protocol contracts', () => {
     expect(commands.map((command) => readSessionCommandKind(command))).toEqual([
       'workspace-beta',
       'project-1',
+      'group-1',
       'in-progress',
       'running',
       '3',
