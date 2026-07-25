@@ -248,12 +248,14 @@ const noopVoid = (): void => {}
 const noopAsync = async (): Promise<void> => {}
 const noopDragEvent = (_e: React.DragEvent, _workspaceId?: string): void => {}
 /** 非当前工作区组的空项目列表；模块级常量保证引用稳定，不破坏 React.memo */
+/** 项目组内会话预览数量（折叠态显示的非活跃会话上限） */
+const PROJECT_SESSION_PREVIEW_LIMIT = 25
+/** 最近会话窗口（ms），超过此窗口的旧会话仅在"显示更多"后出现 */
+const PROJECT_SESSION_RECENT_WINDOW_MS = 7 * 86_400_000
+/** 已弃用：保留以兼容旧引用——「显示更多」现改为一次性展开全部剩余会话 */
+const PROJECT_SESSION_EXPAND_STEP = 15
+/** 非当前工作区组的空项目列表；模块级常量保证引用稳定，不破坏 React.memo */
 const EMPTY_PROJECTS: KanbanProject[] = []
-
-const PROJECT_SESSION_PREVIEW_LIMIT = 10
-const PROJECT_SESSION_RECENT_WINDOW_MS = 3 * 86_400_000
-/** 点击"显示更多"时每次额外展开的会话数量 */
-const PROJECT_SESSION_EXPAND_STEP = 10
 /** 置顶区最多占用约 6 条会话的高度，超过后在置顶区内部滚动 */
 const PINNED_SESSION_VISIBLE_LIMIT = 6
 const PINNED_SESSION_ROW_HEIGHT_PX = 32
@@ -652,8 +654,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   const [moveTargetId, setMoveTargetId] = React.useState<string | null>(null)
   /** 待迁移会话所属的工作区 ID（用于对话框排除当前分区） */
   const [moveSourceWorkspaceId, setMoveSourceWorkspaceId] = React.useState<string | undefined>()
-  /** 每个工作区额外展开显示的会话数量（每次点击"显示更多" +10），未点击则为 0 或无值 */
-  const [expandedExtraCountMap, setExpandedExtraCountMap] = React.useState<Map<string, number>>(new Map())
+  /** 已完全展开的工作区 ID 集合（"显示更多"后展示全部剩余会话，不再分批） */
+  const [expandedWorkspaceIds, setExpandedWorkspaceIds] = React.useState<Set<string>>(new Set())
   /** 记录被用户手动折叠的工作区 ID（点击当前工作区标题时折叠/展开）。刻意不持久化：折叠被视为临时查看行为，刷新/重启后恢复默认展开 */
   const [collapsedWorkspaceIds, setCollapsedWorkspaceIds] = React.useState<Set<string>>(new Set())
   /** 记录已展开的委派母会话；默认收起，避免批量派遣后撑满侧栏 */
@@ -1431,12 +1433,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       setWorkspaces(remainingWorkspaces)
       setAgentSessions(sessions)
 
-      setExpandedExtraCountMap((prev) => {
-        if (!prev.has(workspaceId)) return prev
-        const next = new Map(prev)
-        next.delete(workspaceId)
-        return next
-      })
+      setExpandedWorkspaceIds((prev) => { const next = new Set(prev); next.delete(workspaceId); return next })
 
       setCollapsedWorkspaceIds((prev) => deleteSetEntry(prev, workspaceId))
       setExpandedDelegationParentIds((prev) => {
@@ -1486,23 +1483,14 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     setCurrentWorkspaceId,
   ])
 
-  /** 展开某个工作区时每次额外显示的会话数量 */
+  /** 展开某个工作区：一次性显示全部剩余会话，不再分批 */
   const handleShowMoreSessions = React.useCallback((workspaceId: string): void => {
-    setExpandedExtraCountMap((prev) => {
-      const next = new Map(prev)
-      next.set(workspaceId, (prev.get(workspaceId) ?? 0) + PROJECT_SESSION_EXPAND_STEP)
-      return next
-    })
+    setExpandedWorkspaceIds((prev) => { const next = new Set(prev); next.add(workspaceId); return next })
   }, [])
 
   /** 收起某个工作区额外展开的会话 */
   const handleCollapseExtraSessions = React.useCallback((workspaceId: string): void => {
-    setExpandedExtraCountMap((prev) => {
-      if (!prev.has(workspaceId)) return prev
-      const next = new Map(prev)
-      next.delete(workspaceId)
-      return next
-    })
+    setExpandedWorkspaceIds((prev) => { const next = new Set(prev); next.delete(workspaceId); return next })
   }, [])
 
   /** 开始拖拽工作区排序 */
@@ -1780,7 +1768,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     pinnedConversations,
     pinnedAgentSessions,
     conversationGroups,
-    expandedExtraCountMap,
+    expandedWorkspaceIds,
     collapsedWorkspaceIds,
     expandedDelegationParentIds,
     collapsedDelegationParentIds,
@@ -3052,8 +3040,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                     isAutomationGroup={isAuto}
                     workspaceNameMap={isAuto ? workspaceNameMap : undefined}
                     currentWorkspaceId={currentWorkspaceId}
-                    expanded={(expandedExtraCountMap.get(group.workspace.id) ?? 0) > 0}
-                    extraCount={expandedExtraCountMap.get(group.workspace.id) ?? 0}
+                    expanded={expandedWorkspaceIds.has(group.workspace.id)}
                     collapsed={isAuto ? collapsedWorkspaceIds.has(group.workspace.id) : false}
                     activeSessionId={activeSessionId}
                     agentIndicatorMap={agentIndicatorMap}
@@ -3568,8 +3555,6 @@ interface AgentProjectGroupItemProps {
   workspaceNameMap?: Map<string, string>
   expanded: boolean
   collapsed: boolean
-  /** 用户已点击"显示更多"额外展开的会话数量（基于 collapsedSessions 之上累加） */
-  extraCount: number
   activeSessionId: string | null
   agentIndicatorMap: Map<string, SessionIndicatorStatus>
   expandedDelegationParentIds: Set<string>
@@ -3612,7 +3597,6 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
   workspaceNameMap,
   expanded,
   collapsed,
-  extraCount,
   activeSessionId,
   agentIndicatorMap,
   expandedDelegationParentIds,
@@ -3726,7 +3710,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
   const collapsedSessions = [...activeSessions, ...fillSessions]
   const collapsedIds = new Set(collapsedSessions.map((item) => item.session.id))
   const remainingSessions = treeItems.filter((item) => !collapsedIds.has(item.session.id))
-  const extraSessions = remainingSessions.slice(0, extraCount)
+  const extraSessions = expanded ? remainingSessions : []
   const sessionsWithoutPinned = [...collapsedSessions, ...extraSessions]
   // 仅当选中会话不在当前可见列表中时才置顶（如搜索结果打开旧会话），
   // 若会话已在可见区域则保持原位不跳
