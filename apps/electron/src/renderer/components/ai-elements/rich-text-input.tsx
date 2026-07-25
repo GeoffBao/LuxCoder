@@ -139,6 +139,8 @@ interface RichTextInputProps {
   onHtmlChange?: (html: string) => void
   /** 是否使用 Cmd/Ctrl+Enter 发送（而非 Enter） */
   sendWithCmdEnter?: boolean
+  /** 编辑区最小高度（px），默认 101——为空态多行输入预留空间；紧凑场景（如 Agent 主输入框）可传更小的值 */
+  minHeight?: number
   className?: string
 }
 
@@ -171,6 +173,7 @@ export function RichTextInput({
   htmlValue,
   onHtmlChange,
   sendWithCmdEnter = false,
+  minHeight = 101,
 }: RichTextInputProps): React.ReactElement {
   const [isExpanded, setIsExpanded] = useState(false)
   const inputIdRef = useRef(`rich-text-input-${Math.random().toString(36).slice(2)}`)
@@ -363,12 +366,14 @@ export function RichTextInput({
       attributes: {
         class: cn(
           'prose dark:prose-invert max-w-none focus:outline-none',
-          'min-h-[101px] w-full text-[15px] leading-[1.6]',
+          'w-full text-[15px] leading-[1.6]',
           '[&>*:first-child]:mt-0 [&>*:last-child]:mb-0',
           '[&_pre]:rounded-md [&_pre]:p-3',
           '[&_code]:bg-muted [&_code]:rounded [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-sm [&_code]:text-foreground',
           '[&_pre_code]:bg-transparent [&_pre_code]:p-0'
         ),
+        // Tailwind 任意值 class 无法接收动态数字，min-height 走内联 style
+        style: `min-height: ${minHeight}px`,
       },
       // 监听 IME 输入状态
       handleDOMEvents: {

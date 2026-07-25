@@ -2707,7 +2707,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
   return (
     <>
     <AgentSessionProvider sessionId={sessionId}>
-      <div className="agent-workbench flex h-full min-h-0 flex-1 min-w-0 max-w-[min(72rem,100%)] flex-col overflow-hidden mx-auto">
+      <div className="agent-workbench flex h-full min-h-0 flex-1 min-w-0 max-w-[min(80rem,100%)] flex-col overflow-hidden mx-auto">
         {/* Agent Header */}
         {/* key 保证会话切换时重置标题编辑态 */}
         <AgentHeader key={sessionId} sessionId={sessionId} />
@@ -2746,7 +2746,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
 
         {/* 输入区域 — 交互横幅显示时隐藏，由横幅替代 */}
         {!hasBannerOverlay && (
-        <div className="px-2.5 pb-2.5 md:px-[18px] md:pb-[18px]" data-input-mode="agent">
+        <div className="px-2.5 pb-2.5 md:px-3 md:pb-3" data-input-mode="agent">
           <div
             className={cn(
               'agent-composer-polished rounded-[17px] border-[0.5px] border-border bg-background/70 transition-[border-color,box-shadow,background-color] duration-base ease-out',
@@ -2845,6 +2845,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
               value={inputContent}
               onChange={setInputContent}
               onSubmit={handleSend}
+              minHeight={48}
               onPasteFiles={handlePasteFiles}
               onPasteLongText={handlePasteLongText}
               longTextPasteThreshold={longTextPasteAsAttachmentEnabled ? LONG_TEXT_ATTACHMENT_THRESHOLD : undefined}

@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Folder, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -36,11 +36,10 @@ export function WorkingDirectoryField({
         disabled={picking}
         title={value || '选择本地文件夹作为工作目录'}
         className={cn(
-          'inline-flex h-9 min-w-0 flex-1 items-center gap-2 rounded-md border border-border/60 bg-background px-2.5 text-left text-sm',
+          'inline-flex h-9 min-w-0 flex-1 items-center rounded-md border border-border/60 bg-background px-2.5 text-left text-sm',
           'hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-60',
         )}
       >
-        <Folder className="h-3.5 w-3.5 shrink-0 text-muted-foreground" strokeWidth={2} />
         <span className={cn('min-w-0 flex-1 truncate', !folderName && 'text-muted-foreground')}>
           {folderName ?? (picking ? '选择中…' : '选择本地路径')}
         </span>

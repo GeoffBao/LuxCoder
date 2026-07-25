@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { WorkingDirectoryField } from '@/components/app-shell/kanban/WorkingDirectoryField'
+import { AccentColorPicker } from './AccentColorPicker'
 import {
   Dialog,
   DialogContent,
@@ -129,7 +130,7 @@ export function ProjectSettingsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>⚙️ 项目设置</DialogTitle>
+          <DialogTitle>项目设置</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
@@ -142,15 +143,13 @@ export function ProjectSettingsDialog({
                   onChange={(e) => setSettingsDraft((d) => ({ ...d, name: e.target.value }))}
                 />
               </label>
-              <label className="space-y-1.5 text-xs font-medium">
+              <div className="space-y-1.5 text-xs font-medium">
                 强调色
-                <Input
-                  type="color"
-                  className="h-9 w-16 p-1"
-                  value={settingsDraft.color || '#6366f1'}
-                  onChange={(e) => setSettingsDraft((d) => ({ ...d, color: e.target.value }))}
+                <AccentColorPicker
+                  value={settingsDraft.color}
+                  onChange={(color) => setSettingsDraft((d) => ({ ...d, color }))}
                 />
-              </label>
+              </div>
             </div>
             <label className="block space-y-1.5 text-xs font-medium">
               描述

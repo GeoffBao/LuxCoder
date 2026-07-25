@@ -9,13 +9,14 @@
 import * as React from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { LeftSidebar } from './LeftSidebar'
+import { SearchDialog } from './SearchDialog'
 import { RightSidePanel } from './RightSidePanel'
 import { MainArea } from '@/components/tabs/MainArea'
 import { AppShellProvider, type AppShellContextType } from '@/contexts/AppShellContext'
 import { appModeAtom } from '@/atoms/app-mode'
 import { codeMainViewAtom, workViewAtom } from '@/atoms/project-atoms'
 import { agentSidePanelWidthAtom, currentAgentSessionIdAtom, currentSessionSidePanelOpenAtom } from '@/atoms/agent-atoms'
-import { leftSidebarWidthAtom } from '@/atoms/sidebar-atoms'
+import { leftSidebarWidthAtom, MIN_LEFT_SIDEBAR_WIDTH } from '@/atoms/sidebar-atoms'
 import { sidebarCollapsedAtom } from '@/atoms/tab-atoms'
 import { automationFormAtom } from '@/atoms/automation-atoms'
 import { activeViewAtom } from '@/atoms/active-view'
@@ -32,7 +33,6 @@ function clampRightPanelWidth(width: number): number {
   return Math.max(MIN_RIGHT_PANEL_WIDTH, Math.min(MAX_RIGHT_PANEL_WIDTH, width))
 }
 
-const MIN_LEFT_SIDEBAR_WIDTH = 300
 const MAX_LEFT_SIDEBAR_WIDTH = 420
 
 function clampLeftSidebarWidth(width: number): number {
@@ -190,21 +190,23 @@ export function AppShell({ contextValue }: AppShellProps): React.ReactElement {
       <WindowControls />
 
       <div className="shell-bg refined-shell h-screen w-screen flex overflow-hidden bg-gradient-to-br from-zinc-50 to-zinc-100 dark:from-zinc-950 dark:to-zinc-900">
-        {/* 左侧边栏：可折叠，可拖拽调整宽度 */}
-        <div className={cn(isClassic ? 'p-2 pr-0' : '', 'relative z-[60] crt-sidebar')}>
-          <LeftSidebar width={clampedLeftSidebarWidth} noTransition={isDraggingLeftSidebar} />
-          {/* 侧边栏展开时显示拖拽手柄，折叠态隐藏 */}
-          {!sidebarCollapsed && (
-            <div
-              className={cn(
-                'absolute right-0 top-0 bottom-0 w-4 translate-x-1/2 cursor-col-resize hover:bg-primary/5 active:bg-primary/50 transition-colors z-20'
-              )}
-              onMouseDown={handleLeftSidebarMouseDown}
-            />
-          )}
-        </div>
-        {!isClassic && (
-          <div aria-hidden="true" className="relative z-[61] w-px flex-shrink-0 bg-foreground/[0.045]" />
+        {/* 左侧边栏：折叠态和 Claude 一样整体隐藏（不保留图标 rail），
+            折叠/展开按钮固定在 TabBar（紧邻第一个标签），收起后仍可从那里唤回。 */}
+        {!sidebarCollapsed && (
+          <>
+            <div className={cn(isClassic ? 'p-2 pr-0' : '', 'relative z-[60] crt-sidebar')}>
+              <LeftSidebar width={clampedLeftSidebarWidth} noTransition={isDraggingLeftSidebar} />
+              <div
+                className={cn(
+                  'absolute right-0 top-0 bottom-0 w-4 translate-x-1/2 cursor-col-resize hover:bg-primary/5 active:bg-primary/50 transition-colors z-20'
+                )}
+                onMouseDown={handleLeftSidebarMouseDown}
+              />
+            </div>
+            {!isClassic && (
+              <div aria-hidden="true" className="relative z-[61] w-px flex-shrink-0 bg-foreground/[0.045]" />
+            )}
+          </>
         )}
 
         {/* 中间容器：relative z-[60] 使其在 z-50 拖动区域之上 */}
@@ -241,6 +243,9 @@ export function AppShell({ contextValue }: AppShellProps): React.ReactElement {
           </div>
         )}
       </div>
+
+      {/* 全局搜索：与侧边栏折叠态解耦，收起侧边栏后 ⌘⇧F 仍要能唤出 */}
+      <SearchDialog />
     </AppShellProvider>
   )
 }

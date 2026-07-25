@@ -85,7 +85,9 @@ export function ModeSwitcher(): React.ReactElement {
         {/* 滑动背景指示器（双模式各占一半） */}
         <div
           className={cn(
-            'mode-slider pointer-events-none absolute top-1 bottom-1 left-1 w-[calc(50%-2px)] rounded-lg bg-background shadow-sm transition-transform duration-base ease-out',
+            // 轨道 p-1（4px）内边距：宽度需减去 4px（非 2px），否则 translate-x-full 平移到右侧时
+            // 会正好贴住轨道右边缘（0px 间距），与左侧 Chat 态的 4px 间距不对称
+            'mode-slider pointer-events-none absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-lg bg-background shadow-sm transition-transform duration-base ease-out',
             sliderTranslate
           )}
         />

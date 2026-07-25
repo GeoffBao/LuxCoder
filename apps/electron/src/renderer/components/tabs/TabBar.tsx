@@ -36,14 +36,47 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { TabBarItem } from './TabBarItem'
 import { useCloseTab } from '@/hooks/useCloseTab'
-import { detectIsWindows, WINDOW_CONTROLS_INSET_RIGHT, WINDOW_CONTROLS_PADDING_RIGHT } from '@/lib/platform'
+import {
+  detectIsMac,
+  detectIsWindows,
+  MAC_TRAFFIC_LIGHTS_PADDING_LEFT,
+  WINDOW_CONTROLS_INSET_RIGHT,
+  WINDOW_CONTROLS_PADDING_RIGHT,
+} from '@/lib/platform'
 import { registerShortcut } from '@/lib/shortcut-registry'
 import { cn } from '@/lib/utils'
+
+/**
+ * macOS 原生全屏检测（非 HTML fullscreen，而是 Electron 原生全屏）。
+ * 全屏时红绿灯自动隐藏（仅 hover 顶部时滑出），无需为其留 padding；
+ * 用 window.outerHeight >= screen.height 判断（全屏窗口覆盖整个屏幕包括菜单栏区域）。
+ */
+function useIsMacFullscreen(): boolean {
+  const [isFullscreen, setIsFullscreen] = React.useState(false)
+
+  React.useEffect(() => {
+    const check = (): void => {
+      setIsFullscreen(window.outerHeight >= screen.height - 1)
+    }
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
+  return isFullscreen
+}
 
 export function TabBar(): React.ReactElement {
   const tabs = useAtomValue(tabsAtom)
   const [activeTabId, setActiveTabId] = useAtom(activeTabIdAtom)
   const indicatorMap = useAtomValue(tabIndicatorMapAtom)
+  // 侧边栏折叠为完全隐藏后，TabBar 顶到窗口最左侧，需要自己避让 macOS 原生红绿灯
+  // （侧边栏展开时红绿灯避让由侧边栏自身顶部留白负责，见 LeftSidebar 的 SidebarWindowDragStrip）
+  const sidebarCollapsed = useAtomValue(sidebarCollapsedAtom)
+  const isMac = React.useMemo(() => detectIsMac(), [])
+  const isMacFullscreen = useIsMacFullscreen()
+  // 全屏时红绿灯自动隐藏，无需留 padding
+  const needsMacTrafficLightGap = isMac && sidebarCollapsed && !isMacFullscreen
 
   // Tab 切换时同步 sidebar 状态
   const appMode = useAtomValue(appModeAtom)
@@ -180,7 +213,7 @@ export function TabBar(): React.ReactElement {
 
   if (tabs.length === 0) {
     return (
-      <div className="h-[34px] flex items-center titlebar-drag-region">
+      <div className={cn('h-[34px] flex items-center titlebar-drag-region', needsMacTrafficLightGap && MAC_TRAFFIC_LIGHTS_PADDING_LEFT)}>
         <SidebarToggleButton />
       </div>
     )
@@ -195,6 +228,7 @@ export function TabBar(): React.ReactElement {
         workspaceNameBySessionId={workspaceNameBySessionId}
         automationSessionIds={automationSessionIds}
         delegationSessionIds={delegationSessionIds}
+        needsMacTrafficLightGap={needsMacTrafficLightGap}
         onActivate={handleActivate}
         onClose={requestClose}
         onDragStart={handleDragStart}
@@ -247,6 +281,7 @@ function TabBarInner({
   workspaceNameBySessionId,
   automationSessionIds,
   delegationSessionIds,
+  needsMacTrafficLightGap,
   onActivate,
   onClose,
   onDragStart,
@@ -258,6 +293,7 @@ function TabBarInner({
   workspaceNameBySessionId: Map<string, string>
   automationSessionIds: Set<string>
   delegationSessionIds: Set<string>
+  needsMacTrafficLightGap: boolean
   onActivate: (tabId: string) => void
   onClose: (tabId: string) => void
   onDragStart: (tabId: string, e: React.PointerEvent) => void
@@ -412,12 +448,20 @@ function TabBarInner({
   }, [])
 
   return (
-    <div ref={barRef} className="main-tabbar workspace-tabbar relative flex h-[34px] items-end tabbar-bg">
+    <div ref={barRef} className={cn(
+      "main-tabbar workspace-tabbar relative flex h-[34px] items-end tabbar-bg",
+      needsMacTrafficLightGap && MAC_TRAFFIC_LIGHTS_PADDING_LEFT,
+    )}>
       {/* 顶部 TabBar 的空白区域必须保持可拖拽，尤其是 macOS/Windows 自定义标题栏。
           注意：不要把 titlebar-no-drag 加到下面的整条 flex 容器上，否则标签右侧空白会再次失去拖拽能力。
           Windows 上背景拖拽层避开右上角 WindowControls 区域（126px），防止 hitmask 重叠。
+          macOS 侧边栏折叠时父容器有 pl-[80px] 避让红绿灯，拖拽层用 -left-[80px] 补回全宽。
           需要交互的单个 Tab 会在 TabBarItem 内部自己声明 titlebar-no-drag。 */}
-      <div className={cn("absolute inset-0 titlebar-drag-region", isWindows && WINDOW_CONTROLS_INSET_RIGHT)} />
+      <div className={cn(
+        "absolute top-0 bottom-0 titlebar-drag-region",
+        needsMacTrafficLightGap ? "-left-[80px] right-0" : "inset-0",
+        isWindows && WINDOW_CONTROLS_INSET_RIGHT,
+      )} />
 
       {/* Tear-off 提示遮罩：拖出 TabBar 区域时，让 TabBar 下方出现一条高亮分割线 */}
       {tearingOff && (

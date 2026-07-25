@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { WorkingDirectoryField } from '@/components/app-shell/kanban/WorkingDirectoryField'
+import { AccentColorPicker } from './AccentColorPicker'
 import { buildCreateProjectInput, type CreateProjectDraft } from './project-view-model'
 
 export interface CreateProjectDialogProps {
@@ -71,14 +72,13 @@ export function CreateProjectDialog({
             />
             <p className="text-[11px] font-normal text-muted-foreground">可选，从本地选择文件夹</p>
           </div>
-          <label className="block space-y-1.5 text-xs font-medium">
+          <div className="space-y-1.5 text-xs font-medium">
             强调色
-            <Input
-              type="color"
-              value={draft.color || '#6366f1'}
-              onChange={(e) => setDraft((d) => ({ ...d, color: e.target.value }))}
+            <AccentColorPicker
+              value={draft.color}
+              onChange={(color) => setDraft((d) => ({ ...d, color }))}
             />
-          </label>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>

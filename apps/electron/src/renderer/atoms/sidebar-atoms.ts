@@ -19,8 +19,11 @@ export const projectListHeightAtom = atomWithStorage<number>(
   120,
 )
 
+/** 左侧边栏最小宽度（px）；AppShell 拖拽调整用于夹取，LeftSidebar 渲染兜底用于保持一致 */
+export const MIN_LEFT_SIDEBAR_WIDTH = 240
+
 /** 左侧边栏宽度（px），用户可拖拽调整，持久化到 localStorage */
 export const leftSidebarWidthAtom = atomWithStorage<number>(
   'luxcoder-left-sidebar-width',
-  300,
+  260,
 )

@@ -78,7 +78,7 @@ import {
 import { userProfileAtom } from '@/atoms/user-profile'
 import { selectedProjectIdAtom, serverKanbanProjectsAtom, workViewAtom, codeMainViewAtom } from '@/atoms/project-atoms'
 import { buildRecentSessionList } from './sidebar-session-views'
-import { sidebarViewModeAtom } from '@/atoms/sidebar-atoms'
+import { sidebarViewModeAtom, MIN_LEFT_SIDEBAR_WIDTH } from '@/atoms/sidebar-atoms'
 import { searchDialogOpenAtom } from '@/atoms/search-atoms'
 import { hasUpdateAtom, updateStatusAtom, type UpdateStatus } from '@/atoms/updater'
 import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
@@ -2693,7 +2693,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
           ? 'bg-background rounded-2xl shadow-xl dark:shadow-md'
           : 'bg-[hsl(var(--sidebar-surface))]'
       )}
-      style={{ width: width ?? 300, minWidth: 200, flexShrink: 0 }}
+      style={{ width: width ?? MIN_LEFT_SIDEBAR_WIDTH, minWidth: MIN_LEFT_SIDEBAR_WIDTH, flexShrink: 0 }}
     >
       <SidebarWindowDragStrip
         height={isMac ? SIDEBAR_DRAG_STRIP_HEIGHT.expandedMac : SIDEBAR_DRAG_STRIP_HEIGHT.expanded}
@@ -2767,7 +2767,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       <div className="px-3 pt-2 flex items-center gap-1.5">
         <button
           onClick={mode === 'agent' ? handleNewAgentSession : handleNewConversation}
-          className="flex-1 flex items-center gap-2 h-10 px-3 rounded-[10px] text-[13px] font-medium text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-150 titlebar-no-drag"
+          className="flex-1 flex items-center gap-2 h-9 px-3 rounded-[10px] text-[13px] font-medium text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-150 titlebar-no-drag"
         >
           <Plus size={14} />
           <span>{mode === 'agent' ? '新会话' : '新对话'}</span>
@@ -2776,7 +2776,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
           <button
             type="button"
             onClick={handleNewTask}
-            className="flex-1 flex items-center gap-2 h-10 px-3 rounded-[10px] text-[13px] font-medium text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-150 titlebar-no-drag"
+            className="flex-1 flex items-center gap-2 h-9 px-3 rounded-[10px] text-[13px] font-medium text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-150 titlebar-no-drag"
           >
             <Plus size={14} />
             <span>新任务</span>
@@ -3297,7 +3297,6 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       {deleteDialog}
       {projectDeleteDialog}
       {moveDialog}
-      <SearchDialog />
       <NewTaskProjectFlowDialog />
     </div>
   )
