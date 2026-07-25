@@ -44,7 +44,7 @@ import pkg from '../../../package.json' with { type: 'json' }
 import { getFetchFn } from './proxy-fetch'
 import { getEffectiveProxyUrl } from './proxy-settings-service'
 import { appendSDKMessages, updateAgentSessionMeta, getAgentSessionMeta, getAgentSessionMessages, truncateSDKMessages, removeSDKErrorMessage, resolveUserUuidFromSDK, rewindFilesFromSnapshot, rewindPiAgentSession } from './agent-session-manager'
-import { getAgentWorkspace, getWorkspaceMcpConfig, ensurePluginManifest, getWorkspaceAutoMemoryDir, getWorkspaceAttachedDirectories, getWorkspaceAttachedFiles } from './agent-workspace-manager'
+import { getAgentWorkspace, getWorkspaceMcpConfig, ensurePluginManifest, getWorkspaceAutoMemoryDir, getWorkspaceAttachedDirectories, getWorkspaceAttachedFiles, getWorkspaceDefaultWorkingDirectory } from './agent-workspace-manager'
 import { getAgentWorkspacePath, getAgentSessionWorkspacePath, getSdkConfigDir, getWorkspaceFilesDir, getBundledCliPath, getWorkspaceSkillsDir, resolveClaudeAgentBinaryPath } from './config-paths'
 import { projectRepository } from './project-repository'
 import { getRuntimeStatus } from './runtime-init'
@@ -1207,11 +1207,16 @@ export class AgentOrchestrator {
       const projectContext = sessionMeta?.projectId && workspaceSlug
         ? projectRepository.buildPromptContext(getAgentWorkspacePath(workspaceSlug), sessionMeta.projectId)
         : null
+      // 未绑定项目时，回退到工作区默认工作目录（若已配置）
+      const workspaceDefaultWorkingDirectory = !projectContext && workspaceSlug
+        ? getWorkspaceDefaultWorkingDirectory(workspaceSlug)
+        : undefined
       const dynamicCtx = buildDynamicContext({
         workspaceName: workspace?.name,
         workspaceSlug,
         agentCwd,
         ...(projectContext ? { projectContext } : {}),
+        ...(workspaceDefaultWorkingDirectory ? { workspaceDefaultWorkingDirectory } : {}),
       })
 
       // 11.5 注入 mention 引用指令（Skill/MCP/会话）— 仅影响 prompt，不影响持久化

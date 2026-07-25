@@ -278,8 +278,11 @@ export function WorkBoardView(): React.ReactElement {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-2 bg-background p-3">
-      {/* Header: 项目名称 + 设置 + 刷新 */}
-      <div className="flex min-h-9 items-center justify-between rounded-xl bg-card px-3 shadow-sm">
+      {/* Header: 项目名称 + 设置 + 刷新
+          顶部 50px 是 AppShell 全局窗口拖动区（app-region 按矩形并集计算，与 z-index 无关），
+          不声明 no-drag 的按钮点击会被当成窗口拖动吞掉——对齐 SessionHeader 的模式：
+          整行声明 drag-region 保留空白处拖窗口能力，交互区声明 no-drag 保证可点击。 */}
+      <div className="titlebar-drag-region flex min-h-9 items-center justify-between rounded-xl bg-card px-3 shadow-sm">
         <div className="flex items-center gap-2 min-w-0">
           {selectedProject ? (
             <>
@@ -293,7 +296,7 @@ export function WorkBoardView(): React.ReactElement {
             <span className="text-[13px] text-foreground/40">未选择项目</span>
           )}
         </div>
-        <div className="flex items-center gap-1">
+        <div className="titlebar-no-drag flex items-center gap-1">
           {selectedProject && workspaceRoot && (
             <Button size="sm" variant="ghost" onClick={() => setSettingsOpen(true)}>
               <Settings className="h-4 w-4" />

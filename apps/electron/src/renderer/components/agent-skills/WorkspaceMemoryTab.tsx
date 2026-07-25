@@ -6,6 +6,7 @@ import type { SkillFileNode, WorkspaceMemorySummary } from '@luxcoder/shared'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SettingsCard } from '@/components/settings/primitives'
+import { WorkingDirectoryField } from '@/components/app-shell/kanban/WorkingDirectoryField'
 import { DefaultAppOpenButton } from '@/components/diff/DefaultAppOpenButton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { MessageResponse } from '@/components/ai-elements/message'
@@ -145,6 +146,8 @@ export function WorkspaceMemoryTab({ workspaceSlug, search }: WorkspaceMemoryTab
   const [viewMode, setViewMode] = React.useState<'preview' | 'edit'>('preview')
   const [initializing, setInitializing] = React.useState(false)
   const [historyRange, setHistoryRange] = React.useState<MemoryHistoryRange>('1m')
+  const [defaultWorkingDirectory, setDefaultWorkingDirectory] = React.useState('')
+  const [savingDefaultWorkingDirectory, setSavingDefaultWorkingDirectory] = React.useState(false)
 
   // 自动保存：用 ref 持有最新的编辑状态，供防抖定时器与"切换文件前 flush"复用，
   // 避免把 selected/editText 塞进一堆回调的依赖数组里。
@@ -328,6 +331,28 @@ export function WorkspaceMemoryTab({ workspaceSlug, search }: WorkspaceMemoryTab
     return () => { cancelled = true }
   }, [workspaceSlug])
 
+  // 加载工作区默认工作目录（未绑定项目的新会话回退使用）
+  React.useEffect(() => {
+    let cancelled = false
+    void window.electronAPI.getWorkspaceDefaultWorkingDirectory(workspaceSlug)
+      .then((path) => { if (!cancelled) setDefaultWorkingDirectory(path ?? '') })
+      .catch(() => { if (!cancelled) setDefaultWorkingDirectory('') })
+    return () => { cancelled = true }
+  }, [workspaceSlug])
+
+  const handleDefaultWorkingDirectoryChange = React.useCallback(async (path: string): Promise<void> => {
+    setDefaultWorkingDirectory(path)
+    setSavingDefaultWorkingDirectory(true)
+    try {
+      await window.electronAPI.setWorkspaceDefaultWorkingDirectory(workspaceSlug, path || undefined)
+    } catch (err) {
+      console.error('[工作区记忆] 保存默认工作目录失败:', err)
+      toast.error(err instanceof Error ? err.message : '保存默认工作目录失败')
+    } finally {
+      setSavingDefaultWorkingDirectory(false)
+    }
+  }, [workspaceSlug])
+
   // 防抖自动保存：编辑内容变脏后 800ms 内无新输入则自动保存（按钮显示 loading 动画）
   React.useEffect(() => {
     if (!selected || !isDirty || loadingFile) return
@@ -423,6 +448,22 @@ export function WorkspaceMemoryTab({ workspaceSlug, search }: WorkspaceMemoryTab
           onClick={() => void openAutoFile(AUTO_MEMORY_INDEX, summary)}
         />
       </div>
+
+      <SettingsCard divided={false}>
+        <div className="flex flex-col gap-2 p-4">
+          <div className="min-w-0">
+            <div className="text-sm font-medium text-foreground">默认工作目录</div>
+            <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              新会话未选择或新建项目时，Agent 会把这里当作工程代码所在地（不改变会话隔离目录本身）。
+            </div>
+          </div>
+          <WorkingDirectoryField
+            value={defaultWorkingDirectory}
+            onChange={(path) => { void handleDefaultWorkingDirectoryChange(path) }}
+            className={savingDefaultWorkingDirectory ? 'opacity-60' : undefined}
+          />
+        </div>
+      </SettingsCard>
 
       <SettingsCard divided={false}>
         <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">

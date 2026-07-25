@@ -1,9 +1,10 @@
 import { cn } from '@/lib/utils'
 
 const STATUS_PRESENTATION: Record<string, { label: string; color: string }> = {
-  todo: { label: '待处理', color: '#6366f1' },
+  // 词汇与看板列对齐（列与 badge 同一套 slug 语义，对齐 craft）；running 是系统派生态
+  todo: { label: '待办', color: '#6366f1' },
   running: { label: '运行中', color: '#f59e0b' },
-  'in-progress': { label: '进行中', color: '#f59e0b' },
+  'in-progress': { label: '运行中', color: '#f59e0b' },
   'needs-review': { label: '待评审', color: '#8b5cf6' },
   done: { label: '已完成', color: '#10b981' },
   completed: { label: '已完成', color: '#10b981' },

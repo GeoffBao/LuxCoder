@@ -188,7 +188,7 @@ describe('task handler Kanban payloads', () => {
     expect(result).toEqual(expect.objectContaining({ valid: true, errors: [], warnings }))
   })
 
-  test('set_kanban_column 可同步 dropStatusId 到 sessionStatus', () => {
+  test('set_kanban_column 可联动同步 sessionStatus', () => {
     const setKanbanColumn = Reflect.get(taskHandlers, 'setSessionKanbanColumn')
     expect(setKanbanColumn).toBeInstanceOf(Function)
     if (typeof setKanbanColumn !== 'function') return
@@ -221,13 +221,55 @@ describe('task handler Kanban payloads', () => {
     expect(buildUpdates('proj-1', '/repo/app')).toEqual({
       projectId: 'proj-1',
       workingDirectory: '/repo/app',
+      kanbanColumn: 'todo',
     })
     // 无有效 cwd（不可用外部目录）：不带 workingDirectory 键，保留会话已有目录
-    expect(buildUpdates('proj-1', undefined)).toEqual({ projectId: 'proj-1' })
+    expect(buildUpdates('proj-1', undefined)).toEqual({ projectId: 'proj-1', kanbanColumn: 'todo' })
     expect(Object.hasOwn(buildUpdates('proj-1', undefined) as object, 'workingDirectory')).toBe(false)
-    // 解绑：清空 projectId，但不写 workingDirectory
+    // 解绑：清空 projectId，但不写 workingDirectory，也不动看板列
     expect(buildUpdates(undefined, undefined)).toEqual({ projectId: undefined })
     expect(Object.hasOwn(buildUpdates(undefined, '/repo/app') as object, 'workingDirectory')).toBe(false)
+    expect(Object.hasOwn(buildUpdates(undefined, undefined) as object, 'kanbanColumn')).toBe(false)
+  })
+
+  test('set_project_id 看板列顺位：无列/收件箱 → 待办，已整理列不动', () => {
+    const buildUpdates = Reflect.get(taskHandlers, 'buildSetProjectIdUpdates')
+    expect(buildUpdates).toBeInstanceOf(Function)
+    if (typeof buildUpdates !== 'function') return
+
+    // 从未上板（无列）→ 待办
+    expect(buildUpdates('proj-1', undefined, undefined)).toEqual({ projectId: 'proj-1', kanbanColumn: 'todo' })
+    // 滞留历史收件箱 → 待办
+    expect(buildUpdates('proj-1', undefined, 'inbox')).toEqual({ projectId: 'proj-1', kanbanColumn: 'todo' })
+    // 用户已拖到其他列 → 尊重整理结果
+    expect(buildUpdates('proj-1', undefined, 'in-progress')).toEqual({ projectId: 'proj-1' })
+    expect(Object.hasOwn(buildUpdates('proj-1', undefined, 'done') as object, 'kanbanColumn')).toBe(false)
+  })
+
+  test('resolveSessionDropStatus 内置列联动：待办/已完成写状态，进行中不写', () => {
+    const resolveDrop = Reflect.get(taskHandlers, 'resolveSessionDropStatus')
+    expect(resolveDrop).toBeInstanceOf(Function)
+    if (typeof resolveDrop !== 'function') return
+
+    const session = { id: 's-1', title: '任务', createdAt: 1, updatedAt: 2, sessionStatus: 'todo' }
+    const getSession = () => session
+
+    expect(resolveDrop('s-1', 'todo', getSession)).toBe('todo')
+    expect(resolveDrop('s-1', 'done', getSession)).toBe('done')
+    // 进行中列不写状态：running 由系统派生，拖放只是整理
+    expect(resolveDrop('s-1', 'in-progress', getSession)).toBeUndefined()
+    // 无项目会话同样享受内置列联动
+    expect(resolveDrop('s-1', null, getSession)).toBeUndefined()
+  })
+
+  test('resolveSessionDropStatus 运行护栏：running 会话拖列不降级 badge', () => {
+    const resolveDrop = Reflect.get(taskHandlers, 'resolveSessionDropStatus')
+    expect(resolveDrop).toBeInstanceOf(Function)
+    if (typeof resolveDrop !== 'function') return
+
+    const running = { id: 's-2', title: '运行中任务', createdAt: 1, updatedAt: 2, sessionStatus: 'running' }
+    expect(resolveDrop('s-2', 'todo', () => running)).toBeUndefined()
+    expect(resolveDrop('s-2', 'done', () => running)).toBeUndefined()
   })
 
   test('采用生成草稿时清除 taskDraft 并恢复待办状态', () => {

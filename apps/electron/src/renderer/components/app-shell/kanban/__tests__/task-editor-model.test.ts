@@ -15,7 +15,7 @@ function createItem(session: AgentSessionMeta): KanbanItem {
   return {
     id: session.id,
     title: session.title,
-    columnId: session.kanbanColumn ?? 'inbox',
+    columnId: session.kanbanColumn ?? 'todo',
     session,
     project: null,
     subtasks: [],

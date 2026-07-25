@@ -64,7 +64,6 @@ describe('project detail model', () => {
       details: '  细节 ',
       color: '',
       workingDirectory: '',
-      kanbanColumns: [],
     })).toEqual({
       name: '新名称',
       description: undefined,
@@ -72,7 +71,6 @@ describe('project detail model', () => {
       color: undefined,
       workingDirectory: undefined,
       defaultExpertId: undefined,
-      kanbanColumns: undefined,
     })
   })
 })
@@ -143,7 +141,6 @@ describe('buildProjectUpdate with workingDirectory', () => {
       color: undefined,
       workingDirectory: '/tmp/p',
       defaultExpertId: undefined,
-      kanbanColumns: undefined,
     })
 
     expect(buildProjectUpdate({

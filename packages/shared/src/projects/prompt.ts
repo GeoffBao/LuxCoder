@@ -16,12 +16,25 @@ function sanitizeProjectBodyText(text: string): string {
   return text
     // eslint-disable-next-line no-control-regex
     .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '')
-    .replace(/<\s*\/\s*project_(?:context|assets|memory|assets_path|memory_path)\s*>/gi, '');
+    .replace(/<\s*\/\s*project_(?:context|assets|memory|assets_path|memory_path|working_directory)\s*>/gi, '');
 }
 
 function sanitizeProjectFilename(name: string): string {
   // eslint-disable-next-line no-control-regex
   return sanitizeProjectBodyText(name.replace(/[\x00-\x1f\x7f]/g, ''));
+}
+
+/** MEMORY.md 注入系统提示词的 token 上限；超过此值 loadProjectMemory 会从尾部截断（保留头部最新内容） */
+export const MEMORY_TOKEN_CAP = 5000;
+
+/** 估算文本的 token 数（简略版：中英混合用 char/2，纯英文 char/4）；renderer 与 main 进程共用同一份估算口径 */
+export function estimateTokenCount(text: string): number {
+  let ascii = 0, nonAscii = 0;
+  for (const ch of text) {
+    if (ch.charCodeAt(0) < 128) ascii++;
+    else nonAscii++;
+  }
+  return Math.ceil(ascii / 4 + nonAscii * 1.5);
 }
 
 function formatBytes(sizeBytes: number): string {
@@ -44,6 +57,10 @@ export function formatProjectContextForPrompt(ctx: ProjectPromptContext): string
     lines.push('');
   }
 
+  if (ctx.workingDirectory?.trim()) {
+    lines.push(`<project_working_directory>${sanitizeProjectBodyText(ctx.workingDirectory.trim())}</project_working_directory>`);
+  }
+
   lines.push(`<project_assets_path>${sanitizeProjectBodyText(ctx.assetsPath)}</project_assets_path>`);
   if (ctx.assets.length > 0) {
     lines.push('<project_assets>');
@@ -64,6 +81,9 @@ export function formatProjectContextForPrompt(ctx: ProjectPromptContext): string
 
   lines.push('');
   lines.push('当前会话已绑定到上述项目。');
+  if (ctx.workingDirectory?.trim()) {
+    lines.push('`<project_working_directory>` 是用户指定的项目工程代码根目录；会话 cwd 是会话隔离目录，不要在这里找代码。需要读代码、改代码、跑命令时，直接以该目录为基准，不要猜测或搜索其他路径。');
+  }
   if (ctx.assets.length > 0) {
     lines.push('`<project_assets>` 列出用户提供的参考文件；仅在相关时按绝对路径按需读取，不必全部读完。');
   }

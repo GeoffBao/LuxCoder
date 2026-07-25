@@ -252,6 +252,8 @@ import {
   addWorktreeRepo,
   removeWorktreeRepo,
   cleanupStaleWorkspaceAttachedPaths,
+  getWorkspaceDefaultWorkingDirectory,
+  setWorkspaceDefaultWorkingDirectory,
 } from './lib/agent-workspace-manager'
 import { getAllToolInfos } from './lib/chat-tool-registry'
 import { updateToolState, updateToolCredentials, getToolCredentials, addCustomTool, deleteCustomTool } from './lib/chat-tool-config'
@@ -2876,6 +2878,22 @@ export function registerIpcHandlers(): void {
     AGENT_IPC_CHANNELS.REMOVE_WORKTREE_REPO,
     async (_, workspaceSlug: string, repoPath: string) => {
       return removeWorktreeRepo(workspaceSlug, repoPath)
+    }
+  )
+
+  // ===== 工作区默认工作目录 =====
+
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.GET_WORKSPACE_DEFAULT_WORKING_DIRECTORY,
+    async (_, workspaceSlug: string): Promise<string | undefined> => {
+      return getWorkspaceDefaultWorkingDirectory(workspaceSlug)
+    }
+  )
+
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.SET_WORKSPACE_DEFAULT_WORKING_DIRECTORY,
+    async (_, workspaceSlug: string, path: string | undefined): Promise<string | undefined> => {
+      return setWorkspaceDefaultWorkingDirectory(workspaceSlug, path)
     }
   )
 

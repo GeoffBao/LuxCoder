@@ -255,6 +255,8 @@ interface DynamicContext {
   agentCwd?: string
   /** 会话绑定项目的提示词上下文（每次实时构建） */
   projectContext?: ProjectPromptContext
+  /** 工作区默认工作目录；仅当会话未绑定项目时才注入，避免与 projectContext 的语义冲突 */
+  workspaceDefaultWorkingDirectory?: string
 }
 
 /**
@@ -316,6 +318,14 @@ export function buildDynamicContext(ctx: DynamicContext): string {
 
   if (ctx.projectContext) {
     sections.push(formatProjectContextForPrompt(ctx.projectContext))
+  } else if (ctx.workspaceDefaultWorkingDirectory) {
+    // 未绑定项目时的兜底：工作区配置了默认工作目录，告知 agent 真正的代码位置
+    // （与 <working_directory> 不同——后者是会话隔离目录，不是用户工程代码所在地）
+    sections.push(
+      `<workspace_default_working_directory>${ctx.workspaceDefaultWorkingDirectory}</workspace_default_working_directory>\n`
+      + '`<workspace_default_working_directory>` 是当前工作区配置的默认工程代码目录；'
+      + '会话 cwd 是会话隔离目录，不要在这里找代码。需要读代码、改代码、跑命令时，直接以该目录为基准。',
+    )
   }
 
   return sections.join('\n\n')

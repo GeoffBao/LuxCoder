@@ -25,15 +25,21 @@ function createItem(id: string, columnId: string): KanbanItem {
 }
 
 describe('buildKanbanBoardModel', () => {
-  test('默认提供 Inbox、待办、进行中和已完成四列', () => {
+  test('默认提供待办、进行中、已完成三列（无收件箱）', () => {
     const model = buildKanbanBoardModel([])
 
     expect(model.columns.map((column) => column.id)).toEqual([
-      'inbox',
       'todo',
       'in-progress',
       'done',
     ])
+  })
+
+  test('历史 inbox 卡片自动归入第一列（存量迁移）', () => {
+    const model = buildKanbanBoardModel([createItem('legacy', 'inbox')])
+
+    expect(model.columns.map((column) => column.id)).toEqual(['todo', 'in-progress', 'done'])
+    expect(model.columns[0]?.items.map((item) => item.id)).toEqual(['legacy'])
   })
 
   test('Board 分组和 List 均保持输入卡片顺序', () => {
@@ -51,17 +57,19 @@ describe('buildKanbanBoardModel', () => {
     ])
   })
 
-  test('项目自定义列替换默认流程列，并保留 Inbox', () => {
+  test('项目自定义列完整替换默认列（历史 inbox 自定义列被剔除）', () => {
     const model = buildKanbanBoardModel(
       [createItem('review-card', 'review'), createItem('unknown-card', 'missing')],
       [
+        { id: 'inbox', name: '收件箱' },
         { id: 'backlog', name: '待规划' },
         { id: 'review', name: '待评审', color: '#8b5cf6' },
       ],
     )
 
-    expect(model.columns.map((column) => column.id)).toEqual(['inbox', 'backlog', 'review'])
+    expect(model.columns.map((column) => column.id)).toEqual(['backlog', 'review'])
     expect(model.columns.find((column) => column.id === 'review')?.items[0]?.id).toBe('review-card')
+    // 未知列回退到第一列（backlog）
     expect(model.columns.find((column) => column.id === 'backlog')?.items[0]?.id).toBe('unknown-card')
   })
 })

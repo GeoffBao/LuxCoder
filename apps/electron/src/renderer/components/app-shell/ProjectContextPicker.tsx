@@ -10,8 +10,7 @@ import {
   FolderKanban,
   FolderOpen,
   FolderPlus,
-  FolderSearch,
-  Loader2,
+  Search,
   type LucideIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -42,6 +41,9 @@ export interface ProjectContextPickerProps {
   defaultOpen?: boolean
 }
 
+/** 项目数超过这个数量才显示搜索框——项目少时多一行筛选框纯属噪音 */
+const SEARCH_THRESHOLD = 8
+
 function toKanbanProject(project: {
   id: string
   slug: string
@@ -52,7 +54,6 @@ function toKanbanProject(project: {
   color?: string
   updatedAt: number
   archivedAt?: number
-  kanbanColumns?: KanbanProject['kanbanColumns']
   defaultExpertId?: string
   workspaceId?: string
 }): KanbanProject {
@@ -66,7 +67,6 @@ function toKanbanProject(project: {
     color: project.color,
     updatedAt: project.updatedAt,
     archivedAt: project.archivedAt,
-    kanbanColumns: project.kanbanColumns,
     defaultExpertId: project.defaultExpertId,
     workspaceId: project.workspaceId,
   }
@@ -89,10 +89,7 @@ export function ProjectContextPicker({
   const [open, setOpen] = React.useState(defaultOpen)
   const [busy, setBusy] = React.useState(false)
   const [createOpen, setCreateOpen] = React.useState(false)
-  const [discovered, setDiscovered] = React.useState<Array<{ path: string; name: string }>>([])
-  const [scanRoots, setScanRoots] = React.useState<string[]>([])
-  const [maxDepth, setMaxDepth] = React.useState(3)
-  const [discovering, setDiscovering] = React.useState(false)
+  const [filterText, setFilterText] = React.useState('')
   /** null = 尚未建立基线；避免挂载时回放历史 ⌘O / 浏览请求 */
   const browseBaselineRef = React.useRef<number | null>(null)
 
@@ -128,43 +125,23 @@ export function ProjectContextPicker({
           archivedAt: project.archivedAt,
         })),
         recentProjectIds,
-        discovered,
-        scanRoots,
+        selectedProjectId,
       }),
-    [mode, activeProjects, recentProjectIds, discovered, scanRoots],
+    [mode, activeProjects, recentProjectIds, selectedProjectId],
   )
 
-  const selectedName = projects.find((project) => project.id === selectedProjectId)?.name
-
-  const runDiscovery = React.useCallback(async (): Promise<void> => {
-    setDiscovering(true)
-    try {
-      const settings = await window.electronAPI.getSettings()
-      const roots = settings.projectDiscovery?.scanRoots ?? []
-      const depth = settings.projectDiscovery?.maxDepth ?? 3
-      setScanRoots(roots)
-      setMaxDepth(depth)
-      if (roots.length === 0) {
-        setDiscovered([])
-        return
-      }
-      const repos = await window.electronAPI.projects.discoverRepos({
-        roots,
-        maxDepth: depth,
-      })
-      setDiscovered(repos)
-    } catch (error) {
-      console.error('[ProjectContextPicker] 仓库发现失败:', error)
-      toast.error('仓库发现失败')
-    } finally {
-      setDiscovering(false)
-    }
-  }, [])
+  const showSearch = sections.projects.length > SEARCH_THRESHOLD
+  const visibleProjects = React.useMemo(() => {
+    if (!showSearch || !filterText.trim()) return sections.projects
+    const needle = filterText.trim().toLowerCase()
+    return sections.projects.filter((project) => project.name.toLowerCase().includes(needle))
+  }, [sections.projects, showSearch, filterText])
 
   React.useEffect(() => {
-    if (!open && !defaultOpen) return
-    void runDiscovery()
-  }, [open, defaultOpen, runDiscovery])
+    if (!open) setFilterText('')
+  }, [open])
+
+  const selectedName = projects.find((project) => project.id === selectedProjectId)?.name
 
   const upsertProject = React.useCallback((project: KanbanProject): void => {
     setProjects((prev) => {
@@ -221,33 +198,6 @@ export function ProjectContextPicker({
     void handleBrowse()
   }, [browseRequest, handleBrowse])
 
-  const handleAddScanRoot = React.useCallback(async (): Promise<void> => {
-    try {
-      const dialog = await window.electronAPI.openFolderDialog()
-      if (!dialog?.path) return
-      const root = dialog.path
-      const settings = await window.electronAPI.getSettings()
-      const current = settings.projectDiscovery?.scanRoots ?? []
-      if (current.includes(root)) {
-        toast.message('该扫描目录已存在')
-        return
-      }
-      const nextRoots = [...current, root]
-      await window.electronAPI.updateSettings({
-        projectDiscovery: {
-          scanRoots: nextRoots,
-          maxDepth: settings.projectDiscovery?.maxDepth ?? maxDepth,
-        },
-      })
-      setScanRoots(nextRoots)
-      toast.success('已添加扫描目录')
-      void runDiscovery()
-    } catch (error) {
-      console.error('[ProjectContextPicker] 添加扫描目录失败:', error)
-      toast.error('添加扫描目录失败')
-    }
-  }, [maxDepth, runDiscovery])
-
   const handleCreate = React.useCallback(async (
     input: Parameters<typeof window.electronAPI.projects.create>[1],
   ): Promise<void> => {
@@ -294,28 +244,32 @@ export function ProjectContextPicker({
       role="listbox"
       aria-label="选择项目上下文"
     >
-      {/* 列表：只显示项目名，完整路径进 title（对齐 Cursor/Codex） */}
-      <div className="max-h-[220px] space-y-2 overflow-y-auto p-1.5">
-        {sections.recents.length > 0 ? (
-          <Section title="最近">
-            {sections.recents.map((project) => (
-              <PickRow
-                key={`recent-${project.id}`}
-                label={project.name}
-                title={project.workingDirectory}
-                active={project.id === selectedProjectId}
-                disabled={busy}
-                onClick={() => { void handlePick(project.id) }}
-              />
-            ))}
-          </Section>
-        ) : null}
+      {/* 项目多起来后才出现的筛选框，项目少的常见场景下不占地方 */}
+      {showSearch && (
+        <div className="shrink-0 border-b border-border/40 p-1.5">
+          <div className="flex items-center gap-1.5 rounded-lg bg-foreground/[0.04] px-2 py-1">
+            <Search size={12} className="shrink-0 text-foreground/35" />
+            <input
+              autoFocus
+              value={filterText}
+              onChange={(e) => setFilterText(e.target.value)}
+              placeholder="筛选项目…"
+              className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-foreground/35"
+            />
+          </div>
+        </div>
+      )}
 
-        <Section title="项目">
-          {sections.existing.length === 0 ? (
-            <p className="px-2 py-1.5 text-[11px] text-foreground/40">暂无项目</p>
+      {/* 列表：只显示项目名，完整路径进 title（对齐 Cursor/Codex）。
+          最近使用的项目排前面，同一项目只出现一次。 */}
+      <div className="max-h-[220px] space-y-2 overflow-y-auto p-1.5">
+        <Section title="最近">
+          {visibleProjects.length === 0 ? (
+            <p className="px-2 py-1.5 text-[11px] text-foreground/40">
+              {sections.projects.length === 0 ? '暂无项目' : '没有匹配的项目'}
+            </p>
           ) : (
-            sections.existing.map((project) => (
+            visibleProjects.map((project) => (
               <PickRow
                 key={project.id}
                 label={project.name}
@@ -327,29 +281,6 @@ export function ProjectContextPicker({
             ))
           )}
         </Section>
-
-        {(sections.discovery.items.length > 0 || sections.discovery.needsScanRootGuide) ? (
-          <Section
-            title="发现"
-            trailing={discovering ? <Loader2 size={12} className="animate-spin text-foreground/40" /> : null}
-          >
-            {sections.discovery.needsScanRootGuide ? (
-              <p className="px-2 py-1 text-[11px] text-foreground/45">
-                添加扫描目录后可发现本地仓库
-              </p>
-            ) : (
-              sections.discovery.items.map((repo) => (
-                <PickRow
-                  key={repo.path}
-                  label={repo.name}
-                  title={repo.path}
-                  disabled={busy}
-                  onClick={() => { void openOrCreateByPath(repo.path) }}
-                />
-              ))
-            )}
-          </Section>
-        ) : null}
       </div>
 
       {/* 动作钉底：新建项目始终可见，不被长列表挤出视口 */}
@@ -366,25 +297,10 @@ export function ProjectContextPicker({
           disabled={busy}
           onClick={() => { void handleBrowse() }}
         />
-        {sections.actions.some((action) => action.id === 'add-scan-root') ? (
-          <ActionRow
-            icon={FolderSearch}
-            label="添加扫描目录…"
-            disabled={busy}
-            onClick={() => { void handleAddScanRoot() }}
-          />
-        ) : discovering ? null : (
-          <ActionRow
-            icon={FolderSearch}
-            label="刷新发现"
-            disabled={busy}
-            onClick={() => { void runDiscovery() }}
-          />
-        )}
         {sections.actions.some((action) => action.id === 'skip') ? (
           <ActionRow
             icon={FolderKanban}
-            label="不使用项目"
+            label="清除项目"
             disabled={busy}
             onClick={() => { void handlePick(null) }}
           />
@@ -411,11 +327,7 @@ export function ProjectContextPicker({
     )
   }
 
-  const triggerLabel = selectedName
-    ? selectedName
-    : mode === 'task'
-      ? '选择项目'
-      : '选择项目'
+  const triggerLabel = selectedName ?? '选择/新建项目'
 
   return (
     <div className={cn('relative', className)}>
@@ -429,7 +341,7 @@ export function ProjectContextPicker({
         )}
         aria-expanded={open}
         aria-haspopup="listbox"
-        aria-label="选择项目"
+        aria-label="选择/新建项目"
         title={selectedName ?? '选择或新建项目'}
       >
         <FolderKanban size={12} className="shrink-0 text-foreground/40" />
@@ -457,18 +369,13 @@ export function ProjectContextPicker({
 function Section({
   title,
   children,
-  trailing,
 }: {
   title: string
   children: React.ReactNode
-  trailing?: React.ReactNode
 }): React.ReactElement {
   return (
     <div>
-      <div className="flex items-center justify-between px-2 pb-1">
-        <p className="text-[10px] font-medium uppercase tracking-wide text-foreground/35">{title}</p>
-        {trailing}
-      </div>
+      <p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-wide text-foreground/35">{title}</p>
       <div className="space-y-0.5">{children}</div>
     </div>
   )

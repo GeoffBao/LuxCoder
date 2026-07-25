@@ -2,7 +2,7 @@ import type { AgentSessionMeta } from '@luxcoder/shared'
 import { resolveExpertId } from '@luxcoder/shared/experts'
 import { mergeSubtaskRows, type SpecNodeSummary, type SubtaskChildRow } from './subtask-merge'
 import {
-  INBOX_COLUMN_ID,
+  DEFAULT_KANBAN_COLUMN_ID,
   type KanbanFilter,
   type KanbanItem,
   type KanbanProject,
@@ -103,7 +103,7 @@ function buildItem(
   return {
     id: session.id,
     title: session.title,
-    columnId: session.kanbanColumn ?? INBOX_COLUMN_ID,
+    columnId: session.kanbanColumn ?? DEFAULT_KANBAN_COLUMN_ID,
     session,
     project,
     subtasks,

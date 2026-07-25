@@ -2,7 +2,7 @@ import { DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type 
 import { buildKanbanBoardModel, type KanbanColumnDefinition } from './board-model'
 import { KanbanColumn } from './KanbanColumn'
 import { TaskTile } from './TaskTile'
-import { INBOX_COLUMN_ID, type KanbanBoardMode, type KanbanItem } from './types'
+import type { KanbanBoardMode, KanbanItem } from './types'
 
 interface KanbanBoardProps {
   items: KanbanItem[]
@@ -27,8 +27,8 @@ export function KanbanBoard({ items, mode, columns, onMove, onOpenItem, onOpenSu
     useSensor(KeyboardSensor),
   )
   const model = buildKanbanBoardModel(items, columns)
-  const composerColumnId = model.columns.find((column) => column.id !== INBOX_COLUMN_ID)?.id
-    ?? model.columns[0]?.id
+  // 新建任务落在第一列（默认「待办」）
+  const composerColumnId = model.columns[0]?.id
   const handleDragEnd = (event: DragEndEvent): void => {
     const columnId = dropColumnId(event)
     if (!columnId) return

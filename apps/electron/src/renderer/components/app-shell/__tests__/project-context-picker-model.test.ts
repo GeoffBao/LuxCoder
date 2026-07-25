@@ -2,10 +2,8 @@ import { describe, expect, test } from 'bun:test'
 import {
   allowsSkipProject,
   buildPickerSections,
-  clampDiscoveryDepth,
   shouldHonorBrowseRequest,
   type PickerProject,
-  type DiscoveredRepo,
 } from '../project-context-picker-model.ts'
 
 const projects: PickerProject[] = [
@@ -20,61 +18,58 @@ describe('project-context-picker-model', () => {
     expect(allowsSkipProject('task')).toBe(false)
   })
 
-  test('clampDiscoveryDepth：默认 3，限制 1–5', () => {
-    expect(clampDiscoveryDepth(undefined)).toBe(3)
-    expect(clampDiscoveryDepth(0)).toBe(1)
-    expect(clampDiscoveryDepth(9)).toBe(5)
-    expect(clampDiscoveryDepth(2)).toBe(2)
-  })
-
   test('session 分区含无项目；task 不含', () => {
     const session = buildPickerSections({
       mode: 'session',
       projects,
       recentProjectIds: ['p2'],
-      discovered: [],
-      scanRoots: ['/work'],
+      selectedProjectId: 'p2',
     })
     expect(session.actions.map((a) => a.id)).toContain('skip')
-    expect(session.recents.map((p) => p.id)).toEqual(['p2'])
-    expect(session.existing.map((p) => p.id)).toEqual(['p2', 'p1'])
-    expect(session.discovery.needsScanRootGuide).toBe(false)
 
     const task = buildPickerSections({
       mode: 'task',
       projects,
       recentProjectIds: ['p2'],
-      discovered: [],
-      scanRoots: ['/work'],
+      selectedProjectId: 'p2',
     })
     expect(task.actions.map((a) => a.id)).not.toContain('skip')
   })
 
-  test('无扫描根时发现区空并引导添加', () => {
+  test('projects：最近使用的排前面，不与其余项目重复', () => {
     const sections = buildPickerSections({
       mode: 'session',
       projects,
-      recentProjectIds: [],
-      discovered: [{ path: '/x', name: 'x' }],
-      scanRoots: [],
+      recentProjectIds: ['p2'],
     })
-    expect(sections.discovery.items).toEqual([])
-    expect(sections.discovery.needsScanRootGuide).toBe(true)
+    // p2 只出现一次（排在最前），p1 紧随其后，归档项目 p3 不出现
+    expect(sections.projects.map((p) => p.id)).toEqual(['p2', 'p1'])
   })
 
-  test('发现项排除已绑定 workingDirectory 的项目路径', () => {
-    const discovered: DiscoveredRepo[] = [
-      { path: '/repos/alpha', name: 'alpha' },
-      { path: '/repos/gamma', name: 'gamma' },
-    ]
+  test('projects：无最近使用记录时按项目自身 updatedAt 倒序', () => {
     const sections = buildPickerSections({
       mode: 'session',
       projects,
       recentProjectIds: [],
-      discovered,
-      scanRoots: ['/repos'],
     })
-    expect(sections.discovery.items.map((item) => item.path)).toEqual(['/repos/gamma'])
+    expect(sections.projects.map((p) => p.id)).toEqual(['p2', 'p1'])
+  })
+
+  test('skip 动作只在已绑定项目时出现：未绑定时清除跟直接关闭没区别，不占位', () => {
+    const unbound = buildPickerSections({
+      mode: 'session',
+      projects,
+      recentProjectIds: ['p2'],
+    })
+    expect(unbound.actions.map((a) => a.id)).not.toContain('skip')
+
+    const bound = buildPickerSections({
+      mode: 'session',
+      projects,
+      recentProjectIds: ['p2'],
+      selectedProjectId: 'p1',
+    })
+    expect(bound.actions.map((a) => a.id)).toContain('skip')
   })
 
   test('shouldHonorBrowseRequest：挂载时不回放历史 token', () => {

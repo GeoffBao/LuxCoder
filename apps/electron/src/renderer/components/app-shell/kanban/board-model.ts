@@ -20,8 +20,12 @@ export interface BoardNotification {
   message: string
 }
 
+/**
+ * 默认三列（对齐 craft / Synara / Orca：品类无 inbox 列先例）。
+ * 「未分类」语义由项目维度（侧边栏未归属分组 / 项目过滤器）表达，不再占用一列；
+ * 存量 kanbanColumn='inbox' 的卡片由 buildKanbanBoardModel 的 fallback 自动归入第一列。
+ */
 export const DEFAULT_KANBAN_COLUMNS: KanbanColumnDefinition[] = [
-  { id: INBOX_COLUMN_ID, name: '收件箱', color: '#64748b' },
   { id: 'todo', name: '待办', color: '#6366f1' },
   { id: 'in-progress', name: '进行中', color: '#f59e0b' },
   { id: 'done', name: '已完成', color: '#10b981' },
@@ -30,14 +34,15 @@ export const DEFAULT_KANBAN_COLUMNS: KanbanColumnDefinition[] = [
 function resolveColumns(customColumns?: KanbanColumnDefinition[]): KanbanColumnDefinition[] {
   if (!customColumns?.length) return DEFAULT_KANBAN_COLUMNS
 
-  const columns: KanbanColumnDefinition[] = [DEFAULT_KANBAN_COLUMNS[0]!]
-  const seen = new Set([INBOX_COLUMN_ID])
+  const columns: KanbanColumnDefinition[] = []
+  const seen = new Set<string>()
   for (const column of customColumns) {
-    if (!column.id || seen.has(column.id)) continue
+    // 历史项目自定义列里可能显式配过 inbox 列；inbox 已下线，跳过（存量卡片走 fallback）
+    if (!column.id || column.id === INBOX_COLUMN_ID || seen.has(column.id)) continue
     seen.add(column.id)
     columns.push(column)
   }
-  return columns
+  return columns.length > 0 ? columns : DEFAULT_KANBAN_COLUMNS
 }
 
 /** Board 与 List 从同一输入序列派生，分组过程不会改变卡片顺序。 */
@@ -47,7 +52,8 @@ export function buildKanbanBoardModel(
 ): KanbanBoardModel {
   const definitions = resolveColumns(customColumns)
   const columnIds = new Set(definitions.map((column) => column.id))
-  const fallbackColumnId = definitions.find((column) => column.id !== INBOX_COLUMN_ID)?.id ?? INBOX_COLUMN_ID
+  // 未知列（含历史 inbox）回退到第一列（默认「待办」）
+  const fallbackColumnId = definitions[0]?.id ?? 'todo'
   const grouped = new Map(definitions.map((column) => [column.id, [] as KanbanItem[]]))
 
   for (const item of items) {

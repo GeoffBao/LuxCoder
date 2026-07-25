@@ -19,6 +19,8 @@ export interface SessionHeaderProps {
   actions?: React.ReactNode
   /** 编辑态输入框最大长度 */
   maxLength?: number
+  /** 标题旁的可选标签（如项目名），仅在非编辑态显示 */
+  badge?: React.ReactNode
 }
 
 export function SessionHeader({
@@ -26,6 +28,7 @@ export function SessionHeader({
   onRename,
   actions,
   maxLength = 100,
+  badge,
 }: SessionHeaderProps): React.ReactElement {
   const isWindows = React.useMemo(() => detectIsWindows(), [])
   const [editing, setEditing] = React.useState(false)
@@ -102,6 +105,7 @@ export function SessionHeader({
           <span className="truncate text-sm font-medium text-foreground">
             {title}
           </span>
+          {badge}
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}

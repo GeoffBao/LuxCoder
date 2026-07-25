@@ -11,23 +11,6 @@
  */
 
 /**
- * 一个项目看板中的列定义。
- *
- * 当项目定义了 `kanbanColumns` 时，该数组即为单项目视图的完整列集合。
- * 每列的 `id` 稳定（作为 `kanbanColumn` 持久化值），`name` 为用户自定（不 i18n）。
- */
-export interface KanbanColumnDef {
-  /** 稳定的列 ID。内置种子复用了 'todo' | 'in-progress' | 'done' */
-  id: string;
-  /** 用户看到的列名（用户自定，不翻译） */
-  name: string;
-  /** 卡片拖入此列时自动应用的状态 ID（项目级） */
-  dropStatusId?: string;
-  /** 列头强调色（hex） */
-  color?: string;
-}
-
-/**
  * 项目主配置（存储在 config.json 中）
  */
 export interface ProjectConfig {
@@ -48,8 +31,6 @@ export interface ProjectConfig {
   updatedAt: number;
   /** 归档时间（设置后从侧边栏隐藏但保留磁盘数据） */
   archivedAt?: number;
-  /** 项目级 Kanban 列。缺失时看板使用默认 3 列。 */
-  kanbanColumns?: KanbanColumnDef[];
   /** 默认 Agent 专家 ID（仅存储展示，本阶段不注入编排器） */
   defaultExpertId?: string;
 }
@@ -101,6 +82,8 @@ export interface ProjectPromptContext {
   name: string;
   description?: string;
   details?: string;
+  /** 项目工程代码所在的工作目录绝对路径（用户绑定时指定） */
+  workingDirectory?: string;
   assetsPath: string;
   /** 引用文件的轻量清单（最新优先）；内容按需读取 */
   assets: { filename: string; mimeType: string; sizeBytes: number }[];
@@ -120,8 +103,6 @@ export interface UpdateProjectInput {
   details?: string;
   colorTheme?: string;
   color?: string;
-  /** 项目级 Kanban 列；undefined 恢复默认列。 */
-  kanbanColumns?: KanbanColumnDef[];
   /** 设置值为 undefined 以取消归档 */
   archivedAt?: number;
   /** 默认 Agent 专家 ID（仅存储展示，本阶段不注入编排器） */

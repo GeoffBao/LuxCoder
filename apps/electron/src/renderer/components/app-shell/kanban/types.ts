@@ -1,7 +1,10 @@
 import type { AgentSessionMeta } from '@luxcoder/shared'
 
-/** 未归属项目的会话默认显示在收件箱。 */
+/** 历史遗留的收件箱列 ID；列已下线，存量值由 board fallback 归入待办。 */
 export const INBOX_COLUMN_ID = 'inbox'
+
+/** 新会话的默认看板列：待办（对齐 craft/Synara/Orca——新会话落低承诺默认态，不做收件箱 triage）。 */
+export const DEFAULT_KANBAN_COLUMN_ID = 'todo'
 
 export type KanbanBoardMode = 'board' | 'list'
 export type KanbanNodeState = 'pending' | 'running' | 'done' | 'failed' | 'cancelled' | 'skipped'
@@ -36,7 +39,6 @@ export interface KanbanProject {
   /** 项目默认 Agent 专家 slug；任务未指定时由 TaskRunner 注入 */
   defaultExpertId?: string
   workspaceId?: string
-  kanbanColumns?: Array<{ id: string; name: string; color?: string; dropStatusId?: string }>
 }
 
 /** 从任务运行快照归一化后的最小节点状态。 */

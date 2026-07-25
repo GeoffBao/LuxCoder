@@ -137,7 +137,7 @@ import type { KanbanProject } from './kanban/types'
 import { buildProjectColorMap } from './sidebar-project-groups'
 import { SidebarModule } from './SidebarModule'
 import { WorkspaceSwitcher } from './WorkspaceSwitcher'
-import { SidebarProjectsTab } from './SidebarProjectsTab'
+import { SidebarProjectsTab, type ProjectSessionHandlers } from './SidebarProjectsTab'
 import { formatSidebarModuleCount } from './sidebar-module-model'
 
 import { AgentSessionItem, getSessionLeftAccent, SessionItemActions } from './AgentSessionItem'
@@ -250,7 +250,7 @@ const noopDragEvent = (_e: React.DragEvent, _workspaceId?: string): void => {}
 /** 非当前工作区组的空项目列表；模块级常量保证引用稳定，不破坏 React.memo */
 const EMPTY_PROJECTS: KanbanProject[] = []
 
-const PROJECT_SESSION_PREVIEW_LIMIT = 5
+const PROJECT_SESSION_PREVIEW_LIMIT = 10
 const PROJECT_SESSION_RECENT_WINDOW_MS = 3 * 86_400_000
 /** 点击"显示更多"时每次额外展开的会话数量 */
 const PROJECT_SESSION_EXPAND_STEP = 10
@@ -337,24 +337,28 @@ function SessionQuickSwitchKeycap(): React.ReactElement {
   )
 }
 
+/** 单条记录所属的日期分组（今天 / 昨天 / 更早）；供分组标题与列表内联日期标签复用 */
+function getDateGroupLabel(updatedAt: number, now: number): DateGroup {
+  const nowDate = new Date(now)
+  const todayStart = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate()).getTime()
+  const yesterdayStart = todayStart - 86_400_000
+  if (updatedAt >= todayStart) return '今天'
+  if (updatedAt >= yesterdayStart) return '昨天'
+  return '更早'
+}
+
 /** 按 updatedAt 将条目分为 今天 / 昨天 / 更早 三组 */
 function groupByDate<T extends { updatedAt: number }>(items: T[]): Array<{ label: DateGroup; items: T[] }> {
-  const now = new Date()
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
-  const yesterdayStart = todayStart - 86_400_000
-
+  const now = Date.now()
   const today: T[] = []
   const yesterday: T[] = []
   const earlier: T[] = []
 
   for (const item of items) {
-    if (item.updatedAt >= todayStart) {
-      today.push(item)
-    } else if (item.updatedAt >= yesterdayStart) {
-      yesterday.push(item)
-    } else {
-      earlier.push(item)
-    }
+    const label = getDateGroupLabel(item.updatedAt, now)
+    if (label === '今天') today.push(item)
+    else if (label === '昨天') yesterday.push(item)
+    else earlier.push(item)
   }
 
   const groups: Array<{ label: DateGroup; items: T[] }> = []
@@ -1266,6 +1270,18 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     await createAgentSessionInWorkspace()
   }, [createAgentSessionInWorkspace, setActiveView])
 
+  /** 在项目下新建 Draft 会话（预绑定 projectId；看板默认落「待办」列） */
+  const createAgentSessionInProject = React.useCallback(async (projectId: string): Promise<void> => {
+    setActiveView('conversations')
+    await createAgent({
+      draft: true,
+      workspaceId: currentWorkspaceId ?? undefined,
+      channelId: agentChannelId || undefined,
+      modelId: agentModelId || undefined,
+      projectId,
+    })
+  }, [agentChannelId, agentModelId, createAgent, currentWorkspaceId, setActiveView])
+
   /** 迁移会话进/出项目 */
   const handleMoveToProject = React.useCallback(async (sessionId: string, projectId?: string): Promise<void> => {
     try {
@@ -2140,6 +2156,29 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     return groupByDate(wrapped).map((g) => ({ label: g.label, items: g.items.map((w) => w.tree) }))
   }, [agentSessions, draftSessionIds])
 
+  /** Projects Tab 会话行操作包：与会话 Tab 共享同一批 handler，保证两个 Tab 行为一致 */
+  const projectTabSessionHandlers = React.useMemo<ProjectSessionHandlers>(() => ({
+    onSelectSession: handleSelectAgentSession,
+    onRequestDelete: handleRequestDelete,
+    onRequestMove: handleRequestMove,
+    onRename: handleAgentRename,
+    onTogglePin: handleTogglePinAgent,
+    onToggleStar: handleToggleStarAgent,
+    onToggleArchive: handleToggleArchiveAgent,
+    onMoveToProject: handleMoveToProject,
+    onNewSessionInProject: createAgentSessionInProject,
+  }), [
+    createAgentSessionInProject,
+    handleAgentRename,
+    handleMoveToProject,
+    handleRequestDelete,
+    handleRequestMove,
+    handleSelectAgentSession,
+    handleToggleArchiveAgent,
+    handleTogglePinAgent,
+    handleToggleStarAgent,
+  ])
+
   const handleRailModeSwitch = React.useCallback((targetMode: AppMode) => {
     setViewMode('active')
     if (targetMode === mode) return
@@ -2793,6 +2832,130 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
       {/* 项目中心入口已移除：Project 导航改由下方 Sessions | Projects Tab 承担 */}
 
+      {/* 置顶区：常驻在会话/项目 Tab 切换器上方，跨 Tab 可见 */}
+      {mode === 'chat' && viewMode === 'active' && pinnedConversations.length > 0 && (
+        <div className="pt-2 pb-1 flex-shrink-0 titlebar-no-drag">
+          <div className="px-3.5 pb-1 text-[11px] font-medium text-foreground/40 select-none">
+            置顶
+          </div>
+          <div
+            className="overflow-y-auto scrollbar-thin"
+            style={{ maxHeight: PINNED_SESSION_MAX_HEIGHT }}
+          >
+            <div className="px-2">
+              <div className="ml-4 flex flex-col gap-0.5">
+                {pinnedConversations.map((conv) => (
+                  <ConversationItem
+                    key={`pinned-${conv.id}`}
+                    conversation={conv}
+                    active={conv.id === activeSessionId}
+                    streaming={streamingIds.has(conv.id)}
+                    showPinIcon={false}
+                    relativeTimeNow={relativeTimeNow}
+                    onSelect={handleSelectConversation}
+                    onRequestDelete={handleRequestDelete}
+                    onRename={handleRename}
+                    onTogglePin={handleTogglePin}
+                    onToggleArchive={handleToggleArchive}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {mode === 'agent' && viewMode === 'active' && pinnedAgentSessions.length > 0 && (
+        <div className="pt-2 pb-1 flex-shrink-0 titlebar-no-drag">
+          <div className="px-3.5 pb-1 text-[11px] font-medium text-foreground/40 select-none">
+            置顶
+          </div>
+          <div
+            className="overflow-y-auto scrollbar-thin"
+            style={{ maxHeight: PINNED_SESSION_MAX_HEIGHT }}
+          >
+            <div className="px-2">
+              <div className="ml-4 flex flex-col gap-0.5">
+                {pinnedAgentSessionTrees.map((item) => {
+                  const childCount = item.childSessions.length
+                  const rowStatus = getSessionTreeStatus(item, agentIndicatorMap)
+                  const treeActive = treeContainsSessionId(item, activeSessionId)
+                  const activeChildVisible = item.childSessions.some((child) => child.id === activeSessionId)
+                  const expandedChildren = expandedDelegationParentIds.has(item.session.id)
+                    || (activeChildVisible && !collapsedDelegationParentIds.has(item.session.id))
+
+                  return (
+                    <div key={`pinned-${item.session.id}`} className="flex flex-col gap-0.5">
+                      <AgentSessionItem
+                        session={item.session}
+                        active={treeActive}
+                        indicatorStatus={rowStatus}
+                        showPinIcon={false}
+                        delegationSummary={childCount > 0
+                          ? {
+                            total: childCount,
+                            completed: countCompletedDelegatedChildren(item.childSessions),
+                            expanded: expandedChildren,
+                            onToggle: () => handleToggleDelegationParent(item.session.id, expandedChildren),
+                          }
+                          : undefined}
+                        leftAccent={getSessionLeftAccent(rowStatus)}
+                        workspaceName={
+                          item.session.workspaceId
+                          && item.session.workspaceId !== currentWorkspaceId
+                            ? workspaceNameMap.get(item.session.workspaceId)
+                            : undefined
+                        }
+                        projectColor={item.session.projectId ? kanbanProjectColorMap.get(item.session.projectId) : undefined}
+                        projects={item.session.workspaceId === currentWorkspaceId ? currentWorkspaceProjects : EMPTY_PROJECTS}
+                        onMoveToProject={handleMoveToProject}
+                        relativeTimeNow={relativeTimeNow}
+                        onSelect={handleSelectAgentSession}
+                        onRequestDelete={handleRequestDelete}
+                        onRequestMove={handleRequestMove}
+                        onRename={handleAgentRename}
+                        onTogglePin={handleTogglePinAgent}
+                        onToggleStar={handleToggleStarAgent}
+                        onToggleArchive={handleToggleArchiveAgent}
+                      />
+
+                      {childCount > 0 && expandedChildren && (
+                        <div className="ml-3 border-l border-foreground/10 pl-2 flex flex-col gap-0.5">
+                          {item.childSessions.map((childSession) => (
+                            <DelegatedChildSessionItem
+                              key={childSession.id}
+                              session={childSession}
+                              activeSessionId={activeSessionId}
+                              agentIndicatorMap={agentIndicatorMap}
+                              relativeTimeNow={relativeTimeNow}
+                              workspaceName={
+                                childSession.workspaceId
+                                && childSession.workspaceId !== currentWorkspaceId
+                                  ? workspaceNameMap.get(childSession.workspaceId)
+                                  : undefined
+                              }
+                              projects={childSession.workspaceId === currentWorkspaceId ? currentWorkspaceProjects : EMPTY_PROJECTS}
+                              onMoveToProject={handleMoveToProject}
+                              onSelect={handleSelectAgentSession}
+                              onRequestDelete={handleRequestDelete}
+                              onRequestMove={handleRequestMove}
+                              onRename={handleAgentRename}
+                              onTogglePin={handleTogglePinAgent}
+                              onToggleStar={handleToggleStarAgent}
+                              onToggleArchive={handleToggleArchiveAgent}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Sessions | Projects Tab 导航 */}
       {mode === 'agent' && (
         <div className="px-3 pt-1 pb-1">
@@ -2827,41 +2990,9 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         </div>
       )}
 
-      {/* Chat 模式 active 视图：置顶 + 对话历史，结构与 Agent active 视图保持一致 */}
+      {/* Chat 模式 active 视图：对话历史（置顶区已上移至会话/项目 Tab 切换器上方） */}
       {mode === 'chat' && viewMode === 'active' ? (
         <div className="flex-1 flex flex-col min-h-0">
-          {pinnedConversations.length > 0 && (
-            <div className="pt-2 pb-1 flex-shrink-0 titlebar-no-drag">
-              <div className="px-3.5 pb-1 text-[11px] font-medium text-foreground/40 select-none">
-                置顶
-              </div>
-              <div
-                className="overflow-y-auto scrollbar-thin"
-                style={{ maxHeight: PINNED_SESSION_MAX_HEIGHT }}
-              >
-                <div className="px-2">
-                  <div className="ml-4 flex flex-col gap-0.5">
-                    {pinnedConversations.map((conv) => (
-                      <ConversationItem
-                        key={`pinned-${conv.id}`}
-                        conversation={conv}
-                        active={conv.id === activeSessionId}
-                        streaming={streamingIds.has(conv.id)}
-                        showPinIcon={false}
-                        relativeTimeNow={relativeTimeNow}
-                        onSelect={handleSelectConversation}
-                        onRequestDelete={handleRequestDelete}
-                        onRename={handleRename}
-                        onTogglePin={handleTogglePin}
-                        onToggleArchive={handleToggleArchive}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
           <div className="px-3 pt-2 pb-1 flex-shrink-0 border-t border-border/50">
             <span className="px-1.5 text-[11px] font-medium text-foreground/40 select-none">对话</span>
           </div>
@@ -2895,98 +3026,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         </div>
       ) : mode === 'agent' && viewMode === 'active' ? (
         <div className="flex-1 flex flex-col min-h-0">
-          {pinnedAgentSessions.length > 0 && (
-            <div className="pt-2 pb-1 flex-shrink-0 titlebar-no-drag">
-              <div className="px-3.5 pb-1 text-[11px] font-medium text-foreground/40 select-none">
-                置顶
-              </div>
-              <div
-                className="overflow-y-auto scrollbar-thin"
-                style={{ maxHeight: PINNED_SESSION_MAX_HEIGHT }}
-              >
-                <div className="px-2">
-                  <div className="ml-4 flex flex-col gap-0.5">
-                    {pinnedAgentSessionTrees.map((item) => {
-                      const childCount = item.childSessions.length
-                      const rowStatus = getSessionTreeStatus(item, agentIndicatorMap)
-                      const treeActive = treeContainsSessionId(item, activeSessionId)
-                      const activeChildVisible = item.childSessions.some((child) => child.id === activeSessionId)
-                      const expandedChildren = expandedDelegationParentIds.has(item.session.id)
-                        || (activeChildVisible && !collapsedDelegationParentIds.has(item.session.id))
-
-                      return (
-                        <div key={`pinned-${item.session.id}`} className="flex flex-col gap-0.5">
-                          <AgentSessionItem
-                            session={item.session}
-                            active={treeActive}
-                            indicatorStatus={rowStatus}
-                            showPinIcon={false}
-                            delegationSummary={childCount > 0
-                              ? {
-                                total: childCount,
-                                completed: countCompletedDelegatedChildren(item.childSessions),
-                                expanded: expandedChildren,
-                                onToggle: () => handleToggleDelegationParent(item.session.id, expandedChildren),
-                              }
-                              : undefined}
-                            leftAccent={getSessionLeftAccent(rowStatus)}
-                            workspaceName={
-                              item.session.workspaceId
-                              && item.session.workspaceId !== currentWorkspaceId
-                                ? workspaceNameMap.get(item.session.workspaceId)
-                                : undefined
-                            }
-                            projectColor={item.session.projectId ? kanbanProjectColorMap.get(item.session.projectId) : undefined}
-                            projects={item.session.workspaceId === currentWorkspaceId ? currentWorkspaceProjects : EMPTY_PROJECTS}
-                            onMoveToProject={handleMoveToProject}
-                            relativeTimeNow={relativeTimeNow}
-                            onSelect={handleSelectAgentSession}
-                            onRequestDelete={handleRequestDelete}
-                            onRequestMove={handleRequestMove}
-                            onRename={handleAgentRename}
-                            onTogglePin={handleTogglePinAgent}
-                            onToggleStar={handleToggleStarAgent}
-                            onToggleArchive={handleToggleArchiveAgent}
-                          />
-
-                          {childCount > 0 && expandedChildren && (
-                            <div className="ml-3 border-l border-foreground/10 pl-2 flex flex-col gap-0.5">
-                              {item.childSessions.map((childSession) => (
-                                <DelegatedChildSessionItem
-                                  key={childSession.id}
-                                  session={childSession}
-                                  activeSessionId={activeSessionId}
-                                  agentIndicatorMap={agentIndicatorMap}
-                                  relativeTimeNow={relativeTimeNow}
-                                  workspaceName={
-                                    childSession.workspaceId
-                                    && childSession.workspaceId !== currentWorkspaceId
-                                      ? workspaceNameMap.get(childSession.workspaceId)
-                                      : undefined
-                                  }
-                                  projects={childSession.workspaceId === currentWorkspaceId ? currentWorkspaceProjects : EMPTY_PROJECTS}
-                                  onMoveToProject={handleMoveToProject}
-                                  onSelect={handleSelectAgentSession}
-                                  onRequestDelete={handleRequestDelete}
-                                  onRequestMove={handleRequestMove}
-                                  onRename={handleAgentRename}
-                                  onTogglePin={handleTogglePinAgent}
-                                  onToggleStar={handleToggleStarAgent}
-                                  onToggleArchive={handleToggleArchiveAgent}
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Sessions Tab: 置顶 + 会话列表; Projects Tab: 项目树 */}
+          {/* Sessions Tab: 会话列表; Projects Tab: 项目树（置顶区已上移至 Tab 切换器上方） */}
           {sidebarTab === 'sessions' ? (
             <>
               <div className="mx-3 border-t border-border/50" />
@@ -3056,7 +3096,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
           </div>
             </>
           ) : (
-            <SidebarProjectsTab workspaceRoot={workspaceRoot} />
+            <SidebarProjectsTab workspaceRoot={workspaceRoot} sessionHandlers={projectTabSessionHandlers} />
           )}
         </div>
       ) : (
@@ -3193,7 +3233,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-[10px] text-[12px] text-foreground/40 hover:bg-foreground/[0.04] hover:text-foreground/60 transition-colors titlebar-no-drag"
               >
                 <Archive size={13} className="text-foreground/30" />
-                <span>已归档 ({archivedConversationCount})</span>
+                <span>已归档对话 ({archivedConversationCount})</span>
               </button>
             )}
             {mode === 'agent' && archivedAgentSessionCount > 0 && (
@@ -3202,7 +3242,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-[10px] text-[12px] text-foreground/40 hover:bg-foreground/[0.04] hover:text-foreground/60 transition-colors titlebar-no-drag"
               >
                 <Archive size={13} className="text-foreground/30" />
-                <span>已归档 ({archivedAgentSessionCount})</span>
+                <span>已归档会话 ({archivedAgentSessionCount})</span>
               </button>
             )}
           </>
@@ -3860,89 +3900,115 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
         {!collapsed ? (
           treeItems.length > 0 ? (
             <div className="flex flex-col gap-0.5">
-              {sessions.map((item) => {
-                const childCount = item.childSessions.length
-                const rowStatus = getSessionTreeStatus(item, agentIndicatorMap)
-                const treeActive = treeContainsSessionId(item, activeSessionId)
-                const activeChildVisible = item.childSessions.some((child) => child.id === activeSessionId)
-                const expandedChildren = expandedDelegationParentIds.has(item.session.id)
-                  || (activeChildVisible && !collapsedDelegationParentIds.has(item.session.id))
+              {(() => {
+                // 按日期插入分组标题（今天/昨天/更早），对齐 craft-agents 的会话列表排序展示；
+                // 不改变 sessions 本身的排序逻辑（活跃优先 + 时间窗 + 显示更多），只在标签变化处插入标题。
+                let lastDateLabel: DateGroup | null = null
+                return sessions.map((item) => {
+                  const childCount = item.childSessions.length
+                  const rowStatus = getSessionTreeStatus(item, agentIndicatorMap)
+                  const treeActive = treeContainsSessionId(item, activeSessionId)
+                  const activeChildVisible = item.childSessions.some((child) => child.id === activeSessionId)
+                  const expandedChildren = expandedDelegationParentIds.has(item.session.id)
+                    || (activeChildVisible && !collapsedDelegationParentIds.has(item.session.id))
+                  const dateLabel = getDateGroupLabel(item.session.updatedAt, relativeTimeNow)
+                  const showDateHeader = dateLabel !== lastDateLabel
+                  lastDateLabel = dateLabel
 
-                return (
-                  <div key={item.session.id} className="flex flex-col gap-0.5">
-                    <AgentSessionItem
-                      session={item.session}
-                      active={treeActive}
-                      indicatorStatus={rowStatus}
-                      showPinIcon={!!item.session.pinned}
-                      delegationSummary={childCount > 0
-                        ? {
-                          total: childCount,
-                          completed: countCompletedDelegatedChildren(item.childSessions),
-                          expanded: expandedChildren,
-                          onToggle: () => onToggleDelegationParent(item.session.id, expandedChildren),
-                        }
-                        : undefined}
-                      leftAccent={getSessionLeftAccent(rowStatus)}
-                      relativeTimeNow={relativeTimeNow}
-                      workspaceName={isAutomationGroup && item.session.workspaceId ? workspaceNameMap?.get(item.session.workspaceId) : undefined}
-                      projectColor={item.session.projectId ? projectColorMap.get(item.session.projectId) : undefined}
-                      projects={projects}
-                      onMoveToProject={onMoveToProject}
-                      onSelect={onSelectSession}
-                      onRequestDelete={onRequestDelete}
-                      onRequestMove={onRequestMove}
-                      onRename={onRename}
-                      onTogglePin={onTogglePin}
-                      onToggleStar={onToggleStar}
-                      onToggleArchive={onToggleArchive}
-                    />
+                  return (
+                    <React.Fragment key={item.session.id}>
+                      {showDateHeader && (
+                        <div className="px-1.5 pt-2 pb-1 text-[11px] font-medium text-foreground/35 select-none first:pt-0.5">
+                          {dateLabel}
+                        </div>
+                      )}
+                      <div className="flex flex-col gap-0.5">
+                        <AgentSessionItem
+                          session={item.session}
+                          active={treeActive}
+                          indicatorStatus={rowStatus}
+                          showPinIcon={!!item.session.pinned}
+                          delegationSummary={childCount > 0
+                            ? {
+                              total: childCount,
+                              completed: countCompletedDelegatedChildren(item.childSessions),
+                              expanded: expandedChildren,
+                              onToggle: () => onToggleDelegationParent(item.session.id, expandedChildren),
+                            }
+                            : undefined}
+                          leftAccent={getSessionLeftAccent(rowStatus)}
+                          relativeTimeNow={relativeTimeNow}
+                          workspaceName={isAutomationGroup && item.session.workspaceId ? workspaceNameMap?.get(item.session.workspaceId) : undefined}
+                          projectColor={item.session.projectId ? projectColorMap.get(item.session.projectId) : undefined}
+                          projects={projects}
+                          onMoveToProject={onMoveToProject}
+                          onSelect={onSelectSession}
+                          onRequestDelete={onRequestDelete}
+                          onRequestMove={onRequestMove}
+                          onRename={onRename}
+                          onTogglePin={onTogglePin}
+                          onToggleStar={onToggleStar}
+                          onToggleArchive={onToggleArchive}
+                        />
 
-                    {childCount > 0 && expandedChildren && (
-                      <div className="ml-3 border-l border-foreground/10 pl-2 flex flex-col gap-0.5">
-                        {item.childSessions.map((childSession) => (
-                          <DelegatedChildSessionItem
-                            key={childSession.id}
-                            session={childSession}
-                            activeSessionId={activeSessionId}
-                            agentIndicatorMap={agentIndicatorMap}
-                            relativeTimeNow={relativeTimeNow}
-                            workspaceName={isAutomationGroup && childSession.workspaceId ? workspaceNameMap?.get(childSession.workspaceId) : undefined}
-                            projects={projects}
-                            onMoveToProject={onMoveToProject}
-                            onSelect={onSelectSession}
-                            onRequestDelete={onRequestDelete}
-                            onRequestMove={onRequestMove}
-                            onRename={onRename}
-                            onTogglePin={onTogglePin}
-                            onToggleStar={onToggleStar}
-                            onToggleArchive={onToggleArchive}
-                          />
-                        ))}
+                        {childCount > 0 && expandedChildren && (
+                          <div className="ml-3 border-l border-foreground/10 pl-2 flex flex-col gap-0.5">
+                            {item.childSessions.map((childSession) => (
+                              <DelegatedChildSessionItem
+                                key={childSession.id}
+                                session={childSession}
+                                activeSessionId={activeSessionId}
+                                agentIndicatorMap={agentIndicatorMap}
+                                relativeTimeNow={relativeTimeNow}
+                                workspaceName={isAutomationGroup && childSession.workspaceId ? workspaceNameMap?.get(childSession.workspaceId) : undefined}
+                                projects={projects}
+                                onMoveToProject={onMoveToProject}
+                                onSelect={onSelectSession}
+                                onRequestDelete={onRequestDelete}
+                                onRequestMove={onRequestMove}
+                                onRename={onRename}
+                                onTogglePin={onTogglePin}
+                                onToggleStar={onToggleStar}
+                                onToggleArchive={onToggleArchive}
+                              />
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                )
-              })}
+                    </React.Fragment>
+                  )
+                })
+              })()}
 
-              {hiddenCount > 0 && (
-                <button
-                  type="button"
-                  onClick={() => onShowMore(group.workspace.id)}
-                  className="w-full text-left px-1.5 py-1 rounded-md text-[12px] text-foreground/35 hover:bg-foreground/[0.03] hover:text-foreground/60 transition-colors titlebar-no-drag"
-                >
-                  显示更多
-                </button>
-              )}
-
-              {expanded && (
-                <button
-                  type="button"
-                  onClick={() => onCollapseExtra(group.workspace.id)}
-                  className="w-full text-left px-1.5 py-1 rounded-md text-[12px] text-foreground/35 hover:bg-foreground/[0.03] hover:text-foreground/60 transition-colors titlebar-no-drag"
-                >
-                  收起
-                </button>
+              {/* 「显示更多」与「收起」可能同时成立（还有隐藏项 + 已手动展开过）：
+                  并排放在同一行，避免两条同款文字按钮堆叠看起来像重复/重叠的控件 */}
+              {(hiddenCount > 0 || expanded) && (
+                <div className="flex items-center gap-1">
+                  {hiddenCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => onShowMore(group.workspace.id)}
+                      className={cn(
+                        'text-left px-1.5 py-1 rounded-md text-[12px] text-foreground/35 hover:bg-foreground/[0.03] hover:text-foreground/60 transition-colors titlebar-no-drag',
+                        expanded ? 'flex-1' : 'w-full',
+                      )}
+                    >
+                      显示更多
+                    </button>
+                  )}
+                  {expanded && (
+                    <button
+                      type="button"
+                      onClick={() => onCollapseExtra(group.workspace.id)}
+                      className={cn(
+                        'text-left px-1.5 py-1 rounded-md text-[12px] text-foreground/35 hover:bg-foreground/[0.03] hover:text-foreground/60 transition-colors titlebar-no-drag shrink-0',
+                        hiddenCount === 0 && 'w-full',
+                      )}
+                    >
+                      收起
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           ) : (

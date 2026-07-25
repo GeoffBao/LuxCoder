@@ -50,8 +50,6 @@ import {
   relocateProjectWorkingDirectory,
   resolveEffectiveCwd,
 } from './project-path-service'
-import { clampDiscoveryDepth, discoverGitRepos } from './repo-discovery-service'
-import { getSettings } from './settings-service'
 import { TaskRunner, type RunOptions } from './task-runner'
 import { TeambitionService, type ClaimTeambitionTaskInput, type TeambitionRemoteTask } from './teambition-service'
 
@@ -206,14 +204,20 @@ export function resolveTaskWorkingDirectory(
  * 构造 set_project_id 的会话更新补丁。
  * 绑定项目且解析出有效 cwd（外部主目录或托管 workdir）时写入 workingDirectory；
  * 解绑或 cwd 不可用时省略该字段，保留会话已有工作目录（避免误清手动附加路径）。
+ * 绑定项目 = triage 完成：会话还未上板（无列）或滞留在已下线的收件箱时，顺位移到「待办」；
+ * 用户已手动拖到其他列的会话不动，尊重整理结果。
  */
 export function buildSetProjectIdUpdates(
   projectId: string | undefined,
   resolvedWorkingDirectory: string | undefined,
-): Pick<AgentSessionMeta, 'projectId'> & Partial<Pick<AgentSessionMeta, 'workingDirectory'>> {
+  currentKanbanColumn?: string,
+): Pick<AgentSessionMeta, 'projectId'> & Partial<Pick<AgentSessionMeta, 'workingDirectory' | 'kanbanColumn'>> {
+  const shouldAdvanceColumn = Boolean(projectId)
+    && (currentKanbanColumn === undefined || currentKanbanColumn === 'inbox')
   return {
     projectId,
     ...(projectId && resolvedWorkingDirectory ? { workingDirectory: resolvedWorkingDirectory } : {}),
+    ...(shouldAdvanceColumn ? { kanbanColumn: 'todo' } : {}),
   }
 }
 
@@ -263,7 +267,7 @@ type AgentSessionMetaUpdater = (
   updates: Pick<AgentSessionMeta, 'kanbanColumn' | 'sessionStatus'>,
 ) => AgentSessionMeta
 
-/** 将看板列持久化；若列定义了 dropStatusId 则同步 sessionStatus。 */
+/** 将看板列持久化；调用方可选传入联动的 sessionStatus 一并写入。 */
 export function setSessionKanbanColumn(
   sessionId: string,
   column: string | null,
@@ -276,21 +280,25 @@ export function setSessionKanbanColumn(
   })
 }
 
-/** 根据会话所属项目解析拖入列应写入的 sessionStatus */
+/**
+ * 根据拖入的看板列解析应写入的 sessionStatus（内置默认列固定语义：
+ * 待办→todo、已完成→done、进行中→不写，运行态由系统派生）。
+ * 护栏：会话正在运行（running/in-progress）时不被拖放降级——人不与机器打架。
+ */
 export function resolveSessionDropStatus(
   sessionId: string,
   columnId: string | null,
   getSession: typeof getAgentSessionMeta = getAgentSessionMeta,
 ): string | undefined {
   const meta = getSession(sessionId)
-  if (!meta?.projectId || !meta.workspaceId || !columnId) return undefined
-  const workspace = getAgentWorkspace(meta.workspaceId)
-  if (!workspace) return undefined
-  return projectRepository.resolveDropStatusId(
-    getAgentWorkspacePath(workspace.slug),
-    meta.projectId,
-    columnId,
-  )
+  if (!meta || !columnId) return undefined
+
+  // 运行中的会话 badge 由系统派生，拖列不改写
+  if (meta.sessionStatus === 'running' || meta.sessionStatus === 'in-progress') return undefined
+
+  if (columnId === 'todo') return 'todo'
+  if (columnId === 'done') return 'done'
+  return undefined
 }
 
 /** 冷启动：扫描所有工作区未结束的 TaskRun 并 resume */
@@ -464,16 +472,6 @@ export function registerTaskHandlers(window: BrowserWindow): void {
     },
   )
 
-  ipcMain.handle(
-    PROJECT_IPC_CHANNELS.DISCOVER_REPOS,
-    (_event, options?: { roots?: string[]; maxDepth?: number }) => {
-      const settings = getSettings().projectDiscovery
-      const roots = options?.roots ?? settings?.scanRoots ?? []
-      const maxDepth = clampDiscoveryDepth(options?.maxDepth ?? settings?.maxDepth)
-      return discoverGitRepos({ roots, maxDepth })
-    },
-  )
-
   ipcMain.handle(TASK_IPC_CHANNELS.VALIDATE, (_event, yaml: string) => {
     return buildTaskValidationPayload(parseTaskYaml(yaml))
   })
@@ -593,7 +591,7 @@ export function registerTaskHandlers(window: BrowserWindow): void {
           : undefined
         return updateAgentSessionMeta(
           sessionId,
-          buildSetProjectIdUpdates(command.projectId, resolvedWorkingDirectory),
+          buildSetProjectIdUpdates(command.projectId, resolvedWorkingDirectory, meta?.kanbanColumn),
         )
       }
       case 'set_kanban_column': {

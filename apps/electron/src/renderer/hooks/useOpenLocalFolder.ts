@@ -46,7 +46,6 @@ export function useOpenLocalFolder(): () => Promise<void> {
         color: result.project.color,
         updatedAt: result.project.updatedAt,
         archivedAt: result.project.archivedAt,
-        kanbanColumns: result.project.kanbanColumns,
         defaultExpertId: result.project.defaultExpertId,
         workspaceId: result.project.workspaceId,
       }

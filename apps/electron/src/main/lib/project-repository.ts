@@ -35,12 +35,6 @@ const WorkspaceIdSchema = z.string().min(1, 'workspaceId 必填')
 const ProjectSlugSchema = z.string().regex(/^[a-z0-9][a-z0-9-]*$/, 'project slug 必须是 URL-safe slug')
 const ProjectNameSchema = z.string().trim().min(1, '项目名称不能为空')
 const OptionalProjectStringSchema = z.string().optional()
-const KanbanColumnSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
-  dropStatusId: z.string().optional(),
-  color: z.string().optional(),
-})
 const CreateProjectInputSchema = z.object({
   name: ProjectNameSchema,
   description: OptionalProjectStringSchema,
@@ -56,7 +50,6 @@ const UpdateProjectInputSchema = z.object({
   details: OptionalProjectStringSchema,
   colorTheme: OptionalProjectStringSchema,
   color: OptionalProjectStringSchema,
-  kanbanColumns: z.array(KanbanColumnSchema).optional(),
   archivedAt: z.number().optional(),
   defaultExpertId: OptionalProjectStringSchema,
 })
@@ -222,13 +215,6 @@ export class ProjectRepository {
     return assertRunnableCwd(result)
   }
 
-  /** 解析列拖入时自动应用的 sessionStatus */
-  resolveDropStatusId(workspaceRoot: string, projectId: string | undefined, columnId: string | null): string | undefined {
-    if (!projectId || !columnId) return undefined
-    const columns = this.getProjectAtRoot(workspaceRoot, projectId)?.config.kanbanColumns
-    return columns?.find((column) => column.id === columnId)?.dropStatusId
-  }
-
   /** 构建注入 Agent prompt 的项目上下文 */
   buildPromptContext(workspaceRoot: string, projectId: string): ProjectPromptContext | null {
     const project = this.getProjectAtRoot(workspaceRoot, projectId)
@@ -239,6 +225,7 @@ export class ProjectRepository {
       name: project.config.name,
       ...(project.config.description ? { description: project.config.description } : {}),
       ...(project.config.details ? { details: project.config.details } : {}),
+      ...(project.config.workingDirectory ? { workingDirectory: project.config.workingDirectory } : {}),
       assetsPath: project.assetsPath,
       assets: assets.map((asset) => ({
         filename: asset.filename,

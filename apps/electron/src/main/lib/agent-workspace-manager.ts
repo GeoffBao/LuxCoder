@@ -1416,6 +1416,8 @@ interface WorkspaceConfig {
   attachedDirectories?: string[]
   attachedFiles?: string[]
   worktreeRepos?: import('@luxcoder/shared').WorkspaceWorktreeRepo[]
+  /** 未绑定项目的新会话回退使用的工作目录（仅注入 prompt 上下文，不改变会话隔离 cwd） */
+  defaultWorkingDirectory?: string
 }
 
 function getWorkspaceConfigPath(workspaceSlug: string): string {
@@ -1441,6 +1443,9 @@ function readWorkspaceConfig(workspaceSlug: string): WorkspaceConfig {
         : undefined,
       worktreeRepos: Array.isArray(data.worktreeRepos)
         ? data.worktreeRepos.filter((r) => r && typeof r.name === 'string' && typeof r.repoPath === 'string' && typeof r.worktreesPath === 'string')
+        : undefined,
+      defaultWorkingDirectory: typeof data.defaultWorkingDirectory === 'string'
+        ? data.defaultWorkingDirectory
         : undefined,
     }
   } catch {
@@ -1511,6 +1516,21 @@ export function detachWorkspaceFile(workspaceSlug: string, filePath: string): st
   writeWorkspaceConfig(workspaceSlug, { ...config, attachedFiles: updated })
   console.log(`[Agent 工作区] 已移除工作区文件: ${filePath} ← ${workspaceSlug}`)
   return updated
+}
+
+// ===== 工作区级默认工作目录 =====
+
+/** 未绑定项目的新会话回退使用的工作目录；未配置时返回 undefined */
+export function getWorkspaceDefaultWorkingDirectory(workspaceSlug: string): string | undefined {
+  return readWorkspaceConfig(workspaceSlug).defaultWorkingDirectory
+}
+
+/** 设置/清空工作区默认工作目录；传 undefined 清空 */
+export function setWorkspaceDefaultWorkingDirectory(workspaceSlug: string, path: string | undefined): string | undefined {
+  const config = readWorkspaceConfig(workspaceSlug)
+  writeWorkspaceConfig(workspaceSlug, { ...config, defaultWorkingDirectory: path || undefined })
+  console.log(`[Agent 工作区] 默认工作目录已${path ? `设为 ${path}` : '清空'} (${workspaceSlug})`)
+  return path || undefined
 }
 
 // ===== 工作区级 Worktree 仓库管理 =====

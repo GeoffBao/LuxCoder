@@ -126,7 +126,7 @@ describe('ProjectRepository', () => {
     expect(repository.getProject('ws-alpha', created.slug)).toBeNull()
   })
 
-  test('AtRoot API 解析 workingDirectory 与 dropStatusId', () => {
+  test('AtRoot API 解析 workingDirectory', () => {
     const root = createTempWorkspaceRoot()
     const external = join(createTempWorkspaceRoot(), 'repo')
     mkdirSync(external)
@@ -135,12 +135,6 @@ describe('ProjectRepository', () => {
       name: 'Kanban Proj',
       workingDirectory: external,
     })
-    repository.updateProjectAtRoot(root, created.config.slug, {
-      kanbanColumns: [
-        { id: 'todo', name: '待办' },
-        { id: 'doing', name: '进行中', dropStatusId: 'coding' },
-      ],
-    })
 
     expect(repository.resolveWorkingDirectory(root, created.config.id)).toBe(external)
     expect(repository.resolveEffectiveCwdForProject(root, created.config.id)).toEqual({
@@ -148,8 +142,6 @@ describe('ProjectRepository', () => {
       cwd: external,
       displayPath: external,
     })
-    expect(repository.resolveDropStatusId(root, created.config.id, 'doing')).toBe('coding')
-    expect(repository.resolveDropStatusId(root, created.config.id, 'todo')).toBeUndefined()
     expect(repository.buildPromptContext(root, created.config.id)?.name).toBe('Kanban Proj')
   })
 

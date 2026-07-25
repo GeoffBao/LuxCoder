@@ -12,12 +12,7 @@ export interface PickerProject {
   archivedAt?: number | string
 }
 
-export interface DiscoveredRepo {
-  path: string
-  name: string
-}
-
-export type PickerActionId = 'browse' | 'create' | 'skip' | 'add-scan-root'
+export type PickerActionId = 'browse' | 'create' | 'skip'
 
 export interface PickerAction {
   id: PickerActionId
@@ -25,12 +20,8 @@ export interface PickerAction {
 }
 
 export interface PickerSections {
-  recents: PickerProject[]
-  existing: PickerProject[]
-  discovery: {
-    items: DiscoveredRepo[]
-    needsScanRootGuide: boolean
-  }
+  /** 全部激活项目，最近使用的排在前面，其余按项目自身 updatedAt 倒序；不重复出现 */
+  projects: PickerProject[]
   actions: PickerAction[]
 }
 
@@ -59,64 +50,40 @@ export function shouldHonorBrowseRequest(input: {
   }
 }
 
-export function clampDiscoveryDepth(depth: number | undefined): number {
-  if (depth === undefined || Number.isNaN(depth)) return 3
-  return Math.min(5, Math.max(1, Math.floor(depth)))
-}
-
-function normalizePathForCompare(filePath: string): string {
-  return filePath.trim().replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase()
-}
-
 export function buildPickerSections(input: {
   mode: ProjectContextPickerMode
   projects: PickerProject[]
   recentProjectIds: string[]
-  discovered: DiscoveredRepo[]
-  scanRoots: string[]
+  /** 当前已绑定的项目 id；仅在有绑定时才提供"清除项目"动作，未绑定时它和直接关闭面板没有区别 */
+  selectedProjectId?: string
 }): PickerSections {
   const active = input.projects.filter((project) => !project.archivedAt)
   const byId = new Map(active.map((project) => [project.id, project]))
 
-  const recents: PickerProject[] = []
+  // 最近使用的项目排前面，其余按项目自身 updatedAt 倒序补齐；同一项目只出现一次。
+  const recentIds = new Set<string>()
+  const projects: PickerProject[] = []
   for (const id of input.recentProjectIds) {
     const project = byId.get(id)
-    if (project) recents.push(project)
+    if (project && !recentIds.has(id)) {
+      recentIds.add(id)
+      projects.push(project)
+    }
   }
-
-  const existing = [...active].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))
-
-  const boundPaths = new Set(
-    active
-      .map((project) => project.workingDirectory)
-      .filter((path): path is string => Boolean(path && path.trim()))
-      .map(normalizePathForCompare),
-  )
-
-  const needsScanRootGuide = input.scanRoots.length === 0
-  const discoveryItems = needsScanRootGuide
-    ? []
-    : input.discovered.filter((repo) => !boundPaths.has(normalizePathForCompare(repo.path)))
+  const rest = active
+    .filter((project) => !recentIds.has(project.id))
+    .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))
+  projects.push(...rest)
 
   // 动作标签对齐 Cursor/Codex/Kimi：新建优先、浏览次之、会话可跳过
   const actions: PickerAction[] = [
     { id: 'create', label: '新建项目…' },
     { id: 'browse', label: '使用现有文件夹…' },
   ]
-  if (needsScanRootGuide) {
-    actions.push({ id: 'add-scan-root', label: '添加扫描目录…' })
-  }
-  if (allowsSkipProject(input.mode)) {
-    actions.push({ id: 'skip', label: '不使用项目' })
+  // 只有已经绑定项目时才需要"清除"，未绑定时它和直接关闭面板效果一样，没必要占一行
+  if (allowsSkipProject(input.mode) && input.selectedProjectId) {
+    actions.push({ id: 'skip', label: '清除项目' })
   }
 
-  return {
-    recents,
-    existing,
-    discovery: {
-      items: discoveryItems,
-      needsScanRootGuide,
-    },
-    actions,
-  }
+  return { projects, actions }
 }

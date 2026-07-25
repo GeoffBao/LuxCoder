@@ -1,13 +1,6 @@
 import type { AgentSessionMeta } from '@luxcoder/shared'
 import type { KanbanProject } from '../app-shell/kanban/types'
 
-export interface ProjectColumnDraft {
-  id: string
-  name: string
-  color?: string
-  dropStatusId?: string
-}
-
 export interface ProjectFilter {
   query: string
   showArchived: boolean
@@ -22,7 +15,6 @@ export interface ProjectSettingsDraft {
   workingDirectory?: string
   /** 可选：未传时按空字符串处理（兼容尚未接线的调用方） */
   defaultExpertId?: string
-  kanbanColumns?: ProjectColumnDraft[]
 }
 
 export interface ProjectUpdatePatch {
@@ -32,7 +24,6 @@ export interface ProjectUpdatePatch {
   color?: string
   workingDirectory?: string
   defaultExpertId?: string
-  kanbanColumns?: ProjectColumnDraft[]
 }
 
 export interface CreateProjectDraft {
@@ -123,8 +114,5 @@ export function buildProjectUpdate(draft: ProjectSettingsDraft): ProjectUpdatePa
     color: optionalText(draft.color),
     workingDirectory: optionalText(draft.workingDirectory ?? ''),
     defaultExpertId: optionalText(draft.defaultExpertId ?? ''),
-    kanbanColumns: draft.kanbanColumns && draft.kanbanColumns.length > 0
-      ? draft.kanbanColumns
-      : undefined,
   }
 }

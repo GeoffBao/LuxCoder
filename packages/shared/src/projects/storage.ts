@@ -18,20 +18,11 @@ import type {
   UpdateProjectInput,
   UploadProjectAssetInput,
 } from './types.ts';
+import { estimateTokenCount, MEMORY_TOKEN_CAP } from './prompt.ts';
 
 // ============================================================
 // 辅助函数（替代 OSS utils）
 // ============================================================
-
-/** 估算文本的 token 数（简略版：中英混合用 char/2，纯英文 char/4） */
-function estimateTokenCount(text: string): number {
-  let ascii = 0, nonAscii = 0;
-  for (const ch of text) {
-    if (ch.charCodeAt(0) < 128) ascii++;
-    else nonAscii++;
-  }
-  return Math.ceil(ascii / 4 + nonAscii * 1.5);
-}
 
 /** 获取文件的 MIME 类型（基于扩展名） */
 function getMimeType(filePath: string): string {
@@ -164,7 +155,7 @@ export function saveProjectConfig(workspaceRootPath: string, config: ProjectConf
 export function loadProjectMemory(
   workspaceRootPath: string,
   projectSlug: string,
-  maxTokens = 5000,
+  maxTokens = MEMORY_TOKEN_CAP,
 ): string | null {
   const memoryPath = getProjectMemoryPath(workspaceRootPath, projectSlug);
   if (!existsSync(memoryPath)) return null;

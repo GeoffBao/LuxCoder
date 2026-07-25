@@ -16,7 +16,6 @@ import {
 } from '@/atoms/kanban-atoms'
 import {
   pendingTaskEditorTargetAtom,
-  selectedKanbanProjectAtom,
   selectedProjectIdAtom,
   serverKanbanProjectsAtom,
 } from '@/atoms/project-atoms'
@@ -54,7 +53,6 @@ export function KanbanBoardContainer({
 }: KanbanBoardContainerProps): React.ReactElement {
   const items = useAtomValue(kanbanItemsAtom)
   const projects = useAtomValue(serverKanbanProjectsAtom)
-  const selectedProject = useAtomValue(selectedKanbanProjectAtom)
   const [selectedProjectId, setSelectedProjectId] = useAtom(selectedProjectIdAtom)
   const [mode, setMode] = useAtom(boardModeAtom)
   const [notifications, setNotifications] = useAtom(kanbanNotificationsAtom)
@@ -180,7 +178,6 @@ export function KanbanBoardContainer({
       <KanbanBoard
         items={items}
         mode={mode}
-        columns={selectedProject?.kanbanColumns}
         onMove={(sessionId, columnId) => { void moveCard({ sessionId, columnId }) }}
         onOpenItem={openItem}
         onOpenSubtask={onOpenSubtask}

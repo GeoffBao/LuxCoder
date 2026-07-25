@@ -24,17 +24,17 @@ const projects: KanbanProject[] = [
 ]
 
 describe('buildKanbanViewModel', () => {
-  test('将未绑定的普通会话放入 Inbox', () => {
+  test('未显式拖放的新会话默认落入待办列（不做收件箱 triage）', () => {
     const model = buildKanbanViewModel({
       projects,
-      sessions: [createSession({ id: 'inbox-session', title: '整理需求', updatedAt: 30 })],
+      sessions: [createSession({ id: 'fresh-session', title: '整理需求', updatedAt: 30 })],
       runs: [],
       bindings: [],
       filter: { projectId: null },
     })
 
     expect(model.listItems).toEqual([
-      expect.objectContaining({ id: 'inbox-session', columnId: 'inbox', project: null }),
+      expect.objectContaining({ id: 'fresh-session', columnId: 'todo', project: null }),
     ])
   })
 
