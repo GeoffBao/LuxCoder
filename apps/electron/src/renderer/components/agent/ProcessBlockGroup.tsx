@@ -54,15 +54,31 @@ export function buildCompletedToolResultIds(turnMessages: SDKMessage[]): Set<str
   return ids
 }
 
-function getTrailingTextStartIndex(blocks: SDKContentBlock[]): number | null {
-  const lastBlock = blocks[blocks.length - 1]
-  if (lastBlock?.type !== 'text') return null
+interface ContentRun {
+  /** true = 连续的 text 块；false = 连续的 tool_use/thinking 等过程块 */
+  isText: boolean
+  start: number
+  end: number
+}
 
-  let finalStartIndex = blocks.length - 1
-  while (finalStartIndex > 0 && blocks[finalStartIndex - 1]?.type === 'text') {
-    finalStartIndex -= 1
+/**
+ * 把内容块按类型切成连续片段：text 片段之间可能夹着 tool_use/thinking 片段。
+ * 一轮回答里模型经常「查一段、说一段发现、再查一段、再说一段」，text 并不只出现在结尾——
+ * 早期实现只把「结尾连续的 text」当作正文、其余一律折进过程组，导致中间那些已经写完的
+ * 发现内容被整段吞掉，用户得展开「执行过程」才能看到。这里改为逐段识别，任何 text 片段
+ * 都是正文，只有 tool_use/thinking 片段才折叠。
+ */
+function partitionContentRuns(blocks: SDKContentBlock[]): ContentRun[] {
+  const runs: ContentRun[] = []
+  let i = 0
+  while (i < blocks.length) {
+    const isText = blocks[i]?.type === 'text'
+    let j = i + 1
+    while (j < blocks.length && (blocks[j]?.type === 'text') === isText) j += 1
+    runs.push({ isText, start: i, end: j })
+    i = j
   }
-  return finalStartIndex
+  return runs
 }
 
 function areToolsBeforeIndexCompleted(
@@ -92,43 +108,49 @@ export function buildAssistantTurnRenderItems(
 ): AssistantTurnRenderItem[] {
   if (blocks.length === 0) return []
 
-  // 流式阶段最后的 text 还不稳定，后续工具调用可能会把它变成中间过程。
-  // 只有当前面所有工具都有结果时，才把尾部 text 视作交付输出提前外置，降低完成瞬间的跳动。
+  const runs = partitionContentRuns(blocks)
+  const lastRunIndex = runs.length - 1
+  const lastRun = runs[lastRunIndex]
   const hasProcessBlock = blocks.some((block) => block.type === 'tool_use' || block.type === 'thinking')
-  const trailingTextStartIndex = getTrailingTextStartIndex(blocks)
-  const canSplitStreamingFinalOutput = options.isStreaming
-    && hasProcessBlock
-    && trailingTextStartIndex !== null
-    && trailingTextStartIndex > 0
-    && areToolsBeforeIndexCompleted(blocks, trailingTextStartIndex, options.completedToolResultIds)
 
-  if (options.isStreaming && hasProcessBlock && !canSplitStreamingFinalOutput) {
-    return [{
-      type: 'process-group',
-      items: blocks.map((block, index) => ({ block, index })),
-    }]
-  }
-
-  if (trailingTextStartIndex === null) {
-    return [{
-      type: 'process-group',
-      items: blocks.map((block, index) => ({ block, index })),
-    }]
-  }
+  // 只有「最后一段」存在流式不稳定的问题（后续还可能追加工具调用，把它变回中间过程）。
+  // 更早的 text 片段后面已经出现过别的内容，说明它已经写完，可以直接展示——
+  // 不需要、也不应该等到整轮结束才放出来。
+  const canExposeTrailingRun = lastRun
+    ? lastRun.isText && (
+      !options.isStreaming
+      || !hasProcessBlock
+      || areToolsBeforeIndexCompleted(blocks, lastRun.start, options.completedToolResultIds)
+    )
+    : false
 
   const items: AssistantTurnRenderItem[] = []
-  if (trailingTextStartIndex > 0) {
-    items.push({
-      type: 'process-group',
-      items: blocks.slice(0, trailingTextStartIndex).map((block, index) => ({ block, index })),
-    })
+  let pendingProcessBlocks: IndexedContentBlock[] = []
+
+  const flushProcessGroup = (): void => {
+    if (pendingProcessBlocks.length === 0) return
+    items.push({ type: 'process-group', items: pendingProcessBlocks })
+    pendingProcessBlocks = []
   }
 
-  for (let index = trailingTextStartIndex; index < blocks.length; index++) {
-    const block = blocks[index]
-    if (!block) continue
-    items.push({ type: 'block', item: { block, index } })
-  }
+  runs.forEach((run, runIndex) => {
+    const isLastRun = runIndex === lastRunIndex
+    const exposeDirectly = run.isText && (!isLastRun || canExposeTrailingRun)
+    const runItems: IndexedContentBlock[] = []
+    for (let index = run.start; index < run.end; index++) {
+      const block = blocks[index]
+      if (block) runItems.push({ block, index })
+    }
+
+    if (exposeDirectly) {
+      flushProcessGroup()
+      for (const item of runItems) items.push({ type: 'block', item })
+    } else {
+      pendingProcessBlocks.push(...runItems)
+    }
+  })
+
+  flushProcessGroup()
 
   return items
 }

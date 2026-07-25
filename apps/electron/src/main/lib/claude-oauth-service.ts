@@ -33,6 +33,13 @@ const TOKEN_PATTERN_GLOBAL = new RegExp(TOKEN_PATTERN.source, 'g')
 // 这条路径本来就只是兜底，不依赖它也能完成登录。
 const AUTH_URL_PATTERN = /https:\/\/claude\.ai\/oauth\/authorize\?[^\s"')]+(?=\s)/
 
+// setup-token 的真实交互方式（是否会在某些场景下改走"终端粘贴 code"而不是纯 stdout
+// 输出 token）未经过完整实测（见设计文档风险第 3 条）。一旦子进程卡住等不到 token，
+// 之前的实现没有任何兜底：Promise 永不 settle，渲染层"等待浏览器授权…"的 loading
+// 态会转到天荒地老，用户在浏览器里点完"登录成功"也无从得知/无法恢复。这里加一个
+// 上限超时，确保最坏情况下也能明确失败并提示重试，而不是无限转圈。
+const LOGIN_TIMEOUT_MS = 5 * 60_000
+
 export interface ClaudeLoginCallbacks {
   /** 捕获到授权 URL 时回调（除自动打开浏览器外，供 UI 展示兜底链接）。 */
   onAuthUrl?: (url: string) => void
@@ -58,7 +65,10 @@ function extractDiagnostic(stdout: string, stderr: string): string {
  * 打开系统浏览器完成授权；本函数额外扫描 stdout 里出现的授权 URL 并主动
  * shell.openExternal 一次作为兜底（即便二进制已自动打开，重复打开无害）。
  */
-export async function loginClaudeOAuth(callbacks?: ClaudeLoginCallbacks): Promise<ClaudeOAuthCredentials> {
+export async function loginClaudeOAuth(
+  callbacks?: ClaudeLoginCallbacks,
+  timeoutMs: number = LOGIN_TIMEOUT_MS,
+): Promise<ClaudeOAuthCredentials> {
   cancelClaudeOAuthLogin()
 
   const binaryPath = resolveClaudeAgentBinaryPath()
@@ -77,9 +87,14 @@ export async function loginClaudeOAuth(callbacks?: ClaudeLoginCallbacks): Promis
     let urlOpened = false
     let settled = false
 
+    const timeoutTimer = setTimeout(() => {
+      settleReject(new Error('登录超时（5 分钟未完成），请重试'))
+    }, timeoutMs)
+
     const settleResolve = (credentials: ClaudeOAuthCredentials): void => {
       if (settled) return
       settled = true
+      clearTimeout(timeoutTimer)
       if (activeChild === child) activeChild = undefined
       child.kill()
       resolve(credentials)
@@ -88,7 +103,9 @@ export async function loginClaudeOAuth(callbacks?: ClaudeLoginCallbacks): Promis
     const settleReject = (error: Error): void => {
       if (settled) return
       settled = true
+      clearTimeout(timeoutTimer)
       if (activeChild === child) activeChild = undefined
+      child.kill()
       reject(error)
     }
 

@@ -68,7 +68,7 @@ import { isVisibleRunMessage } from './agent-run-message-visibility'
 import { applyAgentSdkAuthEnv } from './agent-sdk-auth-env'
 import { getAgentSdkMaxOutputTokens } from './agent-sdk-output-limits'
 import { resolvePiThinkingLevel } from './agent-thinking-level'
-import { createFallbackTitle, sanitizeGeneratedTitle, TITLE_PROMPT } from './title-generation'
+import { createFallbackTitle, sanitizeGeneratedTitle, stripContextWrappersForTitle, TITLE_PROMPT } from './title-generation'
 
 // ===== 类型定义 =====
 
@@ -513,7 +513,9 @@ export class AgentOrchestrator {
    * 使用 Provider 适配器系统，支持所有渠道。任何错误返回 null。
    */
   async generateTitle(input: AgentGenerateTitleInput): Promise<string | null> {
-    const { userMessage, channelId, modelId } = input
+    const { channelId, modelId } = input
+    // 剥离附件/引用文件/引用上下文的 XML 包装块，避免标题模型把这些样板当成正文
+    const userMessage = stripContextWrappersForTitle(input.userMessage)
     console.log('[Agent 标题生成] 开始生成标题:', { channelId, modelId, userMessage: userMessage.slice(0, 50) })
 
     try {

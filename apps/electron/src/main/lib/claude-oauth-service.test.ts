@@ -140,6 +140,22 @@ describe('Claude 订阅 OAuth 登录服务', () => {
     expect(caughtMessage.match(/sk-ant-oat[A-Za-z0-9_-]{6,}/g)).toBeNull()
   })
 
+  test('Given 子进程卡住既不输出 token 也不退出 When 超过超时时间 Then reject 并 kill 掉子进程', async () => {
+    // 复现真实 bug：浏览器已授权成功，但子进程因为未知原因（比如落到了没人处理的
+    // "终端粘贴 code" 兜底交互）既不打印 token 也不退出——之前的实现这里会永远挂起，
+    // 渲染层的"等待浏览器授权…" loading 态也就永远转下去。超时兜底必须能让它明确失败。
+    mock.module('./config-paths', () => ({
+      resolveClaudeAgentBinaryPath: () => '/fake/path/to/claude',
+    }))
+    const { loginClaudeOAuth } = await loadService()
+    fakeChild = new FakeChildProcess()
+
+    const loginPromise = loginClaudeOAuth(undefined, 10)
+
+    await expect(loginPromise).rejects.toThrow(/登录超时/)
+    expect(fakeChild.killed).toBe(true)
+  })
+
   test('Given 授权 URL 跨 chunk 边界截断 When 登录 Then onAuthUrl 仅以完整 URL 触发一次', async () => {
     mock.module('./config-paths', () => ({
       resolveClaudeAgentBinaryPath: () => '/fake/path/to/claude',

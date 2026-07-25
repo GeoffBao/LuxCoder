@@ -72,10 +72,6 @@ export function formatRelativeUpdatedAt(updatedAt: number, now: number): string 
 export interface SessionItemActionsProps {
   updatedAt: number
   relativeTimeNow: number
-  pinned: boolean
-  archived: boolean
-  onTogglePin: () => void
-  onToggleArchive: () => void
   menuItems: (
     MenuItem: typeof DropdownMenuItem,
     MenuSeparator: typeof DropdownMenuSeparator,
@@ -161,8 +157,9 @@ function SafeTooltip({ children, content, side = 'top' }: SafeTooltipProps): Rea
 }
 
 /**
- * 列表项右侧操作区：默认显示相对更新时间，hover 时切换为「置顶 / 归档 / 三点菜单」按钮组。
- * 归档需要二次确认；进入确认态后强制保持按钮可见，避免鼠标移开后用户失去反馈。
+ * 列表项右侧操作区：默认显示相对更新时间，hover 时切换为「三点菜单」触发按钮。
+ * 置顶 / 星标 / 归档等操作不再占用行内固定位置，全部收进同一份 menuItems
+ * （三点菜单与右键/双指点按的上下文菜单共用），把行内空间留给标题本身。
  */
 function SessionQuickSwitchKeycap(): React.ReactElement {
   return (
@@ -176,36 +173,12 @@ function SessionQuickSwitchKeycap(): React.ReactElement {
 export function SessionItemActions({
   updatedAt,
   relativeTimeNow,
-  pinned,
-  archived,
-  onTogglePin,
-  onToggleArchive,
   menuItems,
   onMenuOpenChange,
 }: SessionItemActionsProps): React.ReactElement {
-  const [archiveConfirming, setArchiveConfirming] = React.useState(false)
-  // 菜单打开时强制保持按钮组可见：按钮始终保留布局，只切换透明度和 pointer-events。
+  // 菜单打开时强制保持触发按钮可见：按钮始终保留布局，只切换透明度和 pointer-events。
   // 这样 Radix Popper 不会在 hover 切换瞬间读到 display:none 的 0 尺寸 trigger。
   const [menuOpen, setMenuOpen] = React.useState(false)
-
-  React.useEffect(() => {
-    if (!archiveConfirming) return
-    const timer = setTimeout(() => setArchiveConfirming(false), 3000)
-    return () => clearTimeout(timer)
-  }, [archiveConfirming])
-
-  const handleArchiveClick = (): void => {
-    if (archived) {
-      onToggleArchive()
-      return
-    }
-    if (archiveConfirming) {
-      setArchiveConfirming(false)
-      onToggleArchive()
-      return
-    }
-    setArchiveConfirming(true)
-  }
 
   const closeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -232,11 +205,11 @@ export function SessionItemActions({
     }
   }, [])
 
-  const forceVisible = archiveConfirming || menuOpen
+  const forceVisible = menuOpen
 
   return (
     <div
-      className="session-item-actions relative flex-shrink-0 h-[18px] w-[58px]"
+      className="session-item-actions relative flex-shrink-0 h-[18px] w-[42px]"
       onClick={(e) => e.stopPropagation()}
     >
       <span
@@ -248,45 +221,16 @@ export function SessionItemActions({
       >
         {formatRelativeUpdatedAt(updatedAt, relativeTimeNow)}
       </span>
+      {/* 置顶/星标/归档不再占用行内固定位置——全部收进这个「...」菜单（以及同一份
+          menuItems 供的右键/双指点按菜单），把行内空间留给标题。 */}
       <div
         className={cn(
-          'absolute right-1 top-0 flex items-center gap-0.5 transition-opacity duration-100',
+          'absolute right-1 top-0 flex items-center transition-opacity duration-100',
           forceVisible
             ? 'opacity-100 pointer-events-auto'
             : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto',
         )}
       >
-        <SafeTooltip content={pinned ? '取消置顶' : '置顶'} side="top">
-          <button
-            className={cn(
-              'p-0.5 rounded transition-colors',
-              pinned
-                ? 'text-primary/60 hover:bg-foreground/[0.08] hover:text-primary'
-                : 'text-foreground/30 hover:bg-foreground/[0.08] hover:text-foreground/60',
-            )}
-            onClick={onTogglePin}
-          >
-            {pinned ? <PinOff size={14} /> : <Pin size={14} />}
-          </button>
-        </SafeTooltip>
-        <SafeTooltip
-          content={archiveConfirming ? '再次点击确认归档' : archived ? '取消归档' : '归档'}
-          side="top"
-        >
-          <button
-            className={cn(
-              'p-0.5 rounded transition-colors',
-              archiveConfirming
-                ? 'text-destructive bg-destructive/10'
-                : archived
-                  ? 'text-foreground/60 hover:bg-foreground/[0.08]'
-                  : 'text-foreground/30 hover:bg-foreground/[0.08] hover:text-foreground/60',
-            )}
-            onClick={handleArchiveClick}
-          >
-            {archived ? <ArchiveRestore size={14} /> : <Archive size={14} />}
-          </button>
-        </SafeTooltip>
         <DropdownMenu onOpenChange={handleMenuOpenChange}>
           <DropdownMenuTrigger asChild>
             <button
@@ -394,7 +338,6 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
   const [editing, setEditing] = React.useState(false)
   const [editTitle, setEditTitle] = React.useState('')
   const [menuOpen, setMenuOpen] = React.useState(false)
-  const [rowHovered, setRowHovered] = React.useState(false)
   const inputRef = React.useRef<HTMLInputElement>(null)
   const justStartedEditing = React.useRef(false)
   // 菜单打开时关闭迷你地图预览，避免预览面板盖住菜单项导致点不动
@@ -452,6 +395,10 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
     MenuSubContent: typeof ContextMenuSubContent | typeof DropdownMenuSubContent,
   ) => (
     <>
+      <MenuItem className="text-xs py-1 [&>svg]:size-3.5" onSelect={() => void onToggleStar(session.id)}>
+        <Star size={14} fill={session.starred ? 'currentColor' : 'none'} className={session.starred ? 'text-amber-500' : undefined} />
+        {session.starred ? '取消星标' : '添加星标'}
+      </MenuItem>
       {hasChildren ? (
         <>
           <MenuItem className="text-xs py-1 [&>svg]:size-3.5" onSelect={() => onTogglePin(session.id, false)}>
@@ -531,8 +478,8 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
           data-session-switch-title={session.title}
           data-session-switch-type="agent"
           onClick={() => onSelect(session.id, session.title)}
-          onMouseEnter={() => { setRowHovered(true); preview.handleMouseEnter() }}
-          onMouseLeave={() => { setRowHovered(false); preview.handleMouseLeave() }}
+          onMouseEnter={preview.handleMouseEnter}
+          onMouseLeave={preview.handleMouseLeave}
           className={cn(
             'session-quick-switch-row group relative w-full flex items-center gap-1.5 rounded-md py-1 pl-2.5 pr-1.5 transition-colors duration-100 titlebar-no-drag text-left',
             active && 'agent-session-item-active',
@@ -595,37 +542,11 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
                 >
                   {session.title}
                 </span>
-                <SafeTooltip content={session.starred ? '取消星标' : '添加星标'} side="top">
-                  <button
-                    type="button"
-                    aria-label={session.starred ? '取消星标' : '添加星标'}
-                    aria-pressed={!!session.starred}
-                    onMouseEnter={preview.closeNow}
-                    onFocus={preview.closeNow}
-                    onMouseDown={(event) => {
-                      event.stopPropagation()
-                      preview.closeNow()
-                    }}
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      preview.closeNow()
-                      if (event.detail > 1) return
-                      void onToggleStar(session.id)
-                    }}
-                    onDoubleClick={(event) => {
-                      event.stopPropagation()
-                      preview.closeNow()
-                    }}
-                    className={cn(
-                      'flex-shrink-0 inline-flex size-6 -my-1 items-center justify-center rounded transition-colors',
-                      session.starred
-                        ? 'text-amber-500 hover:text-amber-500'
-                        : cn('text-foreground/45 hover:bg-foreground/[0.055] hover:text-foreground/70', rowHovered ? 'opacity-100' : 'opacity-0'),
-                    )}
-                  >
-                    <Star size={13} fill={session.starred ? 'currentColor' : 'none'} />
-                  </button>
-                </SafeTooltip>
+                {/* 星标不再是行内可交互按钮——切换动作移进「...」菜单，这里只保留一个
+                    静态标记，让已加星标的会话仍能一眼看出来，同时不占用标题空间。 */}
+                {session.starred && (
+                  <Star size={12} fill="currentColor" className="flex-shrink-0 text-amber-500" aria-hidden="true" />
+                )}
                 {workspaceName && (
                   <span className="flex-shrink-0 px-1.5 py-0 rounded-full bg-primary/10 text-[10px] leading-4 workspace-badge font-medium truncate max-w-[80px]">
                     {workspaceName}
@@ -647,7 +568,6 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
                   <button
                     type="button"
                     aria-label={`${delegationSummary.expanded ? '收起' : '展开'}子会话`}
-                    onMouseEnter={preview.closeNow}
                     onFocus={preview.closeNow}
                     onMouseDown={(event) => {
                       event.stopPropagation()
@@ -677,10 +597,6 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
               <SessionItemActions
                 updatedAt={session.updatedAt}
                 relativeTimeNow={relativeTimeNow}
-                pinned={!!session.pinned}
-                archived={!!session.archived}
-                onTogglePin={() => onTogglePin(session.id, true)}
-                onToggleArchive={() => onToggleArchive(session.id)}
                 onMenuOpenChange={setMenuOpen}
                 menuItems={menuItems}
               />

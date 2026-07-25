@@ -1188,6 +1188,15 @@
   text-wrap: balance;
 }
 
+/* text-wrap: pretty/balance 是为长报告排版设计的换行优化算法，用于避免大段文字末行
+   出现孤字。对极短的用户回复（尤其是没有空格可断行的 CJK 文本）套用同一套启发式，
+   反而会被 Chromium 的换行引擎判定为"需要断行"，出现「3 个字被拆成 2+1」这种反直觉
+   的强制折行。用户消息气泡的正文不需要这套长文排版优化，恢复标准换行。 */
+:root:not(.ui-classic) .user-message-bubble .message-response,
+:root:not(.ui-classic) .user-message-bubble .message-response :is(h1, h2, h3) {
+  text-wrap: wrap;
+}
+
 :root:not(.ui-classic) .message-response h1 {
   margin-top: 1.55em;
   margin-bottom: 0.65em;

@@ -1788,11 +1788,26 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       setQuickSwitchHintsVisible(false)
     }
 
+    // 修饰键松开的 keyup 有可能被系统截胡（例如按住 Cmd 拖拽框选区域截图、或
+    // Cmd+Tab / Cmd+空格 等全局热键期间焦点短暂让渡给系统层），导致本窗口收不到
+    // keyup，提示态卡死在 true——所有会话/项目行的标题会因为常驻的 44px 快捷键徽标
+    // 占位而被过度截断。这里在下一次真实交互时按「修饰键实际是否按住」自愈。
+    const modifierActuallyHeld = (event: { metaKey: boolean; ctrlKey: boolean }): boolean =>
+      isMac ? event.metaKey : event.ctrlKey
+
+    const handleMouseDown = (event: MouseEvent): void => {
+      if (quickSwitchHintsVisible && !modifierActuallyHeld(event)) hideHints()
+    }
+
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (processedQuickSwitchEventsRef.current.has(event)) return
       processedQuickSwitchEventsRef.current.add(event)
       if (event.isComposing) return
       if (settingsOpen || searchDialogOpen) return
+
+      if (quickSwitchHintsVisible && !isPrimaryModifierKey(event, isMac) && !modifierActuallyHeld(event)) {
+        hideHints()
+      }
 
       const number = getQuickSwitchNumber(event)
       if (number !== null && hasOnlyPrimaryModifier(event, isMac)) {
@@ -1841,6 +1856,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
     window.addEventListener('keydown', handleKeyDown, true)
     window.addEventListener('keyup', handleKeyUp, true)
+    window.addEventListener('mousedown', handleMouseDown, true)
     window.addEventListener(SESSION_QUICK_SWITCH_KEYDOWN_EVENT, handleForwardedKeyDown)
     window.addEventListener(SESSION_QUICK_SWITCH_KEYUP_EVENT, handleForwardedKeyUp)
     window.addEventListener('blur', hideHints)
@@ -1848,6 +1864,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     return () => {
       window.removeEventListener('keydown', handleKeyDown, true)
       window.removeEventListener('keyup', handleKeyUp, true)
+      window.removeEventListener('mousedown', handleMouseDown, true)
       window.removeEventListener(SESSION_QUICK_SWITCH_KEYDOWN_EVENT, handleForwardedKeyDown)
       window.removeEventListener(SESSION_QUICK_SWITCH_KEYUP_EVENT, handleForwardedKeyUp)
       window.removeEventListener('blur', hideHints)
@@ -1861,6 +1878,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     handleSelectAgentSession,
     handleSelectConversation,
     refreshQuickSwitchTargets,
+    quickSwitchHintsVisible,
   ])
 
   /** 重命名工作区名称 */
@@ -3457,10 +3475,6 @@ const ConversationItem = React.memo(function ConversationItem({
               <SessionItemActions
                 updatedAt={conversation.updatedAt}
                 relativeTimeNow={relativeTimeNow}
-                pinned={isPinned}
-                archived={!!conversation.archived}
-                onTogglePin={() => onTogglePin(conversation.id)}
-                onToggleArchive={() => onToggleArchive(conversation.id)}
                 onMenuOpenChange={setMenuOpen}
                 menuItems={menuItems}
               />

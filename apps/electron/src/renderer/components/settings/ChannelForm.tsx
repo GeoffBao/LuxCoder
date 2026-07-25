@@ -222,6 +222,10 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
   const [showExitDialog, setShowExitDialog] = React.useState(false)
   const [codexLoggingIn, setCodexLoggingIn] = React.useState(false)
   const [claudeOAuthLoggingIn, setClaudeOAuthLoggingIn] = React.useState(false)
+  // 用户主动点「取消登录」时置位，抑制随后 loginXxxOAuth() 因被 kill 而 reject 触发的
+  // "登录失败，请重试" 误报 toast（那是取消的正常结果，不是意外失败）。
+  const codexOAuthCancelledRef = React.useRef(false)
+  const claudeOAuthCancelledRef = React.useRef(false)
 
   const setChannelFormDirty = useSetAtom(channelFormDirtyAtom)
   const lastAgentEligibleRef = React.useRef(channel ? isAgentEligibleChannel(channel) : false)
@@ -452,12 +456,15 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
 
   /** 发起 ChatGPT (Codex) OAuth 登录：打开浏览器授权，成功后把凭据写入 apiKey */
   const handleCodexLogin = async (): Promise<void> => {
+    codexOAuthCancelledRef.current = false
     setCodexLoggingIn(true)
     setTestResult(null)
     try {
       const result = await window.electronAPI.codexOAuthLogin()
       if (!result.success || !result.credentials) {
-        toast.error(result.message ?? 'ChatGPT 登录失败，请重试')
+        if (!codexOAuthCancelledRef.current) {
+          toast.error(result.message ?? 'ChatGPT 登录失败，请重试')
+        }
         return
       }
       const credentials = result.credentials
@@ -501,11 +508,21 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
         onSaved(saved)
       }
     } catch (error) {
-      console.error('[模型配置表单] ChatGPT 登录失败:', error)
-      toast.error('ChatGPT 登录失败，请重试')
+      if (!codexOAuthCancelledRef.current) {
+        console.error('[模型配置表单] ChatGPT 登录失败:', error)
+        toast.error('ChatGPT 登录失败，请重试')
+      }
     } finally {
       setCodexLoggingIn(false)
     }
+  }
+
+  /** 取消进行中的 ChatGPT OAuth 登录，避免卡在"等待浏览器授权…"无法恢复 */
+  const handleCodexOAuthCancel = (): void => {
+    codexOAuthCancelledRef.current = true
+    void window.electronAPI.codexOAuthCancel()
+    setCodexLoggingIn(false)
+    toast.info('已取消登录')
   }
 
   /** Claude Pro/Max 订阅登录成功后的精选模型预设，与 context-window.ts 的 AGENT_SDK_1M_CONTEXT_RULES.claude 同源 */
@@ -518,12 +535,15 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
 
   /** 发起 Claude Pro/Max 订阅 OAuth 登录：spawn 真实 claude 二进制走 setup-token，成功后把凭据写入 apiKey */
   const handleClaudeOAuthLogin = async (): Promise<void> => {
+    claudeOAuthCancelledRef.current = false
     setClaudeOAuthLoggingIn(true)
     setTestResult(null)
     try {
       const result = await window.electronAPI.claudeOAuthLogin()
       if (!result.success || !result.credentials) {
-        toast.error(result.message ?? 'Claude 登录失败，请重试')
+        if (!claudeOAuthCancelledRef.current) {
+          toast.error(result.message ?? 'Claude 登录失败，请重试')
+        }
         return
       }
       const credentials = result.credentials
@@ -551,11 +571,21 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
         onSaved(saved)
       }
     } catch (error) {
-      console.error('[模型配置表单] Claude 登录失败:', error)
-      toast.error('Claude 登录失败，请重试')
+      if (!claudeOAuthCancelledRef.current) {
+        console.error('[模型配置表单] Claude 登录失败:', error)
+        toast.error('Claude 登录失败，请重试')
+      }
     } finally {
       setClaudeOAuthLoggingIn(false)
     }
+  }
+
+  /** 取消进行中的 Claude 订阅 OAuth 登录，避免卡在"等待浏览器授权…"无法恢复 */
+  const handleClaudeOAuthCancel = (): void => {
+    claudeOAuthCancelledRef.current = true
+    void window.electronAPI.claudeOAuthCancel()
+    setClaudeOAuthLoggingIn(false)
+    toast.info('已取消登录')
   }
 
   /** 从供应商 API 拉取可用模型列表 */
@@ -839,6 +869,15 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
                         : '用 ChatGPT 登录'}
                   </span>
                 </Button>
+                {codexLoggingIn && (
+                  <button
+                    type="button"
+                    onClick={handleCodexOAuthCancel}
+                    className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    浏览器没反应？取消登录
+                  </button>
+                )}
                 {hasRequiredSecret ? (
                   <div className="flex items-center gap-1.5 text-xs text-emerald-600">
                     <CheckCircle2 size={12} className="shrink-0" />
@@ -876,6 +915,15 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
                         : '登录 Claude 账号'}
                   </span>
                 </Button>
+                {claudeOAuthLoggingIn && (
+                  <button
+                    type="button"
+                    onClick={handleClaudeOAuthCancel}
+                    className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    浏览器已授权成功但一直卡在这里？取消登录
+                  </button>
+                )}
                 {hasRequiredSecret ? (
                   <div className="space-y-1">
                     <div className="flex items-center gap-1.5 text-xs text-emerald-600">

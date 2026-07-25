@@ -30,7 +30,7 @@ import { getFetchFn } from './proxy-fetch'
 import { getEffectiveProxyUrl } from './proxy-settings-service'
 import { getEnabledTools } from './chat-tool-registry'
 import { executeToolCalls } from './chat-tool-executor'
-import { createFallbackTitle, sanitizeGeneratedTitle, SHORT_MESSAGE_THRESHOLD, TITLE_PROMPT } from './title-generation'
+import { createFallbackTitle, sanitizeGeneratedTitle, SHORT_MESSAGE_THRESHOLD, stripContextWrappersForTitle, TITLE_PROMPT } from './title-generation'
 
 /** 活跃的 AbortController 映射（conversationId → controller） */
 const activeControllers = new Map<string, AbortController>()
@@ -591,7 +591,9 @@ export function stopAllGenerations(): void {
  * @returns 生成的标题，失败时返回 null
  */
 export async function generateTitle(input: GenerateTitleInput): Promise<string | null> {
-  const { userMessage, channelId, modelId } = input
+  const { channelId, modelId } = input
+  // 剥离附件/引用文件/引用上下文的 XML 包装块，避免标题模型把这些样板当成正文
+  const userMessage = stripContextWrappersForTitle(input.userMessage)
   console.log('[标题生成] 开始生成标题:', { channelId, modelId, userMessage: userMessage.slice(0, 50) })
 
   // 短消息直接使用原文作为标题，避免 AI 幻觉

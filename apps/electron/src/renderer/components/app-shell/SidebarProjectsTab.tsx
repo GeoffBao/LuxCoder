@@ -421,18 +421,6 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers }: SidebarPr
                           >
                             <Plus size={12} />
                           </button>
-                          <button
-                            type="button"
-                            title={archived ? '取消归档' : '归档'}
-                            aria-label={`「${project.name}」${archived ? '取消归档' : '归档'}`}
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              void handleToggleArchive(project)
-                            }}
-                            className="grid size-5 place-items-center rounded text-foreground/50 hover:bg-foreground/[0.08] hover:text-foreground/80"
-                          >
-                            {archived ? <ArchiveRestore size={12} /> : <Archive size={12} />}
-                          </button>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <button

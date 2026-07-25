@@ -463,8 +463,8 @@ export function AssistantTurnRenderer({ turn, allMessages, basePath, onFork, onR
   }
 
   // 过滤仅用于进度追踪的工具块（TaskCreate/TaskUpdate），它们不影响内容分组逻辑。
-  // 否则这些块若位于数组末尾，会导致 getTrailingTextStartIndex 返回 null，
-  // 最终把全部文本答案也裹进「执行过程」并自动折叠。
+  // 否则这些块若位于数组末尾（正文之后），会单独形成一个只有它自己的过程组，
+  // 在最终答案下方冒出一条孤零零的「执行过程：1 次工具调用」。
   const contentBlocks = topLevelBlocks.filter(
     (b) => !(b.type === 'tool_use' && TASK_TOOL_NAMES.has((b as SDKToolUseBlock).name))
   )
