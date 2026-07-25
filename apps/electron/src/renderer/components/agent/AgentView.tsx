@@ -20,7 +20,6 @@ import { toast } from 'sonner'
 import { Box, CornerDownLeft, Square, Settings, Paperclip, FolderPlus, X, Copy, Check, Brain, Sparkles, ChevronDown } from 'lucide-react'
 import { AgentMessages } from './AgentMessages'
 import { AgentHeader } from './AgentHeader'
-import { AgentTaskPanel } from './AgentTaskPanel'
 import { AgentMessageQueue } from './AgentMessageQueue'
 import { ContextUsageBadge } from './ContextUsageBadge'
 import { PermissionBanner } from './PermissionBanner'
@@ -2711,9 +2710,6 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         {/* Agent Header */}
         {/* key 保证会话切换时重置标题编辑态 */}
         <AgentHeader key={sessionId} sessionId={sessionId} />
-
-        {/* 任务编排状态条（有 taskSlug 的 orchestrator 会话） */}
-        <AgentTaskPanel sessionId={sessionId} />
 
         {/* 消息区域 */}
         <AgentMessages

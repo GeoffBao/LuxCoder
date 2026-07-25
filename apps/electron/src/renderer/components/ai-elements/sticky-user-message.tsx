@@ -11,22 +11,37 @@
  */
 
 import * as React from 'react'
-import { FileText, FileImage, ChevronUp } from 'lucide-react'
+import { Paperclip, ChevronUp } from 'lucide-react'
 import { useStickToBottomContext } from 'use-stick-to-bottom'
 import { useAtomValue } from 'jotai'
 import { UserAvatar } from '@/components/chat/UserAvatar'
 import { userProfileAtom } from '@/atoms/user-profile'
 import { stickyUserMessageEnabledAtom } from '@/atoms/ui-preferences'
-import { MessageResponse, remarkMentions } from './message'
-import type { RemarkPluginFn } from './message'
 import { cn } from '@/lib/utils'
 
-/** 悬浮条专用 remark 插件（仅 mention，不保留换行） */
-const STICKY_REMARK_PLUGINS: RemarkPluginFn[] = [remarkMentions]
-
-/** 去除 fenced code block，替换为 [code] 占位符 */
-function stripCodeBlocks(text: string): string {
-  return text.replace(/```[\s\S]*?```/g, ' [code] ')
+/**
+ * 悬浮条只需要单行摘要，不需要完整 Markdown 渲染（那是原始消息本身的事）。
+ * 直接把 Markdown 语法压平成纯文本，配合 CSS truncate 单行省略——
+ * 比用 remark 渲染再靠 CSS 强制所有块级元素 inline 更稳妥，不会因为消息里
+ * 恰好有标题/列表/引用等块级结构而意外撑成两行。
+ */
+function toPlainPreview(text: string): string {
+  return text
+    .replace(/```[\s\S]*?```/g, ' [代码] ')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^>\s?/gm, '')
+    .replace(/^[-*+]\s+/gm, '')
+    .replace(/^\d+\.\s+/gm, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/@file:(\S+)/g, (_m, p: string) => `📎 ${p.split('/').pop()}`)
+    .replace(/\/skill:(\S+)/g, (_m, p: string) => `/${p}`)
+    .replace(/#mcp:(\S+)/g, (_m, p: string) => `#${p}`)
+    .replace(/&session:(\S+)/g, (_m, p: string) => `会话 ${p}`)
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 interface StickyAttachment {
@@ -147,50 +162,30 @@ export function StickyUserMessage({ userMessages }: StickyUserMessageProps): Rea
           : 'opacity-0 -translate-y-2 pointer-events-none'
       )}
     >
-      {/* 复用 ConversationContent + Message 的 padding 链，保证与内容区等宽 */}
+      {/* 复用 ConversationContent + Message 的 padding 链，保证与内容区等宽。
+          单行胶囊条：头像 + 单行截断文本 + chevron，去掉原来的独立头像/用户名标题行 +
+          两行文本 + 附件文件名卡片——那版高度接近 70-90px，遮住的正文太多；
+          单行版本 ~32px，"提醒你问了什么"就够了，完整内容点一下就能跳回去看。 */}
       <div className="mx-5 px-2.5 pt-2 md:mx-8">
         <div
-          className="sticky-user-banner ml-[40px] cursor-pointer rounded-xl bg-[hsl(var(--input-surface))]/90 shadow-md backdrop-blur-xl transition-colors hover:bg-accent/50"
+          className="sticky-user-banner ml-[40px] flex cursor-pointer items-center gap-2 rounded-full bg-[hsl(var(--input-surface))]/95 py-1.5 pl-2 pr-3 shadow-sm backdrop-blur-md transition-colors hover:bg-accent/50"
           onClick={scrollToOriginal}
         >
-          <div className="px-3.5 py-2.5">
-            {/* 头部：头像 + 用户名 + 提示 */}
-            <div className="mb-1 flex items-center gap-2">
-              <UserAvatar avatar={userProfile.avatar} size={18} />
-              <span className="text-xs font-medium text-foreground/60">{userProfile.userName}</span>
-              <ChevronUp className="size-3 text-muted-foreground ml-auto" />
-            </div>
-
-            {/* 文本内容：最多两行，支持 Markdown 渲染 */}
-            {stickyMessage?.text && (
-              <div className="text-sm text-foreground/80 line-clamp-2 leading-relaxed">
-                <MessageResponse
-                  className="prose-p:my-0 prose-p:inline prose-headings:my-0 prose-headings:text-sm prose-pre:hidden prose-ul:my-0 prose-ol:my-0 prose-li:my-0"
-                  remarkPlugins={STICKY_REMARK_PLUGINS}
-                >
-                  {stripCodeBlocks(stickyMessage.text)}
-                </MessageResponse>
-              </div>
-            )}
-
-            {/* 附件 badges */}
-            {stickyMessage && stickyMessage.attachments.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-1.5">
-                {stickyMessage.attachments.map((att) => {
-                  const Icon = att.isImage ? FileImage : FileText
-                  return (
-                    <div
-                      key={att.filename}
-                      className="inline-flex items-center gap-1 rounded-md bg-muted/60 px-2 py-0.5 text-[11px] text-muted-foreground"
-                    >
-                      <Icon className="size-3 shrink-0" />
-                      <span className="truncate max-w-[150px]">{att.filename}</span>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+          <UserAvatar avatar={userProfile.avatar} size={16} className="shrink-0" />
+          <div className="min-w-0 flex-1 truncate text-xs text-foreground/70">
+            {stickyMessage?.text
+              ? toPlainPreview(stickyMessage.text)
+              : stickyMessage && stickyMessage.attachments.length > 0
+                ? `${stickyMessage.attachments.length} 个附件`
+                : null}
           </div>
+          {stickyMessage?.text && stickyMessage.attachments.length > 0 && (
+            <span className="flex shrink-0 items-center gap-0.5 text-[11px] text-muted-foreground">
+              <Paperclip className="size-3" />
+              {stickyMessage.attachments.length}
+            </span>
+          )}
+          <ChevronUp className="size-3 shrink-0 text-muted-foreground" />
         </div>
       </div>
     </div>

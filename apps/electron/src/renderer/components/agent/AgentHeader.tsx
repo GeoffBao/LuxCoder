@@ -7,11 +7,15 @@
 
 import * as React from 'react'
 import { useAtomValue, useSetAtom } from 'jotai'
+import { Pencil } from 'lucide-react'
 import { agentSessionsAtom } from '@/atoms/agent-atoms'
 import { tabsAtom, updateTabTitle } from '@/atoms/tab-atoms'
-import { serverKanbanProjectsAtom } from '@/atoms/project-atoms'
+import { serverKanbanProjectsAtom, codeMainViewAtom, pendingTaskEditorTargetAtom } from '@/atoms/project-atoms'
+import { activeViewAtom } from '@/atoms/active-view'
 import { replaceAgentSessionInFreshnessOrder } from '@/lib/agent-session-list'
 import { SessionHeader } from '@/components/tabs/SessionHeader'
+import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface AgentHeaderProps {
   sessionId: string
@@ -23,6 +27,9 @@ export function AgentHeader({ sessionId }: AgentHeaderProps): React.ReactElement
   const setAgentSessions = useSetAtom(agentSessionsAtom)
   const setTabs = useSetAtom(tabsAtom)
   const projects = useAtomValue(serverKanbanProjectsAtom)
+  const setPendingTaskEditorTarget = useSetAtom(pendingTaskEditorTargetAtom)
+  const setCodeMainView = useSetAtom(codeMainViewAtom)
+  const setActiveView = useSetAtom(activeViewAtom)
 
   if (!session) return null
 
@@ -36,11 +43,40 @@ export function AgentHeader({ sessionId }: AgentHeaderProps): React.ReactElement
     setAgentSessions((prev) => replaceAgentSessionInFreshnessOrder(prev, updated))
   }
 
+  // 任务编排会话（有 taskSlug 且非子任务）在 header 提供「编辑任务」入口——
+  // 对齐 craft 真实做法：点击跳转看板打开该任务的完整 TaskEditor，
+  // 而不是像之前那样在对话区常驻一张编排进度卡片（那是误移植了 craft 的 playground 演示组件）。
+  const isTaskOrchestrator = !!session.taskSlug && !session.parentSessionId
+  const handleEditTask = (): void => {
+    if (!session.taskSlug) return
+    setPendingTaskEditorTarget({ mode: 'edit', sessionId: session.id, taskSlug: session.taskSlug })
+    setCodeMainView('work')
+    setActiveView('conversations')
+  }
+
   return (
     <SessionHeader
       title={session.title}
       onRename={handleRename}
       badge={project ? <ProjectBadge name={project.name} color={project.color} /> : undefined}
+      actions={isTaskOrchestrator
+        ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={handleEditTask}
+              >
+                <Pencil className="size-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom"><p>编辑任务</p></TooltipContent>
+          </Tooltip>
+        )
+        : undefined}
     />
   )
 }

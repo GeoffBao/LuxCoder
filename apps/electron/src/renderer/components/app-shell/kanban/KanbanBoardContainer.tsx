@@ -75,15 +75,10 @@ export function KanbanBoardContainer({
     [channels],
   )
 
-  // 消费项目中心等跨视图「新建任务」请求
+  // 消费跨视图打开 TaskEditor 的请求（项目中心「新建任务」/ 会话 header「编辑任务」）
   React.useEffect(() => {
     if (!pendingEditorTarget) return
-    setEditorTarget({
-      mode: 'create',
-      ...(pendingEditorTarget.initialProjectId
-        ? { initialProjectId: pendingEditorTarget.initialProjectId }
-        : {}),
-    })
+    setEditorTarget(pendingEditorTarget)
     setPendingEditorTarget(null)
   }, [pendingEditorTarget, setPendingEditorTarget])
 

@@ -1,5 +1,5 @@
 import { atom } from 'jotai'
-import type { KanbanProject } from '@/components/app-shell/kanban/types'
+import type { KanbanProject, TaskEditorTarget } from '@/components/app-shell/kanban/types'
 
 /** 服务端项目快照；渲染状态不写入项目配置。 */
 export const serverKanbanProjectsAtom = atom<KanbanProject[]>([])
@@ -23,12 +23,8 @@ export type CodeMainView = 'session' | 'work'
 export const codeMainViewAtom = atom<CodeMainView>('session')
 
 /**
- * 跨视图打开 TaskEditor（如项目中心卡片「新建任务」）。
- * KanbanBoardContainer 消费后清空。
+ * 跨视图打开 TaskEditor（如项目中心卡片「新建任务」、会话 header「编辑任务」）。
+ * KanbanBoardContainer 消费后清空。直接复用 TaskEditor 自己的 target 联合类型
+ * （create / edit），避免维护第二份重复定义。
  */
-export type PendingTaskEditorTarget = {
-  mode: 'create'
-  initialProjectId?: string
-}
-
-export const pendingTaskEditorTargetAtom = atom<PendingTaskEditorTarget | null>(null)
+export const pendingTaskEditorTargetAtom = atom<TaskEditorTarget | null>(null)
