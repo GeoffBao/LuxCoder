@@ -175,6 +175,35 @@ function migrateThinkingLevelField(index: AgentSessionsIndex): boolean {
   return changed
 }
 
+/** 统计会话 JSONL 的消息行数；文件缺失或读取失败按 0 处理（不留 undefined，避免重复触发迁移）。 */
+function countSessionMessages(id: string): number {
+  const filePath = getAgentSessionMessagesPath(id)
+  if (!existsSync(filePath)) return 0
+  try {
+    const raw = readFileSync(filePath, 'utf-8')
+    return raw.split('\n').filter((line) => line.trim()).length
+  } catch (error) {
+    console.error(`[Agent 会话] 统计消息计数失败 (${id}):`, error)
+    return 0
+  }
+}
+
+/**
+ * 看板卡片右下角消息数徽标（对齐 craft）在 appendSDKMessages 里做增量维护，但历史会话
+ * （字段引入之前创建的）从未被计数过。这里补一次基于 JSONL 行数的一次性回填——只处理
+ * 绑定了 task spec 的会话（唯一会出现在看板上的子集），避免为全量会话历史都做文件 I/O。
+ * 回填后 messageCount 不再是 undefined，之后的 readIndex 不会重复触发。
+ */
+function migrateMessageCountBackfill(index: AgentSessionsIndex): boolean {
+  let changed = false
+  for (const session of index.sessions) {
+    if (!session.taskSlug || session.messageCount !== undefined) continue
+    session.messageCount = countSessionMessages(session.id)
+    changed = true
+  }
+  return changed
+}
+
 /**
  * 读取会话索引文件
  */
@@ -185,13 +214,17 @@ function readIndex(): AgentSessionsIndex {
     const permissionModeMigrated = migrateLegacyPermissionMode(data)
     const thinkingDefaultMigrated = migrateLegacyOpenAIThinkingDefault(data)
     const thinkingFieldMigrated = migrateThinkingLevelField(data)
-    if (permissionModeMigrated || thinkingDefaultMigrated || thinkingFieldMigrated) {
+    const messageCountMigrated = migrateMessageCountBackfill(data)
+    if (permissionModeMigrated || thinkingDefaultMigrated || thinkingFieldMigrated || messageCountMigrated) {
       writeIndex(data)
       if (permissionModeMigrated) {
         console.log('[Agent 会话] 已迁移历史权限模式 auto → bypassPermissions')
       }
       if (thinkingDefaultMigrated) {
         console.log('[Agent 会话] 已将历史会话的思考深度默认值升级为高')
+      }
+      if (messageCountMigrated) {
+        console.log('[Agent 会话] 已为历史任务会话补齐消息计数')
       }
     }
     return data
@@ -372,6 +405,20 @@ export function appendSDKMessages(id: string, messages: SDKMessage[]): void {
   } catch (error) {
     console.error(`[Agent 会话] 追加 SDKMessage 失败 (${id}):`, error)
     throw new Error('追加 SDKMessage 失败')
+  }
+
+  // 看板卡片右下角消息数徽标（对齐 craft）走增量计数，避免渲染时重新读整份 JSONL。
+  // 独立 try/catch：计数更新失败不影响消息本身已经落盘成功。
+  try {
+    const index = readIndex()
+    const idx = index.sessions.findIndex((s) => s.id === id)
+    if (idx !== -1) {
+      const session = index.sessions[idx]!
+      session.messageCount = (session.messageCount ?? 0) + messages.length
+      writeIndex(index)
+    }
+  } catch (error) {
+    console.error(`[Agent 会话] 更新消息计数失败 (${id}):`, error)
   }
 }
 

@@ -10,7 +10,7 @@ import { existsSync, realpathSync, rmSync, readFileSync, writeFileSync, mkdirSyn
 import { writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS, EXPERT_IPC_CHANNELS, isLuxCoderPermissionMode, normalizePathForCompare } from '@luxcoder/shared'
-import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, SCRATCH_PAD_IPC_CHANNELS, QUICK_TASK_IPC_CHANNELS, VOICE_DICTATION_IPC_CHANNELS, APP_ICON_IPC_CHANNELS, DOCK_BADGE_IPC_CHANNELS, STORAGE_IPC_CHANNELS } from '../types'
+import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, SCRATCH_PAD_IPC_CHANNELS, QUICK_TASK_IPC_CHANNELS, VOICE_DICTATION_IPC_CHANNELS, DOCK_BADGE_IPC_CHANNELS, STORAGE_IPC_CHANNELS } from '../types'
 import type {
   QuickTaskSubmitInput,
   VoiceDictationAudioChunkInput,
@@ -134,7 +134,7 @@ import {
 } from './lib/channel-manager'
 import { loginCodexOAuth, cancelCodexOAuthLogin } from './lib/codex-oauth-service'
 import { serializeCodexCredentials, serializeClaudeOAuthCredentials } from '@luxcoder/shared'
-import { loginClaudeOAuth, cancelClaudeOAuthLogin } from './lib/claude-oauth-service'
+import { prepareClaudeOAuthLogin, exchangeClaudeOAuthCode, cancelClaudeOAuthLogin } from './lib/claude-oauth-service'
 import {
   listConversations,
   createConversation,
@@ -1207,15 +1207,32 @@ export function registerIpcHandlers(): void {
     }
   )
 
-  // 发起 Claude Pro/Max 订阅 OAuth 登录。登录在主进程执行（spawn 真实 claude
-  // 二进制的 setup-token 子命令）；成功后返回序列化的凭据 JSON（明文），由渲染
-  // 层作为 apiKey 传给 create/update，channel-manager 加密后存储——与 Codex
+  // 生成 Claude Pro/Max 订阅登录授权 URL 并打开浏览器（主进程原生 PKCE 流程，
+  // 不再 spawn claude 二进制——该二进制的 setup-token 是纯交互式 TUI，正式打包
+  // 环境下没有 controlling terminal 会静默挂起，详见 claude-oauth-service.ts）。
+  ipcMain.handle(
+    CHANNEL_IPC_CHANNELS.CLAUDE_OAUTH_PREPARE,
+    async (): Promise<import('@luxcoder/shared').ClaudeOAuthPrepareResult> => {
+      try {
+        const authUrl = prepareClaudeOAuthLogin()
+        return { success: true, authUrl }
+      } catch (error) {
+        return {
+          success: false,
+          message: error instanceof Error ? error.message : String(error),
+        }
+      }
+    }
+  )
+
+  // 用用户从浏览器回调页粘贴的授权码换取凭据；成功后返回序列化的凭据 JSON（明文），
+  // 由渲染层作为 apiKey 传给 create/update，channel-manager 加密后存储——与 Codex
   // OAuth、以及现有 apiKey 明文回传模式一致。
   ipcMain.handle(
-    CHANNEL_IPC_CHANNELS.CLAUDE_OAUTH_LOGIN,
-    async (): Promise<import('@luxcoder/shared').ClaudeOAuthLoginResult> => {
+    CHANNEL_IPC_CHANNELS.CLAUDE_OAUTH_EXCHANGE,
+    async (_event, code: string): Promise<import('@luxcoder/shared').ClaudeOAuthLoginResult> => {
       try {
-        const credentials = await loginClaudeOAuth()
+        const credentials = await exchangeClaudeOAuthCode(code)
         return {
           success: true,
           credentials: serializeClaudeOAuthCredentials(credentials),
@@ -1697,35 +1714,6 @@ export function registerIpcHandlers(): void {
         ],
       })
       return result.canceled ? null : result.filePath
-    }
-  )
-
-  // ===== 应用图标切换 =====
-
-  ipcMain.handle(
-    APP_ICON_IPC_CHANNELS.SET,
-    async (_, variantId: string): Promise<boolean> => {
-      try {
-        // 解析图标文件路径
-        const iconPath = resolveAppIconPath(variantId)
-        if (!iconPath || !existsSync(iconPath)) {
-          console.warn('[图标] 图标文件不存在:', iconPath)
-          return false
-        }
-
-        // macOS: 设置 Dock 图标
-        if (process.platform === 'darwin' && app.dock) {
-          app.dock.setIcon(iconPath)
-        }
-
-        // 持久化到设置
-        await updateSettings({ appIconVariant: variantId })
-        console.log(`[图标] 已切换到: ${variantId}`)
-        return true
-      } catch (error) {
-        console.error('[图标] 切换失败:', error)
-        return false
-      }
     }
   )
 

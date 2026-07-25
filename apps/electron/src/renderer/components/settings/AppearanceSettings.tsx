@@ -32,24 +32,7 @@ import {
 } from '@/atoms/markdown-font-size'
 import { previewModePreferenceAtom, type PreviewModePreference } from '@/atoms/preview-atoms'
 import { cn } from '@/lib/utils'
-import { detectIsWindows } from '@/lib/platform'
 import type { InterfaceVariant, ThemeMode, ThemeStyle, MarkdownFontSize } from '../../../types'
-
-// ===== Logo 资源导入（用于图标选择器） =====
-import blackLogo from '@/assets/bots/logos/black.png'
-import whiteLogo from '@/assets/bots/logos/white.png'
-import blueLogo from '@/assets/bots/logos/blue.png'
-import purpleLogo from '@/assets/bots/logos/purple.png'
-import gradientLogo from '@/assets/bots/logos/gradient.png'
-import coralLogo from '@/assets/bots/logos/coral.png'
-import veriPeriLogo from '@/assets/bots/logos/veri-peri.png'
-import vivaMagentaLogo from '@/assets/bots/logos/viva-magenta.png'
-import mochaMousseLogo from '@/assets/bots/logos/mocha-mousse.png'
-import emeraldLogo from '@/assets/bots/logos/emerald.png'
-import logo8bitLogo from '@/assets/bots/logos/8bit.png'
-import cyberpunkLogo from '@/assets/bots/logos/cyberpunk.png'
-import futuristicLogo from '@/assets/bots/logos/futuristic.png'
-import defaultLogo from '@/assets/models/luxcoder.png'
 
 // ===== 主题预览图片导入 =====
 import themeCloudDancer from '@/assets/theme-previews/theme-cloud-dancer.webp'
@@ -154,31 +137,6 @@ const SPECIAL_STYLES: readonly SpecialStyle[] = [
     tooltip: '该主题包含轻微闪烁动画',
   },
 ]
-
-/** 图标变体定义 */
-interface IconVariant {
-  id: string
-  name: string
-  src: string
-  previewBg: string
-}
-
-const ICON_VARIANTS: readonly IconVariant[] = [
-  { id: 'default', name: '默认', src: defaultLogo, previewBg: 'bg-neutral-900' },
-  { id: 'black', name: '经典黑', src: blackLogo, previewBg: 'bg-neutral-900' },
-  { id: 'white', name: '纯白版', src: whiteLogo, previewBg: 'bg-white' },
-  { id: 'blue', name: '品牌蓝', src: blueLogo, previewBg: 'bg-blue-900' },
-  { id: 'purple', name: '紫色版', src: purpleLogo, previewBg: 'bg-purple-900' },
-  { id: 'gradient', name: '渐变版', src: gradientLogo, previewBg: 'bg-gradient-to-br from-blue-600 to-purple-600' },
-  { id: 'coral', name: '珊瑚橘', src: coralLogo, previewBg: 'bg-[#FF6F61]' },
-  { id: 'veri-peri', name: '长春花蓝', src: veriPeriLogo, previewBg: 'bg-[#6667AB]' },
-  { id: 'viva-magenta', name: '非凡洋红', src: vivaMagentaLogo, previewBg: 'bg-[#BB2649]' },
-  { id: 'mocha-mousse', name: '摩卡慕斯', src: mochaMousseLogo, previewBg: 'bg-[#A47764]' },
-  { id: 'emerald', name: '翡翠绿', src: emeraldLogo, previewBg: 'bg-[#009473]' },
-  { id: '8bit', name: '8bit 像素', src: logo8bitLogo, previewBg: 'bg-[#1a1a2e]' },
-  { id: 'cyberpunk', name: '赛博朋克', src: cyberpunkLogo, previewBg: 'bg-[#0d0221]' },
-  { id: 'futuristic', name: '未来质感', src: futuristicLogo, previewBg: 'bg-[#4a4a4a]' },
-] as const
 
 /** 根据平台返回缩放快捷键提示 */
 const isMac = navigator.userAgent.includes('Mac')
@@ -293,114 +251,7 @@ export function AppearanceSettings(): React.ReactElement {
           />
         </SettingsCard>
       </SettingsSection>
-
-      <AppIconPicker />
     </div>
-  )
-}
-
-/** 应用图标选择器 */
-function AppIconPicker(): React.ReactElement {
-  const [activeIcon, setActiveIcon] = React.useState<string>('default')
-  const [isLoading, setIsLoading] = React.useState(false)
-
-  // 初始化时读取当前设置
-  React.useEffect(() => {
-    window.electronAPI.getSettings().then((settings) => {
-      setActiveIcon(settings.appIconVariant ?? 'default')
-    })
-  }, [])
-
-  const isWindows = React.useMemo(() => detectIsWindows(), [])
-
-  const handleIconSelect = React.useCallback(async (variantId: string) => {
-    if (isWindows) {
-      toast.error('Windows 系统暂不支持更换应用图标')
-      return
-    }
-    if (variantId === activeIcon || isLoading) return
-    setIsLoading(true)
-    try {
-      const success = await window.electronAPI.setAppIcon(variantId)
-      if (success) {
-        setActiveIcon(variantId)
-        toast.success('应用图标已更换')
-      } else {
-        toast.error('图标切换失败')
-      }
-    } catch {
-      toast.error('图标切换失败')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [activeIcon, isLoading, isWindows])
-
-  return (
-    <SettingsSection
-      title="应用图标"
-      description="自定义 Dock 栏中的应用图标样式"
-    >
-      <SettingsCard divided={false}>
-        <div className="px-4 py-3">
-          <div className="grid grid-cols-7 gap-3">
-            {ICON_VARIANTS.map((variant) => (
-              <IconCard
-                key={variant.id}
-                variant={variant}
-                isSelected={activeIcon === variant.id}
-                onSelect={() => handleIconSelect(variant.id)}
-              />
-            ))}
-          </div>
-        </div>
-      </SettingsCard>
-    </SettingsSection>
-  )
-}
-
-/** 图标选项卡片 */
-function IconCard({
-  variant,
-  isSelected,
-  onSelect,
-}: {
-  variant: IconVariant
-  isSelected: boolean
-  onSelect: () => void
-}): React.ReactElement {
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={cn(
-        'relative flex flex-col items-center gap-1.5 rounded-lg p-2 transition-[background-color,border-color,box-shadow] duration-fast',
-        isSelected
-          ? 'ring-2 ring-primary bg-primary/5'
-          : 'hover:bg-muted/50'
-      )}
-    >
-      <div
-        className={cn(
-          'w-12 h-12 rounded-xl overflow-hidden border border-border/50 flex items-center justify-center',
-          variant.previewBg,
-        )}
-      >
-        <img
-          src={variant.src}
-          alt={variant.name}
-          className="w-full h-full object-contain"
-          draggable={false}
-        />
-      </div>
-      <span className="text-[10px] font-medium text-muted-foreground leading-tight text-center">
-        {variant.name}
-      </span>
-      {isSelected && (
-        <div className="absolute -top-0.5 -right-0.5 size-4 rounded-full bg-primary flex items-center justify-center">
-          <Check className="size-2.5 text-primary-foreground" />
-        </div>
-      )}
-    </button>
   )
 }
 

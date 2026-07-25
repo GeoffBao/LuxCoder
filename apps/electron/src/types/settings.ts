@@ -313,12 +313,6 @@ export const SCRATCH_PAD_IPC_CHANNELS = {
   CHOOSE_EXPORT_PATH: 'scratch-pad:choose-export-path',
 } as const
 
-/** 应用图标 IPC 通道 */
-export const APP_ICON_IPC_CHANNELS = {
-  /** 设置应用图标（variant ID） */
-  SET: 'app-icon:set',
-} as const
-
 /** Dock/Launcher 角标 IPC 通道 */
 export const DOCK_BADGE_IPC_CHANNELS = {
   /** 设置系统应用角标数量 */

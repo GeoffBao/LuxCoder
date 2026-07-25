@@ -214,7 +214,7 @@ export function TaskEditor({
   )
   const [tab, setTab] = React.useState<EditorTab>('definition')
   const [mode, setMode] = React.useState<TaskEditorMode>('manual')
-  const [loading, setLoading] = React.useState(target.mode === 'edit')
+  const [loading, setLoading] = React.useState(target.mode === 'edit' && Boolean(target.taskSlug))
   const [busy, setBusy] = React.useState(false)
   const [generating, setGenerating] = React.useState(false)
   const [results, setResults] = React.useState<TaskResults>(null)
@@ -238,10 +238,13 @@ export function TaskEditor({
   }, [defaultModel, target, workspaceRoot])
 
   React.useEffect(() => {
-    if (target.mode !== 'edit') return
+    // 没有 taskSlug（普通会话，尚未升级成任务）：没有既有 spec 可读，初始草稿已经
+    // 用 initialTitle/initialModel 起草好了，这里不需要再发请求覆盖它。
+    if (target.mode !== 'edit' || !target.taskSlug) return
+    const taskSlug = target.taskSlug
     let cancelled = false
     setLoading(true)
-    void window.electronAPI.tasks.get(workspaceRoot, target.taskSlug).then((validation) => {
+    void window.electronAPI.tasks.get(workspaceRoot, taskSlug).then((validation) => {
       if (cancelled) return
       if (!validation?.valid || !validation.spec) throw new Error('无法读取任务定义')
       setDraft(taskSpecToEditorDraft(validation.spec, target, defaultModel))
@@ -396,10 +399,11 @@ export function TaskEditor({
   }
 
   const loadResults = React.useCallback(async (): Promise<void> => {
-    if (target.mode !== 'edit') return
+    if (target.mode !== 'edit' || !target.taskSlug) return
+    const taskSlug = target.taskSlug
     setLoading(true)
     try {
-      setResults(await window.electronAPI.tasks.getResults(workspaceRoot, target.taskSlug))
+      setResults(await window.electronAPI.tasks.getResults(workspaceRoot, taskSlug))
     } catch (cause) {
       toast.error('读取运行结果失败', { description: cause instanceof Error ? cause.message : String(cause) })
     } finally {
@@ -416,7 +420,7 @@ export function TaskEditor({
       <header className="flex flex-wrap items-center gap-2 rounded-xl bg-card px-3 py-2.5 shadow-sm">
         <Button variant="ghost" size="sm" onClick={onClose}><ArrowLeft className="h-4 w-4" />返回看板</Button>
         <span className="text-sm font-semibold">{target.mode === 'edit' ? '编辑任务' : '新增任务'}</span>
-        {target.mode === 'edit' && (
+        {target.mode === 'edit' && target.taskSlug && (
           <div className="ml-2 inline-flex rounded-lg bg-muted p-1">
             {(['definition', 'results'] as EditorTab[]).map((value) => (
               <button key={value} type="button" onClick={() => setTab(value)} className={cn('rounded-md px-2.5 py-1 text-xs', tab === value && 'bg-card shadow-sm')}>

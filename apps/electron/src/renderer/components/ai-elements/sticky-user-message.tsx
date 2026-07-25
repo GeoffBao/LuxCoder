@@ -168,11 +168,11 @@ export function StickyUserMessage({ userMessages }: StickyUserMessageProps): Rea
           单行版本 ~32px，"提醒你问了什么"就够了，完整内容点一下就能跳回去看。 */}
       <div className="mx-5 px-2.5 pt-2 md:mx-8">
         <div
-          className="sticky-user-banner ml-[40px] flex cursor-pointer items-center gap-2 rounded-full bg-[hsl(var(--input-surface))]/95 py-1.5 pl-2 pr-3 shadow-sm backdrop-blur-md transition-colors hover:bg-accent/50"
+          className="sticky-user-banner ml-[40px] flex cursor-pointer items-center gap-2.5 rounded-full bg-[hsl(var(--input-surface))]/95 py-2 pl-2.5 pr-3.5 shadow-sm backdrop-blur-md transition-colors hover:bg-accent/50"
           onClick={scrollToOriginal}
         >
-          <UserAvatar avatar={userProfile.avatar} size={16} className="shrink-0" />
-          <div className="min-w-0 flex-1 truncate text-xs text-foreground/70">
+          <UserAvatar avatar={userProfile.avatar} size={20} className="shrink-0" />
+          <div className="min-w-0 flex-1 truncate text-sm text-foreground/70">
             {stickyMessage?.text
               ? toPlainPreview(stickyMessage.text)
               : stickyMessage && stickyMessage.attachments.length > 0
@@ -180,12 +180,12 @@ export function StickyUserMessage({ userMessages }: StickyUserMessageProps): Rea
                 : null}
           </div>
           {stickyMessage?.text && stickyMessage.attachments.length > 0 && (
-            <span className="flex shrink-0 items-center gap-0.5 text-[11px] text-muted-foreground">
-              <Paperclip className="size-3" />
+            <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+              <Paperclip className="size-3.5" />
               {stickyMessage.attachments.length}
             </span>
           )}
-          <ChevronUp className="size-3 shrink-0 text-muted-foreground" />
+          <ChevronUp className="size-3.5 shrink-0 text-muted-foreground" />
         </div>
       </div>
     </div>

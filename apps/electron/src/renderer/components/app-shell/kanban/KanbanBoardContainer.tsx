@@ -26,7 +26,7 @@ import { KanbanBoard } from './KanbanBoard'
 import { KanbanProjectFilter } from './KanbanProjectFilter'
 import { NewTaskComposer } from './NewTaskComposer'
 import { TaskEditor } from './TaskEditor'
-import { resolveKanbanItemOpen } from './task-editor-model'
+import { resolveTaskEditorTarget } from './task-editor-model'
 import type { KanbanItem, TaskEditorTarget } from './types'
 
 /** 任务创建/运行后回调；`ran` 为 true 时打开编排会话。 */
@@ -115,10 +115,15 @@ export function KanbanBoardContainer({
     ? <NewTaskComposer workspaceRoot={workspaceRoot} workspaceId={workspace.id} onCreated={onTaskCreated} />
     : undefined
 
+  // 点击卡片本体：始终打开对应会话（对齐 craft——卡片点击=查看对话，编辑是另一个
+  // 独立入口，两者不再按是否绑定 task spec 二选一）。
   const openItem = (item: KanbanItem): void => {
-    const action = resolveKanbanItemOpen(item)
-    if (action.kind === 'editor') setEditorTarget(action.target)
-    else onOpenItem?.(item)
+    onOpenItem?.(item)
+  }
+
+  // 铅笔按钮 / 右键菜单「编辑任务」：任何卡片都能打开编辑器，不要求已绑定 task spec。
+  const editItem = (item: KanbanItem): void => {
+    setEditorTarget(resolveTaskEditorTarget(item))
   }
 
   if (editorTarget && workspaceRoot && workspace) {
@@ -175,6 +180,7 @@ export function KanbanBoardContainer({
         mode={mode}
         onMove={(sessionId, columnId) => { void moveCard({ sessionId, columnId }) }}
         onOpenItem={openItem}
+        onEditItem={editItem}
         onOpenSubtask={onOpenSubtask}
         onRunTask={(item) => {
           if (!workspaceRoot || !workspace || !item.session.taskSlug) return

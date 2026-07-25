@@ -1,21 +1,4 @@
-import { afterEach, describe, expect, mock, test } from 'bun:test'
-import { EventEmitter } from 'node:events'
-
-class FakeChildProcess extends EventEmitter {
-  stdout = new EventEmitter()
-  stderr = new EventEmitter()
-  killed = false
-  kill(): void {
-    this.killed = true
-  }
-}
-
-let fakeChild: FakeChildProcess
-const spawnMock = mock(() => fakeChild)
-
-mock.module('node:child_process', () => ({
-  spawn: spawnMock,
-}))
+import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
 
 mock.module('electron', () => ({
   shell: {
@@ -23,158 +6,140 @@ mock.module('electron', () => ({
   },
 }))
 
-mock.module('./config-paths', () => ({
-  resolveClaudeAgentBinaryPath: () => '/fake/path/to/claude',
-}))
-
 type ClaudeOAuthServiceModule = typeof import('./claude-oauth-service')
 let service: ClaudeOAuthServiceModule
 
-async function loadService(): Promise<ClaudeOAuthServiceModule> {
-  service = await import('./claude-oauth-service')
-  return service
+const originalFetch = globalThis.fetch
+
+function mockFetchOnce(response: { ok: boolean; status?: number; json?: unknown; text?: string }): void {
+  globalThis.fetch = mock(async () => ({
+    ok: response.ok,
+    status: response.status ?? (response.ok ? 200 : 400),
+    json: async () => response.json,
+    text: async () => response.text ?? (response.json ? JSON.stringify(response.json) : ''),
+  })) as unknown as typeof fetch
 }
 
+beforeEach(async () => {
+  service = await import('./claude-oauth-service')
+})
+
 afterEach(() => {
-  spawnMock.mockClear()
+  globalThis.fetch = originalFetch
+  service.cancelClaudeOAuthLogin()
 })
 
 describe('Claude 订阅 OAuth 登录服务', () => {
-  test('Given stdout 打印出 token When 登录 Then resolve token 与时间戳', async () => {
-    const { loginClaudeOAuth } = await loadService()
-    fakeChild = new FakeChildProcess()
+  test('Given 调用 prepare When 生成授权 URL Then 携带 PKCE 参数并打开浏览器', async () => {
+    const { shell } = await import('electron') as unknown as { shell: { openExternal: ReturnType<typeof mock> } }
 
-    const loginPromise = loginClaudeOAuth()
-    fakeChild.stdout.emit('data', Buffer.from('Please visit https://claude.ai/oauth/authorize?code=true&client_id=x to continue\n'))
-    fakeChild.stdout.emit('data', Buffer.from('Login successful. Your token: sk-ant-oat01-abcDEF123_-xyz\n'))
+    const authUrl = service.prepareClaudeOAuthLogin()
 
-    const result = await loginPromise
-    expect(result.token).toBe('sk-ant-oat01-abcDEF123_-xyz')
-    expect(typeof result.obtainedAt).toBe('number')
+    const url = new URL(authUrl)
+    expect(url.origin + url.pathname).toBe('https://claude.ai/oauth/authorize')
+    expect(url.searchParams.get('client_id')).toBe('9d1c250a-e61b-44d9-88ed-5944d1962f5e')
+    expect(url.searchParams.get('response_type')).toBe('code')
+    expect(url.searchParams.get('redirect_uri')).toBe('https://platform.claude.com/oauth/code/callback')
+    expect(url.searchParams.get('code_challenge_method')).toBe('S256')
+    expect(url.searchParams.get('state')).toBeTruthy()
+    expect(url.searchParams.get('code_challenge')).toBeTruthy()
+    expect(shell.openExternal).toHaveBeenCalledWith(authUrl)
   })
 
-  test('Given 进程非零退出且无 token When 登录 Then reject 并带诊断信息', async () => {
-    const { loginClaudeOAuth } = await loadService()
-    fakeChild = new FakeChildProcess()
-
-    const loginPromise = loginClaudeOAuth()
-    fakeChild.stderr.emit('data', Buffer.from('Error: no active subscription found\n'))
-    fakeChild.emit('close', 1)
-
-    await expect(loginPromise).rejects.toThrow(/no active subscription found/)
+  test('Given prepare 未调用 When 直接换取授权码 Then reject 提示重新登录', async () => {
+    await expect(service.exchangeClaudeOAuthCode('some-code')).rejects.toThrow(/重新点击登录/)
   })
 
-  test('Given 二进制路径解析失败 When 登录 Then reject 提示重装', async () => {
-    mock.module('./config-paths', () => ({
-      resolveClaudeAgentBinaryPath: () => '',
-    }))
-    const { loginClaudeOAuth } = await loadService()
-
-    await expect(loginClaudeOAuth()).rejects.toThrow(/未找到 Claude 运行时/)
+  test('Given 已 prepare When 提交空授权码 Then reject 提示粘贴授权码', async () => {
+    service.prepareClaudeOAuthLogin()
+    await expect(service.exchangeClaudeOAuthCode('   ')).rejects.toThrow(/粘贴授权码/)
   })
 
-  test('Given 取消登录 When cancelClaudeOAuthLogin Then 已 spawn 的子进程被 kill', async () => {
-    mock.module('./config-paths', () => ({
-      resolveClaudeAgentBinaryPath: () => '/fake/path/to/claude',
-    }))
-    const { loginClaudeOAuth, cancelClaudeOAuthLogin } = await loadService()
-    fakeChild = new FakeChildProcess()
+  test('Given 已 prepare 且 token 端点返回凭据 When 提交授权码 Then resolve token/refreshToken/expiresAt', async () => {
+    service.prepareClaudeOAuthLogin()
+    mockFetchOnce({
+      ok: true,
+      json: { access_token: 'sk-ant-access-1', refresh_token: 'sk-ant-refresh-1', expires_in: 3600 },
+    })
 
-    const loginPromise = loginClaudeOAuth()
-    cancelClaudeOAuthLogin()
-    fakeChild.emit('close', null)
+    const before = Date.now()
+    const credentials = await service.exchangeClaudeOAuthCode('auth-code-123')
 
-    await expect(loginPromise).rejects.toThrow()
-    expect(fakeChild.killed).toBe(true)
+    expect(credentials.token).toBe('sk-ant-access-1')
+    expect(credentials.refreshToken).toBe('sk-ant-refresh-1')
+    expect(credentials.expiresAt).toBeGreaterThanOrEqual(before + 3600 * 1000)
+    expect(typeof credentials.obtainedAt).toBe('number')
   })
 
-  test('Given 诊断信息里混入 token 形状字符串 When 登录失败 Then reject 消息脱敏不含明文 token', async () => {
-    mock.module('./config-paths', () => ({
-      resolveClaudeAgentBinaryPath: () => '/fake/path/to/claude',
-    }))
-    const { loginClaudeOAuth } = await loadService()
-    fakeChild = new FakeChildProcess()
+  test('Given 授权码带多余片段 When 提交授权码 Then 清理后再换取', async () => {
+    service.prepareClaudeOAuthLogin()
+    mockFetchOnce({ ok: true, json: { access_token: 'sk-ant-access-2' } })
 
-    const loginPromise = loginClaudeOAuth()
-    // token 匹配仅发生在 stdout 累积文本上（用于 resolve），stderr 不参与 resolve 判断，
-    // 因此这里把 token 形状字符串放进 stderr，模拟"匹配未按预期在 resolve 路径被捕获，
-    // 只出现在诊断信息里"的场景，验证 extractDiagnostic 的脱敏兜底生效。
-    fakeChild.stderr.emit('data', Buffer.from('debug: unexpected token sk-ant-oat01-leakedSECRET_-123 during setup\n'))
-    fakeChild.emit('close', 1)
+    const credentials = await service.exchangeClaudeOAuthCode('auth-code-456#state=xyz')
 
-    let caughtMessage = ''
+    expect(credentials.token).toBe('sk-ant-access-2')
+  })
+
+  test('Given 已 prepare 但已过期 When 提交授权码 Then reject 提示重新登录', async () => {
+    service.prepareClaudeOAuthLogin()
+    const originalNow = Date.now
+    Date.now = () => originalNow() + 11 * 60_000
     try {
-      await loginPromise
-    } catch (error) {
-      caughtMessage = error instanceof Error ? error.message : String(error)
+      await expect(service.exchangeClaudeOAuthCode('auth-code')).rejects.toThrow(/已过期/)
+    } finally {
+      Date.now = originalNow
     }
-
-    expect(caughtMessage).toContain('[redacted]')
-    expect(caughtMessage).not.toContain('sk-ant-oat01-leakedSECRET_-123')
   })
 
-  test('Given 诊断信息里 token 形状字符串出现两次 When 登录失败 Then 两处都被脱敏', async () => {
-    mock.module('./config-paths', () => ({
-      resolveClaudeAgentBinaryPath: () => '/fake/path/to/claude',
-    }))
-    const { loginClaudeOAuth } = await loadService()
-    fakeChild = new FakeChildProcess()
+  test('Given token 端点返回非 2xx When 提交授权码 Then reject 并带诊断信息', async () => {
+    service.prepareClaudeOAuthLogin()
+    mockFetchOnce({ ok: false, status: 400, json: { error: 'invalid_grant', error_description: 'code expired' } })
 
-    const loginPromise = loginClaudeOAuth()
-    // 两个不同的 token 形状字符串分别出现在 stderr 里两次（也覆盖"同一流多次出现"的
-    // 情形），验证非 global 的 TOKEN_PATTERN.replace() 只会脱敏第一个、放过第二个的
-    // 回归——脱敏必须使用 global 变体一次性替换掉所有出现。
-    fakeChild.stderr.emit('data', Buffer.from('first attempt token sk-ant-oat01-firstLEAK_-111 failed\n'))
-    fakeChild.stderr.emit('data', Buffer.from('retry token sk-ant-oat01-secondLEAK_-222 also failed\n'))
-    fakeChild.emit('close', 1)
-
-    let caughtMessage = ''
-    try {
-      await loginPromise
-    } catch (error) {
-      caughtMessage = error instanceof Error ? error.message : String(error)
-    }
-
-    expect(caughtMessage).not.toContain('sk-ant-oat01-firstLEAK_-111')
-    expect(caughtMessage).not.toContain('sk-ant-oat01-secondLEAK_-222')
-    expect(caughtMessage.match(/sk-ant-oat[A-Za-z0-9_-]{6,}/g)).toBeNull()
+    await expect(service.exchangeClaudeOAuthCode('auth-code')).rejects.toThrow(/code expired/)
   })
 
-  test('Given 子进程卡住既不输出 token 也不退出 When 超过超时时间 Then reject 并 kill 掉子进程', async () => {
-    // 复现真实 bug：浏览器已授权成功，但子进程因为未知原因（比如落到了没人处理的
-    // "终端粘贴 code" 兜底交互）既不打印 token 也不退出——之前的实现这里会永远挂起，
-    // 渲染层的"等待浏览器授权…" loading 态也就永远转下去。超时兜底必须能让它明确失败。
-    mock.module('./config-paths', () => ({
-      resolveClaudeAgentBinaryPath: () => '/fake/path/to/claude',
-    }))
-    const { loginClaudeOAuth } = await loadService()
-    fakeChild = new FakeChildProcess()
+  test('Given token 端点返回 2xx 但没有 access_token When 提交授权码 Then reject 提示未返回有效 token', async () => {
+    service.prepareClaudeOAuthLogin()
+    mockFetchOnce({ ok: true, json: {} })
 
-    const loginPromise = loginClaudeOAuth(undefined, 10)
-
-    await expect(loginPromise).rejects.toThrow(/登录超时/)
-    expect(fakeChild.killed).toBe(true)
+    await expect(service.exchangeClaudeOAuthCode('auth-code')).rejects.toThrow(/未返回有效 token/)
   })
 
-  test('Given 授权 URL 跨 chunk 边界截断 When 登录 Then onAuthUrl 仅以完整 URL 触发一次', async () => {
-    mock.module('./config-paths', () => ({
-      resolveClaudeAgentBinaryPath: () => '/fake/path/to/claude',
-    }))
-    const { loginClaudeOAuth } = await loadService()
-    fakeChild = new FakeChildProcess()
+  test('Given 换取成功 When 再次换取（未重新 prepare） Then reject 提示重新登录（state 已消费）', async () => {
+    service.prepareClaudeOAuthLogin()
+    mockFetchOnce({ ok: true, json: { access_token: 'sk-ant-access-3' } })
+    await service.exchangeClaudeOAuthCode('auth-code')
 
-    const onAuthUrl = mock((_url: string) => undefined)
-    const loginPromise = loginClaudeOAuth({ onAuthUrl })
+    await expect(service.exchangeClaudeOAuthCode('auth-code-again')).rejects.toThrow(/重新点击登录/)
+  })
 
-    // 第一个 chunk 在 query string 中间截断，没有任何尾随空白。
-    fakeChild.stdout.emit('data', Buffer.from('Please visit https://claude.ai/oauth/authorize?code=tr'))
-    // 第二个 chunk 补全剩余部分，并带上真正的空白字符。
-    fakeChild.stdout.emit('data', Buffer.from('ue&client_id=x to continue\n'))
-    fakeChild.stdout.emit('data', Buffer.from('Login successful. Your token: sk-ant-oat01-abcDEF123_-xyz\n'))
+  test('Given 取消登录 When 提交授权码 Then reject 提示重新登录', async () => {
+    service.prepareClaudeOAuthLogin()
+    service.cancelClaudeOAuthLogin()
 
-    await loginPromise
+    await expect(service.exchangeClaudeOAuthCode('auth-code')).rejects.toThrow(/重新点击登录/)
+  })
 
-    expect(onAuthUrl).toHaveBeenCalledTimes(1)
-    expect(onAuthUrl).toHaveBeenCalledWith('https://claude.ai/oauth/authorize?code=true&client_id=x')
+  test('Given refresh token When 刷新成功且未轮换 refresh token Then 沿用旧 refresh token', async () => {
+    mockFetchOnce({ ok: true, json: { access_token: 'sk-ant-access-refreshed', expires_in: 7200 } })
+
+    const credentials = await service.refreshClaudeOAuthToken('old-refresh-token')
+
+    expect(credentials.token).toBe('sk-ant-access-refreshed')
+    expect(credentials.refreshToken).toBe('old-refresh-token')
+  })
+
+  test('Given refresh token When 刷新且服务端轮换了新 refresh token Then 使用新 refresh token', async () => {
+    mockFetchOnce({ ok: true, json: { access_token: 'sk-ant-access-4', refresh_token: 'new-refresh-token' } })
+
+    const credentials = await service.refreshClaudeOAuthToken('old-refresh-token')
+
+    expect(credentials.refreshToken).toBe('new-refresh-token')
+  })
+
+  test('Given refresh token When 刷新失败 Then reject 并带诊断信息', async () => {
+    mockFetchOnce({ ok: false, status: 401, json: { error: 'invalid_grant' } })
+
+    await expect(service.refreshClaudeOAuthToken('expired-refresh-token')).rejects.toThrow(/invalid_grant/)
   })
 })

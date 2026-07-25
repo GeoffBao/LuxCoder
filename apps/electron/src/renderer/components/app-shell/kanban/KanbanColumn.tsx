@@ -8,13 +8,14 @@ import type { KanbanItem } from './types'
 interface KanbanColumnProps {
   column: KanbanBoardColumn
   onOpenItem?: (item: KanbanItem) => void
+  onEditItem?: (item: KanbanItem) => void
   onOpenSubtask?: (sessionId: string) => void
   onRunTask?: (item: KanbanItem) => void
   onRetryTeambition?: (item: KanbanItem) => void
   children?: React.ReactNode
 }
 
-export function KanbanColumn({ column, onOpenItem, onOpenSubtask, onRunTask, onRetryTeambition, children }: KanbanColumnProps): React.ReactElement {
+export function KanbanColumn({ column, onOpenItem, onEditItem, onOpenSubtask, onRunTask, onRetryTeambition, children }: KanbanColumnProps): React.ReactElement {
   const drop = useDroppable({ id: `column:${column.id}`, data: { columnId: column.id } })
   const color = resolveKanbanColumnColor(column.id, column.color)
   return (
@@ -35,6 +36,7 @@ export function KanbanColumn({ column, onOpenItem, onOpenSubtask, onRunTask, onR
             item={item}
             accent={color}
             onOpen={onOpenItem}
+            onEdit={onEditItem}
             onOpenSubtask={onOpenSubtask}
             onRunTask={onRunTask}
             onRetryTeambition={onRetryTeambition}

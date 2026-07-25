@@ -16,20 +16,23 @@ export interface TaskEditorSubmission {
   request: TaskEditorCreateRequest
 }
 
-export type KanbanItemOpenAction =
-  | { kind: 'session'; sessionId: string }
-  | { kind: 'editor'; target: TaskEditorTarget }
-
 export type GeneratedTaskEventAction =
   | { kind: 'ignore' }
   | { kind: 'load'; slug: string }
   | { kind: 'error'; message: string }
 
-export function resolveKanbanItemOpen(item: KanbanItem): KanbanItemOpenAction {
-  if (!item.session.taskSlug) return { kind: 'session', sessionId: item.session.id }
+/**
+ * 卡片右上角铅笔 / 右键菜单「编辑任务」的目标。对齐 craft：不要求卡片已绑定 task
+ * spec——taskSlug 缺失时编辑器直接用卡片当前标题/模型起草一份新表单，保存即把
+ * 这个普通会话「升级」成正式任务。
+ */
+export function resolveTaskEditorTarget(item: KanbanItem): TaskEditorTarget {
   return {
-    kind: 'editor',
-    target: { mode: 'edit', sessionId: item.session.id, taskSlug: item.session.taskSlug },
+    mode: 'edit',
+    sessionId: item.session.id,
+    ...(item.session.taskSlug ? { taskSlug: item.session.taskSlug } : {}),
+    initialTitle: item.title,
+    ...(item.session.modelId ? { initialModel: item.session.modelId } : {}),
   }
 }
 
@@ -38,11 +41,14 @@ export function createTaskEditorDraft(
   defaultModel: string,
   initialExpertId?: string,
 ): TaskEditorDraft {
+  // edit 模式且没有 taskSlug：没有既有 spec 可读（不会有异步 effect 覆盖这份初始值），
+  // 直接用卡片当前标题/模型起草——即"升级"这个普通会话的起点。
+  const promoting = target.mode === 'edit' && !target.taskSlug
   return {
-    title: '',
+    title: promoting ? target.initialTitle ?? '' : '',
     goal: '',
     projectId: target.mode === 'create' ? target.initialProjectId ?? '' : '',
-    orchModel: defaultModel,
+    orchModel: (promoting && target.initialModel) ? target.initialModel : defaultModel,
     permissionMode: 'allow-all',
     ...(initialExpertId ? { expertId: initialExpertId } : {}),
     subtasks: [],

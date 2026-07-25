@@ -10,10 +10,17 @@ export type KanbanBoardMode = 'board' | 'list'
 export type KanbanNodeState = 'pending' | 'running' | 'done' | 'failed' | 'cancelled' | 'skipped'
 export type SubtaskRunState = 'done' | 'running' | 'pending' | 'failed' | 'needs-review'
 
-/** TaskEditor 的创建目标或已绑定会话目标。 */
+/**
+ * TaskEditor 的创建目标或已绑定会话目标。
+ *
+ * edit 模式的 taskSlug 可选：对齐 craft——看板上的卡片不要求都有 task spec（可能是
+ * 侧边栏「新会话」/看板轻量输入创建的普通会话），任何卡片都能打开编辑器。没有
+ * taskSlug 时编辑器不读取既有 spec，直接用 initialTitle/initialModel 起草一份新
+ * 表单；保存即把这个普通会话「升级」成正式任务（生成新 slug 并绑定回同一会话）。
+ */
 export type TaskEditorTarget =
   | { mode: 'create'; initialProjectId?: string }
-  | { mode: 'edit'; sessionId: string; taskSlug: string }
+  | { mode: 'edit'; sessionId: string; taskSlug?: string; initialTitle?: string; initialModel?: string }
 
 export interface KanbanSubtask {
   id: string

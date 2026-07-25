@@ -221,11 +221,14 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
   const [apiKeyLoaded, setApiKeyLoaded] = React.useState(false)
   const [showExitDialog, setShowExitDialog] = React.useState(false)
   const [codexLoggingIn, setCodexLoggingIn] = React.useState(false)
-  const [claudeOAuthLoggingIn, setClaudeOAuthLoggingIn] = React.useState(false)
-  // 用户主动点「取消登录」时置位，抑制随后 loginXxxOAuth() 因被 kill 而 reject 触发的
+  // Claude 订阅登录分两步：prepare 打开浏览器授权页 → 用户从回调页复制授权码粘贴回来
+  // 换取凭据（Anthropic 的公开客户端不支持 localhost redirect_uri 自动回传，这一步
+  // 无法省略）。'awaiting-code' 时展示粘贴输入框，'exchanging' 时展示提交中状态。
+  const [claudeOAuthStep, setClaudeOAuthStep] = React.useState<'idle' | 'awaiting-code' | 'exchanging'>('idle')
+  const [claudeOAuthCode, setClaudeOAuthCode] = React.useState('')
+  // 用户主动点「取消登录」时置位，抑制随后 loginCodexOAuth() 因被 kill 而 reject 触发的
   // "登录失败，请重试" 误报 toast（那是取消的正常结果，不是意外失败）。
   const codexOAuthCancelledRef = React.useRef(false)
-  const claudeOAuthCancelledRef = React.useRef(false)
 
   const setChannelFormDirty = useSetAtom(channelFormDirtyAtom)
   const lastAgentEligibleRef = React.useRef(channel ? isAgentEligibleChannel(channel) : false)
@@ -533,25 +536,42 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
     { id: 'claude-opus-4-7', name: 'Claude Opus 4.7', enabled: false },
   ]
 
-  /** 发起 Claude Pro/Max 订阅 OAuth 登录：spawn 真实 claude 二进制走 setup-token，成功后把凭据写入 apiKey */
-  const handleClaudeOAuthLogin = async (): Promise<void> => {
-    claudeOAuthCancelledRef.current = false
-    setClaudeOAuthLoggingIn(true)
+  /** 第一步：生成 Claude Pro/Max 订阅登录授权 URL 并打开浏览器 */
+  const handleClaudeOAuthStart = async (): Promise<void> => {
+    setClaudeOAuthCode('')
     setTestResult(null)
     try {
-      const result = await window.electronAPI.claudeOAuthLogin()
+      const result = await window.electronAPI.claudeOAuthPrepare()
+      if (!result.success || !result.authUrl) {
+        toast.error(result.message ?? '打开授权页面失败，请重试')
+        return
+      }
+      setClaudeOAuthStep('awaiting-code')
+    } catch (error) {
+      console.error('[模型配置表单] 打开 Claude 授权页面失败:', error)
+      toast.error('打开授权页面失败，请重试')
+    }
+  }
+
+  /** 第二步：用用户从浏览器回调页粘贴的授权码换取凭据，成功后把凭据写入 apiKey */
+  const handleClaudeOAuthSubmitCode = async (): Promise<void> => {
+    if (!claudeOAuthCode.trim()) return
+    setClaudeOAuthStep('exchanging')
+    try {
+      const result = await window.electronAPI.claudeOAuthExchange(claudeOAuthCode.trim())
       if (!result.success || !result.credentials) {
-        if (!claudeOAuthCancelledRef.current) {
-          toast.error(result.message ?? 'Claude 登录失败，请重试')
-        }
+        toast.error(result.message ?? 'Claude 登录失败，请检查授权码后重试')
+        setClaudeOAuthStep('awaiting-code')
         return
       }
       const credentials = result.credentials
       setApiKey(credentials)
       setModels(CLAUDE_OAUTH_MODEL_PRESETS)
+      setClaudeOAuthStep('idle')
+      setClaudeOAuthCode('')
 
-      // 与 handleCodexLogin 同样的理由：OAuth 流程中用户很容易在浏览器授权后
-      // 直接关闭表单，来不及点「创建」而丢失凭据。登录成功即明确的保存意图。
+      // 与 handleCodexLogin 同样的理由：OAuth 流程中用户很容易授权后直接关闭表单，
+      // 来不及点「创建」而丢失凭据。登录成功即明确的保存意图。
       if (isEdit) {
         toast.success('Claude 账号登录成功')
       } else {
@@ -571,20 +591,17 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
         onSaved(saved)
       }
     } catch (error) {
-      if (!claudeOAuthCancelledRef.current) {
-        console.error('[模型配置表单] Claude 登录失败:', error)
-        toast.error('Claude 登录失败，请重试')
-      }
-    } finally {
-      setClaudeOAuthLoggingIn(false)
+      console.error('[模型配置表单] Claude 登录失败:', error)
+      toast.error('Claude 登录失败，请重试')
+      setClaudeOAuthStep('awaiting-code')
     }
   }
 
-  /** 取消进行中的 Claude 订阅 OAuth 登录，避免卡在"等待浏览器授权…"无法恢复 */
+  /** 取消进行中的 Claude 订阅 OAuth 登录 */
   const handleClaudeOAuthCancel = (): void => {
-    claudeOAuthCancelledRef.current = true
     void window.electronAPI.claudeOAuthCancel()
-    setClaudeOAuthLoggingIn(false)
+    setClaudeOAuthStep('idle')
+    setClaudeOAuthCode('')
     toast.info('已取消登录')
   }
 
@@ -898,31 +915,62 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
                   variant="outline"
                   size="sm"
                   type="button"
-                  onClick={handleClaudeOAuthLogin}
-                  disabled={claudeOAuthLoggingIn}
+                  onClick={handleClaudeOAuthStart}
+                  disabled={claudeOAuthStep !== 'idle'}
                   className="w-full"
                 >
-                  {claudeOAuthLoggingIn ? (
+                  {claudeOAuthStep === 'exchanging' ? (
                     <Loader2 size={14} className="animate-spin" />
                   ) : (
                     <Zap size={14} />
                   )}
                   <span>
-                    {claudeOAuthLoggingIn
-                      ? '等待浏览器授权…'
-                      : hasRequiredSecret
-                        ? '重新登录 Claude 账号'
-                        : '登录 Claude 账号'}
+                    {claudeOAuthStep === 'awaiting-code'
+                      ? '已打开浏览器，等待粘贴授权码…'
+                      : claudeOAuthStep === 'exchanging'
+                        ? '验证授权码…'
+                        : hasRequiredSecret
+                          ? '重新登录 Claude 账号'
+                          : '登录 Claude 账号'}
                   </span>
                 </Button>
-                {claudeOAuthLoggingIn && (
-                  <button
-                    type="button"
-                    onClick={handleClaudeOAuthCancel}
-                    className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    浏览器已授权成功但一直卡在这里？取消登录
-                  </button>
+                {claudeOAuthStep === 'awaiting-code' && (
+                  <div className="space-y-1.5 rounded-md border border-border/60 bg-muted/30 p-2.5">
+                    <div className="text-xs text-muted-foreground">
+                      在打开的浏览器页面完成授权后，页面会显示一段授权码，复制粘贴到下方：
+                    </div>
+                    <div className="flex gap-1.5">
+                      <Input
+                        value={claudeOAuthCode}
+                        onChange={(e) => setClaudeOAuthCode(e.target.value)}
+                        placeholder="粘贴授权码"
+                        className="h-8 text-xs"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            void handleClaudeOAuthSubmitCode()
+                          }
+                        }}
+                      />
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        type="button"
+                        onClick={handleClaudeOAuthSubmitCode}
+                        disabled={!claudeOAuthCode.trim()}
+                      >
+                        提交
+                      </Button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleClaudeOAuthCancel}
+                      className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      取消登录
+                    </button>
+                  </div>
                 )}
                 {hasRequiredSecret ? (
                   <div className="space-y-1">

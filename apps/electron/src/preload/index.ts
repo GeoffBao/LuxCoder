@@ -8,7 +8,7 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { PROJECT_IPC_CHANNELS, TASK_IPC_CHANNELS, SESSION_COMMAND_CHANNEL, SESSION_GROUP_IPC_CHANNELS, TEAMBITION_IPC_CHANNELS, EXPERT_IPC_CHANNELS } from '@luxcoder/shared/channels'
 import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS } from '@luxcoder/shared'
-import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, SCRATCH_PAD_IPC_CHANNELS, APP_ICON_IPC_CHANNELS, DOCK_BADGE_IPC_CHANNELS, STORAGE_IPC_CHANNELS } from '../types'
+import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, SCRATCH_PAD_IPC_CHANNELS, DOCK_BADGE_IPC_CHANNELS, STORAGE_IPC_CHANNELS } from '../types'
 import type {
   RuntimeStatus,
   GitRepoStatus,
@@ -22,6 +22,7 @@ import type {
   ChannelPlanQuotaResult,
   CodexOAuthLoginResult,
   ClaudeOAuthLoginResult,
+  ClaudeOAuthPrepareResult,
   ConversationMeta,
   ChatMessage,
   ChatSendInput,
@@ -378,8 +379,11 @@ export interface ElectronAPI {
   /** 取消进行中的 ChatGPT (Codex) OAuth 登录 */
   codexOAuthCancel: () => Promise<void>
 
-  /** 发起 Claude Pro/Max 订阅 OAuth 登录，返回序列化凭据（作为 apiKey 存储） */
-  claudeOAuthLogin: () => Promise<ClaudeOAuthLoginResult>
+  /** 生成 Claude Pro/Max 订阅登录授权 URL 并打开浏览器 */
+  claudeOAuthPrepare: () => Promise<ClaudeOAuthPrepareResult>
+
+  /** 用用户粘贴的授权码换取凭据，返回序列化凭据（作为 apiKey 存储） */
+  claudeOAuthExchange: (code: string) => Promise<ClaudeOAuthLoginResult>
 
   /** 取消进行中的 Claude 订阅 OAuth 登录 */
   claudeOAuthCancel: () => Promise<void>
@@ -515,11 +519,6 @@ export interface ElectronAPI {
 
   /** 打开原生保存对话框，返回用户选择的路径 */
   chooseExportPath: (defaultName: string) => Promise<string | null>
-
-  // ===== 应用图标切换 =====
-
-  /** 设置应用图标变体（传入 variant ID，如 'blue'、'cyberpunk'，'default' 恢复默认） */
-  setAppIcon: (variantId: string) => Promise<boolean>
 
   /** 设置 Dock/Launcher 角标数量（0 表示清除） */
   setDockBadgeCount: (count: number) => Promise<boolean>
@@ -1465,8 +1464,12 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(CHANNEL_IPC_CHANNELS.CODEX_OAUTH_CANCEL)
   },
 
-  claudeOAuthLogin: () => {
-    return ipcRenderer.invoke(CHANNEL_IPC_CHANNELS.CLAUDE_OAUTH_LOGIN)
+  claudeOAuthPrepare: () => {
+    return ipcRenderer.invoke(CHANNEL_IPC_CHANNELS.CLAUDE_OAUTH_PREPARE)
+  },
+
+  claudeOAuthExchange: (code: string) => {
+    return ipcRenderer.invoke(CHANNEL_IPC_CHANNELS.CLAUDE_OAUTH_EXCHANGE, code)
   },
 
   claudeOAuthCancel: () => {
@@ -1643,11 +1646,6 @@ const electronAPI: ElectronAPI = {
 
   chooseExportPath: (defaultName: string) => {
     return ipcRenderer.invoke(SCRATCH_PAD_IPC_CHANNELS.CHOOSE_EXPORT_PATH, defaultName)
-  },
-
-  // 应用图标切换
-  setAppIcon: (variantId: string) => {
-    return ipcRenderer.invoke(APP_ICON_IPC_CHANNELS.SET, variantId)
   },
 
   // Dock/Launcher 角标

@@ -250,20 +250,26 @@ export function isCodexCredentialExpired(credentials: CodexOAuthCredentials, ske
 }
 
 /**
- * Claude Pro/Max 订阅登录（`claude setup-token`）凭据。
+ * Claude Pro/Max 订阅登录（原生 OAuth Authorization Code + PKCE）凭据。
  *
  * 复用 Channel.apiKey 字段承载：序列化为 JSON 后经 safeStorage 加密存储，
  * 与 CodexOAuthCredentials 同一套「凭据塞进 apiKey 字段」模式。
  *
- * 与 Codex 的关键区别：`setup-token` 生成的是不可刷新的长效 token（约 1 年），
- * 没有 refresh token，所以没有 expires/refresh 字段，只有 obtainedAt 用于本地
- * 估算"是否该提醒用户重新登录"（并非精确过期时间，服务端才是权威判定）。
+ * 历史遗留：早期版本 spawn 打包的 `claude setup-token` 二进制获取长效 token
+ * （无 refreshToken/expiresAt），已知在正式打包环境下无法完成登录（该二进制的
+ * 登录流程要求真实终端交互）。现在改为原生实现 PKCE 流程，能拿到真正的
+ * refreshToken + expiresAt；旧凭据仍可解析（refreshToken/expiresAt 缺失），
+ * 由 isClaudeOAuthCredentialStale 继续做本地估算提醒，不强制用户立即重新登录。
  */
 export interface ClaudeOAuthCredentials {
-  /** 长效 OAuth token（`sk-ant-oat...`），直接作为 CLAUDE_CODE_OAUTH_TOKEN 使用 */
+  /** OAuth access token，直接作为 CLAUDE_CODE_OAUTH_TOKEN 使用 */
   token: string
-  /** 登录成功时间戳（Unix 毫秒），用于本地估算提醒阈值 */
+  /** 登录成功/最近一次刷新成功的时间戳（Unix 毫秒） */
   obtainedAt: number
+  /** 用于换取新 access token 的 refresh token；旧版长效 token 迁移来的凭据没有此字段 */
+  refreshToken?: string
+  /** access token 精确过期时间戳（Unix 毫秒），来自服务端 expires_in；旧版长效 token 没有此字段 */
+  expiresAt?: number
   /** 可选：账号标识，用于展示登录身份 */
   accountId?: string
 }
@@ -284,6 +290,8 @@ export function parseClaudeOAuthCredentials(secret: string): ClaudeOAuthCredenti
       return {
         token: parsed.token,
         obtainedAt: parsed.obtainedAt,
+        ...(typeof parsed.refreshToken === 'string' && parsed.refreshToken ? { refreshToken: parsed.refreshToken } : {}),
+        ...(typeof parsed.expiresAt === 'number' ? { expiresAt: parsed.expiresAt } : {}),
         ...(typeof parsed.accountId === 'string' && parsed.accountId ? { accountId: parsed.accountId } : {}),
       }
     }
@@ -294,13 +302,24 @@ export function parseClaudeOAuthCredentials(secret: string): ClaudeOAuthCredenti
 }
 
 /**
+ * 判断 access token 是否已过期（或即将过期），需要用 refreshToken 刷新。
+ * 没有 expiresAt 的旧版长效凭据视为"不判定过期"——它们本来就没有 refreshToken，
+ * 调用方应先检查 refreshToken 是否存在，再决定要不要走这个判断。
+ */
+export function isClaudeOAuthCredentialExpired(credentials: ClaudeOAuthCredentials, skewMs = 60_000): boolean {
+  if (typeof credentials.expiresAt !== 'number') return false
+  return Date.now() >= credentials.expiresAt - skewMs
+}
+
+/**
  * 判断 Claude 订阅登录是否该提醒用户重新登录。
  *
- * `setup-token` 生成的 token 官方文档只说"约 1 年"，没有精确过期时间返回。
- * 按 335 天（1 年减 30 天缓冲）本地估算阈值，纯 UI 提醒，不阻塞使用——
- * 真正过期时服务端会返回 401，运行时错误处理走既有链路提示重新登录。
+ * 有 refreshToken 的凭据会在 access token 快过期时自动刷新，不需要提醒。
+ * 仅对没有 refreshToken 的旧版长效 token（迁移自 `setup-token` 流程）按 335 天
+ * （官方文档"约 1 年"减 30 天缓冲）本地估算阈值提醒——纯 UI 提示，不阻塞使用。
  */
 export function isClaudeOAuthCredentialStale(credentials: ClaudeOAuthCredentials): boolean {
+  if (credentials.refreshToken) return false
   const STALE_AFTER_MS = 335 * 86_400_000
   return Date.now() - credentials.obtainedAt >= STALE_AFTER_MS
 }
@@ -515,8 +534,10 @@ export const CHANNEL_IPC_CHANNELS = {
   CODEX_OAUTH_LOGIN: 'channel:codex-oauth-login',
   /** 取消进行中的 ChatGPT OAuth 登录流程 */
   CODEX_OAUTH_CANCEL: 'channel:codex-oauth-cancel',
-  /** 发起 Claude Pro/Max 订阅 OAuth 登录，返回加密凭据与账号信息 */
-  CLAUDE_OAUTH_LOGIN: 'channel:claude-oauth-login',
+  /** 生成 Claude Pro/Max 订阅登录授权 URL 并打开浏览器 */
+  CLAUDE_OAUTH_PREPARE: 'channel:claude-oauth-prepare',
+  /** 用用户粘贴的授权码换取 Claude 订阅登录凭据 */
+  CLAUDE_OAUTH_EXCHANGE: 'channel:claude-oauth-exchange',
   /** 取消进行中的 Claude 订阅 OAuth 登录流程 */
   CLAUDE_OAUTH_CANCEL: 'channel:claude-oauth-cancel',
 } as const
@@ -542,10 +563,22 @@ export interface CodexOAuthLoginResult {
 }
 
 /**
- * Claude Pro/Max 订阅 OAuth 登录结果。
+ * Claude Pro/Max 订阅 OAuth 登录——生成授权 URL 并打开浏览器的结果。
  *
- * 登录在主进程执行（spawn 真实 claude 二进制的 setup-token 子命令），成功后
- * 返回已序列化的凭据 JSON（可直接作为 Channel.apiKey 存储）与展示信息。
+ * 原生 PKCE 流程分两步：先 prepare 拿到 authUrl 并打开浏览器，用户从浏览器
+ * 回调页复制授权码粘贴回 App，再调用 exchange（见 ClaudeOAuthLoginResult）。
+ */
+export interface ClaudeOAuthPrepareResult {
+  /** 是否成功生成授权 URL */
+  success: boolean
+  /** 授权 URL，供 UI 兜底展示（浏览器已由主进程自动打开） */
+  authUrl?: string
+  /** 失败时的用户可读原因 */
+  message?: string
+}
+
+/**
+ * Claude Pro/Max 订阅 OAuth 登录——用授权码换取凭据的结果。
  */
 export interface ClaudeOAuthLoginResult {
   /** 是否登录成功 */

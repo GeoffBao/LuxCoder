@@ -193,6 +193,51 @@ describe('Agent 会话 runtime 元数据', () => {
     expect(updated.updatedAt).toBe(archived.updatedAt)
     expect(manager.getAgentSessionMeta(session.id)).toMatchObject({ starred: true, archived: true })
   })
+
+  test('Given 新建会话 When 多次 appendSDKMessages Then messageCount 按追加条数累加', () => {
+    const session = manager.createAgentSession('消息计数会话')
+    expect(manager.getAgentSessionMeta(session.id)?.messageCount).toBeUndefined()
+
+    manager.appendSDKMessages(session.id, [
+      { type: 'user', message: { content: [{ type: 'text', text: '你好' }] }, parent_tool_use_id: null } as never,
+    ])
+    expect(manager.getAgentSessionMeta(session.id)?.messageCount).toBe(1)
+
+    manager.appendSDKMessages(session.id, [
+      { type: 'assistant', message: { content: [{ type: 'text', text: '收到' }] }, parent_tool_use_id: null } as never,
+      { type: 'result', subtype: 'success' } as never,
+    ])
+    expect(manager.getAgentSessionMeta(session.id)?.messageCount).toBe(3)
+  })
+
+  test('Given 空数组 When appendSDKMessages Then 直接返回不改动 messageCount', () => {
+    const session = manager.createAgentSession('空追加会话')
+
+    manager.appendSDKMessages(session.id, [])
+
+    expect(manager.getAgentSessionMeta(session.id)?.messageCount).toBeUndefined()
+  })
+
+  test('Given 绑定 taskSlug 的历史会话缺失 messageCount When 读取索引 Then 按 JSONL 行数一次性回填', () => {
+    const session = manager.createAgentSession('历史任务会话')
+    manager.updateAgentSessionMeta(session.id, { taskSlug: 'legacy-task' })
+    writeAgentSessionJsonl(session.id, [
+      JSON.stringify({ type: 'user', message: { content: [{ type: 'text', text: '一' }] } }),
+      JSON.stringify({ type: 'assistant', message: { content: [{ type: 'text', text: '二' }] } }),
+      JSON.stringify({ type: 'result', subtype: 'success' }),
+    ])
+
+    expect(manager.getAgentSessionMeta(session.id)?.messageCount).toBe(3)
+  })
+
+  test('Given 未绑定 taskSlug 的历史会话缺失 messageCount When 读取索引 Then 不回填（不在看板展示范围）', () => {
+    const session = manager.createAgentSession('无任务历史会话')
+    writeAgentSessionJsonl(session.id, [
+      JSON.stringify({ type: 'user', message: { content: [{ type: 'text', text: '一' }] } }),
+    ])
+
+    expect(manager.getAgentSessionMeta(session.id)?.messageCount).toBeUndefined()
+  })
 })
 
 describe('Agent 会话引用搜索', () => {

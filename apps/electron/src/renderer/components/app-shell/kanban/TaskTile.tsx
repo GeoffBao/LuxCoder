@@ -1,5 +1,5 @@
 import { useDraggable } from '@dnd-kit/core'
-import { ChevronDown, ExternalLink, GitBranch, Link2, Play } from 'lucide-react'
+import { ChevronDown, Clock, ExternalLink, GitBranch, Link2, MessageSquare, Pencil, Play } from 'lucide-react'
 import * as React from 'react'
 import { cn } from '@/lib/utils'
 import { ModelChip } from './ModelChip'
@@ -12,12 +12,17 @@ import type { KanbanItem } from './types'
 import { resolveTeambitionSyncBadge } from '@/components/work/teambition-view'
 import { useExpertOptions } from '@/components/agent-experts/useExpertOptions'
 import { getTaskExpertOption } from './task-editor-ui-model'
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
+import { formatRelativeUpdatedAt } from '../AgentSessionItem'
 
 interface TaskTileProps {
   item: KanbanItem
   accent?: string
   draggable?: boolean
+  /** 点击卡片本体：打开对应会话（对齐 craft，与编辑是两个独立入口）。 */
   onOpen?: (item: KanbanItem) => void
+  /** 铅笔按钮 / 右键菜单「编辑任务」：任何卡片都可用，不要求已绑定 task spec。 */
+  onEdit?: (item: KanbanItem) => void
   onOpenSubtask?: (sessionId: string) => void
   onRunTask?: (item: KanbanItem) => void
   onRetryTeambition?: (item: KanbanItem) => void
@@ -33,6 +38,7 @@ export function TaskTile({
   accent,
   draggable = true,
   onOpen,
+  onEdit,
   onOpenSubtask,
   onRunTask,
   onRetryTeambition,
@@ -61,8 +67,15 @@ export function TaskTile({
     && Boolean(item.session.taskSlug)
     && !hasRunning
     && item.subtasks.some((subtask) => subtask.runState === 'pending')
+  // 对齐 craft：编辑不要求已绑定 task spec，任何卡片都能打开编辑器（没有 taskSlug
+  // 时编辑器从当前标题/模型起草新表单，保存即"升级"成正式任务）。
+  const canEdit = Boolean(onEdit)
+  const handleEdit = (event?: React.SyntheticEvent): void => {
+    event?.stopPropagation()
+    onEdit?.(item)
+  }
 
-  return (
+  const card = (
     <article
       ref={drag.setNodeRef}
       style={{
@@ -106,7 +119,21 @@ export function TaskTile({
             <Play className="h-3.5 w-3.5 fill-current" />
           </button>
         )}
-        <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+        {canEdit ? (
+          <button
+            type="button"
+            title="编辑任务"
+            aria-label="编辑任务"
+            data-no-dnd
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={handleEdit}
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+        ) : (
+          <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+        )}
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         <StatusBadge status={item.session.sessionStatus} live={live} />
@@ -200,6 +227,36 @@ export function TaskTile({
           )}
         </div>
       )}
+
+      <div className="mt-2 flex items-center justify-end gap-2.5 text-[11px] text-muted-foreground">
+        <span className="flex items-center gap-1">
+          <Clock className="h-3 w-3" />
+          {formatRelativeUpdatedAt(item.session.updatedAt, Date.now())}
+        </span>
+        {typeof item.session.messageCount === 'number' && item.session.messageCount > 0 && (
+          <span className="flex items-center gap-1">
+            <MessageSquare className="h-3 w-3" />
+            {item.session.messageCount}
+          </span>
+        )}
+      </div>
     </article>
+  )
+
+  if (!canEdit) return card
+
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>{card}</ContextMenuTrigger>
+      {/* z-[9999]：ContextMenuContent 默认 z-50，在 Kanban 这层被 app-shell 其它高层级
+          元素盖住会"看起来没反应"——AgentSessionItem 的会话行右键菜单已经踩过这个坑，
+          这里保持同一套覆盖值。 */}
+      <ContextMenuContent className="w-36 z-[9999]">
+        <ContextMenuItem onSelect={() => handleEdit()}>
+          <Pencil className="mr-2 h-3.5 w-3.5" />
+          编辑任务
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }

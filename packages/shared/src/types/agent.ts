@@ -766,6 +766,8 @@ export interface AgentSessionMeta {
   taskNodeCount?: number
   /** Tasks Conductor: generate 时的草稿标记（adopt 前不在看板显示） */
   taskDraft?: boolean
+  /** 消息计数（看板卡片右下角徽标用，对齐 craft）；由 appendSDKMessages 增量维护，历史会话可能缺失 */
+  messageCount?: number
   /** 创建时间戳 */
   createdAt: number
   /** 更新时间戳 */

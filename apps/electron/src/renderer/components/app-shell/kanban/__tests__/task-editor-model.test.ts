@@ -5,7 +5,7 @@ import {
   buildTaskEditorSubmission,
   createTaskEditorDraft,
   resolveGeneratedTaskEvent,
-  resolveKanbanItemOpen,
+  resolveTaskEditorTarget,
   taskSpecToEditorDraft,
   validateTaskDraft,
 } from '../task-editor-model'
@@ -29,15 +29,22 @@ const session: AgentSessionMeta = {
   updatedAt: 2,
 }
 
-describe('resolveKanbanItemOpen', () => {
-  test('普通会话打开既有会话视图', () => {
-    expect(resolveKanbanItemOpen(createItem(session))).toEqual({ kind: 'session', sessionId: 'session-1' })
+describe('resolveTaskEditorTarget', () => {
+  test('普通会话（无 taskSlug）：编辑目标不带 taskSlug，带上当前标题/模型供起草新表单', () => {
+    expect(resolveTaskEditorTarget(createItem(session))).toEqual({
+      mode: 'edit',
+      sessionId: 'session-1',
+      initialTitle: '发布任务',
+    })
   })
 
-  test('spec-backed 卡片打开绑定原会话的 TaskEditor', () => {
-    expect(resolveKanbanItemOpen(createItem({ ...session, taskSlug: 'release-task' }))).toEqual({
-      kind: 'editor',
-      target: { mode: 'edit', sessionId: 'session-1', taskSlug: 'release-task' },
+  test('spec-backed 卡片：编辑目标带上既有 taskSlug（编辑器据此读取既有 spec）', () => {
+    expect(resolveTaskEditorTarget(createItem({ ...session, taskSlug: 'release-task', modelId: 'model-a' }))).toEqual({
+      mode: 'edit',
+      sessionId: 'session-1',
+      taskSlug: 'release-task',
+      initialTitle: '发布任务',
+      initialModel: 'model-a',
     })
   })
 })
@@ -87,6 +94,28 @@ describe('TaskEditor draft and submission', () => {
     const edited = buildTaskEditorSubmission(draft, editTarget, null, new Map())
     expect(edited.request).toEqual(expect.objectContaining({ attachToExistingSessionId: 'session-1' }))
     expect(JSON.parse(edited.request.yaml).id).toBe('existing-slug')
+  })
+
+  test('编辑普通会话（无 taskSlug）：草稿用 initialTitle/initialModel 起草，提交生成新 slug 并绑定回同一会话', () => {
+    const promoteTarget: TaskEditorTarget = {
+      mode: 'edit',
+      sessionId: 'session-1',
+      initialTitle: '临时聊了几句',
+      initialModel: 'model-b',
+    }
+    const draft = createTaskEditorDraft(promoteTarget, 'fallback-model')
+    expect(draft.title).toBe('临时聊了几句')
+    expect(draft.orchModel).toBe('model-b')
+
+    draft.goal = '把这个会话变成正式任务'
+    draft.projectId = 'project-a'
+    draft.subtasks = [{ uid: 'node-row', title: '执行', prompt: '继续推进', dependsOn: [] }]
+
+    const submission = buildTaskEditorSubmission(draft, promoteTarget, null, new Map())
+    expect(submission.request).toEqual(expect.objectContaining({ attachToExistingSessionId: 'session-1' }))
+    // 没有 fixedId：buildSpec 从标题生成一个新 slug，而不是报错或留空。
+    expect(JSON.parse(submission.request.yaml).id).toBeTruthy()
+    expect(JSON.parse(submission.request.yaml).id).not.toBe('existing-slug')
   })
 })
 

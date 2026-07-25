@@ -38,7 +38,7 @@ import { isPromptTooLongError, isThinkingSignatureError, friendlyErrorMessage, m
 import type { PiAgentQueryOptions } from './adapters/pi-agent-adapter'
 import { isTransientNetworkError, isMalformedResponseError, isSessionNotFoundError } from './error-patterns'
 import { AgentEventBus } from './agent-event-bus'
-import { decryptApiKey, getChannelById, listChannels, persistCodexOAuthCredentials, resolveChannelRuntimeApiKey, resolveCodexOAuthCredentials } from './channel-manager'
+import { decryptApiKey, getChannelById, listChannels, persistCodexOAuthCredentials, resolveChannelRuntimeApiKey, resolveClaudeOAuthCredentials, resolveCodexOAuthCredentials } from './channel-manager'
 import { getAdapter, fetchTitle, normalizeAnthropicBaseUrlForSdk, getAppUserAgent } from '@luxcoder/core'
 import pkg from '../../../package.json' with { type: 'json' }
 import { getFetchFn } from './proxy-fetch'
@@ -921,10 +921,15 @@ export class AgentOrchestrator {
     let codexOAuthCredentials: CodexOAuthCredentials | undefined
     try {
       // ChatGPT (Codex) OAuth 渠道必须保留完整凭据给 Pi runtime，才能按真实
-      // expires 刷新；其余渠道只需解密 API Key。
+      // expires 刷新；Claude 订阅 OAuth 渠道的 apiKey 字段存的是凭据 JSON（含
+      // refreshToken/expiresAt），必须走 resolveClaudeOAuthCredentials 取出真正
+      // 的 access token 并按需刷新，不能直接 decryptApiKey（那样会把整段 JSON
+      // 当 token 传给 SDK）；其余渠道只需解密 API Key。
       if (channel.provider === 'openai-codex') {
         codexOAuthCredentials = await resolveCodexOAuthCredentials(channelId)
         apiKey = codexOAuthCredentials.access
+      } else if (channel.provider === 'anthropic-oauth') {
+        apiKey = (await resolveClaudeOAuthCredentials(channelId)).token
       } else {
         apiKey = decryptApiKey(channelId)
       }
@@ -934,6 +939,18 @@ export class AgentOrchestrator {
           code: 'expired_oauth_token',
           title: 'ChatGPT 登录已失效',
           message: '无法刷新 ChatGPT 登录凭据，登录可能已过期或被撤销。请在设置中重新登录 ChatGPT。',
+          actions: [
+            { key: 's', label: '打开渠道设置', action: 'open_channel_settings' },
+          ],
+          canRetry: false,
+        })
+        return
+      }
+      if (channel.provider === 'anthropic-oauth') {
+        reportPreflightError({
+          code: 'expired_oauth_token',
+          title: 'Claude 订阅登录已失效',
+          message: '无法刷新 Claude 订阅登录凭据，登录可能已过期或被撤销。请在设置中重新登录 Claude 账号。',
           actions: [
             { key: 's', label: '打开渠道设置', action: 'open_channel_settings' },
           ],

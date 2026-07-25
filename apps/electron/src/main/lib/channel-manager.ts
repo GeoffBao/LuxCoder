@@ -21,6 +21,7 @@ import type {
   ChannelPlanQuotaResult,
   ChannelPlanQuotaWindow,
   CodexOAuthCredentials,
+  ClaudeOAuthCredentials,
   FetchModelsInput,
   FetchModelsResult,
   ProviderType,
@@ -33,8 +34,11 @@ import {
   serializeCodexCredentials,
   isCodexCredentialExpired,
   parseClaudeOAuthCredentials,
+  serializeClaudeOAuthCredentials,
+  isClaudeOAuthCredentialExpired,
 } from '@luxcoder/shared'
 import { refreshCodexOAuth } from './codex-oauth-service'
+import { refreshClaudeOAuthToken } from './claude-oauth-service'
 import { parseCodexPlanQuotaResponse } from './codex-plan-quota'
 import { listCodexModels } from './adapters/pi-model-registry'
 import { getFetchFn } from './proxy-fetch'
@@ -497,12 +501,34 @@ export async function resolveCodexAccessToken(channelId: string): Promise<string
 }
 
 /**
- * 解析 Claude Pro/Max 订阅登录渠道的运行时 token。
- *
- * 与 Codex 不同：`setup-token` 生成的是不可刷新的长效 token，这里只做纯解析，
- * 没有刷新逻辑；真正过期时由运行时 401 错误链路提示用户重新登录。
+ * 进行中的 claude token 刷新（按 channelId 去重）。理由与 inflightCodexRefresh 相同：
+ * 多个 Agent 会话可能并发触发同一渠道的刷新，去重避免重复请求 + 后写覆盖先写。
  */
-function resolveClaudeOAuthAccessToken(channelId: string): string {
+const inflightClaudeRefresh = new Map<string, Promise<ClaudeOAuthCredentials>>()
+
+/** 保存刷新后的完整 Claude 订阅 OAuth 凭据。 */
+export function persistClaudeOAuthCredentials(channelId: string, credentials: ClaudeOAuthCredentials): void {
+  const channel = getChannelById(channelId)
+  if (!channel || channel.provider !== 'anthropic-oauth') {
+    throw new Error(`Claude 订阅登录渠道不存在或类型不匹配: ${channelId}`)
+  }
+
+  const existing = parseClaudeOAuthCredentials(decryptKey(channel.apiKey))
+  const merged: ClaudeOAuthCredentials = {
+    ...credentials,
+    accountId: credentials.accountId ?? existing?.accountId,
+  }
+  updateChannel(channelId, { apiKey: serializeClaudeOAuthCredentials(merged) })
+}
+
+/**
+ * 解析 Claude Pro/Max 订阅登录渠道的凭据，按需刷新并回写。
+ *
+ * 只有带 refreshToken 的凭据（原生 PKCE 流程获取）会自动刷新；没有 refreshToken
+ * 的旧版长效 token（历史上 spawn `setup-token` 迁移来的）原样返回，真正过期时
+ * 由运行时 401 错误链路提示用户重新登录。
+ */
+export async function resolveClaudeOAuthCredentials(channelId: string): Promise<ClaudeOAuthCredentials> {
   const channel = getChannelById(channelId)
   if (!channel || channel.provider !== 'anthropic-oauth') {
     throw new Error(`Claude 订阅登录渠道不存在或类型不匹配: ${channelId}`)
@@ -513,16 +539,36 @@ function resolveClaudeOAuthAccessToken(channelId: string): string {
     throw new Error('Claude 订阅登录凭据无效或缺失，请重新登录')
   }
 
-  return credentials.token
+  if (!credentials.refreshToken || !isClaudeOAuthCredentialExpired(credentials)) {
+    return credentials
+  }
+
+  const existing = inflightClaudeRefresh.get(channelId)
+  if (existing) return existing
+
+  const refreshPromise = (async (): Promise<ClaudeOAuthCredentials> => {
+    try {
+      const refreshed = await refreshClaudeOAuthToken(credentials.refreshToken as string)
+      const merged = {
+        ...refreshed,
+        accountId: refreshed.accountId ?? credentials.accountId,
+      }
+      persistClaudeOAuthCredentials(channelId, merged)
+      return merged
+    } finally {
+      inflightClaudeRefresh.delete(channelId)
+    }
+  })()
+
+  inflightClaudeRefresh.set(channelId, refreshPromise)
+  return refreshPromise
 }
 
 /**
  * 解析渠道运行时实际使用的认证 token。
  *
- * 普通渠道直接解密 API Key；ChatGPT (Codex) OAuth 渠道的 apiKey 字段存储的是
- * OAuth 凭据 JSON，运行时必须取出 access token 并按需刷新；Claude Pro/Max
- * 订阅登录渠道的 apiKey 字段存储的是 Claude OAuth 凭据 JSON，运行时只需取出
- * token（不可刷新）。
+ * 普通渠道直接解密 API Key；ChatGPT (Codex) 与 Claude Pro/Max 订阅登录渠道的
+ * apiKey 字段存储的是 OAuth 凭据 JSON，运行时必须取出 access token 并按需刷新。
  */
 export async function resolveChannelRuntimeApiKey(channelId: string): Promise<string> {
   const channel = getChannelById(channelId)
@@ -531,7 +577,7 @@ export async function resolveChannelRuntimeApiKey(channelId: string): Promise<st
   }
 
   if (channel.provider === 'openai-codex') return resolveCodexAccessToken(channelId)
-  if (channel.provider === 'anthropic-oauth') return resolveClaudeOAuthAccessToken(channelId)
+  if (channel.provider === 'anthropic-oauth') return (await resolveClaudeOAuthCredentials(channelId)).token
   return decryptApiKey(channelId)
 }
 

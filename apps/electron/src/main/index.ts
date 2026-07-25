@@ -526,13 +526,10 @@ async function bootstrap(): Promise<void> {
 
   // Set dock icon on macOS
   // 确保 Dock 图标可见（dev 模式下通过 spawn 启动时可能不会自动显示）
-  // 如果用户有保存的图标偏好则使用，否则用默认图标
   if (process.platform === 'darwin' && app.dock) {
     await app.dock.show()
     const { resolveAppIconPath } = require('./ipc')
-    const settings = getSettings()
-    const variantId = settings.appIconVariant
-    const dockIconPath = resolveAppIconPath(variantId ?? 'default')
+    const dockIconPath = resolveAppIconPath('default')
     if (dockIconPath && existsSync(dockIconPath)) {
       app.dock.setIcon(dockIconPath)
     }

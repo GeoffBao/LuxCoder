@@ -1,161 +1,177 @@
 /**
  * Claude Pro/Max 订阅 OAuth 登录服务
  *
- * 复用已打包的真实官方 claude 二进制的 `setup-token` 子命令完成登录——不重新
- * 实现 OAuth PKCE 流程，避免冒用第三方 client_id，也避免被 Anthropic 判定为
- * "第三方 harness 的 extra usage"计费。该二进制同时是 Agent（Code）模式实际
- * 发起请求所用的同一进程，登录与执行的鉴权路径完全一致。
+ * 不再 spawn 打包的 claude 二进制走 `setup-token` 子命令——已确认该子命令是纯交互式
+ * TUI：非 TTY 环境下会尝试直接打开 /dev/tty 抢控制终端，正式打包后的 Electron 应用
+ * 从 Dock/Finder 启动没有 controlling terminal，/dev/tty 打开必然失败，子进程会
+ * 在完全静默中挂起（用 setsid 完整复现过：stdio 全部无输出，10+ 秒不退出）。就算
+ * 拿到浏览器授权 URL，登录本身还要求用户把回调页显示的 code 手动粘贴回终端 stdin，
+ * 而旧实现从未打通这个通道。开发模式下"能登录"只是因为主进程继承了开发终端的
+ * controlling terminal，/dev/tty 兜底恰好能打开——这是巧合，不是设计。
  *
- * `setup-token` 生成的是不可刷新的长效（约 1 年）token，没有 refresh token，
- * 过期后需要用户重新走一遍本流程（对应 packages/shared 的
- * isClaudeOAuthCredentialStale 本地估算提醒）。
+ * 现在改为原生实现 Authorization Code + PKCE 流程（参考 craft-agents-oss 的
+ * packages/shared/src/auth/claude-oauth.ts）：
+ * - CLIENT_ID 直接复用官方 claude 二进制自己在真实 setup-token 流程里使用的同一个
+ *   public client id（从其生成的真实授权 URL 里实测抓到），不是冒用第三方身份。
+ * - 浏览器授权完成后，Anthropic 的回调页会显示一段 code，用户手动复制粘贴回 App
+ *   （Anthropic 的公开客户端目前不支持 localhost redirect_uri 自动回传，这一步
+ *   无法省略，`setup-token` 本身也是同样的交互）。
+ * - 用 code 换 token 时能拿到真正的 refreshToken + expiresAt，比旧的"约 1 年不可
+ *   刷新长效 token"更规范；配套的刷新逻辑见 channel-manager.ts。
  */
 
-import { spawn, type ChildProcess } from 'node:child_process'
+import { randomBytes, createHash } from 'node:crypto'
 import { shell } from 'electron'
 import type { ClaudeOAuthCredentials } from '@luxcoder/shared'
-import { resolveClaudeAgentBinaryPath } from './config-paths'
 
-const TOKEN_PATTERN = /sk-ant-oat[A-Za-z0-9_-]{6,}/
-// 仅用于 extractDiagnostic 的脱敏场景：需要一次性替换掉诊断文本里所有 token 形状的
-// 子串（可能同时出现在 stdout 和 stderr，或同一流里出现多次），而不是只替换第一个。
-// TOKEN_PATTERN 本身保持非 global，供 handleChunk 用 .match() 做单值捕获，不能改。
-const TOKEN_PATTERN_GLOBAL = new RegExp(TOKEN_PATTERN.source, 'g')
-// 要求匹配的 URL 后紧跟真实空白字符才算"完整"。
-//
-// 注意：这里刻意只用 `(?=\s)`，不接受 `(?=\s|$)`——`$` 会在"当前已累积 buffer 的
-// 末尾"处零宽匹配成功，而 chunk 边界恰好落在 query string 中间时，"当前 buffer
-// 末尾"正好就是截断点，`$` 会把这个截断点误判为"字符串真的结束了"，导致截断 URL
-// 依然通过校验（等价于完全没做防护）。只有等下一个 chunk 补上真正的空白/换行符，
-// 匹配才会成立，从而正确等到 URL 在 stdout 里完整出现后才触发一次 onAuthUrl。
-// 已知取舍：如果 CLI 在进程退出前打印的最后一段 stdout 恰好就是 URL 本身、后面
-// 没有任何空白/换行，这里就不会触发 onAuthUrl——可接受，因为二进制自己会打开浏览器，
-// 这条路径本来就只是兜底，不依赖它也能完成登录。
-const AUTH_URL_PATTERN = /https:\/\/claude\.ai\/oauth\/authorize\?[^\s"')]+(?=\s)/
+/** 官方 claude 二进制自己使用的 public client id（实测从其 setup-token 生成的授权 URL 抓取）。 */
+const CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e'
+const AUTH_URL = 'https://claude.ai/oauth/authorize'
+const TOKEN_URL = 'https://platform.claude.com/v1/oauth/token'
+/** 必须与官方二进制生成的授权 URL 完全一致，否则服务端会拒绝该 redirect_uri。 */
+const REDIRECT_URI = 'https://platform.claude.com/oauth/code/callback'
+const SCOPES = 'user:inference'
+/** 授权码时效：留够用户"切到浏览器完成授权→切回来粘贴"的时间，同时避免陈旧 state 无限堆积。 */
+const STATE_EXPIRY_MS = 10 * 60_000
 
-// setup-token 的真实交互方式（是否会在某些场景下改走"终端粘贴 code"而不是纯 stdout
-// 输出 token）未经过完整实测（见设计文档风险第 3 条）。一旦子进程卡住等不到 token，
-// 之前的实现没有任何兜底：Promise 永不 settle，渲染层"等待浏览器授权…"的 loading
-// 态会转到天荒地老，用户在浏览器里点完"登录成功"也无从得知/无法恢复。这里加一个
-// 上限超时，确保最坏情况下也能明确失败并提示重试，而不是无限转圈。
-const LOGIN_TIMEOUT_MS = 5 * 60_000
-
-export interface ClaudeLoginCallbacks {
-  /** 捕获到授权 URL 时回调（除自动打开浏览器外，供 UI 展示兜底链接）。 */
-  onAuthUrl?: (url: string) => void
-  /** 子进程输出的非 URL/非 token 文本行，用于 UI 展示进度。 */
-  onProgress?: (message: string) => void
+interface PendingOAuthState {
+  state: string
+  codeVerifier: string
+  expiresAt: number
 }
 
-/** 进行中的登录子进程（同一时刻只允许一个登录流程）。 */
-let activeChild: ChildProcess | undefined
+/** 进行中的登录流程（同一时刻只允许一个）。 */
+let pendingState: PendingOAuthState | undefined
 
-function extractDiagnostic(stdout: string, stderr: string): string {
-  // 防御性脱敏：token 本应已被 TOKEN_PATTERN 捕获并 resolve，不会走到这里；但若未来
-  // CLI 输出格式变化导致匹配失败，也不能让原始 token 明文出现在会透传给渲染进程 UI
-  // 的错误信息里。
-  const tail = `${stdout}\n${stderr}`.replace(TOKEN_PATTERN_GLOBAL, '[redacted]').trim()
-  return tail.slice(-500)
+function generatePkce(): { codeVerifier: string; codeChallenge: string } {
+  const codeVerifier = randomBytes(32).toString('base64url')
+  const codeChallenge = createHash('sha256').update(codeVerifier).digest('base64url')
+  return { codeVerifier, codeChallenge }
+}
+
+interface TokenResponseBody {
+  access_token?: string
+  refresh_token?: string
+  expires_in?: number
+}
+
+async function parseTokenResponse(
+  response: Response,
+  action: string,
+  fallbackRefreshToken?: string,
+): Promise<ClaudeOAuthCredentials> {
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    let detail = text
+    try {
+      const json = JSON.parse(text) as { error_description?: string; error?: string }
+      detail = json.error_description || json.error || text
+    } catch {
+      // 非 JSON 错误响应体，原样透出即可
+    }
+    throw new Error(`Claude ${action}失败${detail ? `：${detail}` : `（HTTP ${response.status}）`}`)
+  }
+
+  const data = await response.json() as TokenResponseBody
+  if (!data.access_token) {
+    throw new Error(`Claude ${action}未返回有效 token`)
+  }
+
+  return {
+    token: data.access_token,
+    obtainedAt: Date.now(),
+    ...(data.refresh_token || fallbackRefreshToken
+      ? { refreshToken: data.refresh_token ?? fallbackRefreshToken }
+      : {}),
+    ...(typeof data.expires_in === 'number' ? { expiresAt: Date.now() + data.expires_in * 1000 } : {}),
+  }
 }
 
 /**
- * 发起一次 Claude Pro/Max 订阅 OAuth 登录。
+ * 生成一次新的 Claude Pro/Max 授权 URL 并用系统浏览器打开。
  *
- * 成功返回 { token, obtainedAt }；失败或取消则抛错。真实 claude 二进制自行
- * 打开系统浏览器完成授权；本函数额外扫描 stdout 里出现的授权 URL 并主动
- * shell.openExternal 一次作为兜底（即便二进制已自动打开，重复打开无害）。
+ * 返回的 URL 同时供 UI 兜底展示（例如浏览器未自动打开时手动点击）。
  */
-export async function loginClaudeOAuth(
-  callbacks?: ClaudeLoginCallbacks,
-  timeoutMs: number = LOGIN_TIMEOUT_MS,
-): Promise<ClaudeOAuthCredentials> {
-  cancelClaudeOAuthLogin()
+export function prepareClaudeOAuthLogin(): string {
+  const state = randomBytes(32).toString('hex')
+  const { codeVerifier, codeChallenge } = generatePkce()
+  pendingState = { state, codeVerifier, expiresAt: Date.now() + STATE_EXPIRY_MS }
 
-  const binaryPath = resolveClaudeAgentBinaryPath()
-  if (!binaryPath) {
-    throw new Error('未找到 Claude 运行时，请重装应用')
-  }
-
-  return new Promise<ClaudeOAuthCredentials>((resolve, reject) => {
-    const child = spawn(binaryPath, ['setup-token'], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-    })
-    activeChild = child
-
-    let stdout = ''
-    let stderr = ''
-    let urlOpened = false
-    let settled = false
-
-    const timeoutTimer = setTimeout(() => {
-      settleReject(new Error('登录超时（5 分钟未完成），请重试'))
-    }, timeoutMs)
-
-    const settleResolve = (credentials: ClaudeOAuthCredentials): void => {
-      if (settled) return
-      settled = true
-      clearTimeout(timeoutTimer)
-      if (activeChild === child) activeChild = undefined
-      child.kill()
-      resolve(credentials)
-    }
-
-    const settleReject = (error: Error): void => {
-      if (settled) return
-      settled = true
-      clearTimeout(timeoutTimer)
-      if (activeChild === child) activeChild = undefined
-      child.kill()
-      reject(error)
-    }
-
-    const handleChunk = (chunk: Buffer): void => {
-      const text = chunk.toString('utf-8')
-      stdout += text
-
-      if (!urlOpened) {
-        const urlMatch = stdout.match(AUTH_URL_PATTERN)
-        if (urlMatch) {
-          urlOpened = true
-          callbacks?.onAuthUrl?.(urlMatch[0])
-          shell.openExternal(urlMatch[0]).catch((err) => console.error('[Claude OAuth] 打开浏览器失败:', err))
-        }
-      }
-
-      const tokenMatch = stdout.match(TOKEN_PATTERN)
-      if (tokenMatch) {
-        settleResolve({ token: tokenMatch[0], obtainedAt: Date.now() })
-        return
-      }
-
-      if (text.trim()) {
-        callbacks?.onProgress?.(text.trim())
-      }
-    }
-
-    child.stdout?.on('data', handleChunk)
-    child.stderr?.on('data', (chunk: Buffer) => {
-      stderr += chunk.toString('utf-8')
-    })
-
-    child.on('error', (error) => {
-      settleReject(new Error(`无法启动 Claude 登录进程: ${error.message}`))
-    })
-
-    child.on('close', (code) => {
-      if (settled) return
-      const diagnostic = extractDiagnostic(stdout, stderr)
-      settleReject(new Error(
-        code === 0
-          ? `登录未返回有效 token${diagnostic ? `：${diagnostic}` : ''}`
-          : `登录失败${diagnostic ? `：${diagnostic}` : `（退出码 ${code}）`}`,
-      ))
-    })
+  const params = new URLSearchParams({
+    code: 'true',
+    client_id: CLIENT_ID,
+    response_type: 'code',
+    redirect_uri: REDIRECT_URI,
+    scope: SCOPES,
+    code_challenge: codeChallenge,
+    code_challenge_method: 'S256',
+    state,
   })
+  const authUrl = `${AUTH_URL}?${params.toString()}`
+
+  shell.openExternal(authUrl).catch((err) => console.error('[Claude OAuth] 打开浏览器失败:', err))
+
+  return authUrl
 }
 
-/** 取消进行中的 Claude OAuth 登录流程（若有）。 */
+/**
+ * 用用户从浏览器回调页复制的授权码换取凭据。
+ *
+ * 授权码可能带上 `#`/`&` 之后的多余片段（例如页面展示时混入了 state），这里做
+ * 一次保守清理；真正的合法性校验交给服务端。
+ */
+export async function exchangeClaudeOAuthCode(rawCode: string): Promise<ClaudeOAuthCredentials> {
+  const current = pendingState
+  if (!current) {
+    throw new Error('登录会话已失效，请重新点击登录')
+  }
+  if (Date.now() > current.expiresAt) {
+    pendingState = undefined
+    throw new Error('授权码已过期（超过 10 分钟），请重新登录')
+  }
+
+  const code = rawCode.trim().split('#')[0]?.split('&')[0]?.trim() ?? ''
+  if (!code) {
+    throw new Error('请粘贴授权码')
+  }
+
+  const response = await fetch(TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      grant_type: 'authorization_code',
+      client_id: CLIENT_ID,
+      code,
+      redirect_uri: REDIRECT_URI,
+      code_verifier: current.codeVerifier,
+      state: current.state,
+    }),
+  })
+
+  const credentials = await parseTokenResponse(response, '登录')
+  pendingState = undefined
+  return credentials
+}
+
+/**
+ * 用 refresh token 换取新的 access token（channel-manager 在快过期时调用）。
+ * 服务端未轮换 refresh token 时（响应里没有 refresh_token）沿用旧值。
+ */
+export async function refreshClaudeOAuthToken(refreshToken: string): Promise<ClaudeOAuthCredentials> {
+  const response = await fetch(TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      grant_type: 'refresh_token',
+      client_id: CLIENT_ID,
+      refresh_token: refreshToken,
+    }),
+  })
+
+  return parseTokenResponse(response, '刷新', refreshToken)
+}
+
+/** 取消进行中的登录流程（若有）：清掉待换取的 PKCE state。 */
 export function cancelClaudeOAuthLogin(): void {
-  activeChild?.kill()
-  activeChild = undefined
+  pendingState = undefined
 }
