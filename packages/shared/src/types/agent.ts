@@ -1239,6 +1239,12 @@ export interface AgentStreamEvent {
  */
 export interface AgentStreamCompletePayload {
   sessionId: string
+  /** 触发来源：用于区分用户顶层会话、自动任务、协作子会话和 Task 子任务 */
+  triggeredBy?: AgentSendInput['triggeredBy']
+  /** 完成会话所属的 collaboration 委派 ID；用于避免子会话完成通知竞态 */
+  sourceDelegationId?: string
+  /** 完成会话所属的 Task DAG 节点 ID；用于避免子任务节点完成通知竞态 */
+  taskNodeId?: string
   /** 已持久化的完整消息列表 */
   messages?: AgentMessage[]
   /** 是否由用户手动中止 */

@@ -46,6 +46,18 @@ const adapter = new RuntimeRoutingAgentAdapter({
 })
 const orchestrator = new AgentOrchestrator(adapter, eventBus)
 
+function getCompletionSessionOrigin(sessionId: string): { sourceDelegationId?: string; taskNodeId?: string } {
+  try {
+    const meta = getAgentSessionMeta(sessionId)
+    return {
+      ...(meta?.sourceDelegationId ? { sourceDelegationId: meta.sourceDelegationId } : {}),
+      ...(meta?.taskNodeId ? { taskNodeId: meta.taskNodeId } : {}),
+    }
+  } catch {
+    return {}
+  }
+}
+
 /** 导出 EventBus 供飞书 Bridge 等外部服务订阅事件 */
 export { eventBus as agentEventBus }
 
@@ -178,6 +190,8 @@ export async function runAgent(
         if (!webContents.isDestroyed()) {
           webContents.send(AGENT_IPC_CHANNELS.STREAM_COMPLETE, {
             sessionId: input.sessionId,
+            triggeredBy: input.triggeredBy,
+            ...getCompletionSessionOrigin(input.sessionId),
             messages,
             stoppedByUser: opts?.stoppedByUser ?? false,
             startedAt: opts?.startedAt,
@@ -210,6 +224,8 @@ export async function runAgent(
       })
       webContents.send(AGENT_IPC_CHANNELS.STREAM_COMPLETE, {
         sessionId: input.sessionId,
+        triggeredBy: input.triggeredBy,
+        ...getCompletionSessionOrigin(input.sessionId),
         messages: [],
         stoppedByUser: false,
       })
@@ -272,6 +288,8 @@ export async function runAgentHeadless(
         if (wc && !wc.isDestroyed()) {
           wc.send(AGENT_IPC_CHANNELS.STREAM_COMPLETE, {
             sessionId: runInput.sessionId,
+            triggeredBy: runInput.triggeredBy,
+            ...getCompletionSessionOrigin(runInput.sessionId),
             messages,
             stoppedByUser: opts?.stoppedByUser ?? false,
             startedAt: opts?.startedAt,
@@ -318,7 +336,7 @@ export async function runAgentHeadless(
     callbacks.onComplete()
     if (wc && !wc.isDestroyed()) {
       wc.send(AGENT_IPC_CHANNELS.STREAM_ERROR, { sessionId: runInput.sessionId, error: errorMessage })
-      wc.send(AGENT_IPC_CHANNELS.STREAM_COMPLETE, { sessionId: runInput.sessionId, messages: [], stoppedByUser: false, startedAt })
+      wc.send(AGENT_IPC_CHANNELS.STREAM_COMPLETE, { sessionId: runInput.sessionId, triggeredBy: runInput.triggeredBy, ...getCompletionSessionOrigin(runInput.sessionId), messages: [], stoppedByUser: false, startedAt })
     }
   } finally {
     if (!orchestrator.isActive(runInput.sessionId)) {

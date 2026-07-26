@@ -1,4 +1,5 @@
 import type { TabItem } from '@/atoms/tab-atoms'
+import type { AgentSessionMeta, AgentStreamCompletePayload } from '@luxcoder/shared'
 
 export interface AgentCompletionPresenceInput {
   tabs: TabItem[]
@@ -11,6 +12,16 @@ export interface AgentCompletionPresenceInput {
 
 export interface AgentCompletionMarkers {
   markUnviewedCompleted: boolean
+}
+
+export interface AgentCompletionNotificationInput {
+  completion: Pick<AgentStreamCompletePayload, 'triggeredBy' | 'sourceDelegationId' | 'taskNodeId' | 'stoppedByUser' | 'resultSubtype' | 'backgroundTasksPending'>
+  session?: Pick<AgentSessionMeta, 'sourceDelegationId' | 'taskNodeId'>
+  hasStreamError: boolean
+}
+
+export interface NotifyAgentCompletionInput extends AgentCompletionNotificationInput {
+  notify: () => void
 }
 
 /** 判断 Agent 完成时用户是否仍停留在该会话入口 */
@@ -39,4 +50,29 @@ export function getAgentCompletionMarkers(input: AgentCompletionPresenceInput): 
   return {
     markUnviewedCompleted: !isActiveSession,
   }
+}
+
+/** 顶层用户任务完成才触发桌面完成提醒；父 Agent 管理的子会话 / Task 节点不单独打扰用户。 */
+export function shouldNotifyAgentCompletion({
+  completion,
+  session,
+  hasStreamError,
+}: AgentCompletionNotificationInput): boolean {
+  const isSuccessfulCompletion = !completion.stoppedByUser &&
+    !hasStreamError &&
+    (!completion.resultSubtype || completion.resultSubtype === 'success')
+
+  if (completion.backgroundTasksPending || !isSuccessfulCompletion) return false
+  if (completion.triggeredBy === 'delegation') return false
+  if (completion.sourceDelegationId || session?.sourceDelegationId) return false
+  if (completion.taskNodeId || session?.taskNodeId) return false
+  return true
+}
+
+/** 仅在真正成功、无需等待后台任务，且属于顶层用户任务边界时调用完成通知 callback。 */
+export function notifyAgentCompletion({
+  notify,
+  ...input
+}: NotifyAgentCompletionInput): void {
+  if (shouldNotifyAgentCompletion(input)) notify()
 }

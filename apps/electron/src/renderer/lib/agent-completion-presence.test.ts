@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { getAgentCompletionMarkers, isAgentSessionActiveForCompletion } from './agent-completion-presence'
+import { getAgentCompletionMarkers, isAgentSessionActiveForCompletion, notifyAgentCompletion, shouldNotifyAgentCompletion } from './agent-completion-presence'
 import type { TabItem } from '@/atoms/tab-atoms'
 
 describe('Agent 完成归属判断', () => {
@@ -68,5 +68,80 @@ describe('Agent 完成归属判断', () => {
     expect(getAgentCompletionMarkers(input)).toEqual({
       markUnviewedCompleted: true,
     })
+  })
+})
+
+describe('Agent 完成桌面通知边界', () => {
+  test('Given 顶层用户或自动任务会话成功完成 When 判断通知 Then 允许发送', () => {
+    expect(shouldNotifyAgentCompletion({
+      completion: { triggeredBy: 'user', resultSubtype: 'success' },
+      hasStreamError: false,
+    })).toBe(true)
+    expect(shouldNotifyAgentCompletion({
+      completion: { triggeredBy: 'automation', resultSubtype: 'success' },
+      hasStreamError: false,
+    })).toBe(true)
+  })
+
+  test('Given 协作子会话完成 When 来源为 delegation Then 不发送完成通知', () => {
+    expect(shouldNotifyAgentCompletion({
+      completion: { triggeredBy: 'delegation', resultSubtype: 'success' },
+      hasStreamError: false,
+    })).toBe(false)
+  })
+
+  test('Given 持久化委派子会话完成 When payload 或 session 存在 sourceDelegationId Then 不发送完成通知', () => {
+    expect(shouldNotifyAgentCompletion({
+      completion: { resultSubtype: 'success', sourceDelegationId: 'delegation-1' },
+      hasStreamError: false,
+    })).toBe(false)
+    expect(shouldNotifyAgentCompletion({
+      completion: { resultSubtype: 'success' },
+      session: { sourceDelegationId: 'delegation-1' },
+      hasStreamError: false,
+    })).toBe(false)
+  })
+
+  test('Given Task DAG 子任务节点完成 When payload 或 session 存在 taskNodeId Then 不发送完成通知', () => {
+    expect(shouldNotifyAgentCompletion({
+      completion: { triggeredBy: 'work', resultSubtype: 'success', taskNodeId: 'node-a' },
+      hasStreamError: false,
+    })).toBe(false)
+    expect(shouldNotifyAgentCompletion({
+      completion: { triggeredBy: 'work', resultSubtype: 'success' },
+      session: { taskNodeId: 'node-a' },
+      hasStreamError: false,
+    })).toBe(false)
+  })
+
+  test('Given Task 根会话或验收轮完成 When 没有 taskNodeId Then 保留顶层完成通知', () => {
+    expect(shouldNotifyAgentCompletion({
+      completion: { triggeredBy: 'work', resultSubtype: 'success' },
+      session: {},
+      hasStreamError: false,
+    })).toBe(true)
+  })
+
+  test('Given 停止、错误、流错误或后台任务等待 When 判断通知 Then 不发送完成通知', () => {
+    expect(shouldNotifyAgentCompletion({ completion: { stoppedByUser: true }, hasStreamError: false })).toBe(false)
+    expect(shouldNotifyAgentCompletion({ completion: { resultSubtype: 'error_during_execution' }, hasStreamError: false })).toBe(false)
+    expect(shouldNotifyAgentCompletion({ completion: { resultSubtype: 'success' }, hasStreamError: true })).toBe(false)
+    expect(shouldNotifyAgentCompletion({ completion: { resultSubtype: 'success', backgroundTasksPending: true }, hasStreamError: false })).toBe(false)
+  })
+
+  test('Given notifyAgentCompletion 条件满足或不满足 Then 只在满足时调用 notify', () => {
+    let count = 0
+    notifyAgentCompletion({
+      completion: { triggeredBy: 'user', resultSubtype: 'success' },
+      hasStreamError: false,
+      notify: () => { count += 1 },
+    })
+    notifyAgentCompletion({
+      completion: { triggeredBy: 'delegation', resultSubtype: 'success' },
+      hasStreamError: false,
+      notify: () => { count += 1 },
+    })
+
+    expect(count).toBe(1)
   })
 })
