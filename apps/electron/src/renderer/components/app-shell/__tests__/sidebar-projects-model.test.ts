@@ -2,11 +2,15 @@ import { describe, expect, test } from 'bun:test'
 import type { AgentSessionMeta } from '@luxcoder/shared'
 import {
   filterGroupableSessions,
+  groupSessionTreesByProject,
   groupSessionsByProject,
   resolveProjectAttention,
+  resolveProjectTreeAttention,
   sortProjectsByActivity,
+  sortProjectsByTreeActivity,
 } from '../sidebar-projects-model'
 import type { KanbanProject } from '../kanban/types'
+import { buildAgentSessionTrees } from '../sidebar-session-tree'
 
 function createSession(overrides: Partial<AgentSessionMeta>): AgentSessionMeta {
   return {
@@ -44,7 +48,7 @@ describe('resolveProjectAttention', () => {
 })
 
 describe('filterGroupableSessions', () => {
-  test('排除归档 / draft / 委派子会话 / 自动任务会话 / 跨工作区', () => {
+  test('保留普通父子会话，排除归档 / draft / 置顶任务族 / 自动任务 / 跨工作区', () => {
     const sessions = [
       createSession({ id: 'keep-1', updatedAt: 5 }),
       createSession({ id: 'archived', archived: true }),
@@ -53,11 +57,14 @@ describe('filterGroupableSessions', () => {
       createSession({ id: 'automation', sourceAutomationId: 'auto-1' }),
       createSession({ id: 'pinned-automation', sourceAutomationId: 'auto-1', pinned: true }),
       createSession({ id: 'other-ws', workspaceId: 'ws-2' }),
+      createSession({ id: 'pinned-parent', pinned: true }),
+      createSession({ id: 'pinned-child', parentSessionId: 'pinned-parent' }),
+      createSession({ id: 'pinned-grandchild', parentSessionId: 'pinned-child' }),
       createSession({ id: 'current-ws', workspaceId: 'ws-1' }),
     ]
 
     const result = filterGroupableSessions(sessions, new Set(['draft']), 'ws-1')
-    expect(result.map((session) => session.id)).toEqual(['keep-1', 'pinned-automation', 'current-ws'])
+    expect(result.map((session) => session.id)).toEqual(['keep-1', 'child', 'current-ws'])
   })
 })
 
@@ -75,6 +82,25 @@ describe('groupSessionsByProject', () => {
     expect(byProject.get('proj-1')?.map((session) => session.id)).toEqual(['p1-new', 'p1-old'])
     expect(byProject.get('proj-2')?.map((session) => session.id)).toEqual(['p2'])
     expect(Array.from(byProject.keys())).toEqual(['proj-1', 'proj-2'])
+  })
+})
+
+describe('project session trees', () => {
+  test('Task 子会话跟随主任务进入同一项目，注意力与活动时间包含子任务', () => {
+    const trees = buildAgentSessionTrees([
+      createSession({ id: 'parent', projectId: 'proj-1', updatedAt: 10 }),
+      createSession({ id: 'child', parentSessionId: 'parent', projectId: 'proj-1', updatedAt: 80 }),
+    ])
+    const byProject = groupSessionTreesByProject(trees)
+    const indicators = new Map<string, 'idle' | 'running' | 'blocked' | 'completed'>([['child', 'running']])
+
+    expect(byProject.get('proj-1')?.map((tree) => tree.session.id)).toEqual(['parent'])
+    expect(byProject.get('proj-1')?.[0]?.childSessions.map((session) => session.id)).toEqual(['child'])
+    expect(resolveProjectTreeAttention(byProject.get('proj-1') ?? [], indicators)).toBe('running')
+    expect(sortProjectsByTreeActivity([
+      { id: 'proj-2', name: '项目 2', updatedAt: 50 },
+      { id: 'proj-1', name: '项目 1', updatedAt: 1 },
+    ], byProject).map((project) => project.id)).toEqual(['proj-1', 'proj-2'])
   })
 })
 

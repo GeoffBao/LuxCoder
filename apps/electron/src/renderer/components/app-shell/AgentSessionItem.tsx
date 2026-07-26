@@ -270,12 +270,15 @@ export interface AgentSessionItemProps {
   active: boolean
   indicatorStatus: SessionIndicatorStatus
   showPinIcon?: boolean
-  delegationSummary?: {
+  /** 任务或协作会话族的紧凑进度；无 onToggle 时只显示进度。 */
+  childSummary?: {
     total: number
     completed: number
-    expanded: boolean
-    onToggle: () => void
+    expanded?: boolean
+    onToggle?: () => void
   }
+  /** 仅用于菜单中的 collaboration 级联操作，不能把 Task 子任务误算进来。 */
+  delegationChildCount?: number
   /** 行左侧状态色块（已移除：状态统一由行首小圆点表达）
    * @deprecated 不再渲染任何色条 */
   leftAccent?: never
@@ -310,7 +313,8 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
   active,
   indicatorStatus,
   showPinIcon,
-  delegationSummary,
+  childSummary,
+  delegationChildCount = 0,
   disableMiniMap,
   workspaceName,
   projects,
@@ -368,12 +372,11 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
 
   const canMove = indicatorStatus === 'idle' || indicatorStatus === 'completed'
 
-  const childCount = delegationSummary?.total ?? 0
-  const hasChildren = childCount > 0
+  const hasDelegatedChildren = delegationChildCount > 0
   const pinLabel = session.pinned ? '取消置顶' : '置顶会话'
   const cascadePinLabel = session.pinned
-    ? `取消置顶(含 ${childCount} 个子会话)`
-    : `置顶会话(含 ${childCount} 个子会话)`
+    ? `取消置顶(含 ${delegationChildCount} 个子会话)`
+    : `置顶会话(含 ${delegationChildCount} 个子会话)`
 
   // 同一份菜单在 DropdownMenu（三点按钮）和 ContextMenu（右键）里渲染，
   // Sub 组件必须与所在菜单同源，因此由调用方注入对应实现。
@@ -389,7 +392,7 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
         <Star size={14} fill={session.starred ? 'currentColor' : 'none'} className={session.starred ? 'text-amber-500' : undefined} />
         {session.starred ? '取消星标' : '添加星标'}
       </MenuItem>
-      {hasChildren ? (
+      {hasDelegatedChildren ? (
         <>
           <MenuItem className="text-xs py-1 [&>svg]:size-3.5" onSelect={() => onTogglePin(session.id, false)}>
             {session.pinned ? <PinOff size={14} /> : <Pin size={14} />}
@@ -543,11 +546,12 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
                 {session.sourceAutomationId && !session.sourceDelegationId && (
                   <Clock size={11} className="flex-shrink-0 text-foreground/40" />
                 )}
-                {session.sourceDelegationId && (
+                {session.parentSessionId && (
                   <GitBranch size={11} className={cn('flex-shrink-0', DELEGATION_STATUS_ICON_CLASS[indicatorStatus])} />
                 )}
                 <MarqueeText
                   text={session.title}
+                  className="min-w-0 flex-1"
                   onDoubleClick={(event) => {
                     event.stopPropagation()
                     startEdit()
@@ -563,9 +567,9 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
                     {workspaceName}
                   </span>
                 )}
-                {delegationSummary && (
-                  <span className="flex-shrink-0 text-[11px] leading-4 text-foreground/45">
-                    {delegationSummary.completed}/{delegationSummary.total}
+                {childSummary && childSummary.total > 0 && (
+                  <span className="flex-shrink-0 text-[11px] leading-4 text-foreground/45 tabular-nums">
+                    {childSummary.completed}/{childSummary.total}
                   </span>
                 )}
               </div>
@@ -574,11 +578,11 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
 
           {!editing && (
             <>
-              {delegationSummary && (
-                <SafeTooltip content={delegationSummary.expanded ? '收起子会话' : '展开子会话'} side="top">
+              {childSummary?.onToggle && childSummary.expanded !== undefined && (
+                <SafeTooltip content={childSummary.expanded ? '收起子会话' : '展开子会话'} side="top">
                   <button
                     type="button"
-                    aria-label={`${delegationSummary.expanded ? '收起' : '展开'}子会话`}
+                    aria-label={`${childSummary.expanded ? '收起' : '展开'}子会话`}
                     onFocus={preview.closeNow}
                     onMouseDown={(event) => {
                       event.stopPropagation()
@@ -587,7 +591,7 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
                     onClick={(event) => {
                       event.stopPropagation()
                       preview.closeNow()
-                      delegationSummary.onToggle()
+                      childSummary.onToggle?.()
                     }}
                     onDoubleClick={(event) => {
                       event.stopPropagation()
@@ -599,7 +603,7 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
                       size={11}
                       className={cn(
                         'transition-transform duration-150',
-                        delegationSummary.expanded && 'rotate-90',
+                        childSummary.expanded && 'rotate-90',
                       )}
                     />
                   </button>

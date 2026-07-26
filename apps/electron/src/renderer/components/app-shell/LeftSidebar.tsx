@@ -80,7 +80,18 @@ import { userProfileAtom } from '@/atoms/user-profile'
 import { selectedProjectIdAtom, serverKanbanProjectsAtom, workViewAtom, codeMainViewAtom } from '@/atoms/project-atoms'
 import { sessionGroupsAtom } from '@/atoms/session-groups-atoms'
 import { sessionListPreferenceAtom } from '@/atoms/session-list-preference-atoms'
-import { buildRecentSessionList, groupSessionsByCustomGroup, groupSessionsByState, sortSessions } from './sidebar-session-views'
+import { buildRecentSessionList } from './sidebar-session-views'
+import {
+  buildAgentSessionTrees,
+  getSessionStatus,
+  getSessionTreeActivityAt,
+  getSessionTreeCustomGroupId,
+  getSessionTreeProgress,
+  getSessionTreeStatus,
+  sortSessionTrees,
+  treeContainsSessionId,
+  type AgentSessionTreeItem,
+} from './sidebar-session-tree'
 import { SessionListFilterMenu } from './SessionListFilterMenu'
 import { CreateSessionGroupDialog } from './CreateSessionGroupDialog'
 import { sidebarViewModeAtom, MIN_LEFT_SIDEBAR_WIDTH } from '@/atoms/sidebar-atoms'
@@ -236,11 +247,6 @@ type DateGroup = '今天' | '昨天' | '前天' | '更早'
 interface AgentProjectGroup {
   workspace: AgentWorkspace
   sessions: AgentSessionMeta[]
-}
-
-interface AgentSessionTreeItem {
-  session: AgentSessionMeta
-  childSessions: AgentSessionMeta[]
 }
 
 /** 合成「自动任务」虚拟工作区组的 ID（不对应真实 workspace，仅用于聚合自动任务会话） */
@@ -404,77 +410,20 @@ function isHiddenAutomationSession(session: AgentSessionMeta): boolean {
   return !!session.sourceAutomationId && !session.pinned
 }
 
-function isDelegatedChildSession(session: AgentSessionMeta): boolean {
-  return !!session.parentSessionId && !!session.sourceDelegationId
+function getDirectSessionChildren(
+  sessions: AgentSessionMeta[],
+  parentSessionId: string,
+): AgentSessionMeta[] {
+  return sessions.filter((session) => session.parentSessionId === parentSessionId)
 }
 
-function buildAgentSessionTrees(sessions: AgentSessionMeta[]): AgentSessionTreeItem[] {
-  const sessionIds = new Set(sessions.map((session) => session.id))
-  const childrenByParentId = new Map<string, AgentSessionMeta[]>()
-  const roots: AgentSessionMeta[] = []
-
-  for (const session of sessions) {
-    if (
-      isDelegatedChildSession(session)
-      && session.parentSessionId
-      && sessionIds.has(session.parentSessionId)
-    ) {
-      const children = childrenByParentId.get(session.parentSessionId) ?? []
-      children.push(session)
-      childrenByParentId.set(session.parentSessionId, children)
-      continue
-    }
-
-    roots.push(session)
-  }
-
-  return roots.map((session) => ({
-    session,
-    childSessions: childrenByParentId.get(session.id) ?? [],
-  }))
-}
-
-function getDelegatedChildStatus(
-  session: AgentSessionMeta,
-  agentIndicatorMap: Map<string, SessionIndicatorStatus>,
-): SessionIndicatorStatus {
-  const status = agentIndicatorMap.get(session.id)
-  if (status) return status
-  return session.delegationStatus === 'running' ? 'running' : 'idle'
-}
-
-function getSessionTreeStatus(
-  item: AgentSessionTreeItem,
-  agentIndicatorMap: Map<string, SessionIndicatorStatus>,
-): SessionIndicatorStatus {
-  const statuses = [
-    agentIndicatorMap.get(item.session.id) ?? 'idle',
-    ...item.childSessions.map((session) => getDelegatedChildStatus(session, agentIndicatorMap)),
-  ]
-
-  if (statuses.includes('blocked')) return 'blocked'
-  if (statuses.includes('running')) return 'running'
-  if (statuses.includes('completed')) return 'completed'
-  return 'idle'
-}
-
-function countCompletedDelegatedChildren(childSessions: AgentSessionMeta[]): number {
-  return childSessions.filter((session) => session.delegationStatus === 'completed').length
-}
-
-function treeContainsSessionId(item: AgentSessionTreeItem, sessionId: string | null): boolean {
-  if (!sessionId) return false
-  return item.session.id === sessionId || item.childSessions.some((session) => session.id === sessionId)
-}
-
+/** collaboration 级联操作仍只处理真正的委派子会话，不随展示树语义扩大。 */
 function getDirectDelegatedChildren(
   sessions: AgentSessionMeta[],
   parentSessionId: string,
 ): AgentSessionMeta[] {
-  return sessions.filter((session) => (
-    session.parentSessionId === parentSessionId
-    && !!session.sourceDelegationId
-  ))
+  return getDirectSessionChildren(sessions, parentSessionId)
+    .filter((session) => !!session.sourceDelegationId)
 }
 
 function collectDelegatedSessionTreeIds(sessions: AgentSessionMeta[], rootSessionId: string): Set<string> {
@@ -500,10 +449,20 @@ function collectDelegatedSessionTreeIds(sessions: AgentSessionMeta[], rootSessio
   return ids
 }
 
-function hasPinnedVisibleParent(session: AgentSessionMeta, sessions: AgentSessionMeta[]): boolean {
-  if (!isDelegatedChildSession(session) || !session.parentSessionId) return false
-  const parent = sessions.find((item) => item.id === session.parentSessionId)
-  return !!parent?.pinned && !parent.archived
+function hasPinnedVisibleParent(
+  session: AgentSessionMeta,
+  sessionsById: Map<string, AgentSessionMeta>,
+): boolean {
+  const visited = new Set<string>([session.id])
+  let parentId = session.parentSessionId
+  while (parentId) {
+    const parent = sessionsById.get(parentId)
+    if (!parent || visited.has(parent.id)) return false
+    if (parent.pinned && !parent.archived) return true
+    visited.add(parent.id)
+    parentId = parent.parentSessionId
+  }
+  return false
 }
 
 function getSyncableDelegatedChildren(
@@ -942,10 +901,11 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   const pinnedAgentSessions = React.useMemo(
     () => {
       if (viewMode !== 'active') return []
+      const sessionsById = new Map(agentSessions.map((session) => [session.id, session]))
       const filtered = agentSessions.filter((s) =>
         s.pinned
         && !draftSessionIds.has(s.id)
-        && !hasPinnedVisibleParent(s, agentSessions)
+        && !hasPinnedVisibleParent(s, sessionsById)
       )
       return sortAgentSessionsByUpdatedAtDesc(filtered)
     },
@@ -955,7 +915,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   const pinnedAgentSessionTrees = React.useMemo<AgentSessionTreeItem[]>(
     () => pinnedAgentSessions.map((session) => ({
       session,
-      childSessions: getDirectDelegatedChildren(agentSessions, session.id).filter((child) => (
+      childSessions: getDirectSessionChildren(agentSessions, session.id).filter((child) => (
         !child.archived
         && !draftSessionIds.has(child.id)
         && !isHiddenAutomationSession(child)
@@ -2170,6 +2130,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         sessionsByWorkspaceId.set(workspace.id, [])
       }
 
+      const sessionsById = new Map(agentSessions.map((session) => [session.id, session]))
       const visibleHistory = sortAgentSessionsByUpdatedAtDesc(
         agentSessions.filter((session) =>
           (agentStatusFilter === 'active' ? !session.archived
@@ -2180,7 +2141,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
           // 自动任务会话不进入工作区列表，统一归到「自动任务」视图
           && !isHiddenAutomationSession(session)
           // 已被置顶母会话收纳的子会话留在置顶区的母会话下面，避免重复显示为工作区根会话
-          && !hasPinnedVisibleParent(session, agentSessions)
+          && !hasPinnedVisibleParent(session, sessionsById)
         )
       )
 
@@ -2217,29 +2178,59 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   )
 
   /**
-   * 「分组方式：状态 / 自定义分组 / 不分组」用的扁平会话列表——排除 draft / 委派子会话 /
-   * 隐藏的自动任务会话，按当前工作区过滤，再按状态筛选（活跃/已归档/全部）与排序方式排列。
-   * 不含委派树展开（子会话与母会话平铺展示），是比「日期」模式更轻量的视图。
+   * 状态 / 自定义分组 / 不分组同样消费统一任务树。分页和分桶按根任务族计数，
+   * 子任务始终跟随主任务，不会因切换分组而消失或单独占满预览名额。
    */
-  const agentFlatModeSessions = React.useMemo(() => {
+  const agentFlatModeTrees = React.useMemo<AgentSessionTreeItem[]>(() => {
     if (agentGroupBy === 'date' || agentGroupBy === 'project') return []
-    const base = agentSessions.filter((session) => {
+    const sessionsById = new Map(agentSessions.map((session) => [session.id, session]))
+    const visible = agentSessions.filter((session) => {
       if (draftSessionIds.has(session.id)) return false
-      if (session.parentSessionId) return false
+      if (session.pinned || hasPinnedVisibleParent(session, sessionsById)) return false
       if (isHiddenAutomationSession(session)) return false
       if (currentWorkspaceId && session.workspaceId && session.workspaceId !== currentWorkspaceId) return false
       if (agentStatusFilter === 'active' && session.archived) return false
       if (agentStatusFilter === 'archived' && !session.archived) return false
       return true
     })
-    return sortSessions(base, agentSortBy)
+    return sortSessionTrees(buildAgentSessionTrees(visible), agentSortBy)
   }, [agentGroupBy, agentSessions, draftSessionIds, currentWorkspaceId, agentStatusFilter, agentSortBy])
 
-  const agentFlatModeGroups = React.useMemo<Array<{ label: string; groupId?: string; items: AgentSessionMeta[] }>>(() => {
-    if (agentGroupBy === 'state') return groupSessionsByState(agentFlatModeSessions, agentIndicatorMap)
-    if (agentGroupBy === 'customGroup') return groupSessionsByCustomGroup(agentFlatModeSessions, sessionGroups)
+  const agentFlatModeGroups = React.useMemo<Array<{ label: string; groupId?: string; items: AgentSessionTreeItem[] }>>(() => {
+    if (agentGroupBy === 'state') {
+      const definitions: Array<{ status: SessionIndicatorStatus; label: string }> = [
+        { status: 'blocked', label: '需要处理' },
+        { status: 'running', label: '进行中' },
+        { status: 'completed', label: '已完成' },
+        { status: 'idle', label: '空闲' },
+      ]
+      return definitions
+        .map(({ status, label }) => ({
+          label,
+          items: agentFlatModeTrees.filter((item) => getSessionTreeStatus(item, agentIndicatorMap) === status),
+        }))
+        .filter((group) => group.items.length > 0)
+    }
+
+    if (agentGroupBy === 'customGroup') {
+      const groups: Array<{ label: string; groupId?: string; items: AgentSessionTreeItem[] }> = sessionGroups
+        .map((group) => ({
+          label: group.name,
+          groupId: group.id,
+          items: agentFlatModeTrees.filter((item) => getSessionTreeCustomGroupId(item) === group.id),
+        }))
+        .filter((group) => group.items.length > 0)
+      const knownIds = new Set(sessionGroups.map((group) => group.id))
+      const ungrouped = agentFlatModeTrees.filter((item) => {
+        const groupId = getSessionTreeCustomGroupId(item)
+        return !groupId || !knownIds.has(groupId)
+      })
+      if (ungrouped.length > 0) groups.push({ label: '未分组', groupId: undefined, items: ungrouped })
+      return groups
+    }
+
     return []
-  }, [agentGroupBy, agentFlatModeSessions, agentIndicatorMap, sessionGroups])
+  }, [agentFlatModeTrees, agentGroupBy, agentIndicatorMap, sessionGroups])
 
   // 扁平模式（state/customGroup/none）折叠态
   const [flatModeExpanded, setFlatModeExpanded] = React.useState(false)
@@ -2778,38 +2769,83 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     )
   }
 
-  /**
-   * 「分组方式：状态 / 自定义分组 / 不分组」下的单条会话行——不含委派树展开，
-   * 平铺展示母子会话（比「日期」模式的 AgentProjectGroupItem 简化）。
-   */
-  const renderAgentFlatSessionRow = (session: AgentSessionMeta): React.ReactElement => {
-    const status = agentIndicatorMap.get(session.id) ?? 'idle'
+  /** 状态 / 自定义 / 不分组模式的统一任务族行。 */
+  const renderAgentFlatSessionTree = (item: AgentSessionTreeItem): React.ReactElement => {
+    const childCount = item.childSessions.length
+    const childProgress = getSessionTreeProgress(item, agentIndicatorMap)
+    const delegatedChildCount = item.childSessions.filter((child) => child.parentSessionId === item.session.id && !!child.sourceDelegationId).length
+    const rowStatus = getSessionTreeStatus(item, agentIndicatorMap)
+    const treeActive = treeContainsSessionId(item, activeSessionId)
+    const activeChildVisible = item.childSessions.some((child) => child.id === activeSessionId)
+    const shouldAutoExpand = activeChildVisible || rowStatus === 'running' || rowStatus === 'blocked'
+    const expandedChildren = expandedDelegationParentIds.has(item.session.id)
+      || (shouldAutoExpand && !collapsedDelegationParentIds.has(item.session.id))
+    const workspaceName = item.session.workspaceId && item.session.workspaceId !== currentWorkspaceId
+      ? workspaceNameMap.get(item.session.workspaceId)
+      : undefined
+    const projects = item.session.workspaceId === currentWorkspaceId ? currentWorkspaceProjects : EMPTY_PROJECTS
+
     return (
-      <AgentSessionItem
-        key={session.id}
-        session={session}
-        active={session.id === activeSessionId}
-        indicatorStatus={status}
-        showPinIcon={!!session.pinned}
-        workspaceName={
-          session.workspaceId && session.workspaceId !== currentWorkspaceId
-            ? workspaceNameMap.get(session.workspaceId)
-            : undefined
-        }
-        projects={session.workspaceId === currentWorkspaceId ? currentWorkspaceProjects : EMPTY_PROJECTS}
-        onMoveToProject={handleMoveToProject}
-        sessionGroups={sessionGroups}
-        onMoveToGroup={handleMoveToGroup}
-        onCreateGroup={handleRequestCreateGroup}
-        relativeTimeNow={relativeTimeNow}
-        onSelect={handleSelectAgentSession}
-        onRequestDelete={handleRequestDelete}
-        onRequestMove={handleRequestMove}
-        onRename={handleAgentRename}
-        onTogglePin={handleTogglePinAgent}
-        onToggleStar={handleToggleStarAgent}
-        onToggleArchive={handleToggleArchiveAgent}
-      />
+      <div key={item.session.id} className="flex flex-col gap-0.5">
+        <AgentSessionItem
+          session={item.session}
+          active={treeActive}
+          indicatorStatus={rowStatus}
+          showPinIcon={!!item.session.pinned}
+          childSummary={childProgress.total > 0
+            ? {
+              ...childProgress,
+              ...(childCount > 0
+                ? {
+                    expanded: expandedChildren,
+                    onToggle: () => handleToggleDelegationParent(item.session.id, expandedChildren),
+                  }
+                : {}),
+            }
+            : undefined}
+          delegationChildCount={delegatedChildCount}
+          workspaceName={workspaceName}
+          projects={projects}
+          onMoveToProject={handleMoveToProject}
+          sessionGroups={sessionGroups}
+          onMoveToGroup={handleMoveToGroup}
+          onCreateGroup={handleRequestCreateGroup}
+          relativeTimeNow={relativeTimeNow}
+          onSelect={handleSelectAgentSession}
+          onRequestDelete={handleRequestDelete}
+          onRequestMove={handleRequestMove}
+          onRename={handleAgentRename}
+          onTogglePin={handleTogglePinAgent}
+          onToggleStar={handleToggleStarAgent}
+          onToggleArchive={handleToggleArchiveAgent}
+        />
+        {childCount > 0 && expandedChildren && (
+          <div className="ml-3 pl-2 flex flex-col gap-0.5">
+            {item.childSessions.map((childSession) => (
+              <ChildSessionItem
+                key={childSession.id}
+                session={childSession}
+                activeSessionId={activeSessionId}
+                agentIndicatorMap={agentIndicatorMap}
+                relativeTimeNow={relativeTimeNow}
+                workspaceName={workspaceName}
+                projects={projects}
+                onMoveToProject={handleMoveToProject}
+                sessionGroups={sessionGroups}
+                onMoveToGroup={handleMoveToGroup}
+                onCreateGroup={handleRequestCreateGroup}
+                onSelect={handleSelectAgentSession}
+                onRequestDelete={handleRequestDelete}
+                onRequestMove={handleRequestMove}
+                onRename={handleAgentRename}
+                onTogglePin={handleTogglePinAgent}
+                onToggleStar={handleToggleStarAgent}
+                onToggleArchive={handleToggleArchiveAgent}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     )
   }
 
@@ -3010,11 +3046,14 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               <div className="ml-4 flex flex-col gap-0.5">
                 {pinnedAgentSessionTrees.map((item) => {
                   const childCount = item.childSessions.length
+                  const childProgress = getSessionTreeProgress(item, agentIndicatorMap)
+                  const delegatedChildCount = item.childSessions.filter((child) => child.parentSessionId === item.session.id && !!child.sourceDelegationId).length
                   const rowStatus = getSessionTreeStatus(item, agentIndicatorMap)
                   const treeActive = treeContainsSessionId(item, activeSessionId)
                   const activeChildVisible = item.childSessions.some((child) => child.id === activeSessionId)
+                  const shouldAutoExpand = activeChildVisible || rowStatus === 'running' || rowStatus === 'blocked'
                   const expandedChildren = expandedDelegationParentIds.has(item.session.id)
-                    || (activeChildVisible && !collapsedDelegationParentIds.has(item.session.id))
+                    || (shouldAutoExpand && !collapsedDelegationParentIds.has(item.session.id))
 
                   return (
                     <div key={`pinned-${item.session.id}`} className="flex flex-col gap-0.5">
@@ -3023,14 +3062,18 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                         active={treeActive}
                         indicatorStatus={rowStatus}
                         showPinIcon={false}
-                        delegationSummary={childCount > 0
+                        childSummary={childProgress.total > 0
                           ? {
-                            total: childCount,
-                            completed: countCompletedDelegatedChildren(item.childSessions),
-                            expanded: expandedChildren,
-                            onToggle: () => handleToggleDelegationParent(item.session.id, expandedChildren),
+                            ...childProgress,
+                            ...(childCount > 0
+                              ? {
+                                  expanded: expandedChildren,
+                                  onToggle: () => handleToggleDelegationParent(item.session.id, expandedChildren),
+                                }
+                              : {}),
                           }
                           : undefined}
+                        delegationChildCount={delegatedChildCount}
                         workspaceName={
                           item.session.workspaceId
                           && item.session.workspaceId !== currentWorkspaceId
@@ -3055,7 +3098,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                       {childCount > 0 && expandedChildren && (
                         <div className="ml-3 pl-2 flex flex-col gap-0.5">
                           {item.childSessions.map((childSession) => (
-                            <DelegatedChildSessionItem
+                            <ChildSessionItem
                               key={childSession.id}
                               session={childSession}
                               activeSessionId={activeSessionId}
@@ -3236,18 +3279,18 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         </div>
       ) : mode === 'agent' ? (
         <div className="flex-1 overflow-y-auto px-3 pt-2 pb-3 scrollbar-thin min-h-0 titlebar-no-drag">
-          {/* 分组方式：状态 / 自定义分组 / 不分组——比日期模式简化，不含委派树展开 */}
+          {/* 状态 / 自定义分组 / 不分组同样保留任务族层级。 */}
           {(() => {
             // 折叠：超出 PROJECT_SESSION_PREVIEW_LIMIT 的会话默认隐藏，点击「显示更多」展开全部
-            const totalFlatSessions = agentFlatModeSessions.length
+            const totalFlatSessions = agentFlatModeTrees.length
             const hiddenFlat = !flatModeExpanded && totalFlatSessions > PROJECT_SESSION_PREVIEW_LIMIT
               ? totalFlatSessions - PROJECT_SESSION_PREVIEW_LIMIT
               : 0
 
             const flatContent = agentGroupBy === 'none' ? (
-              agentFlatModeSessions.length > 0 ? (
+              agentFlatModeTrees.length > 0 ? (
                 <div className="flex flex-col gap-0.5">
-                  {agentFlatModeSessions.slice(0, hiddenFlat > 0 ? PROJECT_SESSION_PREVIEW_LIMIT : undefined).map(renderAgentFlatSessionRow)}
+                  {agentFlatModeTrees.slice(0, hiddenFlat > 0 ? PROJECT_SESSION_PREVIEW_LIMIT : undefined).map(renderAgentFlatSessionTree)}
                 </div>
               ) : (
                 <div className="px-2 py-8 text-center text-[13px] text-foreground/35">暂无会话</div>
@@ -3287,7 +3330,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                       </div>
                       {!isFlatGroupCollapsed && (
                         <div className="flex flex-col gap-0.5">
-                          {groupItems.map(renderAgentFlatSessionRow)}
+                          {groupItems.map(renderAgentFlatSessionTree)}
                         </div>
                       )}
                     </div>
@@ -3639,7 +3682,7 @@ const ConversationItem = React.memo(function ConversationItem({
   )
 })
 
-interface DelegatedChildSessionItemProps {
+interface ChildSessionItemProps {
   session: AgentSessionMeta
   activeSessionId: string | null
   agentIndicatorMap: Map<string, SessionIndicatorStatus>
@@ -3661,7 +3704,7 @@ interface DelegatedChildSessionItemProps {
   onToggleArchive: (id: string) => Promise<void>
 }
 
-const DelegatedChildSessionItem = React.memo(function DelegatedChildSessionItem({
+const ChildSessionItem = React.memo(function ChildSessionItem({
   session,
   activeSessionId,
   agentIndicatorMap,
@@ -3679,8 +3722,8 @@ const DelegatedChildSessionItem = React.memo(function DelegatedChildSessionItem(
   onTogglePin,
   onToggleStar,
   onToggleArchive,
-}: DelegatedChildSessionItemProps): React.ReactElement {
-  const status = getDelegatedChildStatus(session, agentIndicatorMap)
+}: ChildSessionItemProps): React.ReactElement {
+  const status = getSessionStatus(session, agentIndicatorMap)
 
   return (
     <AgentSessionItem
@@ -3689,11 +3732,8 @@ const DelegatedChildSessionItem = React.memo(function DelegatedChildSessionItem(
       indicatorStatus={status}
       relativeTimeNow={relativeTimeNow}
       workspaceName={workspaceName}
-      projects={projects}
-      onMoveToProject={onMoveToProject}
-      sessionGroups={sessionGroups}
-      onMoveToGroup={onMoveToGroup}
-      onCreateGroup={onCreateGroup}
+      projects={[]}
+      sessionGroups={undefined}
       onSelect={onSelect}
       onRequestDelete={onRequestDelete}
       onRequestMove={onRequestMove}
@@ -3847,7 +3887,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
   // 非活跃部分仍保留原"最近 3 天 + 至多 5 条"预览策略，作为额外补充展示。
   // 用户点击"显示更多"会在折叠基线之上每次再额外展开 PROJECT_SESSION_EXPAND_STEP 条。
   // 会话列表恒定按时间平铺（不再按 craft Project 分子组），项目导航已上移到 ProjectSwitcher。
-  const treeItems = buildAgentSessionTrees(group.sessions)
+  const treeItems = sortSessionTrees(buildAgentSessionTrees(group.sessions), 'recency')
   const prevActiveIdsRef = React.useRef<Set<string>>(new Set())
   const activeSessions = treeItems
     .filter((item) =>
@@ -3861,7 +3901,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
       const delta = ACTIVE_SESSION_STATUS_PRIORITY[getSessionTreeStatus(a, agentIndicatorMap)]
         - ACTIVE_SESSION_STATUS_PRIORITY[getSessionTreeStatus(b, agentIndicatorMap)]
       if (delta !== 0) return delta
-      return b.session.updatedAt - a.session.updatedAt
+      return getSessionTreeActivityAt(b) - getSessionTreeActivityAt(a)
     })
   const activeIds = collectAgentSessionTreeIds(activeSessions)
   React.useEffect(() => { prevActiveIdsRef.current = activeIds })
@@ -3871,7 +3911,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
   const fillSessions = treeItems
     .filter((item) =>
       !activeIds.has(item.session.id)
-      && item.session.updatedAt >= recentCutoff
+      && getSessionTreeActivityAt(item) >= recentCutoff
     )
     .slice(0, PROJECT_SESSION_PREVIEW_LIMIT)
   // 先拼不含置顶项的可见列表
@@ -4055,12 +4095,15 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
                 let lastDateLabel: DateGroup | null = null
                 return sessions.map((item) => {
                   const childCount = item.childSessions.length
+                  const childProgress = getSessionTreeProgress(item, agentIndicatorMap)
+                  const delegatedChildCount = item.childSessions.filter((child) => child.parentSessionId === item.session.id && !!child.sourceDelegationId).length
                   const rowStatus = getSessionTreeStatus(item, agentIndicatorMap)
                   const treeActive = treeContainsSessionId(item, activeSessionId)
                   const activeChildVisible = item.childSessions.some((child) => child.id === activeSessionId)
+                  const shouldAutoExpand = activeChildVisible || rowStatus === 'running' || rowStatus === 'blocked'
                   const expandedChildren = expandedDelegationParentIds.has(item.session.id)
-                    || (activeChildVisible && !collapsedDelegationParentIds.has(item.session.id))
-                  const dateLabel = getDateGroupLabel(item.session.updatedAt, relativeTimeNow)
+                    || (shouldAutoExpand && !collapsedDelegationParentIds.has(item.session.id))
+                  const dateLabel = getDateGroupLabel(getSessionTreeActivityAt(item), relativeTimeNow)
                   const showDateHeader = dateLabel !== lastDateLabel
                   lastDateLabel = dateLabel
                   const isDateCollapsed = collapsedDateLabels.has(dateLabel)
@@ -4095,14 +4138,18 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
                           active={treeActive}
                           indicatorStatus={rowStatus}
                           showPinIcon={!!item.session.pinned}
-                          delegationSummary={childCount > 0
+                          childSummary={childProgress.total > 0
                             ? {
-                              total: childCount,
-                              completed: countCompletedDelegatedChildren(item.childSessions),
-                              expanded: expandedChildren,
-                              onToggle: () => onToggleDelegationParent(item.session.id, expandedChildren),
+                              ...childProgress,
+                              ...(childCount > 0
+                                ? {
+                                    expanded: expandedChildren,
+                                    onToggle: () => onToggleDelegationParent(item.session.id, expandedChildren),
+                                  }
+                                : {}),
                             }
                             : undefined}
+                          delegationChildCount={delegatedChildCount}
                           relativeTimeNow={relativeTimeNow}
                           workspaceName={isAutomationGroup && item.session.workspaceId ? workspaceNameMap?.get(item.session.workspaceId) : undefined}
                           projects={projects}
@@ -4122,7 +4169,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
                         {childCount > 0 && expandedChildren && (
                           <div className="ml-3 pl-2 flex flex-col gap-0.5">
                             {item.childSessions.map((childSession) => (
-                              <DelegatedChildSessionItem
+                              <ChildSessionItem
                                 key={childSession.id}
                                 session={childSession}
                                 activeSessionId={activeSessionId}

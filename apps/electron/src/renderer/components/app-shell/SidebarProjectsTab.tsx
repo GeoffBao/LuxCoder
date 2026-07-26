@@ -71,12 +71,20 @@ import {
 import { ProjectSettingsDialog } from '@/components/work/ProjectSettingsDialog'
 import { AgentSessionItem } from './AgentSessionItem'
 import type { KanbanProject } from './kanban/types'
-import { sortSessions } from './sidebar-session-views'
+import {
+  buildAgentSessionTrees,
+  getSessionStatus,
+  getSessionTreeProgress,
+  getSessionTreeStatus,
+  sortSessionTrees,
+  treeContainsSessionId,
+  type AgentSessionTreeItem,
+} from './sidebar-session-tree'
 import {
   filterGroupableSessions,
-  groupSessionsByProject,
-  resolveProjectAttention,
-  sortProjectsByActivity,
+  groupSessionTreesByProject,
+  resolveProjectTreeAttention,
+  sortProjectsByTreeActivity,
 } from './sidebar-projects-model'
 
 /** 会话行操作回调包：由 LeftSidebar 传入，与会话 Tab 共享同一批 handler，行为完全一致 */
@@ -135,8 +143,10 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sor
   const showArchived = status !== 'active'
 
   const [collapsedIds, setCollapsedIds] = React.useState<Set<string>>(new Set())
-  /** 已完全展开的项目 ID（点击「显示全部」后展示全部会话，不再分批） */
+  /** 已完全展开的项目 ID（点击「显示全部」后展示全部任务族，不再分批） */
   const [expandedProjectIds, setExpandedProjectIds] = React.useState<Set<string>>(new Set())
+  const [expandedParentIds, setExpandedParentIds] = React.useState<Set<string>>(new Set())
+  const [collapsedParentIds, setCollapsedParentIds] = React.useState<Set<string>>(new Set())
   const [deleteTarget, setDeleteTarget] = React.useState<KanbanProject | null>(null)
   const [deleting, setDeleting] = React.useState(false)
   const [settingsTarget, setSettingsTarget] = React.useState<KanbanProject | null>(null)
@@ -161,27 +171,26 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sor
   }, [scopedProjects, showArchived])
 
   /**
-   * 当前工作区可入项目分组的会话：排除 draft / 归档 / 委派子会话 / 自动任务会话。
-   * 置顶会话保留在各项目组内（带置顶标）：本 Tab 是「项目 → 会话」的完整地图，
-   * 全局置顶区只在会话 Tab 展示，这里若再排除会导致部分会话无处可见。
+   * 当前工作区可入项目分组的会话：保留父子关系，排除 draft / 归档 / 自动任务会话。
+   * 置顶任务族由 LeftSidebar 上方置顶区统一展示，项目区不重复渲染。
    */
   const groupableSessions = React.useMemo(
     () => filterGroupableSessions(agentSessions, draftSessionIds, workspace?.id ?? null),
     [agentSessions, draftSessionIds, workspace?.id],
   )
 
-  const sessionsByProject = React.useMemo(() => {
-    const byProject = groupSessionsByProject(groupableSessions)
-    for (const [projectId, sessions] of byProject) {
-      byProject.set(projectId, sortSessions(sessions, sortBy))
+  const treesByProject = React.useMemo(() => {
+    const byProject = groupSessionTreesByProject(buildAgentSessionTrees(groupableSessions))
+    for (const [projectId, trees] of byProject) {
+      byProject.set(projectId, sortSessionTrees(trees, sortBy))
     }
     return byProject
   }, [groupableSessions, sortBy])
 
-  /** 项目排序：有会话的按最新会话活跃度排，无会话的按项目自身 updatedAt 排在后面 */
+  /** 项目排序：任务族内任一子任务活动都会提升所属项目。 */
   const sortedProjects = React.useMemo(
-    () => sortProjectsByActivity(visibleProjects, sessionsByProject),
-    [visibleProjects, sessionsByProject],
+    () => sortProjectsByTreeActivity(visibleProjects, treesByProject),
+    [visibleProjects, treesByProject],
   )
 
   const toggleCollapsed = React.useCallback((id: string) => {
@@ -257,20 +266,50 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sor
   const hasProjects = scopedProjects.length > 0
   const hasVisible = sortedProjects.length > 0
 
-  const renderSessionRow = (session: AgentSessionMeta): React.ReactElement => {
-    const status = indicatorMap.get(session.id) ?? 'idle'
-    return (
+  const toggleParent = (sessionId: string, expanded: boolean): void => {
+    if (expanded) {
+      setExpandedParentIds((prev) => { const next = new Set(prev); next.delete(sessionId); return next })
+      setCollapsedParentIds((prev) => new Set(prev).add(sessionId))
+      return
+    }
+    setCollapsedParentIds((prev) => { const next = new Set(prev); next.delete(sessionId); return next })
+    setExpandedParentIds((prev) => new Set(prev).add(sessionId))
+  }
+
+  const renderSessionTree = (item: AgentSessionTreeItem): React.ReactElement => {
+    const childCount = item.childSessions.length
+    const childProgress = getSessionTreeProgress(item, indicatorMap)
+    const delegatedChildCount = item.childSessions.filter((child) => child.parentSessionId === item.session.id && !!child.sourceDelegationId).length
+    const status = getSessionTreeStatus(item, indicatorMap)
+    const activeChildVisible = item.childSessions.some((child) => child.id === activeSessionId)
+    const shouldAutoExpand = activeChildVisible || status === 'running' || status === 'blocked'
+    const childrenExpanded = expandedParentIds.has(item.session.id)
+      || (shouldAutoExpand && !collapsedParentIds.has(item.session.id))
+
+    const renderRow = (session: AgentSessionMeta, nested = false): React.ReactElement => (
       <AgentSessionItem
         key={session.id}
         session={session}
-        active={session.id === activeSessionId}
-        indicatorStatus={status}
+        active={nested ? session.id === activeSessionId : treeContainsSessionId(item, activeSessionId)}
+        indicatorStatus={nested ? getSessionStatus(session, indicatorMap) : status}
         showPinIcon={false}
-        projects={scopedProjects}
-        onMoveToProject={sessionHandlers.onMoveToProject}
-        sessionGroups={sessionHandlers.sessionGroups}
-        onMoveToGroup={sessionHandlers.onMoveToGroup}
-        onCreateGroup={sessionHandlers.onCreateGroup}
+        childSummary={!nested && childProgress.total > 0
+          ? {
+            ...childProgress,
+            ...(childCount > 0
+              ? {
+                  expanded: childrenExpanded,
+                  onToggle: () => toggleParent(item.session.id, childrenExpanded),
+                }
+              : {}),
+          }
+          : undefined}
+        delegationChildCount={!nested ? delegatedChildCount : 0}
+        projects={nested ? [] : scopedProjects}
+        onMoveToProject={nested ? undefined : sessionHandlers.onMoveToProject}
+        sessionGroups={nested ? undefined : sessionHandlers.sessionGroups}
+        onMoveToGroup={nested ? undefined : sessionHandlers.onMoveToGroup}
+        onCreateGroup={nested ? undefined : sessionHandlers.onCreateGroup}
         relativeTimeNow={relativeTimeNow}
         onSelect={sessionHandlers.onSelectSession}
         onRequestDelete={sessionHandlers.onRequestDelete}
@@ -280,6 +319,17 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sor
         onToggleStar={sessionHandlers.onToggleStar}
         onToggleArchive={sessionHandlers.onToggleArchive}
       />
+    )
+
+    return (
+      <div key={item.session.id} className="flex flex-col gap-0.5">
+        {renderRow(item.session)}
+        {childCount > 0 && childrenExpanded && (
+          <div className="ml-3 pl-2 flex flex-col gap-0.5">
+            {item.childSessions.map((child) => renderRow(child, true))}
+          </div>
+        )}
+      </div>
     )
   }
 
@@ -295,10 +345,10 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sor
         ) : (
           <div className="flex flex-col gap-0.5">
             {sortedProjects.map((project) => {
-              const projectSessions = sessionsByProject.get(project.id) ?? []
+              const projectTrees = treesByProject.get(project.id) ?? []
               const expanded = !collapsedIds.has(project.id)
               const archived = !!project.archivedAt
-              const attention = resolveProjectAttention(projectSessions, indicatorMap)
+              const attention = resolveProjectTreeAttention(projectTrees, indicatorMap)
 
               // 项目操作菜单：⋯ 下拉菜单与右键菜单共用同一份内容，避免两处维护同一份 JSX；
               // 尺寸对齐会话行的右键菜单（text-xs + py-1 + 小图标），而不是默认的大号菜单项
@@ -364,9 +414,9 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sor
                             aria-hidden="true"
                           />
                         )}
-                        {projectSessions.length > 0 && (
+                        {projectTrees.length > 0 && (
                           <span className="shrink-0 text-[10px] tabular-nums text-foreground/30 group-hover:hidden">
-                            {projectSessions.length}
+                            {projectTrees.length}
                           </span>
                         )}
 
@@ -427,25 +477,23 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sor
                     </ContextMenuContent>
                   </ContextMenu>
 
-                  {/* 项目下会话列表（时间倒序）；超过 PREVIEW_LIMIT 时折叠，点击「显示全部」展开。
-                      空项目不渲染占位文本（对齐 Claude：空项目只有一行标题，新建入口就是行内 hover 的「+」）。
-                      不再额外缩进——与「日期」「状态」等其他分组下的会话行左对齐，保持同一套视觉层级。 */}
-                  {expanded && projectSessions.length > 0 && (
+                  {/* 项目下按任务族展示；预览上限按根任务计数，子任务不会挤占名额。 */}
+                  {expanded && projectTrees.length > 0 && (
                     <div className="mt-0.5 flex flex-col gap-0.5 pb-1">
-                      {(expandedProjectIds.has(project.id) || projectSessions.length <= PROJECT_MODE_PREVIEW_LIMIT
-                        ? projectSessions
-                        : projectSessions.slice(0, PROJECT_MODE_PREVIEW_LIMIT)
-                      ).map(renderSessionRow)}
-                      {projectSessions.length > PROJECT_MODE_PREVIEW_LIMIT && !expandedProjectIds.has(project.id) && (
+                      {(expandedProjectIds.has(project.id) || projectTrees.length <= PROJECT_MODE_PREVIEW_LIMIT
+                        ? projectTrees
+                        : projectTrees.slice(0, PROJECT_MODE_PREVIEW_LIMIT)
+                      ).map(renderSessionTree)}
+                      {projectTrees.length > PROJECT_MODE_PREVIEW_LIMIT && !expandedProjectIds.has(project.id) && (
                         <button
                           type="button"
                           onClick={() => setExpandedProjectIds((prev) => new Set(prev).add(project.id))}
                           className="text-left px-1.5 py-1 rounded-md text-[12px] text-foreground/35 hover:bg-foreground/[0.03] hover:text-foreground/60 transition-colors titlebar-no-drag"
                         >
-                          显示全部 ({projectSessions.length})
+                          显示全部 ({projectTrees.length})
                         </button>
                       )}
-                      {expandedProjectIds.has(project.id) && projectSessions.length > PROJECT_MODE_PREVIEW_LIMIT && (
+                      {expandedProjectIds.has(project.id) && projectTrees.length > PROJECT_MODE_PREVIEW_LIMIT && (
                         <button
                           type="button"
                           onClick={() => setExpandedProjectIds((prev) => { const next = new Set(prev); next.delete(project.id); return next })}
