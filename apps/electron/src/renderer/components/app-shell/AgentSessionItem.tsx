@@ -72,6 +72,11 @@ export function formatRelativeUpdatedAt(updatedAt: number, now: number): string 
 
 export interface SessionItemActionsProps {
   updatedAt: number
+  /**
+   * 行尾存在额外固定控件（如子会话展开/收起按钮）时，三点菜单需要向左让位，
+   * 避免 absolute right-0 的 hover 菜单覆盖行内按钮。
+   */
+  reserveTrailingControl?: boolean
   menuItems: (
     MenuItem: typeof DropdownMenuItem,
     MenuSeparator: typeof DropdownMenuSeparator,
@@ -172,6 +177,7 @@ function SessionQuickSwitchKeycap(): React.ReactElement {
 
 export function SessionItemActions({
   updatedAt,
+  reserveTrailingControl = false,
   menuItems,
   onMenuOpenChange,
 }: SessionItemActionsProps): React.ReactElement {
@@ -208,7 +214,10 @@ export function SessionItemActions({
 
   return (
     <div
-      className="session-item-actions pointer-events-none absolute right-0 top-1/2 z-[7] flex h-[18px] -translate-y-1/2 items-center"
+      className={cn(
+        'session-item-actions pointer-events-none absolute top-1/2 z-[7] flex h-[18px] -translate-y-1/2 items-center',
+        reserveTrailingControl ? 'right-6' : 'right-0',
+      )}
       onClick={(e) => e.stopPropagation()}
     >
       {/* 置顶/星标/归档不再占用行内固定位置——全部收进这个「...」菜单（以及同一份
@@ -611,6 +620,7 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
               )}
               <SessionItemActions
                 updatedAt={session.updatedAt}
+                reserveTrailingControl={!!childSummary?.onToggle}
                 onMenuOpenChange={setMenuOpen}
                 menuItems={menuItems}
               />
