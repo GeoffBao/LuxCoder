@@ -51,7 +51,7 @@ export type ThinkingConfig =
 export type AgentEffort = 'low' | 'medium' | 'high' | 'max'
 
 /** Agent 思考等级（Pi runtime / craft 对齐；会话级 sticky） */
-export type AgentThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'
+export type AgentThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 
 /** 合法思考等级列表（UI / IPC 校验共用） */
 export const AGENT_THINKING_LEVELS = [
@@ -61,6 +61,7 @@ export const AGENT_THINKING_LEVELS = [
   'medium',
   'high',
   'xhigh',
+  'max',
 ] as const satisfies readonly AgentThinkingLevel[]
 
 /** 新会话默认思考深度（与 craft DEFAULT_THINKING_LEVEL=medium 不同：Lux 历史默认 high） */
@@ -94,6 +95,12 @@ export function isOpenAIReasoningSupportedModel(modelId: string | undefined): bo
   // reasoning.effort，必须在 UI 层与请求层共同排除。
   if (normalized.endsWith('-chat-latest')) return false
   return normalized.startsWith('gpt-5') || /^(o1|o3|o4)(?:-|$)/.test(normalized)
+}
+
+/** GPT-5.6 系列支持 Pi/OpenAI 的 max 思考等级。 */
+export function isOpenAIReasoningMaxSupportedModel(modelId: string | undefined): boolean {
+  const normalized = modelId?.toLowerCase() ?? ''
+  return /^gpt-5\.6(?:-|$)/.test(normalized) && isOpenAIReasoningSupportedModel(modelId)
 }
 
 /** 支持 ChatGPT Codex Fast Mode（priority service tier）的模型。 */

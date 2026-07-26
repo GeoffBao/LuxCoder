@@ -3,6 +3,7 @@ import {
   DEFAULT_AGENT_THINKING_LEVEL,
   getSessionThinkingLevel,
   isAgentThinkingLevel,
+  isOpenAIReasoningMaxSupportedModel,
 } from '@luxcoder/shared'
 import type { AppSettings } from '../../types'
 
@@ -23,12 +24,20 @@ export function resolvePiThinkingLevel(
   settings: ThinkingSettings,
   sessionMeta: ThinkingSessionMeta | undefined,
   _provider?: ProviderType,
+  modelId?: string,
 ): AgentThinkingLevel {
+  const normalizeSupportedLevel = (level: AgentThinkingLevel): AgentThinkingLevel => {
+    // max 是 GPT-5.6 专属；会话持久化后切换到其他模型时，降级为 xhigh，
+    // 避免 UI/会话层保留不可用档位导致 Pi 最终请求与用户预期不一致。
+    if (level === 'max' && !isOpenAIReasoningMaxSupportedModel(modelId)) return 'xhigh'
+    return level
+  }
+
   const sessionLevel = getSessionThinkingLevel(sessionMeta)
-  if (sessionLevel) return sessionLevel
+  if (sessionLevel) return normalizeSupportedLevel(sessionLevel)
 
   if (isAgentThinkingLevel(settings.defaultThinkingLevel)) {
-    return settings.defaultThinkingLevel
+    return normalizeSupportedLevel(settings.defaultThinkingLevel)
   }
 
   if (settings.agentThinking?.type === 'disabled') return 'off'

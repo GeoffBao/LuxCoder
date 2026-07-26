@@ -24,12 +24,42 @@ describe('Pi thinking level resolver', () => {
     )).toBe('low')
   })
 
+  test.each(['openai', 'openai-responses', 'custom', 'anthropic'] as const)(
+    'Given %s GPT-5.6 When session has max override Then uses it',
+    (provider) => {
+      expect(resolvePiThinkingLevel(
+        { agentThinking: { type: 'adaptive' }, agentEffort: 'medium' },
+        { thinkingLevel: 'max' },
+        provider,
+        'gpt-5.6-terra',
+      )).toBe('max')
+    },
+  )
+
+  test('Given a persisted max override When switching to a non GPT-5.6 model Then clamps it to xhigh', () => {
+    expect(resolvePiThinkingLevel(
+      { agentThinking: { type: 'adaptive' }, agentEffort: 'medium' },
+      { thinkingLevel: 'max' },
+      'custom',
+      'gpt-5.5',
+    )).toBe('xhigh')
+  })
+
   test('Given no session override When defaultThinkingLevel is set Then uses app default', () => {
     expect(resolvePiThinkingLevel(
       { defaultThinkingLevel: 'medium', agentEffort: 'high' },
       undefined,
       'anthropic',
     )).toBe('medium')
+  })
+
+  test('Given defaultThinkingLevel=max on a non GPT-5.6 model When resolving Then maps it to xhigh', () => {
+    expect(resolvePiThinkingLevel(
+      { defaultThinkingLevel: 'max', agentEffort: 'high' },
+      undefined,
+      'custom',
+      'gpt-5.5',
+    )).toBe('xhigh')
   })
 
   test('Given no session override When global max effort is selected Then maps it to xhigh', () => {

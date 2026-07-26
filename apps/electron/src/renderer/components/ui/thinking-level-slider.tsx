@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import type { AgentThinkingLevel } from '@luxcoder/shared'
 
 /**
- * 可用的思考深度选项（UI 层面保留 5 档，minimal 合并到 low）
+ * 可用的思考深度选项（标准 5 档；GPT-5.6 系列可额外展示 max，minimal 合并到 low）
  */
 export const UI_THINKING_LEVELS: Array<{ value: AgentThinkingLevel; cn: string; en: string }> = [
   { value: 'off', cn: '关闭', en: 'Off' },
@@ -12,31 +12,41 @@ export const UI_THINKING_LEVELS: Array<{ value: AgentThinkingLevel; cn: string; 
   { value: 'medium', cn: '中', en: 'Medium' },
   { value: 'high', cn: '高', en: 'High' },
   { value: 'xhigh', cn: '极高', en: 'X-High' },
+  { value: 'max', cn: '最大', en: 'Max' },
 ] as const
 
-const MAX_INDEX = UI_THINKING_LEVELS.length - 1 // 4
+export const STANDARD_UI_THINKING_LEVELS = UI_THINKING_LEVELS.filter((level) => level.value !== 'max')
 
 /** 将 AgentThinkingLevel 标准化为 UI 可用的索引 */
-export function normalizeToUiIndex(level: AgentThinkingLevel | undefined): number {
+export function normalizeToUiIndex(
+  level: AgentThinkingLevel | undefined,
+  levels: readonly { value: AgentThinkingLevel }[] = STANDARD_UI_THINKING_LEVELS,
+): number {
   if (level === 'minimal') return 1 // minimal → low
-  const idx = UI_THINKING_LEVELS.findIndex((l) => l.value === level)
+  if (level === 'max' && !levels.some((l) => l.value === 'max')) {
+    return Math.max(0, levels.findIndex((l) => l.value === 'xhigh'))
+  }
+  const idx = levels.findIndex((l) => l.value === level)
   return idx >= 0 ? idx : 0 // 默认 off
 }
 
 /** 将 UI 索引转回 AgentThinkingLevel */
-export function uiIndexToLevel(index: number): AgentThinkingLevel {
-  return UI_THINKING_LEVELS[index]?.value ?? 'off'
+export function uiIndexToLevel(
+  index: number,
+  levels: readonly { value: AgentThinkingLevel }[] = STANDARD_UI_THINKING_LEVELS,
+): AgentThinkingLevel {
+  return levels[index]?.value ?? 'off'
 }
 
 /** 最近的整数（档位）索引 */
-function snapToLevel(float: number): number {
-  return Math.max(0, Math.min(Math.round(float), MAX_INDEX))
+function snapToLevel(float: number, maxIndex: number): number {
+  return Math.max(0, Math.min(Math.round(float), maxIndex))
 }
 
 /** 浮点值 → 渐变色类名（插值过渡，避免跳变） */
 function gradientForFloat(float: number): string {
   // 映射到 0–1 范围
-  const t = Math.max(0, Math.min(float / MAX_INDEX, 1))
+  const t = Math.max(0, Math.min(float, 1))
 
   if (t <= 0) return 'from-slate-400 to-slate-400'
   if (t <= 0.25) return 'from-blue-400/90 via-blue-500/70 to-indigo-400/60'
@@ -56,8 +66,9 @@ function gradientForFloat(float: number): string {
  * - CSS transition 让 thumb / 填充区过渡丝滑
  */
 interface ThinkingLevelSliderProps {
-  value: number // UI 索引 0-4（已提交的值）
+  value: number // UI 索引（已提交的值）
   onValueChange: (index: number) => void
+  levels?: typeof UI_THINKING_LEVELS
   disabled?: boolean
   locale?: 'cn' | 'en'
   className?: string
@@ -66,6 +77,7 @@ interface ThinkingLevelSliderProps {
 export function ThinkingLevelSlider({
   value,
   onValueChange,
+  levels = STANDARD_UI_THINKING_LEVELS,
   disabled = false,
   locale = 'cn',
   className,
@@ -73,9 +85,10 @@ export function ThinkingLevelSlider({
   // 拖动中的连续浮点预览值（未吸附）
   const [preview, setPreview] = React.useState<number | null>(null)
 
+  const maxIndex = levels.length - 1
   const displayValue = preview ?? value // 显示用：拖拽中跟随鼠标，否则用已提交值
-  const committedIndex = snapToLevel(displayValue)
-  const labels = UI_THINKING_LEVELS.map((l) => (locale === 'cn' ? l.cn : l.en))
+  const committedIndex = snapToLevel(displayValue, maxIndex)
+  const labels = levels.map((l) => (locale === 'cn' ? l.cn : l.en))
   const currentLabel = labels[committedIndex] ?? 'Off'
 
   const handleValueChange = React.useCallback(([v]: number[]) => {
@@ -86,12 +99,12 @@ export function ThinkingLevelSlider({
     ([v]: number[]) => {
       setPreview(null)
       if (v === undefined) return
-      const snapped = snapToLevel(v)
+      const snapped = snapToLevel(v, maxIndex)
       if (snapped !== value) {
         onValueChange(snapped)
       }
     },
-    [value, onValueChange],
+    [maxIndex, value, onValueChange],
   )
 
   return (
@@ -110,7 +123,7 @@ export function ThinkingLevelSlider({
         onValueChange={handleValueChange}
         onValueCommit={handleValueCommit}
         min={0}
-        max={MAX_INDEX}
+        max={maxIndex}
         step={0.001}
         disabled={disabled}
         className="relative flex w-full touch-none select-none items-center pt-1"
@@ -120,12 +133,12 @@ export function ThinkingLevelSlider({
           <SliderPrimitive.Range
             className={cn(
               'absolute h-full rounded-full bg-gradient-to-r transition-[width] duration-75 ease-out',
-              gradientForFloat(displayValue),
+              gradientForFloat(maxIndex > 0 ? displayValue / maxIndex : 0),
             )}
           />
           {/* 档位标注圆点 */}
           <div className="absolute inset-0 flex items-center justify-between px-0.5 pointer-events-none">
-            {UI_THINKING_LEVELS.map((_, i) => (
+            {levels.map((_, i) => (
               <div
                 key={i}
                 className={cn(
@@ -141,7 +154,7 @@ export function ThinkingLevelSlider({
 
       {/* 档位标签 */}
       <div className="flex justify-between px-0.5">
-        {UI_THINKING_LEVELS.map((l, i) => (
+        {levels.map((l, i) => (
           <span
             key={l.value}
             className={cn(

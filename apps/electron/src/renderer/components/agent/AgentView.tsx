@@ -44,7 +44,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { ThinkingLevelSlider, normalizeToUiIndex, uiIndexToLevel, UI_THINKING_LEVELS } from '@/components/ui/thinking-level-slider'
+import { ThinkingLevelSlider, normalizeToUiIndex, uiIndexToLevel, STANDARD_UI_THINKING_LEVELS, UI_THINKING_LEVELS } from '@/components/ui/thinking-level-slider'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -112,7 +112,7 @@ import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
 import { sendWithCmdEnterAtom } from '@/atoms/shortcut-atoms'
 import { useOpenPreview } from '@/components/diff/preview-opener'
 import type { AgentRuntime, AgentSendInput, AgentPendingFile, AgentThinkingLevel, FileDialogLargeFile, ModelOption, SDKMessage, SDKUserMessage, ProviderType } from '@luxcoder/shared'
-import { DEFAULT_AGENT_THINKING_LEVEL, getSessionThinkingLevel, inferAgentSdkContextWindow, inferContextWindow, isCodexFastModeSupportedModel, MAX_ATTACHMENT_SIZE, CLAUDE_RUNTIME_ENABLED } from '@luxcoder/shared'
+import { DEFAULT_AGENT_THINKING_LEVEL, getSessionThinkingLevel, inferAgentSdkContextWindow, inferContextWindow, isCodexFastModeSupportedModel, isOpenAIReasoningMaxSupportedModel, MAX_ATTACHMENT_SIZE, CLAUDE_RUNTIME_ENABLED } from '@luxcoder/shared'
 import { fileToBase64, formatFileNames, getFileParentPath } from '@/lib/file-utils'
 import { buildQuotedSelectionBlock } from '@/lib/quoted-selection'
 import { createClipboardPendingFile, createClipboardTextDraft, makeUniqueAttachmentName } from '@/lib/clipboard-text-attachment'
@@ -217,10 +217,9 @@ function isStaleAgentQueueError(error: unknown): boolean {
 
 // ===== 思考深度 Hover Popover（Pi / craft 对齐：会话级 ThinkingLevel） =====
 
-const UI_THINKING_LABELS_MAP = UI_THINKING_LEVELS.map((l) => l.cn)
-
 interface SessionThinkingConfig {
   thinkingLevel: AgentThinkingLevel
+  levels: typeof UI_THINKING_LEVELS
   disabled: boolean
   onThinkingLevelChange: (level: AgentThinkingLevel) => void
 }
@@ -232,7 +231,8 @@ interface AgentThinkingPopoverProps {
 function AgentThinkingPopover({ config }: AgentThinkingPopoverProps): React.ReactElement {
   const [open, setOpen] = React.useState(false)
   const hoverTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null)
-  const normalizedIndex = normalizeToUiIndex(config.thinkingLevel)
+  const normalizedIndex = normalizeToUiIndex(config.thinkingLevel, config.levels)
+  const currentLabel = config.levels[normalizedIndex]?.cn ?? '关闭'
   const isEnabled = config.thinkingLevel !== 'off'
 
   const handleMouseEnter = React.useCallback(() => {
@@ -268,8 +268,8 @@ function AgentThinkingPopover({ config }: AgentThinkingPopoverProps): React.Reac
           onMouseLeave={handleMouseLeave}
           disabled={config.disabled}
           aria-pressed={isEnabled}
-          aria-label={isEnabled ? `思考深度：${UI_THINKING_LABELS_MAP[normalizedIndex]}` : '思考深度：关闭'}
-          title={isEnabled ? `思考深度：${UI_THINKING_LABELS_MAP[normalizedIndex]}（点击关闭）` : '思考深度：关（点击开启）'}
+          aria-label={isEnabled ? `思考深度：${currentLabel}` : '思考深度：关闭'}
+          title={isEnabled ? `思考深度：${currentLabel}（点击关闭）` : '思考深度：关（点击开启）'}
         >
           <Brain className="size-5" />
         </Button>
@@ -293,7 +293,8 @@ function AgentThinkingPopover({ config }: AgentThinkingPopoverProps): React.Reac
           </div>
           <ThinkingLevelSlider
             value={normalizedIndex}
-            onValueChange={(i) => config.onThinkingLevelChange(uiIndexToLevel(i))}
+            levels={config.levels}
+            onValueChange={(i) => config.onThinkingLevelChange(uiIndexToLevel(i, config.levels))}
             disabled={config.disabled}
             locale="cn"
           />
@@ -611,8 +612,14 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
   const codexFastModeEnabled = isCodexFastModeAvailable && sessionMeta?.codexFastMode === true
   /** Pi 会话一律可调思考深度（对齐 craft sticky ThinkingLevel） */
   const isSessionThinkingAvailable = hasSessionMeta && sessionAgentRuntime === 'pi'
-  const sessionThinkingLevel: AgentThinkingLevel =
+  const sessionThinkingLevels = isOpenAIReasoningMaxSupportedModel(agentModelId ?? undefined)
+    ? UI_THINKING_LEVELS
+    : STANDARD_UI_THINKING_LEVELS
+  const rawSessionThinkingLevel: AgentThinkingLevel =
     getSessionThinkingLevel(sessionMeta) ?? DEFAULT_AGENT_THINKING_LEVEL
+  const sessionThinkingLevel: AgentThinkingLevel = rawSessionThinkingLevel === 'max' && !isOpenAIReasoningMaxSupportedModel(agentModelId ?? undefined)
+    ? 'xhigh'
+    : rawSessionThinkingLevel
 
   // 检查 Agent 渠道列表中是否存在可用的模型（渠道 enabled + 模型 enabled）
   const hasAvailableModel = React.useMemo(() => {
@@ -2554,6 +2561,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         <AgentThinkingPopover
           config={{
             thinkingLevel: sessionThinkingLevel,
+            levels: sessionThinkingLevels,
             disabled: streaming || backgroundWaiting,
             onThinkingLevelChange: (level: AgentThinkingLevel) => { void updateSessionThinkingLevel(level) },
           }}
@@ -2634,6 +2642,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     handleCodexFastModeChange,
     isSessionThinkingAvailable,
     sessionThinkingLevel,
+    sessionThinkingLevels,
     updateSessionThinkingLevel,
     agentModelId,
     handleModelSelect,

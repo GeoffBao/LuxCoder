@@ -1,5 +1,42 @@
 import { describe, expect, test } from 'bun:test'
-import { buildModel } from './pi-model-registry'
+import { buildModel, getCodexAlignedGPT5Capabilities } from './pi-model-registry'
+
+describe('第三方 GPT-5 capability extrapolation', () => {
+  test.each([
+    ['gpt-5.4', 272_000, { off: 'none', xhigh: 'xhigh', minimal: 'low' }],
+    ['gpt-5.4-mini', 400_000, { off: 'none', xhigh: 'xhigh', minimal: 'low' }],
+    ['gpt-5.5', 272_000, { off: 'none', xhigh: 'xhigh', minimal: 'low' }],
+    ['gpt-5.6-sol', 372_000, { off: 'none', xhigh: 'xhigh', minimal: 'low', max: 'max' }],
+    ['gpt-5.6-terra', 372_000, { off: 'none', xhigh: 'xhigh', minimal: 'low', max: 'max' }],
+    ['gpt-5.6-luna', 372_000, { off: 'none', xhigh: 'xhigh', minimal: 'low', max: 'max' }],
+  ])('Given third-party %s When resolving capabilities Then aligns with Codex', (modelId, contextWindow, thinkingLevelMap) => {
+    expect(getCodexAlignedGPT5Capabilities(modelId)).toEqual({ contextWindow, thinkingLevelMap })
+  })
+
+  test('Given a Codex-unmarked GPT-5 SKU When resolving capabilities Then preserves catalog ownership', () => {
+    expect(getCodexAlignedGPT5Capabilities('gpt-5.4-pro')).toBeUndefined()
+    expect(getCodexAlignedGPT5Capabilities('gpt-5.5-pro')).toBeUndefined()
+  })
+
+  test('Given custom GPT-5.6 model When buildModel Then registers Codex-aligned context and max thinking map', async () => {
+    const sdk = await import('@earendil-works/pi-coding-agent')
+    const result = await buildModel(sdk, {
+      sessionId: 'session-custom-gpt-56-terra',
+      prompt: 'hi',
+      apiKey: 'test-key',
+      provider: 'custom',
+      baseUrl: 'https://example.com/v1',
+      model: 'gpt-5.6-terra',
+      permissionMode: 'plan',
+      systemPrompt: 'system',
+      piAgentDir: '/tmp/pi-agent',
+      piSessionDir: '/tmp/pi-session',
+    })
+
+    expect(result.model.contextWindow).toBe(372_000)
+    expect(result.model.thinkingLevelMap).toMatchObject({ off: 'none', minimal: 'low', xhigh: 'xhigh', max: 'max' })
+  })
+})
 
 describe('Pi runtime 火山方舟 GLM-5.2 输出限制', () => {
   test.each([
