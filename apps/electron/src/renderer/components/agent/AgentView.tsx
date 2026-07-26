@@ -1040,14 +1040,16 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
                 cacheCreationTokens: state.cacheCreationTokens,
                 contextWindow: state.contextWindow,
                 model: state.model,
+                contextCompaction: state.contextCompaction,
               })
-            } else if (state.backgroundWaiting) {
-              // 无 usage 数据但处于软空闲：保留标志，清空展示字段
+            } else if (state.backgroundWaiting || state.contextCompaction) {
+              // 无 usage 数据但处于软空闲或有待展示的压缩终态时，保留必要状态。
               map.set(sessionId, {
                 running: false,
-                backgroundWaiting: true,
+                backgroundWaiting: state.backgroundWaiting,
                 content: '',
                 toolActivities: [],
+                contextCompaction: state.contextCompaction,
               })
             } else {
               map.delete(sessionId)
@@ -2121,7 +2123,14 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         model: agentModelId || undefined,
         startedAt: streamStartedAt,
       }
-      map.set(sessionId, { ...current, running: true, startedAt: streamStartedAt, isCompacting: true, compactInFlight: true })
+      map.set(sessionId, {
+        ...current,
+        running: true,
+        startedAt: streamStartedAt,
+        isCompacting: true,
+        compactInFlight: true,
+        contextCompaction: { status: 'running' },
+      })
       return map
     })
 
@@ -2149,7 +2158,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         const map = new Map(prev)
         const current = prev.get(sessionId)
         if (!current) return prev
-        map.set(sessionId, { ...current, isCompacting: false, compactInFlight: false })
+        map.set(sessionId, { ...current, isCompacting: false, compactInFlight: false, contextCompaction: undefined })
         return map
       })
     })

@@ -214,7 +214,7 @@ function buildAgentMinimapItems(messages: SDKMessage[], userAvatar?: string): Ta
       const user = message as SDKUserMessage
       const blocks = Array.isArray(user.message?.content) ? user.message.content : []
       const preview = normalizePreviewText(blocks.map(sdkBlockText).filter(Boolean).join(' ')).slice(0, 220)
-      if (!preview) continue
+      if (!preview || preview === '/compact') continue
       items.push({
         id: user.uuid ?? `user-${items.length}`,
         role: 'user',
@@ -229,13 +229,15 @@ function buildAgentMinimapItems(messages: SDKMessage[], userAvatar?: string): Ta
       const compactStatus = getSDKCompactStatus(system)
       const preview = compactStatus === 'success'
         ? '上下文已压缩'
-        : compactStatus === 'compacting'
-          ? '正在压缩上下文...'
-          : compactStatus === 'failed'
-            ? '上下文压缩失败'
-            : system.subtype === 'permission_denied'
-              ? '权限检查已拒绝操作'
-              : ''
+        : compactStatus === 'noop'
+          ? '当前上下文无需压缩'
+          : compactStatus === 'compacting'
+            ? '正在压缩上下文...'
+            : compactStatus === 'failed'
+              ? '上下文压缩失败'
+              : system.subtype === 'permission_denied'
+                ? '权限检查已拒绝操作'
+                : ''
       if (preview) {
         items.push({
           id: `${system.subtype ?? 'system'}-${items.length}`,
