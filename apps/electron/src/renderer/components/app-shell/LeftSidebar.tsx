@@ -2623,7 +2623,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             <TooltipTrigger asChild>
               <button
                 type="button"
-                aria-label={`自动任务，${automationCount} 个任务已创建`}
+                aria-label={`Agent 自动化，${automationCount} 个任务已创建`}
                 onClick={handleOpenAutomations}
                 className={cn(
                   'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag border',
@@ -2648,7 +2648,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               </button>
             </TooltipTrigger>
             <TooltipContent side="right">
-              自动任务（{automationCount} 个任务已创建）
+              Agent 自动化（{automationCount} 个任务已创建）
             </TooltipContent>
           </Tooltip>
 
@@ -2968,15 +2968,15 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         )}
       </div>
 
-      {/* 自动任务入口：作为任务中心入口放在置顶区上方，不参与置顶列表层级。 */}
+      {/* Agent 自动化入口：作为任务中心入口放在置顶区上方，不参与置顶列表层级。 */}
       <div className="sidebar-module-zone px-3 pt-2 pb-0.5">
         <SidebarModule
           icon={AlarmClock}
-          title="自动任务"
+          title="Agent 自动化"
           count={automationCount}
           active={activeView === 'automations'}
           onClick={handleOpenAutomations}
-          ariaLabel={`自动任务，${automationCount} 个任务已创建`}
+          ariaLabel={`Agent 自动化，${automationCount} 个任务已创建`}
           classNames={{
             row: cn('automation-entry', activeView === 'automations' && 'automation-entry-selected'),
             icon: 'automation-entry-icon',
