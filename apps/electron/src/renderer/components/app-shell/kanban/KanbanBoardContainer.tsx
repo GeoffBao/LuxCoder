@@ -4,9 +4,11 @@ import { toast } from 'sonner'
 import type { AgentSessionMeta } from '@luxcoder/shared'
 import {
   agentModelIdAtom,
+  agentSessionsAtom,
   agentWorkspacesAtom,
   currentAgentWorkspaceIdAtom,
 } from '@/atoms/agent-atoms'
+import { tabsAtom, updateTabTitle } from '@/atoms/tab-atoms'
 import { channelsAtom, channelsLoadedAtom } from '@/atoms/chat-atoms'
 import {
   boardModeAtom,
@@ -19,6 +21,17 @@ import {
   selectedProjectIdAtom,
   serverKanbanProjectsAtom,
 } from '@/atoms/project-atoms'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { useCloseTab } from '@/hooks/useCloseTab'
 import { BoardListToggle } from './BoardListToggle'
 import { consumeFirstNotification } from './board-model'
 import { buildKanbanModelCatalog } from './kanban-model-catalog'
@@ -69,6 +82,10 @@ export function KanbanBoardContainer({
   const [editorTarget, setEditorTarget] = React.useState<TaskEditorTarget | null>(null)
   const pendingEditorTarget = useAtomValue(pendingTaskEditorTargetAtom)
   const setPendingEditorTarget = useSetAtom(pendingTaskEditorTargetAtom)
+  const setAgentSessions = useSetAtom(agentSessionsAtom)
+  const setTabs = useSetAtom(tabsAtom)
+  const { executeClose } = useCloseTab()
+  const [pendingDeleteItem, setPendingDeleteItem] = React.useState<KanbanItem | null>(null)
 
   const { groups: modelGroups, modelToConnection } = React.useMemo(
     () => buildKanbanModelCatalog(channels),
@@ -126,6 +143,49 @@ export function KanbanBoardContainer({
     setEditorTarget(resolveTaskEditorTarget(item))
   }
 
+  // 右键菜单「重命名」：卡片对应的就是一个 Agent 会话，直接改会话标题；
+  // 若该会话恰好开着标签页，同步标签标题（对齐 AgentHeader.tsx 的重命名调用）。
+  const renameItem = (item: KanbanItem, newTitle: string): void => {
+    void window.electronAPI.updateAgentSessionTitle(item.session.id, newTitle)
+      .then((updated) => {
+        setAgentSessions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
+        setTabs((prev) => updateTabTitle(prev, item.session.id, newTitle))
+      })
+      .catch((cause: unknown) => {
+        toast.error('重命名失败', { description: cause instanceof Error ? cause.message : String(cause) })
+      })
+  }
+
+  // 右键菜单「归档 / 取消归档」：只操作卡片本身对应的会话，不级联处理其展开的子任务。
+  // 若该会话恰好开着标签页，复用 useCloseTab 里已验证过的关闭清理逻辑。
+  const archiveItem = (item: KanbanItem): void => {
+    void window.electronAPI.toggleArchiveAgentSession(item.session.id)
+      .then((updated) => {
+        setAgentSessions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
+        if (updated.archived) executeClose(item.session.id)
+        toast.success(updated.archived ? '已归档' : '已取消归档')
+      })
+      .catch((cause: unknown) => {
+        toast.error('归档失败', { description: cause instanceof Error ? cause.message : String(cause) })
+      })
+  }
+
+  // 右键菜单「删除」：先弹确认框（见下方 AlertDialog），确认后才真正删除。
+  const confirmDeleteItem = (): void => {
+    if (!pendingDeleteItem) return
+    const sessionId = pendingDeleteItem.session.id
+    void window.electronAPI.deleteAgentSession(sessionId)
+      .then(() => {
+        setAgentSessions((prev) => prev.filter((s) => s.id !== sessionId))
+        executeClose(sessionId)
+        toast.success('已删除')
+      })
+      .catch((cause: unknown) => {
+        toast.error('删除失败', { description: cause instanceof Error ? cause.message : String(cause) })
+      })
+      .finally(() => setPendingDeleteItem(null))
+  }
+
   if (editorTarget && workspaceRoot && workspace) {
     const editSession = editorTarget.mode === 'edit'
       ? items.find((item) => item.id === editorTarget.sessionId)?.session
@@ -181,6 +241,9 @@ export function KanbanBoardContainer({
         onMove={(sessionId, columnId) => { void moveCard({ sessionId, columnId }) }}
         onOpenItem={openItem}
         onEditItem={editItem}
+        onRenameItem={renameItem}
+        onArchiveItem={archiveItem}
+        onDeleteItem={setPendingDeleteItem}
         onOpenSubtask={onOpenSubtask}
         onRunTask={(item) => {
           if (!workspaceRoot || !workspace || !item.session.taskSlug) return
@@ -214,6 +277,28 @@ export function KanbanBoardContainer({
         }}
         composer={composer}
       />
+      <AlertDialog
+        open={pendingDeleteItem !== null}
+        onOpenChange={(open) => { if (!open) setPendingDeleteItem(null) }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除任务</AlertDialogTitle>
+            <AlertDialogDescription>
+              删除后将无法恢复，确定要删除「{pendingDeleteItem?.title}」吗？
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteItem}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -9,13 +9,16 @@ interface KanbanColumnProps {
   column: KanbanBoardColumn
   onOpenItem?: (item: KanbanItem) => void
   onEditItem?: (item: KanbanItem) => void
+  onRenameItem?: (item: KanbanItem, newTitle: string) => void
+  onArchiveItem?: (item: KanbanItem) => void
+  onDeleteItem?: (item: KanbanItem) => void
   onOpenSubtask?: (sessionId: string) => void
   onRunTask?: (item: KanbanItem) => void
   onRetryTeambition?: (item: KanbanItem) => void
   children?: React.ReactNode
 }
 
-export function KanbanColumn({ column, onOpenItem, onEditItem, onOpenSubtask, onRunTask, onRetryTeambition, children }: KanbanColumnProps): React.ReactElement {
+export function KanbanColumn({ column, onOpenItem, onEditItem, onRenameItem, onArchiveItem, onDeleteItem, onOpenSubtask, onRunTask, onRetryTeambition, children }: KanbanColumnProps): React.ReactElement {
   const drop = useDroppable({ id: `column:${column.id}`, data: { columnId: column.id } })
   const color = resolveKanbanColumnColor(column.id, column.color)
   return (
@@ -37,6 +40,9 @@ export function KanbanColumn({ column, onOpenItem, onEditItem, onOpenSubtask, on
             accent={color}
             onOpen={onOpenItem}
             onEdit={onEditItem}
+            onRename={onRenameItem}
+            onArchive={onArchiveItem}
+            onRequestDelete={onDeleteItem}
             onOpenSubtask={onOpenSubtask}
             onRunTask={onRunTask}
             onRetryTeambition={onRetryTeambition}

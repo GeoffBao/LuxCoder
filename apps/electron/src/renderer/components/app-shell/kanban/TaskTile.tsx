@@ -1,5 +1,5 @@
 import { useDraggable } from '@dnd-kit/core'
-import { ChevronDown, Clock, ExternalLink, GitBranch, Link2, MessageSquare, Pencil, Play } from 'lucide-react'
+import { Archive, ArchiveRestore, ChevronDown, Clock, ExternalLink, GitBranch, Link2, MessageSquare, Pencil, Play, Trash2 } from 'lucide-react'
 import * as React from 'react'
 import { cn } from '@/lib/utils'
 import { ModelChip } from './ModelChip'
@@ -12,7 +12,7 @@ import type { KanbanItem } from './types'
 import { resolveTeambitionSyncBadge } from '@/components/work/teambition-view'
 import { useExpertOptions } from '@/components/agent-experts/useExpertOptions'
 import { getTaskExpertOption } from './task-editor-ui-model'
-import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { formatRelativeUpdatedAt } from '../AgentSessionItem'
 
 interface TaskTileProps {
@@ -23,6 +23,12 @@ interface TaskTileProps {
   onOpen?: (item: KanbanItem) => void
   /** 铅笔按钮 / 右键菜单「编辑任务」：任何卡片都可用，不要求已绑定 task spec。 */
   onEdit?: (item: KanbanItem) => void
+  /** 右键菜单「重命名」：卡片标题原地变输入框，回车提交新标题。 */
+  onRename?: (item: KanbanItem, newTitle: string) => void
+  /** 右键菜单「归档 / 取消归档」。 */
+  onArchive?: (item: KanbanItem) => void
+  /** 右键菜单「删除」：仅发起请求，确认对话框由调用方持有。 */
+  onRequestDelete?: (item: KanbanItem) => void
   onOpenSubtask?: (sessionId: string) => void
   onRunTask?: (item: KanbanItem) => void
   onRetryTeambition?: (item: KanbanItem) => void
@@ -39,6 +45,9 @@ export function TaskTile({
   draggable = true,
   onOpen,
   onEdit,
+  onRename,
+  onArchive,
+  onRequestDelete,
   onOpenSubtask,
   onRunTask,
   onRetryTeambition,
@@ -47,6 +56,10 @@ export function TaskTile({
   const [expanded, setExpanded] = React.useState(
     () => item.subtasks.some((subtask) => subtask.runState === 'running') || item.subtasks.length > 0,
   )
+  const [renaming, setRenaming] = React.useState(false)
+  const [renameValue, setRenameValue] = React.useState(item.title)
+  const renameInputRef = React.useRef<HTMLInputElement>(null)
+  const justStartedRenaming = React.useRef(false)
   const { options: expertOptions } = useExpertOptions()
   const expertLabel = item.expertId
     ? getTaskExpertOption(item.expertId, expertOptions).label
@@ -75,6 +88,36 @@ export function TaskTile({
     onEdit?.(item)
   }
 
+  const startRename = (): void => {
+    setRenameValue(item.title)
+    setRenaming(true)
+    justStartedRenaming.current = true
+    setTimeout(() => {
+      justStartedRenaming.current = false
+      renameInputRef.current?.focus()
+      renameInputRef.current?.select()
+    }, 0)
+  }
+
+  const saveRename = (): void => {
+    if (justStartedRenaming.current) return
+    const trimmed = renameValue.trim()
+    if (trimmed && trimmed !== item.title) onRename?.(item, trimmed)
+    setRenaming(false)
+  }
+
+  const handleRenameKeyDown = (event: React.KeyboardEvent<HTMLInputElement>): void => {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      saveRename()
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      setRenaming(false)
+    }
+  }
+
+  const hasCardMenu = canEdit || Boolean(onRename) || Boolean(onArchive) || Boolean(onRequestDelete)
+
   const card = (
     <article
       ref={drag.setNodeRef}
@@ -100,7 +143,21 @@ export function TaskTile({
     >
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
-          <h3 className="line-clamp-2 text-sm font-medium leading-5">{item.title}</h3>
+          {renaming ? (
+            <input
+              ref={renameInputRef}
+              value={renameValue}
+              data-no-dnd
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => event.stopPropagation()}
+              onChange={(event) => setRenameValue(event.target.value)}
+              onBlur={saveRename}
+              onKeyDown={handleRenameKeyDown}
+              className="w-full rounded-md border border-border bg-background px-1.5 py-0.5 text-sm font-medium leading-5 outline-none ring-1 ring-ring"
+            />
+          ) : (
+            <h3 className="line-clamp-2 text-sm font-medium leading-5">{item.title}</h3>
+          )}
           {item.project && <p className="mt-1 truncate text-[11px] text-muted-foreground">{item.project.name}</p>}
         </div>
         {canRun && (
@@ -243,7 +300,9 @@ export function TaskTile({
     </article>
   )
 
-  if (!canEdit) return card
+  if (!hasCardMenu) return card
+
+  const archived = Boolean(item.session.archived)
 
   return (
     <ContextMenu>
@@ -251,11 +310,34 @@ export function TaskTile({
       {/* z-[9999]：ContextMenuContent 默认 z-50，在 Kanban 这层被 app-shell 其它高层级
           元素盖住会"看起来没反应"——AgentSessionItem 的会话行右键菜单已经踩过这个坑，
           这里保持同一套覆盖值。 */}
-      <ContextMenuContent className="w-36 z-[9999]">
-        <ContextMenuItem onSelect={() => handleEdit()}>
-          <Pencil className="mr-2 h-3.5 w-3.5" />
-          编辑任务
-        </ContextMenuItem>
+      <ContextMenuContent className="w-40 z-[9999]">
+        {canEdit && (
+          <ContextMenuItem onSelect={() => handleEdit()}>
+            <Pencil className="mr-2 h-3.5 w-3.5" />
+            编辑任务
+          </ContextMenuItem>
+        )}
+        {onRename && (
+          <ContextMenuItem onSelect={() => startRename()}>
+            <Pencil className="mr-2 h-3.5 w-3.5" />
+            重命名
+          </ContextMenuItem>
+        )}
+        {onArchive && (
+          <ContextMenuItem onSelect={() => onArchive(item)}>
+            {archived ? <ArchiveRestore className="mr-2 h-3.5 w-3.5" /> : <Archive className="mr-2 h-3.5 w-3.5" />}
+            {archived ? '取消归档' : '归档'}
+          </ContextMenuItem>
+        )}
+        {onRequestDelete && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem className="text-destructive" onSelect={() => onRequestDelete(item)}>
+              <Trash2 className="mr-2 h-3.5 w-3.5" />
+              删除任务
+            </ContextMenuItem>
+          </>
+        )}
       </ContextMenuContent>
     </ContextMenu>
   )

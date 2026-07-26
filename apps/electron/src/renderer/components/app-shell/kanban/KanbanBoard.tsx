@@ -11,6 +11,9 @@ interface KanbanBoardProps {
   onMove: (sessionId: string, columnId: string) => void
   onOpenItem?: (item: KanbanItem) => void
   onEditItem?: (item: KanbanItem) => void
+  onRenameItem?: (item: KanbanItem, newTitle: string) => void
+  onArchiveItem?: (item: KanbanItem) => void
+  onDeleteItem?: (item: KanbanItem) => void
   onOpenSubtask?: (sessionId: string) => void
   onRunTask?: (item: KanbanItem) => void
   onRetryTeambition?: (item: KanbanItem) => void
@@ -22,7 +25,7 @@ function dropColumnId(event: DragEndEvent): string | null {
   return typeof value === 'string' ? value : null
 }
 
-export function KanbanBoard({ items, mode, columns, onMove, onOpenItem, onEditItem, onOpenSubtask, onRunTask, onRetryTeambition, composer }: KanbanBoardProps): React.ReactElement {
+export function KanbanBoard({ items, mode, columns, onMove, onOpenItem, onEditItem, onRenameItem, onArchiveItem, onDeleteItem, onOpenSubtask, onRunTask, onRetryTeambition, composer }: KanbanBoardProps): React.ReactElement {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor),
@@ -49,6 +52,9 @@ export function KanbanBoard({ items, mode, columns, onMove, onOpenItem, onEditIt
             draggable={false}
             onOpen={onOpenItem}
             onEdit={onEditItem}
+            onRename={onRenameItem}
+            onArchive={onArchiveItem}
+            onRequestDelete={onDeleteItem}
             onOpenSubtask={onOpenSubtask}
             onRunTask={onRunTask}
             onRetryTeambition={onRetryTeambition}
@@ -63,7 +69,18 @@ export function KanbanBoard({ items, mode, columns, onMove, onOpenItem, onEditIt
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
       <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto pb-3">
         {model.columns.map((column) => (
-          <KanbanColumn key={column.id} column={column} onOpenItem={onOpenItem} onEditItem={onEditItem} onOpenSubtask={onOpenSubtask} onRunTask={onRunTask} onRetryTeambition={onRetryTeambition}>
+          <KanbanColumn
+            key={column.id}
+            column={column}
+            onOpenItem={onOpenItem}
+            onEditItem={onEditItem}
+            onRenameItem={onRenameItem}
+            onArchiveItem={onArchiveItem}
+            onDeleteItem={onDeleteItem}
+            onOpenSubtask={onOpenSubtask}
+            onRunTask={onRunTask}
+            onRetryTeambition={onRetryTeambition}
+          >
             {column.id === composerColumnId ? composer : undefined}
           </KanbanColumn>
         ))}
