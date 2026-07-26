@@ -64,6 +64,7 @@ import { isBuiltinMcpUserEnabled } from './builtin-mcp/settings'
 import { buildPiBuiltinTools } from './adapters/pi-builtin-tools'
 import { buildPiMcpTools } from './adapters/pi-mcp-tools'
 import type { AgentRuntimeEnv } from './agent-runtime-env'
+import { selectWindowsShell } from './windows-shell-selection'
 import { isVisibleRunMessage } from './agent-run-message-visibility'
 import { applyAgentSdkAuthEnv } from './agent-sdk-auth-env'
 import { getAgentSdkMaxOutputTokens } from './agent-sdk-output-limits'
@@ -433,16 +434,19 @@ export class AgentOrchestrator {
       sdkEnv.HTTP_PROXY = proxyUrl
     }
 
-    // Windows 平台：配置 Shell 环境
+    // Windows 平台：配置 Shell 环境。默认优先 Git Bash，用户可在设置里显式切到 WSL
+    // （selectWindowsShell 在首选项不可用时会安全回退到另一可用 Shell）。
     if (process.platform === 'win32') {
       const runtimeStatus = getRuntimeStatus()
       const shellStatus = runtimeStatus?.shell
 
       if (shellStatus) {
-        if (shellStatus.gitBash?.available && shellStatus.gitBash.path) {
+        const shellKind = selectWindowsShell(shellStatus, getSettings().windowsShellPreference)
+
+        if (shellKind === 'git-bash' && shellStatus.gitBash.path) {
           sdkEnv.CLAUDE_CODE_SHELL = shellStatus.gitBash.path
           console.log(`[Agent 编排] 配置 Shell 环境: Git Bash (${shellStatus.gitBash.path})`)
-        } else if (shellStatus.wsl?.available) {
+        } else if (shellKind === 'wsl') {
           sdkEnv.CLAUDE_CODE_SHELL = 'wsl'
           console.log(`[Agent 编排] 配置 Shell 环境: WSL ${shellStatus.wsl.version} (${shellStatus.wsl.defaultDistro})`)
         } else {

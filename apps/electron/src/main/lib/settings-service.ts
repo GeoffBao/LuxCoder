@@ -31,6 +31,7 @@ export function getSettings(): AppSettings {
       builtinMcpDisabledIds: [],
       sidebarModuleCollapsed: {},
       agentRuntime: DEFAULT_AGENT_RUNTIME,
+      windowsShellPreference: 'auto',
       agentThinking: { type: 'adaptive' },
       defaultThinkingLevel: 'high',
     }
@@ -54,6 +55,7 @@ export function getSettings(): AppSettings {
       builtinMcpDisabledIds: settings.builtinMcpDisabledIds ?? [],
       sidebarModuleCollapsed: data.sidebarModuleCollapsed ?? {},
       agentRuntime: settings.agentRuntime ?? DEFAULT_AGENT_RUNTIME,
+      windowsShellPreference: settings.windowsShellPreference ?? 'auto',
       agentThinking: settings.agentThinking ?? { type: 'adaptive' },
       defaultThinkingLevel: settings.defaultThinkingLevel ?? 'high',
     }
@@ -71,6 +73,7 @@ export function getSettings(): AppSettings {
       builtinMcpDisabledIds: [],
       sidebarModuleCollapsed: {},
       agentRuntime: DEFAULT_AGENT_RUNTIME,
+      windowsShellPreference: 'auto',
       agentThinking: { type: 'adaptive' },
       defaultThinkingLevel: 'high',
     }
