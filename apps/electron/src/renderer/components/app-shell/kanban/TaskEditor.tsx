@@ -335,11 +335,16 @@ export function TaskEditor({
     setGenerating(true)
     try {
       earlyGeneratedEventRef.current = null
+      const orchModel = draft.orchModel.trim() || defaultModel.trim()
+      const orchConnection = draft.orchConnection ?? (orchModel ? modelToConnection.get(orchModel) : undefined)
       const ack = await window.electronAPI.tasks.generate(workspaceRoot, workspaceId, {
         goal,
         ...(draft.title.trim() ? { title: draft.title.trim() } : {}),
         projectId: draft.projectId.trim(),
         ...(draft.cwd?.trim() ? { cwd: draft.cwd.trim() } : {}),
+        ...(orchModel ? { model: orchModel } : {}),
+        ...(orchConnection ? { llmConnection: orchConnection } : {}),
+        ...(draft.permissionMode ? { permissionMode: draft.permissionMode } : {}),
       })
       pendingGenerationRef.current = ack.orchestratorSessionId
       // await 之后 ref 可能已被 onGenerated 写入；显式断言避开 TS 对 .current = null 的收窄

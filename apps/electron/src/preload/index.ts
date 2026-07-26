@@ -159,6 +159,9 @@ interface TaskGenerateRequest {
   title?: string
   projectId?: string
   cwd?: string
+  model?: string
+  llmConnection?: string
+  permissionMode?: string
 }
 
 interface TaskRunOptions {

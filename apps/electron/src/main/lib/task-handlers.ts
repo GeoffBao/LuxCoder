@@ -181,6 +181,12 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+function isAgentServiceErrorText(text: string): boolean {
+  const looksLikeTaskYaml = /^\s*(?:id|title|goal|nodes)\s*:/m.test(text) && /^\s*nodes\s*:/m.test(text)
+  return !looksLikeTaskYaml
+    && /(?:Codex error|Claude error|服务繁忙|model is not supported|API error|rate limit)/i.test(text)
+}
+
 interface AdoptableTaskSpec {
   id: string
   project?: string
@@ -515,6 +521,9 @@ export function registerTaskHandlers(window: BrowserWindow): void {
     title?: string
     projectId?: string
     cwd?: string
+    model?: string
+    llmConnection?: string
+    permissionMode?: string
   }) => {
     const host = await getSessionHost()
     const workingDirectory = request.cwd?.trim()
@@ -525,6 +534,9 @@ export function registerTaskHandlers(window: BrowserWindow): void {
       taskDraft: true,
       sessionStatus: 'queued',
       ...(workingDirectory ? { workingDirectory } : {}),
+      ...(request.model ? { model: request.model } : {}),
+      ...(request.llmConnection ? { llmConnection: request.llmConnection } : {}),
+      ...(request.permissionMode ? { permissionMode: request.permissionMode } : {}),
     })
     // 延后启动，确保 IPC ack 先回到 renderer 并设置 pendingSessionId，避免 GENERATED 竞态被忽略
     setImmediate(() => {
@@ -671,7 +683,7 @@ export function registerTaskHandlers(window: BrowserWindow): void {
 async function generateTaskForSession(
   workspaceRoot: string,
   workspaceId: string,
-  request: { goal: string; title?: string; projectId?: string },
+  request: { goal: string; title?: string; projectId?: string; model?: string; llmConnection?: string; permissionMode?: string },
   sessionId: string,
 ): Promise<void> {
   const host = await getSessionHost()
@@ -680,6 +692,7 @@ async function generateTaskForSession(
     try {
       const text = await sendGenerationPrompt(host, sessionId, prompt)
       const yaml = extractYaml(text)
+      if (isAgentServiceErrorText(yaml)) throw new Error(yaml)
       const parsed = parseTaskYaml(yaml)
       if (parsed.valid && parsed.spec) {
         // 与 craft OSS 一致：generate 不落盘，tasks:create 才是唯一写入点。
