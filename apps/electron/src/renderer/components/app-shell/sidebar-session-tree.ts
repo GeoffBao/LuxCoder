@@ -205,6 +205,39 @@ export function treeContainsSessionId(item: AgentSessionTreeItem, sessionId: str
   return item.session.id === sessionId || item.childSessions.some((session) => session.id === sessionId)
 }
 
+/** 判断 tree item 是否为看板任务树（orchestrator + task nodes）。 */
+export function isTaskTree(item: AgentSessionTreeItem): boolean {
+  return Boolean(item.session.taskSlug || item.session.taskNodeCount !== undefined)
+}
+
+/**
+ * 拆分 task tree 的 childSessions：
+ * - directChildren：parentSessionId 匹配根会话的直接子会话（task nodes）
+ * - delegationChildren：扁平化混入的孙子辈委派会话（sourceDelegationId）
+ *
+ * 非 task tree 不拆分，全部归入 directChildren。
+ */
+export function splitTaskTreeChildren(
+  item: AgentSessionTreeItem,
+): { directChildren: AgentSessionMeta[]; delegationChildren: AgentSessionMeta[] } {
+  if (!isTaskTree(item)) {
+    return { directChildren: item.childSessions, delegationChildren: [] }
+  }
+  const directChildren: AgentSessionMeta[] = []
+  const delegationChildren: AgentSessionMeta[] = []
+  for (const child of item.childSessions) {
+    if (child.parentSessionId === item.session.id) {
+      directChildren.push(child)
+    } else if (child.sourceDelegationId) {
+      delegationChildren.push(child)
+    } else {
+      // 非直属且非委派（极少情况）也放 direct，保持可见
+      directChildren.push(child)
+    }
+  }
+  return { directChildren, delegationChildren }
+}
+
 export function sortSessionTrees(
   items: readonly AgentSessionTreeItem[],
   sortBy: 'recency' | 'alphabetical' | 'createdAt',

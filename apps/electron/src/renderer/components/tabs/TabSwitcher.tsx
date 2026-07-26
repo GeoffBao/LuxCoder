@@ -144,6 +144,13 @@ export function TabSwitcher(): ReactElement | null {
           relatedDelegationIds.add(session.id)
         }
       }
+      // 发现当前活跃会话的直接委派子会话（grandchildren），
+      // 确保 task node 会话在 TabSwitcher 中可见其 delegate_agent 创建的协作子会话。
+      for (const session of agentSessions) {
+        if (session.parentSessionId === activeAgentSession.id && session.sourceDelegationId) {
+          relatedDelegationIds.add(session.id)
+        }
+      }
     }
     const relatedCandidates = Array.from(relatedDelegationIds)
       .map((id) => candidateById.get(id))

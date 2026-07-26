@@ -89,7 +89,9 @@ import {
   getSessionTreeProgress,
   getSessionTreeStatus,
   hasTaskDraftAncestor,
+  isTaskTree,
   sortSessionTrees,
+  splitTaskTreeChildren,
   treeContainsSessionId,
   type AgentSessionTreeItem,
 } from './sidebar-session-tree'
@@ -2784,9 +2786,10 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
   /** 状态 / 自定义 / 不分组模式的统一任务族行。 */
   const renderAgentFlatSessionTree = (item: AgentSessionTreeItem): React.ReactElement => {
-    const childCount = item.childSessions.length
+    const { directChildren, delegationChildren } = splitTaskTreeChildren(item)
+    const childCount = directChildren.length
     const childProgress = getSessionTreeProgress(item, agentIndicatorMap)
-    const delegatedChildCount = item.childSessions.filter((child) => child.parentSessionId === item.session.id && !!child.sourceDelegationId).length
+    const delegatedChildCount = delegationChildren.length
     const rowStatus = getSessionTreeStatus(item, agentIndicatorMap)
     const treeActive = treeContainsSessionId(item, activeSessionId)
     const activeChildVisible = item.childSessions.some((child) => child.id === activeSessionId)
@@ -2797,6 +2800,30 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       ? workspaceNameMap.get(item.session.workspaceId)
       : undefined
     const projects = item.session.workspaceId === currentWorkspaceId ? currentWorkspaceProjects : EMPTY_PROJECTS
+    const taskTree = isTaskTree(item)
+
+    const renderChildItem = (childSession: AgentSessionMeta) => (
+      <ChildSessionItem
+        key={childSession.id}
+        session={childSession}
+        activeSessionId={activeSessionId}
+        agentIndicatorMap={agentIndicatorMap}
+        relativeTimeNow={relativeTimeNow}
+        workspaceName={workspaceName}
+        projects={projects}
+        onMoveToProject={handleMoveToProject}
+        sessionGroups={sessionGroups}
+        onMoveToGroup={handleMoveToGroup}
+        onCreateGroup={handleRequestCreateGroup}
+        onSelect={handleSelectAgentSession}
+        onRequestDelete={handleRequestDelete}
+        onRequestMove={handleRequestMove}
+        onRename={handleAgentRename}
+        onTogglePin={handleTogglePinAgent}
+        onToggleStar={handleToggleStarAgent}
+        onToggleArchive={handleToggleArchiveAgent}
+      />
+    )
 
     return (
       <div key={item.session.id} className="flex flex-col gap-0.5">
@@ -2834,28 +2861,15 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         />
         {childCount > 0 && expandedChildren && (
           <div className="ml-3 pl-2 flex flex-col gap-0.5">
-            {item.childSessions.map((childSession) => (
-              <ChildSessionItem
-                key={childSession.id}
-                session={childSession}
-                activeSessionId={activeSessionId}
-                agentIndicatorMap={agentIndicatorMap}
-                relativeTimeNow={relativeTimeNow}
-                workspaceName={workspaceName}
-                projects={projects}
-                onMoveToProject={handleMoveToProject}
-                sessionGroups={sessionGroups}
-                onMoveToGroup={handleMoveToGroup}
-                onCreateGroup={handleRequestCreateGroup}
-                onSelect={handleSelectAgentSession}
-                onRequestDelete={handleRequestDelete}
-                onRequestMove={handleRequestMove}
-                onRename={handleAgentRename}
-                onTogglePin={handleTogglePinAgent}
-                onToggleStar={handleToggleStarAgent}
-                onToggleArchive={handleToggleArchiveAgent}
-              />
-            ))}
+            {directChildren.map(renderChildItem)}
+            {taskTree && delegationChildren.length > 0 && (
+              <>
+                <div className="text-[10px] text-muted-foreground/60 pl-1 pt-1 pb-0.5">
+                  协作子会话
+                </div>
+                {delegationChildren.map(renderChildItem)}
+              </>
+            )}
           </div>
         )}
       </div>
@@ -4123,9 +4137,10 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
                 // 不改变 sessions 本身的排序逻辑（活跃优先 + 时间窗 + 显示更多），只在标签变化处插入标题。
                 let lastDateLabel: DateGroup | null = null
                 return sessions.map((item) => {
-                  const childCount = item.childSessions.length
+                  const { directChildren, delegationChildren } = splitTaskTreeChildren(item)
+                  const childCount = directChildren.length
                   const childProgress = getSessionTreeProgress(item, agentIndicatorMap)
-                  const delegatedChildCount = item.childSessions.filter((child) => child.parentSessionId === item.session.id && !!child.sourceDelegationId).length
+                  const delegatedChildCount = delegationChildren.length
                   const rowStatus = getSessionTreeStatus(item, agentIndicatorMap)
                   const treeActive = treeContainsSessionId(item, activeSessionId)
                   const activeChildVisible = item.childSessions.some((child) => child.id === activeSessionId)
@@ -4136,6 +4151,30 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
                   const showDateHeader = dateLabel !== lastDateLabel
                   lastDateLabel = dateLabel
                   const isDateCollapsed = collapsedDateLabels.has(dateLabel)
+                  const taskTree = isTaskTree(item)
+
+                  const renderChildItem = (childSession: AgentSessionMeta) => (
+                    <ChildSessionItem
+                      key={childSession.id}
+                      session={childSession}
+                      activeSessionId={activeSessionId}
+                      agentIndicatorMap={agentIndicatorMap}
+                      relativeTimeNow={relativeTimeNow}
+                      workspaceName={isAutomationGroup && childSession.workspaceId ? workspaceNameMap?.get(childSession.workspaceId) : undefined}
+                      projects={projects}
+                      onMoveToProject={onMoveToProject}
+                      sessionGroups={sessionGroups}
+                      onMoveToGroup={onMoveToGroup}
+                      onCreateGroup={onCreateGroup}
+                      onSelect={onSelectSession}
+                      onRequestDelete={onRequestDelete}
+                      onRequestMove={onRequestMove}
+                      onRename={onRename}
+                      onTogglePin={onTogglePin}
+                      onToggleStar={onToggleStar}
+                      onToggleArchive={onToggleArchive}
+                    />
+                  )
 
                   return (
                     <React.Fragment key={item.session.id}>
@@ -4197,28 +4236,15 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
 
                         {childCount > 0 && expandedChildren && (
                           <div className="ml-3 pl-2 flex flex-col gap-0.5">
-                            {item.childSessions.map((childSession) => (
-                              <ChildSessionItem
-                                key={childSession.id}
-                                session={childSession}
-                                activeSessionId={activeSessionId}
-                                agentIndicatorMap={agentIndicatorMap}
-                                relativeTimeNow={relativeTimeNow}
-                                workspaceName={isAutomationGroup && childSession.workspaceId ? workspaceNameMap?.get(childSession.workspaceId) : undefined}
-                                projects={projects}
-                                onMoveToProject={onMoveToProject}
-                                sessionGroups={sessionGroups}
-                                onMoveToGroup={onMoveToGroup}
-                                onCreateGroup={onCreateGroup}
-                                onSelect={onSelectSession}
-                                onRequestDelete={onRequestDelete}
-                                onRequestMove={onRequestMove}
-                                onRename={onRename}
-                                onTogglePin={onTogglePin}
-                                onToggleStar={onToggleStar}
-                                onToggleArchive={onToggleArchive}
-                              />
-                            ))}
+                            {directChildren.map(renderChildItem)}
+                            {taskTree && delegationChildren.length > 0 && (
+                              <>
+                                <div className="text-[10px] text-muted-foreground/60 pl-1 pt-1 pb-0.5">
+                                  协作子会话
+                                </div>
+                                {delegationChildren.map(renderChildItem)}
+                              </>
+                            )}
                           </div>
                         )}
                       </div>
