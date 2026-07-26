@@ -17,7 +17,9 @@ LuxCoder 是一个本地优先的 AI Agent 桌面工作台，面向研发、产�
 
 **一个简单判断**：只需要回答时用 Chat；需要行动并交付结果时用 Code。
 
-Projects & Kanban 不再是独立顶层模式，而是 Code 内的工作视图。进入 Code 后，可以在“会话”和“看板”之间切换。
+![Code 模式界面](./tutorial-images/code-mode-empty-state.png)
+
+Projects & Kanban 不再是独立顶层模式，而是 Code 内的工作视图。进入 Code 后，可以在"会话"和"看板"之间切换。
 
 ---
 
@@ -161,6 +163,8 @@ Project 是 Workspace 内的工程或业务上下文，主要包含：
 ---
 
 ## 5. Chat 模式
+
+![Chat 模式界面](./tutorial-images/chat-mode-empty-state.png)
 
 Chat 适合不需要直接操作本地环境的任务。
 
@@ -342,6 +346,8 @@ Task 节点重跑时，进度按最新节点会话计算，避免把历史重跑
 
 ## 11. Agent 专家
 
+![Agent 专家页面](./tutorial-images/agent-experts-page.png)
+
 Agent 专家用于为不同领域提供稳定角色设定。内置方向包括通用软件、驱动、应用、系统、通信、交付管理、系统工程、架构、测试和代码审查等。
 
 你也可以创建自定义专家，并配置角色身份、工作原则、Skills 和 MCP。Project 可将某个专家设为默认专家，Task 也可选择专家。
@@ -356,7 +362,9 @@ Agent 专家用于为不同领域提供稳定角色设定。内置方向包括�
 
 ### Skills
 
-Skills 是可复用的工作流、决策规则和 SOP。它们适合沉淀“以后遇到类似任务该按什么步骤做”，而不是堆放普通事实。
+![Agent 技能页面](./tutorial-images/agent-skills-page.png)
+
+Skills 是可复用的工作流、决策规则和 SOP。它们适合沉淀"以后遇到类似任务该按什么步骤做",而不是堆放普通事实。
 
 代表性内置 Skills 包括：
 
