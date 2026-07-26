@@ -6,6 +6,11 @@
 
 ## 1. LuxCoder 是什么
 
+<video controls poster="./tutorial-images/promo-thumbnail.png" style="max-width:100%;border-radius:12px;margin:1rem 0;">
+  <source src="./tutorial-images/luxcoder-promo-30s.mp4" type="video/mp4">
+  你的浏览器不支持视频播放，请直接访问视频文件。
+</video>
+
 LuxCoder 是一个本地优先的 AI Agent 桌面工作台，面向研发、产品、测试、研究和知识工作场景。
 
 顶部只有两种工作模式：
