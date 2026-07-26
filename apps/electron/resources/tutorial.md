@@ -6,10 +6,7 @@
 
 ## 1. LuxCoder 是什么
 
-<video controls poster="./tutorial-images/promo-thumbnail.png" style="max-width:100%;border-radius:12px;margin:1rem 0;">
-  <source src="./tutorial-images/luxcoder-promo-30s.mp4" type="video/mp4">
-  你的浏览器不支持视频播放，请直接访问视频文件。
-</video>
+<video src="https://github.com/GeoffBao/LuxCoder/releases/download/v0.4.4/luxcoder-promo-30s.mp4" controls poster="https://github.com/GeoffBao/LuxCoder/releases/download/v0.4.4/promo-thumbnail.png" style="max-width:100%;border-radius:12px;margin:1rem 0;"></video>
 
 LuxCoder 是一个本地优先的 AI Agent 桌面工作台，面向研发、产品、测试、研究和知识工作场景。
 
@@ -22,7 +19,7 @@ LuxCoder 是一个本地优先的 AI Agent 桌面工作台，面向研发、产�
 
 **一个简单判断**：只需要回答时用 Chat；需要行动并交付结果时用 Code。
 
-![Code 模式界面](./tutorial-images/code-mode-empty-state.png)
+![Code 模式界面](https://github.com/GeoffBao/LuxCoder/releases/download/v0.4.4/code-mode-empty-state.png)
 
 Projects & Kanban 不再是独立顶层模式，而是 Code 内的工作视图。进入 Code 后，可以在"会话"和"看板"之间切换。
 
@@ -169,7 +166,7 @@ Project 是 Workspace 内的工程或业务上下文，主要包含：
 
 ## 5. Chat 模式
 
-![Chat 模式界面](./tutorial-images/chat-mode-empty-state.png)
+![Chat 模式界面](https://github.com/GeoffBao/LuxCoder/releases/download/v0.4.4/chat-mode-empty-state.png)
 
 Chat 适合不需要直接操作本地环境的任务。
 
@@ -351,7 +348,7 @@ Task 节点重跑时，进度按最新节点会话计算，避免把历史重跑
 
 ## 11. Agent 专家
 
-![Agent 专家页面](./tutorial-images/agent-experts-page.png)
+![Agent 专家页面](https://github.com/GeoffBao/LuxCoder/releases/download/v0.4.4/agent-experts-page.png)
 
 Agent 专家用于为不同领域提供稳定角色设定。内置方向包括通用软件、驱动、应用、系统、通信、交付管理、系统工程、架构、测试和代码审查等。
 
@@ -367,7 +364,7 @@ Agent 专家用于为不同领域提供稳定角色设定。内置方向包括�
 
 ### Skills
 
-![Agent 技能页面](./tutorial-images/agent-skills-page.png)
+![Agent 技能页面](https://github.com/GeoffBao/LuxCoder/releases/download/v0.4.4/agent-skills-page.png)
 
 Skills 是可复用的工作流、决策规则和 SOP。它们适合沉淀"以后遇到类似任务该按什么步骤做",而不是堆放普通事实。
 

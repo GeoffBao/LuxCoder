@@ -21,6 +21,8 @@ interface OnboardingViewProps {
   onComplete: (openTutorial?: boolean) => void
 }
 
+const TUTORIAL_ASSETS_BASE = 'https://github.com/GeoffBao/LuxCoder/releases/download/v0.4.4'
+
 export function OnboardingView({ onComplete }: OnboardingViewProps) {
   const [step, setStep] = useState<'welcome' | 'environment'>('welcome')
   const isWindows = useMemo(() => detectIsWindows(), [])
@@ -53,6 +55,19 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
             <p className="text-base text-muted-foreground max-w-md">
               面向研发组织的 AI Agent 工作台，整合 Chat、Code 两种工作模式
             </p>
+          </div>
+
+          {/* 宣传视频 */}
+          <div className="w-full max-w-lg mb-6">
+            <video
+              controls
+              muted
+              poster={`${TUTORIAL_ASSETS_BASE}/promo-thumbnail.png`}
+              className="w-full rounded-xl border border-border/30 shadow-lg"
+              style={{ aspectRatio: '16/9' }}
+            >
+              <source src={`${TUTORIAL_ASSETS_BASE}/luxcoder-promo-30s.mp4`} type="video/mp4" />
+            </video>
           </div>
 
           <div className="w-full max-w-2xl space-y-3">
