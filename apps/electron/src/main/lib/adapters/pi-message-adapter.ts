@@ -8,7 +8,7 @@
 import { randomUUID } from 'node:crypto'
 import type { AgentMessage } from '@earendil-works/pi-agent-core'
 import type { AssistantMessage, ToolResultMessage, UserMessage } from '@earendil-works/pi-ai/compat'
-import type { SDKMessage } from '@luxcoder/shared'
+import type { SDKAssistantMessage, SDKMessage } from '@luxcoder/shared'
 import type { RuntimeGuardResultOverride } from '../agent-runtime-guards'
 import { isTransientNetworkError } from '../error-patterns'
 
@@ -155,6 +155,29 @@ function contentToText(content: unknown): string {
 
 export function isAssistantPiMessage(message: AgentMessage): message is AssistantMessage {
   return !!message && typeof message === 'object' && 'role' in message && message.role === 'assistant'
+}
+
+/** Pi 的终态错误和已生成的 assistant 内容是相互独立的字段。 */
+export function getPiAssistantErrorDetails(message: SDKAssistantMessage): {
+  detailedMessage: string
+  originalError: string
+} {
+  const errorMessage = message.error?.message?.trim() || 'Unknown error'
+  return { detailedMessage: errorMessage, originalError: errorMessage }
+}
+
+/** Pi 可能在流失败前已生成正文；保留为普通 assistant 输出。 */
+export function hasPiAssistantTextContent(message: SDKAssistantMessage): boolean {
+  return message.message.content.some(
+    (block) => block.type === 'text' && 'text' in block && typeof block.text === 'string' && block.text.trim().length > 0,
+  )
+}
+
+/** 复制 Pi 已生成的内容，去掉终态传输/provider 错误字段。 */
+export function stripPiAssistantError(message: SDKAssistantMessage): SDKAssistantMessage {
+  const contentMessage = { ...message }
+  delete contentMessage.error
+  return contentMessage
 }
 
 export function isAbortedAssistantMessage(message: AgentMessage): message is AssistantMessage {

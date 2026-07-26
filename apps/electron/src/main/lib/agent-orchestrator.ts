@@ -36,6 +36,7 @@ import type { ClaudeAgentQueryOptions } from './adapters/claude-agent-adapter'
 import { normalizeAgentRuntime } from './agent-runtime-normalize'
 import { isPromptTooLongError, isThinkingSignatureError, friendlyErrorMessage, mapSDKErrorToTypedError, extractErrorDetails, shouldKeepChannelOpen } from './adapters/claude-agent-adapter'
 import type { PiAgentQueryOptions } from './adapters/pi-agent-adapter'
+import { getPiAssistantErrorDetails, hasPiAssistantTextContent, stripPiAssistantError } from './adapters/pi-message-adapter'
 import { isTransientNetworkError, isMalformedResponseError, isSessionNotFoundError } from './error-patterns'
 import { AgentEventBus } from './agent-event-bus'
 import { decryptApiKey, getChannelById, listChannels, persistCodexOAuthCredentials, resolveChannelRuntimeApiKey, resolveClaudeOAuthCredentials, resolveCodexOAuthCredentials } from './channel-manager'
@@ -1926,7 +1927,11 @@ ${workContext}` : '')
             if (msg.type === 'assistant' && !isPartialMessage) {
               const assistantMsg = msg as SDKAssistantMessage
               if (assistantMsg.error) {
-                const { detailedMessage, originalError } = extractErrorDetails(assistantMsg as unknown as Parameters<typeof extractErrorDetails>[0])
+                // Pi 把已生成文本和终态传输错误分开存放；Claude 那套内容优先的
+                // extractErrorDetails 会误把生成文本当成错误详情，Pi 分支要单独取。
+                const { detailedMessage, originalError } = agentRuntime === 'pi'
+                  ? getPiAssistantErrorDetails(assistantMsg)
+                  : extractErrorDetails(assistantMsg as unknown as Parameters<typeof extractErrorDetails>[0])
                 let errorCode = assistantMsg.error.errorType || 'unknown_error'
                 if (isPromptTooLongError(detailedMessage, originalError)) {
                   errorCode = 'prompt_too_long'
@@ -2017,7 +2022,19 @@ ${workContext}` : '')
                 }
 
                 // 不可重试 → 终止
+                // Pi 可能在流失败前已生成一段正文：把它从错误字段里剥离，
+                // 当作普通 assistant 消息保留下来，不能因为终态错误就整体丢弃。
+                const hasPiPartialOutput = agentRuntime === 'pi' && hasPiAssistantTextContent(assistantMsg)
+                if (hasPiPartialOutput) {
+                  const partialOutput = stripPiAssistantError(assistantMsg)
+                  if (modelId) partialOutput._channelModelId = modelId
+                  partialOutput._channelProvider = channel.provider
+                  accumulatedMessages.push(partialOutput)
+                  // 复用 Pi 的 uuid，让这条正常 markdown 输出替换掉最后一帧局部消息。
+                  this.eventBus.emit(sessionId, { kind: 'sdk_message', message: partialOutput })
+                }
                 this.persistSDKMessages(sessionId, accumulatedMessages, Date.now() - queryStartedAt)
+                accumulatedMessages.length = 0
                 if (typedError.code === 'prompt_too_long') {
                   try { updateAgentSessionMeta(sessionId, { sdkSessionId: undefined }) } catch { /* 忽略 */ }
                 }
