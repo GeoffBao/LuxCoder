@@ -523,6 +523,9 @@ export interface ElectronAPI {
   /** 打开原生保存对话框，返回用户选择的路径 */
   chooseExportPath: (defaultName: string) => Promise<string | null>
 
+  /** 将图片 data URL 写入系统剪贴板 */
+  copyImageToClipboard: (dataUrl: string) => Promise<{ success: boolean; message?: string }>
+
   /** 设置 Dock/Launcher 角标数量（0 表示清除） */
   setDockBadgeCount: (count: number) => Promise<boolean>
 
@@ -1652,6 +1655,10 @@ const electronAPI: ElectronAPI = {
 
   chooseExportPath: (defaultName: string) => {
     return ipcRenderer.invoke(SCRATCH_PAD_IPC_CHANNELS.CHOOSE_EXPORT_PATH, defaultName)
+  },
+
+  copyImageToClipboard: (dataUrl: string) => {
+    return ipcRenderer.invoke(SCRATCH_PAD_IPC_CHANNELS.COPY_IMAGE, dataUrl)
   },
 
   // Dock/Launcher 角标
