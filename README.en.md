@@ -153,7 +153,7 @@ Current package versions:
 
 | Package | Version | Responsibility |
 | --- | --- | --- |
-| `@luxcoder/electron` | `0.4.1` | Electron desktop app |
+| `@luxcoder/electron` | `0.4.2` | Electron desktop app |
 | `@luxcoder/shared` | `0.1.34` | shared types, IPC constants, config, utilities |
 | `@luxcoder/core` | `0.1.7` | Provider Adapters, SSE, Shiki highlighting |
 | `@luxcoder/ui` | `0.1.1` | shared React UI components |
