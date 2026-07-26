@@ -898,7 +898,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     [conversations, viewMode, draftSessionIds]
   )
 
-  /** 置顶 Agent 会话列表（仅活跃模式显示，跨工作区展示，排除 draft） */
+  /** 置顶 Agent 会话列表（仅活跃模式显示，仅当前工作区，排除 draft） */
   const pinnedAgentSessions = React.useMemo(
     () => {
       if (viewMode !== 'active') return []
@@ -907,10 +907,11 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         s.pinned
         && !draftSessionIds.has(s.id)
         && !hasPinnedVisibleParent(s, sessionsById)
+        && (!currentWorkspaceId || !s.workspaceId || s.workspaceId === currentWorkspaceId)
       )
       return sortAgentSessionsByUpdatedAtDesc(filtered)
     },
-    [agentSessions, viewMode, draftSessionIds]
+    [agentSessions, viewMode, draftSessionIds, currentWorkspaceId]
   )
 
   const pinnedAgentSessionTrees = React.useMemo<AgentSessionTreeItem[]>(
