@@ -1,236 +1,239 @@
 # LuxCoder
 
-LuxCoder 是面向企业研发团队的 AI Agent 桌面工作台，将 **Chat**（AI 对话助理）、**Code**（AI 编程工作台）、**Work**（协作看板，即将上线）三种工作模式整合在同一个桌面应用中。
+> **Thinking More, Do More!**
 
-它不是单纯的聊天框，也不是命令行工具的 GUI 包装，而是为研发工程师、架构师、产品经理和测试工程师设计的 AI 协作平台：简单问题用 Chat，复杂执行任务交给 Code Agent，团队协作通过 Work 模式联动 Teambition 研发流。
+LuxCoder 是面向真实研发交付的本地优先 AI Coding 工作台。它把多模型对话、代码执行、项目上下文、任务编排、协作子 Agent、自动任务和持续知识沉淀整合在一个桌面应用中。
 
-## 核心功能
+**[English](./README.en.md)** · **[下载最新版本](https://github.com/GeoffBao/LuxCoder/releases)** · **[使用指南](./apps/electron/resources/tutorial.md)**
 
-- **Chat 模式**：多模型对话、附件解析（PDF / Office / 图片）、Markdown / Mermaid / KaTeX / 代码高亮、并排对比、系统提示词、上下文管理。
-- **Code 模式**：基于 `@anthropic-ai/claude-agent-sdk` 的通用 Agent，支持工作区隔离、权限模式、文件读写、Shell 执行、长任务流式输出、工具调用展示。
-- **Skills 系统**：将团队最佳实践固化为可复用的工作流提示词，按工作区管理，支持团队分发（`.luxcoder-share`）。
-- **MCP 集成**：每个工作区独立配置 MCP Server（文件系统、数据库、API 网关等），按需扩展 Agent 工具能力。
-- **飞书集成**：通过飞书机器人桥接，在手机端触发和查看 Agent 任务，支持流式卡片响应。
-- **本地优先**：会话、工作区、附件、配置、Skills 全部存储在 `~/.luxcoder/`，使用 JSON / JSONL 文件组织，不依赖本地数据库，配置可移植。
+## 为什么选择 LuxCoder
 
-## 快速开始
+优秀的 Coding 产品不应只给出答案，还应帮助用户把复杂工作真正完成。
 
-### 安装
+- **Thinking More**：支持复杂问题分析、计划模式、多模型选择、Project Memory 和长上下文工作流。
+- **Do More**：可读写文件、运行命令、修改代码、调用工具、组织任务并交付可验证结果。
+- **协作而非黑盒**：Kanban Task、可见进度和 collaboration 子会话都可以追踪。
+- **知识持续积累**：CLAUDE.md、Memory、Skills 与 Context 各司其职，减少重复解释。
+- **本地优先**：核心会话、项目、Skills、MCP 和配置存储在本地，用户掌握自己的数据。
 
-从 [GitHub Releases](https://github.com/GeoffBao/LuxCoder/releases) 下载对应平台的安装包：
-- macOS Apple Silicon（arm64）
-- macOS Intel（x64）
-- Windows x64
+## 两种工作模式
 
-### 首次配置
+| 模式 | 适合场景 |
+|------|----------|
+| **Chat** | 问答、分析、写作、文档阅读、多模型比较，不直接操作本地环境 |
+| **Code** | 读写文件、执行命令、修改代码、项目管理、任务编排和自动化 |
 
-1. 打开 LuxCoder，首次启动会引导完成欢迎流程。
-2. 进入 **设置 → 模型配置**，添加至少一个 AI 供应商渠道，填写 API Key 和模型。
-3. Chat 模式支持 OpenAI、Anthropic、DeepSeek、Google 等多种协议渠道。
-4. Code 模式需要 Anthropic 协议或兼容协议（Anthropic、DeepSeek、Kimi 等）。
-5. 进入 **设置 → Agent**，选择默认 Agent 渠道、模型和工作区后即可使用 Code 模式。
-6. Windows 用户首次启动时会引导安装 Git Bash / WSL（Code 模式依赖 Shell 环境）。
+只需要回答时使用 Chat；需要行动并交付结果时使用 Code。
 
-### 团队配置分发
+Projects & Kanban 位于 Code 内。进入 Code 后，可在“会话”和“看板”之间切换。
 
-管理员在 **设置 → 数据迁移** 中导出 `.luxcoder-share` 配置包（凭据自动剥离），分发给团队成员双击导入即可，跳过手动配置。
+## 核心能力
 
-## 工作模式说明
+### 多模型与 Agent Runtime
 
-| 模式 | 定位 | 状态 |
-|------|------|------|
-| **Chat** | AI 研发助理 · 多模型对话 · 文档问答 | 可用 |
-| **Code** | AI 编程工作台 · Agent SDK 驱动 · 文件读写执行 | 可用 |
-| **Work** | 协作看板 · Teambition 双向同步 · 六阶段研发流 | 即将上线 |
+- 支持 Anthropic、OpenAI、Google、DeepSeek、Kimi、智谱、通义、豆包、OpenRouter 及自定义兼容端点等 API Key 渠道；
+- 支持 ChatGPT 订阅 Codex OAuth；
+- 支持 Claude Pro / Max 订阅 OAuth；
+- Code 默认使用 Pi Agent Runtime，可使用已启用的多种模型渠道；
+- Claude 订阅渠道由应用透明使用兼容 Runtime，普通用户无需手动管理。
 
-### Chat 适合
+订阅登录渠道当前用于 Code 模式；Chat 可用范围取决于渠道协议和模型能力。
 
-- 日常问答、技术方案分析、文档撰写、需求评审。
-- 读取 PDF / Office 附件后做总结、对比、改写。
-- 同时对比多个模型回答，或使用不同系统提示词做探索。
+### 项目与长任务执行
 
-### Code 适合
+- Workspace 隔离会话、Skills、MCP、Memory、Projects 和共享资料；
+- Project 绑定真实工程目录 `workingDirectory`，并保存参考资料和项目记忆；
+- Projects & Kanban 默认提供待办、进行中、已完成三列；
+- TaskEditor 可生成或手动编辑子任务 DAG，配置编排模型、依赖、验收标准和修复次数；
+- collaboration 可创建真实可见、可等待、停止和继续的协作子 Agent 会话；
+- 自动任务支持间隔、每日、每周、每月、一次性和有限次数执行。
 
-- 修改、创建、整理本地代码文件。
-- 调研、编写技术报告、处理多步骤任务。
-- 使用 MCP、Skills、Shell、Git、项目文件等外部上下文。
-- 需要权限确认、计划模式和后台任务持续跟进的工作。
+### 可扩展的 Agent 能力
 
-**一句话**：**只需要回答时用 Chat，需要行动和交付结果时用 Code。**
+- **Skills**：可复用的工作流、决策规则和 SOP；
+- **MCP**：浏览器、Automation、collaboration、任务创建及外部服务工具；
+- **Memory**：跨会话经验、用户偏好和 Project 长期知识；
+- **Context**：当前任务计划、临时记录和跨会话资料；
+- **Agent 专家**：为不同工程领域提供稳定角色、规则和能力组合。
 
-## 本地数据
+### 开发与内容工作流
 
-LuxCoder 采用本地文件存储，方便备份、迁移和排查问题。
+- 文件树、Diff 和多标签工作区；
+- Markdown、PDF、DOCX、PPTX、Excel 和图片预览；
+- 浏览器导航、DOM、网络、截图与性能分析；
+- Git、Shell、文件读写和代码搜索；
+- 会话引用、文件引用、Skill 引用和 MCP 引用；
+- Markdown、Mermaid、KaTeX 和代码高亮。
+
+## 五分钟快速开始
+
+### 1. 安装
+
+从 [GitHub Releases](https://github.com/GeoffBao/LuxCoder/releases) 下载适用于 macOS 或 Windows 的安装包。
+
+### 2. 配置模型
+
+打开 **设置 → 模型配置**：
+
+- 添加 API Key 渠道；或
+- 登录 ChatGPT 订阅；或
+- 登录 Claude Pro / Max 订阅。
+
+### 3. 选择工作模式
+
+- 讨论、分析和写作：进入 **Chat**；
+- 修改工程、运行命令或执行多步骤任务：进入 **Code**。
+
+### 4. 创建 Workspace 和 Project
+
+在 Code 左侧栏选择或创建 Workspace。然后将会话分组方式切换为“项目”，创建 Project，并把 `workingDirectory` 设置为真实代码仓库目录。
+
+### 5. 发起任务
+
+推荐同时写清目标、范围、限制和验收标准：
+
+> 请检查当前项目的登录流程，先定位根因并给出方案。不要修改数据库结构；实现后运行相关测试，并说明改动文件和风险。
+
+## 目录心智模型
+
+Workspace、Project 和会话 cwd 不是同一个概念：
+
+| 概念 | 含义 |
+|------|------|
+| **Workspace** | LuxCoder 的顶层隔离与能力容器 |
+| **Project** | Workspace 内的工程或业务上下文 |
+| **Project workingDirectory** | 真实代码仓库或工程目录 |
+| **Session cwd** | 每个 Code 会话独立的临时工作台 |
+| **workspace-files** | 当前 Workspace 跨会话共享资料 |
+| **Project assets / MEMORY.md** | Project 参考资料和长期上下文 |
+
+```text
+~/.luxcoder/agent-workspaces/{workspace}/
+├── {session-id}/
+│   └── .context/              # 当前会话的计划和临时记录
+├── workspace-files/           # 跨会话共享资料
+├── mcp.json
+├── skills/
+└── projects/
+    └── {project}/
+        ├── config.json
+        ├── assets/
+        └── MEMORY.md
+
+你的真实工程目录/                 # 通常位于 Workspace 之外
+└── src/ ...                     # 由 Project workingDirectory 指向
+```
+
+绑定 Project 后，Agent 会收到明确的 `workingDirectory`，帮助其区分真实工程目录与会话 cwd。
+
+## 本地数据与安全
+
+LuxCoder 的核心数据默认保存在 `~/.luxcoder/`：
 
 ```text
 ~/.luxcoder/
-├── channels.json           # 渠道配置（API Key 经 safeStorage 加密）
-├── conversations.json      # 对话索引
-├── conversations/
-│   └── {uuid}.jsonl        # 每对话消息文件（追加写入）
-├── agent-sessions.json     # Agent 会话索引
-├── agent-sessions/
-│   └── {uuid}.jsonl        # 每会话消息文件
-├── agent-workspaces/
-│   └── {workspace-slug}/
-│       ├── workspace-files/ # 工作区持久文件
-│       ├── mcp.json         # MCP Server 配置
-│       └── skills/          # Skills 配置
-├── attachments/
-├── user-profile.json
 ├── settings.json
+├── channels.json
+├── conversations/
+├── agent-sessions/
+├── agent-workspaces/
+├── automations.json
 └── sdk-config/
 ```
 
-API Key 通过 Electron `safeStorage` 加密后写入 `channels.json`，不以明文存储。
+- API Key 和 OAuth Token 在系统支持 Electron `safeStorage` 时会加密后写入本地配置；如果操作系统加密能力不可用，当前版本可能降级为明文存储；
+- 会话主要使用 JSON / JSONL 文件保存，便于备份和审计；
+- 模型请求仍会将用户提交的 Prompt、所选附件内容或必要工具结果发送给用户选择的模型服务商；
+- LuxCoder 会向 Code Agent 明确提供当前 Workspace、Project、会话及附加目录；当前版本不提供 OS 级文件系统沙箱，完全自动模式只应在可信环境中使用；
+- 对发布、付款、不可逆删除等高风险操作，产品要求 Agent 在执行前进行明确确认，但用户仍应核对实际工具调用。
 
-## 开发
+## 从源码运行
 
-LuxCoder 是 Bun workspace monorepo，基于 [Proma](https://github.com/proma-ai/Proma) 开源版本 fork。
+### 环境要求
+
+- [Bun](https://bun.sh/)
+- Node.js 20+
+- Git
+- macOS 或 Windows 桌面环境
+
+### 安装与启动
+
+```bash
+bun install
+bun run dev
+```
+
+### 常用命令
+
+```bash
+# 全仓类型检查
+bun run typecheck
+
+# 使用 bun:test 运行测试
+bun test
+
+# 构建所有 workspace package
+bun run build
+
+# 仅构建 Electron 应用
+bun run electron:build
+
+# 打包当前平台安装产物
+cd apps/electron
+bun run dist
+```
+
+## 仓库结构
 
 ```text
 LuxCoder/
+├── apps/
+│   ├── electron/       # Electron 主进程、Preload、React Renderer 和资源
+│   └── cli/            # LuxCoder CLI 与渐进式会话读取工具
 ├── packages/
-│   ├── shared/     # 共享类型、IPC 常量、配置、工具函数
-│   ├── core/       # Provider Adapter、SSE 读取器、代码高亮
-│   └── ui/         # 共享 React UI 组件
-└── apps/
-    └── electron/   # Electron 桌面应用主体
+│   ├── shared/         # 共享类型、协议、IPC 常量和工具
+│   ├── core/           # Provider Adapter 和模型调用基础能力
+│   ├── session-core/   # 会话核心逻辑
+│   └── ui/             # 共享 UI
+├── docs/               # 设计、研究和项目文档
+├── release-notes/      # 面向用户的版本说明
+├── scripts/            # 同步和工程脚本
+└── patches/            # Bun patchedDependencies
 ```
 
-当前主要包版本：
-
-| 包 | 版本 | 职责 |
-|---|---|---|
-| `@luxcoder/electron` | `0.4.2` | Electron 桌面应用 |
-| `@luxcoder/shared` | `0.1.34` | 共享类型、IPC 常量、配置和工具 |
-| `@luxcoder/core` | `0.1.7` | Provider Adapter、SSE、Shiki 高亮 |
-| `@luxcoder/ui` | `0.1.1` | 共享 React UI 组件 |
-
-常用命令：
-
-```bash
-# 安装依赖
-bun install
-
-# 开发模式（Vite + Electron + 热重载）
-bun run dev
-
-# 构建 Electron 应用
-bun run electron:build
-
-# 构建并运行
-bun run electron:start
-
-# 类型检查
-bun run typecheck
-
-# 测试
-bun test
-```
-
-Electron 子应用内更细的脚本：
-
-```bash
-cd apps/electron
-
-bun run dev:vite       # 单独启动 Vite dev server
-bun run dev:electron   # 单独启动 Electron（需先启动 Vite）
-bun run build:main     # 构建主进程
-bun run build:preload  # 构建 Preload
-bun run build:renderer # 构建渲染进程
-bun run dist:fast      # 快速打包当前平台
-```
-
-## 技术栈
-
-| 层级 | 技术 |
-|---|---|
-| 运行时 | Bun 1.2+ |
-| 桌面框架 | Electron 39 |
-| 前端 | React 18 + TypeScript 5 |
-| 状态管理 | Jotai |
-| 样式 | Tailwind CSS + Radix UI |
-| 富文本输入 | TipTap |
-| Markdown / 图表 / 公式 | React Markdown + Beautiful Mermaid + KaTeX |
-| 代码高亮 | Shiki |
-| 构建 | Vite + esbuild |
-| 分发 | electron-builder |
-| Agent SDK | `@anthropic-ai/claude-agent-sdk@0.3.185` |
-
-## 架构概览
+核心通信路径：
 
 ```text
-@luxcoder/shared 类型和 IPC 常量
-  → apps/electron/src/main/ipc.ts 注册处理器
-  → apps/electron/src/preload/index.ts 暴露 window.electronAPI
-  → renderer Jotai atoms 和 React 组件调用
+共享类型与 IPC 常量
+    ↓
+Renderer → Preload → Electron Main
+    ↓
+Provider / Agent Runtime / Workspace / Task / Automation
+    ↓
+本地 JSON、JSONL 与工程文件
 ```
-
-主进程服务集中在 `apps/electron/src/main/lib/`：
-
-- `agent-orchestrator.ts`：Agent 编排、环境变量、SDK 调用、事件流、错误处理（71KB 核心）。
-- `agent-session-manager.ts`：Agent 会话索引和 JSONL 消息持久化。
-- `agent-workspace-manager.ts`：工作区、MCP、Skills 和工作区文件管理。
-- `chat-service.ts`：Chat 流式调用、Provider Adapter 集成。
-- `conversation-manager.ts`：Chat 会话索引和消息存储。
-- `channel-manager.ts`：渠道 CRUD、API Key 加密、连接测试、模型获取。
-- `feishu-bridge.ts` / `dingtalk-bridge.ts` / `wechat-bridge.ts`：远程机器人桥接。
-- `chat-tool-*`、`document-parser.ts`、`workspace-watcher.ts`：工具、文档解析和文件监听。
-
-渲染进程以 Jotai 管理状态，关键 atoms 位于 `apps/electron/src/renderer/atoms/`。Agent IPC 监听器在应用顶层全局挂载，避免切换页面时丢失流式事件或权限请求。
-
-## 打包注意事项
-
-`@anthropic-ai/claude-agent-sdk` 在 `0.2.113+` 后改为平台 native binary 分发，esbuild 配置将 SDK 标记为 external，`electron-builder.yml` 将 SDK 主包和平台子包一起打进安装包。
-
-修改打包配置时请确认：
-
-- 主进程 esbuild 保持 `--external:@anthropic-ai/claude-agent-sdk`。
-- `apps/electron/package.json` 的 `optionalDependencies` 包含目标平台的 SDK 子包。
-- `apps/electron/electron-builder.yml` 的 `files` 包含 SDK 主包和平台子包。
-- 其它普通 npm 依赖应由 esbuild 打包进 `main.cjs`，不要随意 external。
-
-## 支持的模型渠道
-
-| 供应商 | Chat | Code | 协议 |
-|---|---|---|---|
-| Anthropic | ✅ | ✅ | Anthropic Messages API |
-| DeepSeek | ✅ | ✅ | Anthropic 兼容协议 |
-| Kimi | ✅ | ✅ | Anthropic 兼容协议 |
-| OpenAI | ✅ | — | Chat Completions |
-| Google | ✅ | — | Gemini Generative Language API |
-| 智谱 AI | ✅ | ✅ | Anthropic 兼容协议 |
-| MiniMax | ✅ | ✅ | Anthropic 兼容协议 |
-| 豆包 | ✅ | ✅ | Anthropic 兼容协议 |
-| 通义千问 | ✅ | ✅ | Anthropic 兼容协议 |
-| 自定义端点 | ✅ | — | OpenAI 兼容协议 |
 
 ## 贡献
 
-欢迎提交 Bug 修复、功能补充、文档完善和测试用例。提交 PR 前请确认：
+提交改动前请至少确认：
 
-- 使用 Bun 运行脚本，不混用 npm / pnpm lockfile。
-- 状态管理使用 Jotai，不引入其他状态库。
-- 本地优先原则：优先使用配置文件和 JSON / JSONL，不引入本地数据库。
-- TypeScript 不使用 `any`，对象结构优先使用 `interface`。
-- 新增 IPC 通道时同步修改 shared 类型、main handler、preload bridge 和 renderer 调用。
-- 影响包行为时递增对应 package 的 patch 版本。
-- 能用测试覆盖的行为尽量补上测试，尤其是共享逻辑、IPC 契约和持久化格式。
-
+1. 不破坏现有 Chat、Code、Kanban、Task、collaboration、OAuth 和 Workspace 行为；
+2. 使用 `bun:test`，不要引入 Vitest；
+3. 为关键逻辑补充定向测试；
+4. 运行相关测试与 `bun run typecheck`；
+5. 不提交真实 Token、API Key、用户数据或上游品牌污染；
+6. 产品行为变化应同步更新教程或相关文档。
 
 ## 致谢
 
-- [Proma](https://github.com/proma-ai/Proma)：本项目 fork 自 Proma 开源版。
-- [Shiki](https://shiki.style/)：代码高亮。
-- [Beautiful Mermaid](https://github.com/lukilabs/beautiful-mermaid)：Mermaid 图表渲染。
-- [Cherry Studio](https://github.com/CherryHQ/cherry-studio)：多供应商桌面 AI 产品参考。
-- [Craft Agents OSS](https://github.com/lukilabs/craft-agents-oss)：Agent SDK 集成模式参考。
+LuxCoder 基于开源社区持续演进，并受益于以下项目和生态：
+
+- [Proma](https://github.com/proma-ai/Proma)：LuxCoder 的早期开源基础；
+- [Pi Agent](https://github.com/badlogic/pi-mono)：Agent Runtime 生态；
+- [Claude Agent SDK](https://docs.anthropic.com/)：Claude 订阅兼容运行能力；
+- [Model Context Protocol](https://modelcontextprotocol.io/)：Agent 工具扩展标准；
+- [Shiki](https://shiki.style/)、[Mermaid](https://mermaid.js.org/) 和其他优秀开源项目。
 
 ## 许可证
 
-本项目采用 [GNU Affero General Public License v3.0（AGPL-3.0）](./LICENSE) 开源。
-
-**个人 / 非商业使用**：自由使用、修改、分发，遵守 AGPL-3.0 条款即可。
-
-**商业使用**：在完全遵守 AGPL-3.0 条款前提下允许商业使用，通过网络对外提供服务时须公开完整修改源码，衍生作品须以 AGPL-3.0 继续授权。
+本项目采用 [GNU Affero General Public License v3.0](./LICENSE)（AGPL-3.0）。使用、修改和分发时请遵守许可证条款。
