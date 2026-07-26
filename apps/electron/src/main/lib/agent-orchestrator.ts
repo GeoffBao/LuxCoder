@@ -582,6 +582,11 @@ export class AgentOrchestrator {
       }
 
       const result = await this.callTitleModel(channelId, modelId, TITLE_PROMPT + userMessage)
+      if (!result && channel?.provider === 'opencode-go-openai') {
+        // OpenCode Go 的服务端偶发返回空标题时，仍要完成重命名，避免会话长期停在默认标题。
+        console.warn('[Agent 标题生成] OpenCode Go 返回空标题，使用本地兜底')
+        return createFallbackTitle(userMessage)
+      }
       console.log(`[Agent 标题生成] 生成标题成功: "${result}"`)
       return result
     } catch (error) {
