@@ -41,12 +41,31 @@ function findRootSessionId(
  * Task Conductor 与 collaboration 共用的侧边栏会话树。
  * 展示关系只依赖 parentSessionId；来源字段仍由各自业务逻辑处理，不改变级联操作语义。
  */
+export function hasTaskDraftAncestor(
+  session: AgentSessionMeta,
+  byId: Map<string, AgentSessionMeta>,
+): boolean {
+  if (session.taskDraft) return true
+  const visited = new Set<string>([session.id])
+  let parentId = session.parentSessionId
+  while (parentId) {
+    const parent = byId.get(parentId)
+    if (!parent || visited.has(parent.id)) return false
+    if (parent.taskDraft) return true
+    visited.add(parent.id)
+    parentId = parent.parentSessionId
+  }
+  return false
+}
+
 export function buildAgentSessionTrees(sessions: readonly AgentSessionMeta[]): AgentSessionTreeItem[] {
-  const byId = new Map(sessions.map((session) => [session.id, session]))
+  const allById = new Map(sessions.map((session) => [session.id, session]))
+  const visibleSessions = sessions.filter((session) => !hasTaskDraftAncestor(session, allById))
+  const byId = new Map(visibleSessions.map((session) => [session.id, session]))
   const rootIdBySessionId = new Map<string, string>()
   const childrenByRootId = new Map<string, AgentSessionMeta[]>()
 
-  for (const session of sessions) {
+  for (const session of visibleSessions) {
     const rootId = findRootSessionId(session, byId)
     rootIdBySessionId.set(session.id, rootId)
     if (rootId === session.id) continue
@@ -55,7 +74,7 @@ export function buildAgentSessionTrees(sessions: readonly AgentSessionMeta[]): A
     childrenByRootId.set(rootId, children)
   }
 
-  return sessions
+  return visibleSessions
     .filter((session) => rootIdBySessionId.get(session.id) === session.id)
     .map((session) => ({
       session,

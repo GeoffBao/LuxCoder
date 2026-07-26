@@ -224,6 +224,20 @@ describe('LuxCoderConductorSessionHost', () => {
     expect(events).toEqual([{ reason: 'error', finalText: '最终结果' }])
   })
 
+  test('生成草稿消息透传 toolPolicy=none，确保上层可禁用所有工具', async () => {
+    const testDeps = createDependencies()
+    const { deps, sentInputs } = testDeps
+    const host = new LuxCoderConductorSessionHost(deps)
+
+    await host.sendMessage('session-1', '生成 task.yaml', { toolPolicy: 'none' })
+
+    expect(sentInputs[0]).toEqual(expect.objectContaining({
+      sessionId: 'session-1',
+      userMessage: '生成 task.yaml',
+      toolPolicy: 'none',
+    }))
+  })
+
   test('优先走 runAgent（headless+WC），确保 Code 对话能收到流式事件', async () => {
     const testDeps = createDependencies()
     const runAgentInputs: AgentSendInput[] = []

@@ -229,13 +229,6 @@ export function TaskEditor({
     setDraft((current) => ({ ...current, ...patch }))
   }
 
-  const applySpec = React.useCallback(async (slug: string): Promise<void> => {
-    const validation = await window.electronAPI.tasks.get(workspaceRoot, slug)
-    if (!validation?.valid || !validation.spec) throw new Error('任务定义不存在或未通过校验')
-    const nextDraft = taskSpecToEditorDraft(validation.spec, target, defaultModel)
-    setDraft(target.mode === 'create' ? { ...nextDraft, fixedId: slug } : nextDraft)
-    setMode('manual')
-  }, [defaultModel, target, workspaceRoot])
 
   React.useEffect(() => {
     // 没有 taskSlug（普通会话，尚未升级成任务）：没有既有 spec 可读，初始草稿已经
@@ -274,10 +267,20 @@ export function TaskEditor({
       return
     }
     generatedDraftRef.current = event.orchestratorSessionId
-    void applySpec(action.slug).catch((cause: unknown) => {
-      toast.error('读取生成结果失败', { description: cause instanceof Error ? cause.message : String(cause) })
-    })
-  }, [applySpec, finishGeneration, workspaceId])
+    const nextDraft = taskSpecToEditorDraft(action.spec, target, defaultModel)
+    setDraft((current) => ({
+      ...(target.mode === 'create' ? { ...nextDraft, fixedId: action.slug } : nextDraft),
+      // Generator prompt 只负责拆 DAG；项目、工作目录、默认模型/权限来自用户在表单里的显式选择。
+      projectId: nextDraft.projectId || current.projectId,
+      boundProjectId: nextDraft.boundProjectId ?? current.boundProjectId,
+      cwd: nextDraft.cwd ?? current.cwd,
+      orchModel: action.spec.defaults?.model ?? current.orchModel,
+      orchConnection: action.spec.defaults?.llmConnection ?? current.orchConnection,
+      permissionMode: action.spec.defaults?.permissionMode ?? current.permissionMode,
+      expertId: action.spec.defaults?.expertId ?? current.expertId,
+    }))
+    setMode('manual')
+  }, [defaultModel, finishGeneration, target, workspaceId])
 
   React.useEffect(() => window.electronAPI.tasks.onGenerated((event) => {
     if (event.workspaceId !== workspaceId) return

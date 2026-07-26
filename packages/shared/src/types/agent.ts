@@ -7,6 +7,7 @@ import type { ProviderType } from './channel'
  */
 
 import type { LoadedProject } from '../projects/types'
+import type { TaskSpec } from '../tasks/schema'
 
 // ===== Agent 工作区 =====
 
@@ -663,6 +664,10 @@ export interface TaskGeneratedEventPayload {
   orchestratorSessionId: string
   status: 'saved' | 'invalid' | 'error'
   slug?: string
+  /** Generate 阶段只把草稿 spec 通过事件返回；正式写盘必须等 tasks:create。 */
+  spec?: TaskSpec
+  /** 原始 YAML/JSON 文本，供后续调试或修复 UI 使用。 */
+  yaml?: string
   errors?: TaskContractIssue[]
 }
 
@@ -1130,6 +1135,8 @@ export interface AgentSendInput {
   automationContext?: string
   /** Task Conductor 上下文（注入到系统提示词，用户不可见） */
   workContext?: string
+  /** 无副作用生成场景使用：不暴露 MCP/产品工具，并拒绝所有工具调用。 */
+  toolPolicy?: 'none'
 }
 
 // ===== Agent 队列消息 =====

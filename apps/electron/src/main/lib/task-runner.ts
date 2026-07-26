@@ -73,6 +73,8 @@ export interface CreateSessionOptions {
 export interface ConductorSendMessageOptions {
   mentionedSkills?: string[]
   mentionedMcpServers?: string[]
+  /** 仅用于生成 task.yaml 草稿：禁止 Agent 调用任何工具，避免生成阶段产生副作用。 */
+  toolPolicy?: 'none'
 }
 
 export interface ConductorSessionHost {

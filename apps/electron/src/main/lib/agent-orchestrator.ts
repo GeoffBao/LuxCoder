@@ -847,7 +847,8 @@ export class AgentOrchestrator {
    * 通过 EventBus 分发 AgentEvent，通过 callbacks 发送控制信号。
    */
   async sendMessage(input: AgentSendInput, callbacks: SessionCallbacks): Promise<void> {
-    const { sessionId, userMessage, channelId, modelId, agentRuntime: inputAgentRuntime, workspaceId, additionalDirectories, customMcpServers, permissionModeOverride, mentionedSkills, mentionedMcpServers, mentionedSessionIds, automationContext, workContext, retryOfErrorUuid } = input
+    const { sessionId, userMessage, channelId, modelId, agentRuntime: inputAgentRuntime, workspaceId, additionalDirectories, customMcpServers, permissionModeOverride, mentionedSkills, mentionedMcpServers, mentionedSessionIds, automationContext, workContext, retryOfErrorUuid, toolPolicy } = input
+    const toolsDisabled = toolPolicy === 'none'
     const stderrChunks: string[] = []
     const streamStartedAt = input.startedAt ?? Date.now()
     let userMessagePersisted = false
@@ -1264,53 +1265,56 @@ export class AgentOrchestrator {
       }
 
       // 10. 构建 MCP 服务器配置 + 记忆工具 + 生图工具 + 自定义工具
-      const mcpServers = this.buildMcpServers(workspaceSlug)
-      if (isBuiltinMcpUserEnabled('chrome-devtools')) {
+      // toolPolicy=none 用于 task.yaml 生成草稿：只允许模型产出文本，不暴露任何会产生副作用的工具。
+      const mcpServers = toolsDisabled ? {} : this.buildMcpServers(workspaceSlug)
+      if (!toolsDisabled && isBuiltinMcpUserEnabled('chrome-devtools')) {
         injectChromeDevtoolsMcpServer(mcpServers)
       }
       let piBuiltinTools: unknown[] = []
       let piMcpTools: unknown[] = []
-      const builtinMcpResult = agentRuntime === 'claude' && sdk
-        ? await injectBuiltinMcpServers({
-          sdk,
-          mcpServers,
-          sessionId,
-          channelId,
-          modelId,
-          agentRuntime,
-          workspaceId,
-          workspaceSlug,
-          agentCwd,
-          permissionMode: permissionModeOverride ?? sessionMeta?.permissionMode ?? LUXCODER_DEFAULT_PERMISSION_MODE,
-          triggeredBy: input.triggeredBy,
-          sessionMeta,
-        })
-        : await (async () => {
-          const piSdk = await import('@earendil-works/pi-coding-agent')
-          const result = await buildPiBuiltinTools(piSdk, {
+      const builtinMcpResult = toolsDisabled
+        ? { collaborationAvailable: false }
+        : agentRuntime === 'claude' && sdk
+          ? await injectBuiltinMcpServers({
+            sdk,
+            mcpServers,
             sessionId,
             channelId,
             modelId,
             agentRuntime,
             workspaceId,
             workspaceSlug,
+            agentCwd,
             permissionMode: permissionModeOverride ?? sessionMeta?.permissionMode ?? LUXCODER_DEFAULT_PERMISSION_MODE,
             triggeredBy: input.triggeredBy,
+            sessionMeta,
           })
-          piBuiltinTools = result.tools
-          return { collaborationAvailable: result.collaborationAvailable }
-        })()
+          : await (async () => {
+            const piSdk = await import('@earendil-works/pi-coding-agent')
+            const result = await buildPiBuiltinTools(piSdk, {
+              sessionId,
+              channelId,
+              modelId,
+              agentRuntime,
+              workspaceId,
+              workspaceSlug,
+              permissionMode: permissionModeOverride ?? sessionMeta?.permissionMode ?? LUXCODER_DEFAULT_PERMISSION_MODE,
+              triggeredBy: input.triggeredBy,
+            })
+            piBuiltinTools = result.tools
+            return { collaborationAvailable: result.collaborationAvailable }
+          })()
       const collaborationAvailable = builtinMcpResult.collaborationAvailable
 
       // 合并外部注入的自定义 MCP 服务器（如飞书群聊工具）
-      if (customMcpServers) {
+      if (!toolsDisabled && customMcpServers) {
         Object.assign(mcpServers, customMcpServers)
         console.log(`[Agent 编排] 已合并 ${Object.keys(customMcpServers).length} 个自定义 MCP 服务器`)
       }
 
       // Pi SDK 没有 Claude Agent SDK 的 mcpServers 参数；Claude 路径保持原生 MCP 不变，
       // Pi 路径由 Proma 主进程连接用户 MCP server，并转换为 Pi customTools。
-      if (agentRuntime === 'pi' && Object.keys(mcpServers).length > 0) {
+      if (!toolsDisabled && agentRuntime === 'pi' && Object.keys(mcpServers).length > 0) {
         try {
           piMcpTools = await buildPiMcpTools(mcpServers)
         } catch (error) {
@@ -1474,6 +1478,13 @@ export class AgentOrchestrator {
       // 动态 canUseTool：每次调用读取当前权限模式，支持运行中切换
       const canUseTool = async (toolName: string, input: Record<string, unknown>, options: CanUseToolOptions): Promise<PermissionResult> => {
         const currentMode = getPermissionMode()
+
+        if (toolsDisabled) {
+          return {
+            behavior: 'deny' as const,
+            message: '当前会话仅用于生成可编辑的任务计划草稿，禁止调用工具；请直接输出 task.yaml 内容。',
+          }
+        }
 
         // ── 参数校验守卫（所有模式、所有工具，优先于权限检查） ──
         const validationFailure = validateToolInput(toolName, input)
@@ -1676,6 +1687,7 @@ ${workContext}` : '')
         ...(maxTurns != null && { maxTurns }),
         permissionMode: initialPermissionMode,
         canUseTool,
+        ...(toolsDisabled ? { toolPolicy: 'none' as const } : {}),
         systemPrompt: systemPromptAppend + buildPiAdditionalDirectoriesPrompt(allAdditionalDirectories),
         resumeSessionId: existingSdkSessionId,
         piAgentDir: getSdkConfigDir(),
@@ -1730,6 +1742,7 @@ ${workContext}` : '')
         // 从实际 tool_use 流里同步，避免 UI 停留在计划阶段。
         allowDangerouslySkipPermissions: !canUseTool,
         canUseTool,
+        ...(toolsDisabled ? { allowedTools: [] } : {}),
         // claude_code preset 提供基础环境信息（platform/shell/OS/git/model/知识截止日期等）
         // buildSystemPrompt 追加 LuxCoder 特有指令（角色定义、子 Agent 委派策略、工作区信息等）
         systemPrompt: {

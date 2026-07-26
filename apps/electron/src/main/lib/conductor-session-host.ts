@@ -151,6 +151,7 @@ export class LuxCoderConductorSessionHost implements ConductorSessionHost {
         ...(options?.mentionedMcpServers?.length
           ? { mentionedMcpServers: options.mentionedMcpServers }
           : {}),
+        ...(options?.toolPolicy ? { toolPolicy: options.toolPolicy } : {}),
       }
       const sessionCallbacks: ConductorSessionCallbacks = {
         onError: () => {

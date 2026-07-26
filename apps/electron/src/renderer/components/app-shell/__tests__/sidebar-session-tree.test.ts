@@ -62,6 +62,17 @@ describe('buildAgentSessionTrees', () => {
     expect(trees).toHaveLength(1)
     expect(trees[0]?.childSessions.map((child) => child.id)).toEqual(['child', 'grandchild'])
   })
+
+  test('隐藏 taskDraft 草稿会话及其意外产生的后代，避免生成阶段污染侧边栏', () => {
+    const trees = buildAgentSessionTrees([
+      session('draft', { taskDraft: true }),
+      session('child', { parentSessionId: 'draft', sourceDelegationId: 'd1' }),
+      session('grandchild', { parentSessionId: 'child' }),
+      session('normal'),
+    ])
+
+    expect(trees.map((tree) => tree.session.id)).toEqual(['normal'])
+  })
 })
 
 describe('session tree aggregates', () => {

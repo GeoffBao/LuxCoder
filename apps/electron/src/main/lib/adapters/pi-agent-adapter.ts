@@ -109,6 +109,8 @@ export interface PiAgentQueryOptions extends AgentQueryInput {
   thinkingLevel?: AgentThinkingLevel
   maxBudgetUsd?: number
   outputFormat?: JsonSchemaOutputFormat
+  /** 无副作用文本生成模式：不向 Pi Agent 暴露任何自定义工具。 */
+  toolPolicy?: 'none'
   /** Proma 聚合的附加目录；Pi 内置工具 factory 不接收多 root 参数，编排层会把它们注入 systemPrompt。 */
   additionalDirectories?: string[]
   additionalSkillPaths?: string[]
@@ -1318,21 +1320,23 @@ export class PiAgentAdapter implements AgentProviderAdapter {
         compactionNoopReported = true
       }
       let pendingTerminalResult: SDKMessage | undefined
-      const customTools = [
-        buildCurrentSessionCompactionTool(
-          sdk,
-          () => { compactContextRequested = true },
-          input.canUseTool,
-        ),
-        ...buildBuiltinToolDefinitions(
-          sdk,
-          cwd,
-          input.canUseTool,
-          input.runtimeEnv,
-        ),
-        ...buildPromaProductToolDefinitions(sdk, input.canUseTool),
-        ...wrapCustomToolDefinitions(input.customTools, input.canUseTool),
-      ]
+      const customTools = input.toolPolicy === 'none'
+        ? []
+        : [
+            buildCurrentSessionCompactionTool(
+              sdk,
+              () => { compactContextRequested = true },
+              input.canUseTool,
+            ),
+            ...buildBuiltinToolDefinitions(
+              sdk,
+              cwd,
+              input.canUseTool,
+              input.runtimeEnv,
+            ),
+            ...buildPromaProductToolDefinitions(sdk, input.canUseTool),
+            ...wrapCustomToolDefinitions(input.customTools, input.canUseTool),
+          ]
 
       const settingsManager = sdk.SettingsManager.inMemory({
         // 使用 Pi SDK 原生压缩策略：

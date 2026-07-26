@@ -270,6 +270,27 @@ export function buildAdoptedTaskSessionPatch(
   }
 }
 
+/**
+ * 只有 tasks:generate 创建的隐藏草稿会话允许被「创建」转正。
+ * 防止 stale orchestratorSessionId 把普通会话或其他任务静默改造成看板任务。
+ */
+export function assertAdoptableTaskDraftSession(
+  sessionId: string,
+  spec: AdoptableTaskSpec,
+  getSession: (id: string) => AgentSessionMeta | undefined = getAgentSessionMeta,
+): AgentSessionMeta {
+  const meta = getSession(sessionId)
+  if (!meta) throw new Error(`Agent 会话不存在: ${sessionId}`)
+  if (meta.taskSlug) {
+    if (meta.taskSlug === spec.id) return meta
+    throw new Error(`生成草稿已绑定到其他任务: ${meta.taskSlug}`)
+  }
+  if (!meta.taskDraft) {
+    throw new Error('生成草稿会话已失效，请重新生成任务计划')
+  }
+  return meta
+}
+
 type AgentSessionMetaUpdater = (
   sessionId: string,
   updates: Pick<AgentSessionMeta, 'kanbanColumn' | 'sessionStatus'>,
@@ -379,7 +400,7 @@ async function sendGenerationPrompt(
       reject(new Error('Agent 生成 task.yaml 超时'))
     }, GENERATE_TIMEOUT_MS)
 
-    void host.sendMessage(sessionId, prompt).catch((error: unknown) => {
+    void host.sendMessage(sessionId, prompt, { toolPolicy: 'none' }).catch((error: unknown) => {
       if (settled) return
       settled = true
       if (timeout) clearTimeout(timeout)
@@ -494,21 +515,24 @@ export function registerTaskHandlers(window: BrowserWindow): void {
       throw new Error(`task.yaml 验证失败: ${parsed.errors?.map((error) => error.message).join(', ')}`)
     }
 
-    const sessionId = request.attachToExistingSessionId ?? request.orchestratorSessionId
-    if (sessionId) {
+    if (request.attachToExistingSessionId) {
+      const sessionId = request.attachToExistingSessionId
       saveTaskSpec(workspaceRoot, parsed.spec)
       const seed = buildTaskSessionSeed(parsed.spec, workspaceRoot)
       if (!getAgentSessionMeta(sessionId)) throw new Error(`Agent 会话不存在: ${sessionId}`)
-      await updateAgentSessionMeta(
-        sessionId,
-        request.orchestratorSessionId
-          ? buildAdoptedTaskSessionPatch(parsed.spec, workspaceRoot)
-          : {
-              taskSlug: parsed.spec.id,
-              ...(parsed.spec.project ? { projectId: parsed.spec.project } : {}),
-              ...seed,
-            },
-      )
+      await updateAgentSessionMeta(sessionId, {
+        taskSlug: parsed.spec.id,
+        ...(parsed.spec.project ? { projectId: parsed.spec.project } : {}),
+        ...seed,
+      })
+      return { slug: parsed.spec.id, orchestratorSessionId: sessionId, valid: true }
+    }
+
+    if (request.orchestratorSessionId) {
+      const sessionId = request.orchestratorSessionId
+      assertAdoptableTaskDraftSession(sessionId, parsed.spec)
+      saveTaskSpec(workspaceRoot, parsed.spec)
+      await updateAgentSessionMeta(sessionId, buildAdoptedTaskSessionPatch(parsed.spec, workspaceRoot))
       return { slug: parsed.spec.id, orchestratorSessionId: sessionId, valid: true }
     }
 
@@ -681,7 +705,7 @@ export function registerTaskHandlers(window: BrowserWindow): void {
 }
 
 async function generateTaskForSession(
-  workspaceRoot: string,
+  _workspaceRoot: string,
   workspaceId: string,
   request: { goal: string; title?: string; projectId?: string; model?: string; llmConnection?: string; permissionMode?: string },
   sessionId: string,
@@ -695,9 +719,7 @@ async function generateTaskForSession(
       if (isAgentServiceErrorText(yaml)) throw new Error(yaml)
       const parsed = parseTaskYaml(yaml)
       if (parsed.valid && parsed.spec) {
-        // 与 craft OSS 一致：generate 不落盘，tasks:create 才是唯一写入点。
-        // 这里仍写入以便 TaskEditor applySpec(tasks.get) 能读到草稿；create 时会覆盖确认版。
-        saveTaskSpec(workspaceRoot, parsed.spec)
+        // Generate 只返回可编辑草稿，不落盘 task.yaml；正式写入必须等用户点击「创建」。
         await host.setSessionStatus(sessionId, 'done')
         sendToMainWindow(TASK_IPC_CHANNELS.GENERATED, {
           kind: 'tasks:generated',
@@ -705,6 +727,8 @@ async function generateTaskForSession(
           orchestratorSessionId: sessionId,
           status: 'saved',
           slug: parsed.spec.id,
+          spec: parsed.spec,
+          yaml,
         } satisfies TaskGeneratedEventPayload)
         return
       }

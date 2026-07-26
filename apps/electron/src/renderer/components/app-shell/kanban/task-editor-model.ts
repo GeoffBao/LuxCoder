@@ -18,7 +18,7 @@ export interface TaskEditorSubmission {
 
 export type GeneratedTaskEventAction =
   | { kind: 'ignore' }
-  | { kind: 'load'; slug: string }
+  | { kind: 'apply'; slug: string; spec: TaskSpec }
   | { kind: 'error'; message: string }
 
 /**
@@ -123,7 +123,10 @@ export function resolveGeneratedTaskEvent(
   if (event.workspaceId !== workspaceId || event.orchestratorSessionId !== pendingSessionId) {
     return { kind: 'ignore' }
   }
-  if (event.status === 'saved' && event.slug) return { kind: 'load', slug: event.slug }
+  if (event.status === 'saved') {
+    if (event.slug && event.spec) return { kind: 'apply', slug: event.slug, spec: event.spec }
+    return { kind: 'error', message: '生成结果缺少任务定义，请重试' }
+  }
   const issue = event.errors?.[0]
   const message = issue
     ? `${issue.path ? `${issue.path}: ` : ''}${issue.message}`

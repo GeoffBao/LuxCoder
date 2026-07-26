@@ -57,6 +57,7 @@ const {
   pauseTaskRun,
   stopTaskRun,
   materializeTaskFromSpec,
+  assertAdoptableTaskDraftSession,
 }: typeof import('./task-handlers') = await import('./task-handlers')
 const taskHandlers = await import('./task-handlers')
 type TaskRunnerController = import('./task-handlers').TaskRunnerController
@@ -302,6 +303,23 @@ describe('task handler Kanban payloads', () => {
       taskDraft: undefined,
       sessionStatus: 'todo',
     })
+  })
+
+  test('只允许 taskDraft 草稿会话被生成路径转正，防止 stale id 污染普通会话', () => {
+    const draft = { id: 'draft-session', title: '草稿', createdAt: 1, updatedAt: 1, taskDraft: true }
+    expect(assertAdoptableTaskDraftSession('draft-session', { id: 'release-task' }, () => draft)).toBe(draft)
+
+    expect(() => assertAdoptableTaskDraftSession(
+      'plain-session',
+      { id: 'release-task' },
+      () => ({ id: 'plain-session', title: '普通会话', createdAt: 1, updatedAt: 1 }),
+    )).toThrow('生成草稿会话已失效')
+
+    expect(() => assertAdoptableTaskDraftSession(
+      'other-task',
+      { id: 'release-task' },
+      () => ({ id: 'other-task', title: '其他任务', createdAt: 1, updatedAt: 1, taskSlug: 'other-task' }),
+    )).toThrow('生成草稿已绑定到其他任务')
   })
 })
 

@@ -120,18 +120,42 @@ describe('TaskEditor draft and submission', () => {
 })
 
 describe('resolveGeneratedTaskEvent', () => {
+  const generatedSpec = {
+    id: 'generated-task',
+    title: 'Generated Task',
+    goal: '生成任务',
+    runner: 'conduct' as const,
+    nodes: [{ id: 'main', kind: 'session' as const, prompt: '执行任务' }],
+  }
+
   const saved: TaskGeneratedEventPayload = {
     kind: 'tasks:generated',
     workspaceId: 'workspace-a',
     orchestratorSessionId: 'draft-session',
     status: 'saved',
     slug: 'generated-task',
+    spec: generatedSpec,
   }
 
   test('只接收当前 workspace 和生成会话的结果', () => {
     expect(resolveGeneratedTaskEvent(saved, 'workspace-b', 'draft-session')).toEqual({ kind: 'ignore' })
     expect(resolveGeneratedTaskEvent(saved, 'workspace-a', 'other-session')).toEqual({ kind: 'ignore' })
-    expect(resolveGeneratedTaskEvent(saved, 'workspace-a', 'draft-session')).toEqual({ kind: 'load', slug: 'generated-task' })
+    expect(resolveGeneratedTaskEvent(saved, 'workspace-a', 'draft-session')).toEqual({ kind: 'apply', slug: 'generated-task', spec: generatedSpec })
+  })
+
+  test('saved 事件缺少 spec 时返回可展示错误，避免回读未确认 task.yaml', () => {
+    const missingSpec: TaskGeneratedEventPayload = {
+      kind: 'tasks:generated',
+      workspaceId: 'workspace-a',
+      orchestratorSessionId: 'draft-session',
+      status: 'saved',
+      slug: 'generated-task',
+    }
+
+    expect(resolveGeneratedTaskEvent(missingSpec, 'workspace-a', 'draft-session')).toEqual({
+      kind: 'error',
+      message: '生成结果缺少任务定义，请重试',
+    })
   })
 
   test('无效生成结果返回可展示错误', () => {

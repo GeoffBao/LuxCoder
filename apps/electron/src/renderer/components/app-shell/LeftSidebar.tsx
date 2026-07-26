@@ -88,6 +88,7 @@ import {
   getSessionTreeCustomGroupId,
   getSessionTreeProgress,
   getSessionTreeStatus,
+  hasTaskDraftAncestor,
   sortSessionTrees,
   treeContainsSessionId,
   type AgentSessionTreeItem,
@@ -2138,6 +2139,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               : true)
           && !session.pinned
           && !draftSessionIds.has(session.id)
+          && !hasTaskDraftAncestor(session, sessionsById)
           // 自动任务会话不进入工作区列表，统一归到「自动任务」视图
           && !isHiddenAutomationSession(session)
           // 已被置顶母会话收纳的子会话留在置顶区的母会话下面，避免重复显示为工作区根会话
@@ -2186,6 +2188,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     const sessionsById = new Map(agentSessions.map((session) => [session.id, session]))
     const visible = agentSessions.filter((session) => {
       if (draftSessionIds.has(session.id)) return false
+      if (hasTaskDraftAncestor(session, sessionsById)) return false
       if (session.pinned || hasPinnedVisibleParent(session, sessionsById)) return false
       if (isHiddenAutomationSession(session)) return false
       if (currentWorkspaceId && session.workspaceId && session.workspaceId !== currentWorkspaceId) return false
@@ -2299,7 +2302,12 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       return
     }
 
-    const recent = sessions.find((s) => !s.archived && !draftSessionIds.has(s.id))
+    const agentSessionsById = isChatMode ? null : new Map(agentSessions.map((session) => [session.id, session]))
+    const recent = sessions.find((s) => (
+      !s.archived
+      && !draftSessionIds.has(s.id)
+      && (isChatMode || !hasTaskDraftAncestor(s as AgentSessionMeta, agentSessionsById!))
+    ))
     if (recent) {
       openSession(targetMode as 'chat' | 'agent', recent.id, recent.title)
       return
@@ -2348,10 +2356,12 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         }))
     }
 
+    const sessionsById = new Map(agentSessions.map((session) => [session.id, session]))
     return agentSessions
       .filter((session) =>
         !session.archived
         && !draftSessionIds.has(session.id)
+        && !hasTaskDraftAncestor(session, sessionsById)
         && (!currentWorkspaceId || session.workspaceId === currentWorkspaceId)
         // 自动任务会话不出现在收起态 Rail，与展开态列表保持一致
         && !isHiddenAutomationSession(session)

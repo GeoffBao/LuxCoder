@@ -844,6 +844,29 @@ export function resolveAppIconPath(variantId: string): string | null {
   return join(resourcesDir, 'logos', `${variantId}.png`)
 }
 
+function collectSessionDescendantIds(sessions: AgentSessionMeta[], rootId: string): string[] {
+  const childrenByParent = new Map<string, AgentSessionMeta[]>()
+  for (const session of sessions) {
+    if (!session.parentSessionId) continue
+    const children = childrenByParent.get(session.parentSessionId) ?? []
+    children.push(session)
+    childrenByParent.set(session.parentSessionId, children)
+  }
+
+  const result: string[] = []
+  const queue = [...(childrenByParent.get(rootId) ?? [])]
+  const seen = new Set<string>([rootId])
+  while (queue.length > 0) {
+    const child = queue.shift()!
+    if (seen.has(child.id)) continue
+    seen.add(child.id)
+    result.push(child.id)
+    queue.push(...(childrenByParent.get(child.id) ?? []))
+  }
+
+  return result.reverse()
+}
+
 export function registerIpcHandlers(): void {
   console.log('[IPC] 正在注册 IPC 处理器...')
 
@@ -1898,14 +1921,23 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(
     AGENT_IPC_CHANNELS.DELETE_SESSION,
     async (_, id: string): Promise<void> => {
-      // 清理权限服务中该会话的白名单
-      permissionService.clearSessionWhitelist(id)
-      permissionService.clearSessionPending(id)
-      // 清理 AskUser 服务中的待处理请求
-      askUserService.clearSessionPending(id)
-      // 清理 ExitPlanMode 服务中的待处理请求
-      exitPlanService.clearSessionPending(id)
-      return deleteAgentSession(id)
+      const sessions = listAgentSessions()
+      const target = sessions.find((session) => session.id === id)
+      const idsToDelete = target?.taskDraft
+        ? collectSessionDescendantIds(sessions, id).concat(id)
+        : [id]
+
+      for (const sessionId of idsToDelete) {
+        if (isAgentSessionActive(sessionId)) stopAgent(sessionId)
+        // 清理权限服务中该会话的白名单
+        permissionService.clearSessionWhitelist(sessionId)
+        permissionService.clearSessionPending(sessionId)
+        // 清理 AskUser 服务中的待处理请求
+        askUserService.clearSessionPending(sessionId)
+        // 清理 ExitPlanMode 服务中的待处理请求
+        exitPlanService.clearSessionPending(sessionId)
+        deleteAgentSession(sessionId)
+      }
     }
   )
 
