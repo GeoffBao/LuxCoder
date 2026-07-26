@@ -158,6 +158,64 @@ describe('Agent 会话 JSONL 读取', () => {
 })
 
 describe('Agent 会话 runtime 元数据', () => {
+  test('Given 新安装用户将默认思考设为 off When 连续新建并读取会话 Then 不被旧版迁移改回 high', () => {
+    const settingsPath = join(tempHome, '.luxcoder', 'settings.json')
+    const indexPath = join(tempHome, '.luxcoder', 'agent-sessions.json')
+    const indexBackupPath = `${indexPath}.bak`
+    mkdirSync(join(tempHome, '.luxcoder'), { recursive: true })
+    rmSync(indexPath, { force: true })
+    rmSync(indexBackupPath, { force: true })
+    writeFileSync(settingsPath, JSON.stringify({ defaultThinkingLevel: 'off' }), 'utf-8')
+
+    try {
+      const firstSession = manager.createAgentSession('关闭思考会话一')
+      const secondSession = manager.createAgentSession('关闭思考会话二')
+
+      expect(firstSession.thinkingLevel).toBe('off')
+      expect(secondSession.thinkingLevel).toBe('off')
+      expect(manager.getAgentSessionMeta(firstSession.id)).toMatchObject({
+        thinkingLevel: 'off',
+        openAIThinkingLevel: 'off',
+      })
+      expect(manager.getAgentSessionMeta(secondSession.id)).toMatchObject({
+        thinkingLevel: 'off',
+        openAIThinkingLevel: 'off',
+      })
+    } finally {
+      rmSync(settingsPath, { force: true })
+      rmSync(indexPath, { force: true })
+      rmSync(indexBackupPath, { force: true })
+    }
+  })
+
+  test('Given 历史索引没有迁移标记 When 读取旧版 off 会话 Then 仍执行一次 high 默认升级', () => {
+    const indexPath = join(tempHome, '.luxcoder', 'agent-sessions.json')
+    const indexBackupPath = `${indexPath}.bak`
+    mkdirSync(join(tempHome, '.luxcoder'), { recursive: true })
+    writeFileSync(indexPath, JSON.stringify({
+      version: 1,
+      sessions: [{
+        id: 'legacy-off-session',
+        title: '旧版关闭思考会话',
+        agentRuntime: 'pi',
+        thinkingLevel: 'off',
+        openAIThinkingLevel: 'off',
+        createdAt: 1,
+        updatedAt: 1,
+      }],
+    }), 'utf-8')
+
+    try {
+      expect(manager.getAgentSessionMeta('legacy-off-session')).toMatchObject({
+        thinkingLevel: 'high',
+        openAIThinkingLevel: 'high',
+      })
+    } finally {
+      rmSync(indexPath, { force: true })
+      rmSync(indexBackupPath, { force: true })
+    }
+  })
+
   test('Given 新建会话 When 指定或省略 runtime Then 持久化指定值并默认 Pi', () => {
     const defaultRuntimeSession = manager.createAgentSession('默认内核会话')
     const claudeRuntimeSession = manager.createAgentSession('Claude 内核会话', undefined, undefined, undefined, 'claude')

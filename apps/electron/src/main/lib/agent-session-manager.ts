@@ -229,7 +229,12 @@ function readIndex(): AgentSessionsIndex {
     }
     return data
   }
-  return { version: INDEX_VERSION, sessions: [] }
+  return {
+    version: INDEX_VERSION,
+    sessions: [],
+    // 新索引不包含需要升级的历史会话，避免将用户主动选择的 off 误判为旧版默认值。
+    openAIThinkingDefaultEnabledMigrationCompleted: true,
+  }
 }
 
 /**
