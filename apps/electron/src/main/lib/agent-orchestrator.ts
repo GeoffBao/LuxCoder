@@ -68,7 +68,7 @@ import { isVisibleRunMessage } from './agent-run-message-visibility'
 import { applyAgentSdkAuthEnv } from './agent-sdk-auth-env'
 import { getAgentSdkMaxOutputTokens } from './agent-sdk-output-limits'
 import { resolvePiThinkingLevel } from './agent-thinking-level'
-import { buildRegenerateTitlePrompt, createFallbackTitle, sanitizeGeneratedTitle, selectSpreadMessages, stripContextWrappersForTitle, TITLE_PROMPT } from './title-generation'
+import { buildRegenerateTitlePrompt, createFallbackTitle, extractAssistantMessageText, extractGenuineUserMessageText, sanitizeGeneratedTitle, selectSpreadMessages, stripContextWrappersForTitle, TITLE_PROMPT } from './title-generation'
 
 // ===== 类型定义 =====
 
@@ -604,22 +604,28 @@ export class AgentOrchestrator {
   ): Promise<void> {
     try {
       const messages = getAgentSessionMessages(sessionId)
-      const userMessages = messages.filter((m) => m.role === 'user')
-      if (!TITLE_REGENERATION_USER_MESSAGE_COUNTS.has(userMessages.length)) return
+      const userMessageTexts = messages
+        .map((m) => extractGenuineUserMessageText(m))
+        .filter((text): text is string => text !== null)
+      if (!TITLE_REGENERATION_USER_MESSAGE_COUNTS.has(userMessageTexts.length)) return
 
-      const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant')
-      if (!lastAssistant) return
+      let lastAssistantText: string | null = null
+      for (let i = messages.length - 1; i >= 0; i--) {
+        lastAssistantText = extractAssistantMessageText(messages[i])
+        if (lastAssistantText) break
+      }
+      if (!lastAssistantText) return
 
-      const spread = selectSpreadMessages(userMessages.map((m) => stripContextWrappersForTitle(m.content)))
+      const spread = selectSpreadMessages(userMessageTexts.map((text) => stripContextWrappersForTitle(text)))
       if (spread.length === 0) return
 
-      const prompt = buildRegenerateTitlePrompt(spread, lastAssistant.content)
+      const prompt = buildRegenerateTitlePrompt(spread, lastAssistantText)
       const title = await this.callTitleModel(channelId, modelId, prompt)
       if (!title) return
 
       updateAgentSessionMeta(sessionId, { title })
       callbacks.onTitleUpdated(title)
-      console.log(`[Agent 编排] 中段标题重新生成完成: "${title}"（用户消息数=${userMessages.length}）`)
+      console.log(`[Agent 编排] 中段标题重新生成完成: "${title}"（用户消息数=${userMessageTexts.length}）`)
     } catch (error) {
       console.warn('[Agent 编排] 中段标题重新生成失败:', error)
     }

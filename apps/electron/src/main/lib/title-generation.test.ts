@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { buildRegenerateTitlePrompt, createFallbackTitle, isLowSignalMessage, sanitizeGeneratedTitle, selectSpreadMessages, stripContextWrappersForTitle } from './title-generation'
+import { buildRegenerateTitlePrompt, createFallbackTitle, extractAssistantMessageText, extractGenuineUserMessageText, isLowSignalMessage, sanitizeGeneratedTitle, selectSpreadMessages, stripContextWrappersForTitle } from './title-generation'
 
 describe('标题生成辅助逻辑', () => {
   test('Given ChatGPT OAuth 无标题适配器 When 本地兜底 Then 使用首个有效行并限制长度', () => {
@@ -119,6 +119,47 @@ describe('selectSpreadMessages', () => {
 
   test('Given 空数组 When 挑选 Then 返回空数组', () => {
     expect(selectSpreadMessages([])).toEqual([])
+  })
+})
+
+describe('extractGenuineUserMessageText', () => {
+  test('Given Phase 4 原始 SDKMessage 格式的用户消息 When 提取 Then 返回手打文本', () => {
+    const message = { type: 'user', message: { content: [{ type: 'text', text: '我发现一个问题' }] } }
+
+    expect(extractGenuineUserMessageText(message)).toBe('我发现一个问题')
+  })
+
+  test('Given Phase 4 格式的 tool_result 消息（type 同样是 user） When 提取 Then 返回 null（复现 bug：不应计入用户消息数）', () => {
+    const message = {
+      type: 'user',
+      message: { content: [{ type: 'tool_result', tool_use_id: 'x', content: [{ type: 'text', text: '工具输出' }] }] },
+    }
+
+    expect(extractGenuineUserMessageText(message)).toBeNull()
+  })
+
+  test('Given 旧格式 { role, content: string } When 提取 Then 直接返回 content', () => {
+    expect(extractGenuineUserMessageText({ role: 'user', content: '旧格式消息' })).toBe('旧格式消息')
+  })
+
+  test('Given assistant 消息 When 提取 Then 返回 null', () => {
+    expect(extractGenuineUserMessageText({ type: 'assistant', message: { content: [{ type: 'text', text: '回复' }] } })).toBeNull()
+  })
+})
+
+describe('extractAssistantMessageText', () => {
+  test('Given Phase 4 原始 SDKMessage 格式的助手消息 When 提取 Then 拼接所有 text 块', () => {
+    const message = { type: 'assistant', message: { content: [{ type: 'text', text: '已修复' }, { type: 'tool_use', name: 'Bash' }] } }
+
+    expect(extractAssistantMessageText(message)).toBe('已修复')
+  })
+
+  test('Given 旧格式 { role, content: string } When 提取 Then 直接返回 content', () => {
+    expect(extractAssistantMessageText({ role: 'assistant', content: '旧格式回复' })).toBe('旧格式回复')
+  })
+
+  test('Given 用户消息 When 提取 Then 返回 null', () => {
+    expect(extractAssistantMessageText({ type: 'user', message: { content: [{ type: 'text', text: 'hi' }] } })).toBeNull()
   })
 })
 

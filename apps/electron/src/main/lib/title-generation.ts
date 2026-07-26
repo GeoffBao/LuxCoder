@@ -141,6 +141,56 @@ export function buildRegenerateTitlePrompt(recentUserMessages: string[], lastAss
   ].join('\n')
 }
 
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : undefined
+}
+
+function extractTextBlocks(content: unknown): string | null {
+  if (!Array.isArray(content)) return null
+  const text = content
+    .map((block) => {
+      const record = asRecord(block)
+      return record?.type === 'text' && typeof record.text === 'string' ? record.text : ''
+    })
+    .filter(Boolean)
+    .join('\n')
+  return text || null
+}
+
+// 会话消息持久化存在新旧两种格式并存（见 agent-session-manager.ts persistSDKMessages 注释）：
+// 旧格式是扁平的 { role, content: string }；Phase 4 起改为直接存储原始 SDKMessage
+// { type, message: { content: [...] } }。maybeRegenerateTitle 此前按旧格式的 `.role` 取值，
+// 但 Phase 4 消息只有 `.type`、没有顶层 `.role`，导致 userMessages 恒为空数组、count 恒为 0，
+// TITLE_REGENERATION_USER_MESSAGE_COUNTS 永远命中不了——"中段重新生成标题"功能实际从未生效过。
+
+/**
+ * 从持久化消息中提取"真正由用户手打"的文本，兼容新旧存储格式。
+ *
+ * Anthropic Messages API 用 user role 承载 tool_result（工具调用结果），Phase 4 格式下
+ * 这类消息同样是 `type: 'user'`，必须靠 content 块里是否含 tool_result 类型来排除，
+ * 否则会把工具结果误判成用户消息，用户消息计数远超真实值。
+ */
+export function extractGenuineUserMessageText(message: unknown): string | null {
+  const raw = asRecord(message)
+  if (!raw) return null
+  if (raw.role === 'user' && typeof raw.content === 'string') return raw.content
+  if (raw.type !== 'user') return null
+
+  const blocks = asRecord(raw.message)?.content
+  if (Array.isArray(blocks) && blocks.some((block) => asRecord(block)?.type === 'tool_result')) return null
+  return extractTextBlocks(blocks)
+}
+
+/** 从持久化消息中提取 assistant 回复文本，兼容新旧存储格式。 */
+export function extractAssistantMessageText(message: unknown): string | null {
+  const raw = asRecord(message)
+  if (!raw) return null
+  if (raw.role === 'assistant' && typeof raw.content === 'string') return raw.content
+  if (raw.type !== 'assistant') return null
+
+  return extractTextBlocks(asRecord(raw.message)?.content)
+}
+
 /**
  * 无法调用标题模型时，基于首条用户消息生成一个稳定兜底标题。
  *
