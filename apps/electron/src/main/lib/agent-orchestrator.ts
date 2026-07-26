@@ -68,6 +68,7 @@ import { isVisibleRunMessage } from './agent-run-message-visibility'
 import { applyAgentSdkAuthEnv } from './agent-sdk-auth-env'
 import { getAgentSdkMaxOutputTokens } from './agent-sdk-output-limits'
 import { resolvePiThinkingLevel } from './agent-thinking-level'
+import { generateCodexTitle } from './adapters/pi-codex-title-generator'
 import { buildRegenerateTitlePrompt, createFallbackTitle, extractAssistantMessageText, extractGenuineUserMessageText, sanitizeGeneratedTitle, selectSpreadMessages, stripContextWrappersForTitle, TITLE_PROMPT } from './title-generation'
 
 // ===== 类型定义 =====
@@ -510,9 +511,25 @@ export class AgentOrchestrator {
     return mcpServers
   }
 
+  /** 通过独立 Pi Responses 链路调用 ChatGPT OAuth 标题模型。 */
+  private async callCodexTitleModel(channelId: string, modelId: string, prompt: string): Promise<string | null> {
+    const [credentials, proxyUrl] = await Promise.all([
+      resolveCodexOAuthCredentials(channelId),
+      getEffectiveProxyUrl(),
+    ])
+    const generatedTitle = await generateCodexTitle({
+      modelId,
+      prompt,
+      credentials,
+      proxyUrl,
+      onCredentialsRefreshed: (refreshed) => persistCodexOAuthCredentials(channelId, refreshed),
+    })
+    return generatedTitle ? sanitizeGeneratedTitle(generatedTitle) : null
+  }
+
   /**
-   * 调用渠道对应的标题模型，返回清理后的标题。渠道不存在 / ChatGPT OAuth 渠道（无标题模型）/
-   * API 报错均返回 null，由调用方决定是否使用本地兜底。
+   * 调用渠道对应的标题模型并返回清理结果。普通渠道走 Provider 适配器，ChatGPT OAuth
+   * 走独立 Pi Responses 链路；渠道不存在时返回 null，API 异常交由调用方按场景降级。
    */
   private async callTitleModel(channelId: string, modelId: string, prompt: string): Promise<string | null> {
     const channels = listChannels()
@@ -521,7 +538,9 @@ export class AgentOrchestrator {
       console.warn('[Agent 标题生成] 渠道不存在:', channelId)
       return null
     }
-    if (channel.provider === 'openai-codex') return null
+    if (channel.provider === 'openai-codex') {
+      return this.callCodexTitleModel(channelId, modelId, prompt)
+    }
 
     const apiKey = await resolveChannelRuntimeApiKey(channelId)
     const providerAdapter = getAdapter(channel.provider)
@@ -549,7 +568,16 @@ export class AgentOrchestrator {
       const channel = channels.find((c) => c.id === channelId)
       if (channel?.provider === 'openai-codex') {
         const fallbackTitle = createFallbackTitle(userMessage)
-        console.log('[Agent 标题生成] ChatGPT OAuth 渠道使用本地标题:', fallbackTitle)
+        try {
+          const title = await this.callTitleModel(channelId, modelId, TITLE_PROMPT + userMessage)
+          if (title) {
+            console.log(`[Agent 标题生成] ChatGPT OAuth 语义标题生成成功: "${title}"`)
+            return title
+          }
+          console.warn('[Agent 标题生成] ChatGPT OAuth 返回空标题，使用本地兜底')
+        } catch (error) {
+          console.warn('[Agent 标题生成] ChatGPT OAuth 语义标题生成失败，使用本地兜底:', error)
+        }
         return fallbackTitle
       }
 
