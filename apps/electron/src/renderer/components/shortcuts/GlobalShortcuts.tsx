@@ -183,6 +183,17 @@ export function GlobalShortcuts(): null {
     }, [appMode, createAgent, createChat]),
   )
 
+  // Cmd+Shift+N → 新建任务（仅 Agent 模式，打开项目选择器）
+  const setActiveViewForNewTask = useSetAtom(activeViewAtom)
+  useShortcut(
+    'new-task',
+    useCallback(() => {
+      if (appMode !== 'agent') return
+      setActiveViewForNewTask('conversations')
+      setNewTaskFlowOpen(true)
+    }, [appMode, setActiveViewForNewTask, setNewTaskFlowOpen]),
+  )
+
   // Cmd+B → 切换侧边栏
   useShortcut(
     'toggle-sidebar',

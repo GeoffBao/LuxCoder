@@ -35,6 +35,7 @@ import {
 } from '@/atoms/agent-atoms'
 import { activeSessionIdAtom } from '@/atoms/tab-atoms'
 import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
+import { getActiveAccelerator, getAcceleratorDisplay } from '@/lib/shortcut-registry'
 import {
   codeMainViewAtom,
   pendingTaskEditorTargetAtom,
@@ -428,7 +429,7 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sor
                         <span className="absolute right-1.5 top-1/2 flex shrink-0 -translate-y-1/2 items-center gap-0.5 opacity-0 pointer-events-none transition-opacity group-hover:opacity-100 group-hover:pointer-events-auto">
                           <button
                             type="button"
-                            title={`在「${project.name}」下新建会话`}
+                            title={`在「${project.name}」下新建会话 (${getAcceleratorDisplay(getActiveAccelerator('new-session'))})`}
                             aria-label={`在「${project.name}」下新建会话`}
                             onClick={(event) => {
                               event.stopPropagation()

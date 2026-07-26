@@ -67,6 +67,14 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
     category: 'app',
   },
   {
+    id: 'new-task',
+    name: '新建任务',
+    description: '打开新建任务的项目选择器（仅 Agent 模式）',
+    defaultMac: 'Cmd+Shift+N',
+    defaultWin: 'Ctrl+Shift+N',
+    category: 'app',
+  },
+  {
     id: 'toggle-sidebar',
     name: '切换侧边栏',
     description: '显示或隐藏左侧边栏',

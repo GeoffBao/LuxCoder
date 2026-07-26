@@ -2597,7 +2597,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               </button>
             </TooltipTrigger>
             <TooltipContent side="right">
-              {mode === 'agent' ? '新会话' : '新对话'}
+              {mode === 'agent' ? '新会话' : '新对话'} ({getAcceleratorDisplay(getActiveAccelerator('new-session'))})
             </TooltipContent>
           </Tooltip>
 
@@ -2613,7 +2613,9 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                   <Layers size={16} />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="right">新任务</TooltipContent>
+              <TooltipContent side="right">
+                新任务 ({getAcceleratorDisplay(getActiveAccelerator('new-task'))})
+              </TooltipContent>
             </Tooltip>
           ) : null}
 
@@ -2933,22 +2935,36 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
       {/* 新对话/新会话 + 新任务 */}
       <div className="px-3 pt-2 flex items-center gap-1.5">
-        <button
-          onClick={mode === 'agent' ? handleNewAgentSession : handleNewConversation}
-          className="flex-1 flex items-center gap-2 h-9 px-3 rounded-[10px] text-[13px] font-medium text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-150 titlebar-no-drag"
-        >
-          <Plus size={14} />
-          <span>{mode === 'agent' ? '新会话' : '新对话'}</span>
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={mode === 'agent' ? handleNewAgentSession : handleNewConversation}
+              className="flex-1 flex items-center gap-2 h-9 px-3 rounded-[10px] text-[13px] font-medium text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-150 titlebar-no-drag"
+            >
+              <Plus size={14} />
+              <span>{mode === 'agent' ? '新会话' : '新对话'}</span>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            {mode === 'agent' ? '新会话' : '新对话'} ({getAcceleratorDisplay(getActiveAccelerator('new-session'))})
+          </TooltipContent>
+        </Tooltip>
         {mode === 'agent' && (
-          <button
-            type="button"
-            onClick={handleNewTask}
-            className="flex-1 flex items-center gap-2 h-9 px-3 rounded-[10px] text-[13px] font-medium text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-150 titlebar-no-drag"
-          >
-            <Plus size={14} />
-            <span>新任务</span>
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={handleNewTask}
+                className="flex-1 flex items-center gap-2 h-9 px-3 rounded-[10px] text-[13px] font-medium text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-150 titlebar-no-drag"
+              >
+                <Plus size={14} />
+                <span>新任务</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              新任务 ({getAcceleratorDisplay(getActiveAccelerator('new-task'))})
+            </TooltipContent>
+          </Tooltip>
         )}
       </div>
 
@@ -4027,7 +4043,9 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
               <Plus size={13} />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="top">在此工作区中新建会话</TooltipContent>
+          <TooltipContent side="top">
+            在此工作区中新建会话 ({getAcceleratorDisplay(getActiveAccelerator('new-session'))})
+          </TooltipContent>
         </Tooltip>
         )}
 
