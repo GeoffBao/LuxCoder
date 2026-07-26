@@ -66,15 +66,29 @@ export function GeneralSettings(): React.ReactElement {
   const [nameInput, setNameInput] = React.useState(userProfile.userName)
   const [showAvatarPicker, setShowAvatarPicker] = React.useState(false)
   const [archiveAfterDays, setArchiveAfterDays] = React.useState<number>(7)
+  /** Git/PR 推广标识：默认开启 */
+  const [gitAttributionEnabled, setGitAttributionEnabled] = React.useState(true)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
-  // 加载归档天数 / 默认思考深度
+  // 加载归档天数 / 默认思考深度 / Git/PR 标识
   React.useEffect(() => {
     window.electronAPI.getSettings().then((settings) => {
       setArchiveAfterDays(settings.archiveAfterDays ?? 7)
       setDefaultThinkingLevel(settings.defaultThinkingLevel ?? DEFAULT_AGENT_THINKING_LEVEL)
+      setGitAttributionEnabled(settings.gitAttributionEnabled ?? true)
     }).catch(console.error)
   }, [])
+
+  /** 更新 Git/PR 推广标识开关 */
+  const handleGitAttributionChange = async (checked: boolean): Promise<void> => {
+    setGitAttributionEnabled(checked)
+    try {
+      await window.electronAPI.updateSettings({ gitAttributionEnabled: checked })
+    } catch (error) {
+      console.error('[通用设置] 更新 Git/PR 标识失败:', error)
+      setGitAttributionEnabled(!checked)
+    }
+  }
 
   /** 更新归档天数 */
   const handleArchiveDaysChange = async (value: string): Promise<void> => {
@@ -358,6 +372,14 @@ export function GeneralSettings(): React.ReactElement {
             onCheckedChange={(checked) => {
               setRichTextRenderingEnabled(checked)
               updateRichTextRenderingEnabled(checked)
+            }}
+          />
+          <SettingsToggle
+            label="Git/PR 标识"
+            description="Agent 代你提交 commit 或创建 PR 时，附加 Made-with: LuxCoder 与仓库链接，便于推广；可随时关闭"
+            checked={gitAttributionEnabled}
+            onCheckedChange={(checked) => {
+              void handleGitAttributionChange(checked)
             }}
           />
           <SettingsToggle

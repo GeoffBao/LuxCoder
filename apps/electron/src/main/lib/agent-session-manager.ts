@@ -52,6 +52,7 @@ import { clearNanoBananaAgentHistory } from './chat-tools/nano-banana-mcp'
 import { assertEnabledModelForChannel } from './agent-model-selection'
 import { copyForkWorkspaceFiles } from './agent-fork-workspace-copy'
 import { getSettings } from './settings-service'
+import { applyClaudeSdkAttributionSettings, isGitAttributionEnabled } from './agent-git-attribution'
 
 /**
  * 会话索引文件格式
@@ -326,6 +327,13 @@ export function createAgentSession(
       const autoMemoryDirectory = getWorkspaceAutoMemoryDir(ws.slug)
       if (sdkSettings.autoMemoryDirectory !== autoMemoryDirectory) {
         sdkSettings.autoMemoryDirectory = autoMemoryDirectory
+        needsWrite = true
+      }
+      // LuxCoder Git/PR 推广标识：覆盖 Claude SDK 默认 Co-Authored-By
+      if (applyClaudeSdkAttributionSettings(
+        sdkSettings,
+        isGitAttributionEnabled(getSettings().gitAttributionEnabled),
+      )) {
         needsWrite = true
       }
       if (needsWrite) {

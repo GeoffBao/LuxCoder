@@ -34,6 +34,7 @@ export function getSettings(): AppSettings {
       windowsShellPreference: 'auto',
       agentThinking: { type: 'adaptive' },
       defaultThinkingLevel: 'high',
+      gitAttributionEnabled: true,
     }
   }
 
@@ -58,6 +59,8 @@ export function getSettings(): AppSettings {
       windowsShellPreference: settings.windowsShellPreference ?? 'auto',
       agentThinking: settings.agentThinking ?? { type: 'adaptive' },
       defaultThinkingLevel: settings.defaultThinkingLevel ?? 'high',
+      // 缺省 true：老配置文件未写该字段时保持推广默认开启
+      gitAttributionEnabled: settings.gitAttributionEnabled ?? true,
     }
   } catch (error) {
     console.error('[设置] 读取失败:', error)
@@ -76,6 +79,7 @@ export function getSettings(): AppSettings {
       windowsShellPreference: 'auto',
       agentThinking: { type: 'adaptive' },
       defaultThinkingLevel: 'high',
+      gitAttributionEnabled: true,
     }
   }
 }
