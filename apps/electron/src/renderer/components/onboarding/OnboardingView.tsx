@@ -21,7 +21,7 @@ interface OnboardingViewProps {
   onComplete: (openTutorial?: boolean) => void
 }
 
-const TUTORIAL_ASSETS_BASE = 'https://github.com/GeoffBao/LuxCoder/releases/download/v0.4.4'
+const TUTORIAL_ASSETS_BASE = 'https://github.com/GeoffBao/LuxCoder/releases/download/tutorial-assets'
 
 export function OnboardingView({ onComplete }: OnboardingViewProps) {
   const [step, setStep] = useState<'welcome' | 'environment'>('welcome')
