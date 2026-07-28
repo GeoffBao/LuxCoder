@@ -831,6 +831,10 @@ export interface SessionListPreference {
   status: SessionListStatusFilter
   groupBy: SessionListGroupBy
   sortBy: SessionListSortBy
+  /** workspaceId → 选中的 label ID 列表（多选 OR） */
+  labelIdsByWorkspace?: Record<string, string[]>
+  /** 是否显示不带任何 label 的会话 */
+  includeUnlabeledByWorkspace?: Record<string, boolean>
 }
 
 /** Agent 委派子会话的任务角色 */

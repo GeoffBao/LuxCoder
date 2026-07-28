@@ -82,6 +82,8 @@ import { userProfileAtom } from '@/atoms/user-profile'
 import { selectedProjectIdAtom, serverKanbanProjectsAtom, codeMainViewAtom, pendingTaskEditorTargetAtom } from '@/atoms/project-atoms'
 import { sessionGroupsAtom } from '@/atoms/session-groups-atoms'
 import { sessionListPreferenceAtom } from '@/atoms/session-list-preference-atoms'
+import { workspaceLabelsAtom, loadWorkspaceLabels } from '@/atoms/workspace-labels-atoms'
+import type { WorkspaceLabel } from '@luxcoder/shared/labels'
 import { buildRecentSessionList } from './sidebar-session-views'
 import {
   buildAgentSessionTrees,
@@ -881,6 +883,14 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       .then(setWorkspaceRoot)
       .catch(() => setWorkspaceRoot(null))
   }, [currentWorkspaceSlug, mode, activeView, capabilitiesVersion])
+
+  // 加载当前工作区 Labels
+  const setWorkspaceLabels = useSetAtom(workspaceLabelsAtom)
+  React.useEffect(() => {
+    if (!workspaceRoot || mode !== 'agent') return
+    const setLabels = (list: WorkspaceLabel[]) => setWorkspaceLabels(list)
+    void loadWorkspaceLabels(workspaceRoot, setLabels)
+  }, [workspaceRoot, mode, setWorkspaceLabels])
 
   React.useEffect(() => {
     if (mode !== 'agent') {
@@ -2212,8 +2222,11 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       if (agentStatusFilter === 'archived' && !session.archived) return false
       return true
     })
-    return sortSessionTrees(buildAgentSessionTrees(visible), agentSortBy)
-  }, [agentGroupBy, agentSessions, draftSessionIds, currentWorkspaceId, agentStatusFilter, agentSortBy])
+    const labelFilter = currentWorkspaceId
+      ? { labelIds: sessionListPreference.labelIdsByWorkspace?.[currentWorkspaceId] ?? [], includeUnlabeled: sessionListPreference.includeUnlabeledByWorkspace?.[currentWorkspaceId] }
+      : { labelIds: [], includeUnlabeled: undefined }
+    return sortSessionTrees(buildAgentSessionTrees(visible, labelFilter.labelIds.length > 0 ? labelFilter : undefined), agentSortBy)
+  }, [agentGroupBy, agentSessions, currentWorkspaceId, sessionListPreference.labelIdsByWorkspace, sessionListPreference.includeUnlabeledByWorkspace, draftSessionIds, agentStatusFilter, agentSortBy])
 
   const agentFlatModeGroups = React.useMemo<Array<{ label: string; groupId?: string; items: AgentSessionTreeItem[] }>>(() => {
     if (agentGroupBy === 'state') {
