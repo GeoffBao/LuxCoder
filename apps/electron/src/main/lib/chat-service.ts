@@ -23,6 +23,8 @@ import {
 } from '@luxcoder/core'
 import type { ImageAttachmentData, ContinuationMessage } from '@luxcoder/core'
 import { listChannels, resolveChannelRuntimeApiKey } from './channel-manager'
+import { resolveTitleChannel, resolveTitleModel } from './title-model-selection'
+import { getSettings } from './settings-service'
 import { appendMessage, updateConversationMeta, getConversationMessages } from './conversation-manager'
 import { readAttachmentAsBase64, isImageAttachment } from './attachment-service'
 import { extractTextFromAttachment, isDocumentAttachment } from './document-parser'
@@ -606,11 +608,21 @@ export async function generateTitle(input: GenerateTitleInput): Promise<string |
 
   // 查找渠道
   const channels = listChannels()
-  const channel = channels.find((c) => c.id === channelId)
-  if (!channel) {
+  const sessionChannel = channels.find((c) => c.id === channelId)
+  if (!sessionChannel) {
     console.warn('[标题生成] 渠道不存在:', channelId)
     return null
   }
+  const channel = resolveTitleChannel(channels, channelId, getSettings().titleProvider)
+  if (!channel) return createFallbackTitle(userMessage)
+
+  const titleModelId = resolveTitleModel({
+    provider: channel.provider,
+    defaultModelId: channel.id === channelId
+      ? modelId
+      : channel.models.find((model) => model.enabled)?.id ?? modelId,
+    models: channel.models,
+  })
 
   if (channel.provider === 'openai-codex') {
     const fallbackTitle = createFallbackTitle(userMessage)
@@ -627,10 +639,10 @@ export async function generateTitle(input: GenerateTitleInput): Promise<string |
   // 解密 API Key
   let apiKey: string
   try {
-    apiKey = await resolveChannelRuntimeApiKey(channelId)
+    apiKey = await resolveChannelRuntimeApiKey(channel.id)
   } catch {
-    console.warn('[标题生成] 解密 API Key 失败')
-    return null
+    console.warn('[标题生成] 解密 API Key 失败，使用本地兜底')
+    return createFallbackTitle(userMessage)
   }
 
   try {
@@ -638,7 +650,7 @@ export async function generateTitle(input: GenerateTitleInput): Promise<string |
     const request = adapter.buildTitleRequest({
       baseUrl: channel.baseUrl,
       apiKey,
-      modelId,
+      modelId: titleModelId,
       prompt: TITLE_PROMPT + userMessage,
     })
 
@@ -648,13 +660,13 @@ export async function generateTitle(input: GenerateTitleInput): Promise<string |
     const result = title ? sanitizeGeneratedTitle(title) : null
     if (!result) {
       console.warn('[标题生成] API 未返回可用标题')
-      // OpenCode Go 的服务端偶发返回空标题时，仍要完成重命名，避免对话长期停在默认标题。
-      return channel.provider === 'opencode-go-openai' ? createFallbackTitle(userMessage) : null
+      // 所有渠道都必须有稳定兜底，避免请求失败后会话长期停在默认标题。
+      return createFallbackTitle(userMessage)
     }
     console.log('[标题生成] 成功生成标题:', result)
     return result
   } catch (error) {
-    console.warn('[标题生成] 请求失败:', error)
-    return null
+    console.warn('[标题生成] 请求失败，使用本地兜底:', error)
+    return createFallbackTitle(userMessage)
   }
 }

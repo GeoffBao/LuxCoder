@@ -35,7 +35,7 @@ function buildTitle(result: ChannelPlanQuotaResult): string {
       : ''
     return `${window.label}: 剩余 ${window.remainingLabel ?? `${window.remainingPercent}%`}${reset}`
   }).join('\n')
-  return `${result.planName ?? '订阅额度'}\n${detail}`
+  return `${result.planName ?? '订阅额度'}\n${detail}${result.message ? `\n${result.message}` : ''}`
 }
 
 export function ChannelPlanQuotaBadge({ channel }: { channel: Channel }): React.ReactElement | null {
@@ -53,14 +53,15 @@ export function ChannelPlanQuotaBadge({ channel }: { channel: Channel }): React.
     return () => {
       cancelled = true
     }
-  }, [channel.id, channel.provider, channel.baseUrl])
+  }, [channel.id, channel.provider, channel.baseUrl, channel.updatedAt])
 
   if (!supportsChannelPlanQuota(channel)) return null
 
   const isUsable = quota?.supported && quota.windows.length > 0
-  if (!isUsable) return null
+  const isClaudeSubscription = channel.provider === 'anthropic-oauth'
+  if (!isUsable && !isClaudeSubscription) return null
 
-  const summary = buildSummary(quota)
+  const summary = isUsable ? buildSummary(quota) : '官方查看'
   const title = quota ? buildTitle(quota) : '正在读取订阅额度'
 
   return (
@@ -68,7 +69,7 @@ export function ChannelPlanQuotaBadge({ channel }: { channel: Channel }): React.
       title={title}
       className={cn(
         'ml-auto shrink-0 rounded border px-1.5 py-0.5 text-[10px] leading-none',
-        isUsable
+        isUsable || isClaudeSubscription
           ? 'border-foreground/10 bg-background/70 text-foreground/70'
           : 'border-transparent bg-transparent text-muted-foreground/50',
       )}

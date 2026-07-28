@@ -699,6 +699,8 @@ export interface AgentSessionMeta {
   id: string
   /** 会话标题 */
   title: string
+  /** 标题来源；旧会话缺省时按历史行为兼容。 */
+  titleSource?: 'auto' | 'fallback' | 'manual'
   /** 使用的渠道 ID */
   channelId?: string
   /** 使用的模型 ID（自动任务子会话恢复输入框模型选择时使用） */

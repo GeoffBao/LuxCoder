@@ -37,6 +37,7 @@ export function ChannelSettings(): React.ReactElement {
   const [viewMode, setViewMode] = React.useState<ViewMode>('list')
   const [editingChannel, setEditingChannel] = React.useState<Channel | null>(null)
   const [loading, setLoading] = React.useState(true)
+  const [titleProvider, setTitleProvider] = React.useState<'session' | Channel['provider']>('session')
   const [agentChannelId, setAgentChannelId] = useAtom(agentChannelIdAtom)
   const [, setAgentModelId] = useAtom(agentModelIdAtom)
   const [agentChannelIds, setAgentChannelIds] = useAtom(agentChannelIdsAtom)
@@ -70,7 +71,15 @@ export function ChannelSettings(): React.ReactElement {
 
   React.useEffect(() => {
     loadChannels()
+    window.electronAPI.getSettings().then((settings) => {
+      setTitleProvider(settings.titleProvider ?? 'session')
+    }).catch(console.error)
   }, [loadChannels])
+
+  const handleTitleProviderChange = async (value: 'session' | Channel['provider']): Promise<void> => {
+    setTitleProvider(value)
+    await window.electronAPI.updateSettings({ titleProvider: value }).catch(console.error)
+  }
 
   // 渠道的启用状态是唯一开关：同步衍生的 Claude 白名单，清理旧版独立开关留下的状态。
   React.useEffect(() => {
@@ -197,6 +206,29 @@ export function ChannelSettings(): React.ReactElement {
   // 列表视图
   return (
     <div className="space-y-8">
+      <SettingsSection
+        title="会话标题"
+        description="标题请求默认跟随当前会话渠道，并自动选择该渠道可用的轻量模型。"
+      >
+        <SettingsCard divided={false}>
+          <SettingsRow
+            label="标题生成渠道"
+            description="指定供应商后，标题请求会优先使用该供应商的已启用渠道；推荐跟随当前会话。"
+          >
+            <select
+              value={titleProvider}
+              onChange={(event) => { void handleTitleProviderChange(event.target.value as 'session' | Channel['provider']) }}
+              className="h-8 min-w-44 rounded-md border bg-background px-2 text-xs"
+            >
+              <option value="session">跟随当前会话渠道（推荐）</option>
+              {[...new Set(channels.map((channel) => channel.provider))].map((provider) => (
+                <option key={provider} value={provider}>{PROVIDER_LABELS[provider]}</option>
+              ))}
+            </select>
+          </SettingsRow>
+        </SettingsCard>
+      </SettingsSection>
+
       {/* 区块一：模型配置 */}
       <SettingsSection
         title="模型配置"

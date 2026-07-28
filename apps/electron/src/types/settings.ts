@@ -4,7 +4,7 @@
  * 主题模式、IPC 通道等设置相关定义。
  */
 
-import type { AgentRuntime, AgentThinkingLevel, EnvironmentCheckResult, ThinkingConfig, AgentEffort, FeishuSessionMirrorSettings, SessionListPreference, WindowsShellPreference } from '@luxcoder/shared'
+import type { AgentRuntime, AgentThinkingLevel, EnvironmentCheckResult, ThinkingConfig, AgentEffort, FeishuSessionMirrorSettings, SessionListPreference, WindowsShellPreference, ProviderType } from '@luxcoder/shared'
 
 /** 通知音场景类型 */
 export type NotificationSoundType = 'taskComplete' | 'permissionRequest' | 'exitPlanMode'
@@ -201,6 +201,8 @@ export interface AppSettings {
   agentChannelId?: string
   /** Agent 默认模型 ID */
   agentModelId?: string
+  /** 标题生成供应商；默认跟随当前会话渠道。 */
+  titleProvider?: 'session' | ProviderType
   /** Claude Agent 可用渠道 ID 列表（由渠道启用状态与协议兼容性派生） */
   agentChannelIds?: string[]
   /** Agent 当前工作区 ID */

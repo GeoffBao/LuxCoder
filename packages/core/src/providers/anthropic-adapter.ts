@@ -454,7 +454,9 @@ export class AnthropicAdapter implements ProviderAdapter {
 
     const body: Record<string, unknown> = {
       model: input.modelId,
-      max_tokens: 50,
+      // 推理型供应商可能先消耗隐藏 reasoning 预算；50 tokens 会导致没有可见 text。
+      // Kimi 标题请求不发送 thinking 字段，但给它足够的总输出预算。
+      max_tokens: this.providerType === 'kimi-api' || this.providerType === 'kimi-coding' ? 256 : 50,
       messages: [{ role: 'user', content: input.prompt }],
     }
 

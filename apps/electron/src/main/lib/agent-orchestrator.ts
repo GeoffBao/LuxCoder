@@ -44,13 +44,14 @@ import { decryptApiKey, getChannelById, listChannels, persistCodexOAuthCredentia
 import { getAdapter, fetchTitle, normalizeAnthropicBaseUrlForSdk, getAppUserAgent } from '@luxcoder/core'
 import pkg from '../../../package.json' with { type: 'json' }
 import { getFetchFn } from './proxy-fetch'
+import { resolveTitleChannel, resolveTitleModel } from './title-model-selection'
+import { getSettings } from './settings-service'
 import { getEffectiveProxyUrl } from './proxy-settings-service'
 import { appendSDKMessages, updateAgentSessionMeta, getAgentSessionMeta, getAgentSessionMessages, truncateSDKMessages, removeSDKErrorMessage, resolveUserUuidFromSDK, rewindFilesFromSnapshot, rewindPiAgentSession } from './agent-session-manager'
 import { getAgentWorkspace, getWorkspaceMcpConfig, ensurePluginManifest, getWorkspaceAutoMemoryDir, getWorkspaceAttachedDirectories, getWorkspaceAttachedFiles, getWorkspaceDefaultWorkingDirectory } from './agent-workspace-manager'
 import { getAgentWorkspacePath, getAgentSessionWorkspacePath, getSdkConfigDir, getWorkspaceFilesDir, getBundledCliPath, getWorkspaceSkillsDir, resolveClaudeAgentBinaryPath } from './config-paths'
 import { projectRepository } from './project-repository'
 import { getRuntimeStatus } from './runtime-init'
-import { getSettings } from './settings-service'
 import { buildSystemPrompt, buildDynamicContext } from './agent-prompt-builder'
 import { MAX_CONTEXT_MESSAGES, buildContextPrompt, buildRecoveryPrompt, buildReferencedSessionsPrompt } from './agent-session-context-prompt'
 import { permissionService } from './agent-permission-service'
@@ -541,18 +542,28 @@ export class AgentOrchestrator {
    */
   private async callTitleModel(channelId: string, modelId: string, prompt: string): Promise<string | null> {
     const channels = listChannels()
-    const channel = channels.find((c) => c.id === channelId)
-    if (!channel) {
+    const sessionChannel = channels.find((c) => c.id === channelId)
+    if (!sessionChannel) {
       console.warn('[Agent 标题生成] 渠道不存在:', channelId)
       return null
     }
+    const channel = resolveTitleChannel(channels, channelId, getSettings().titleProvider)
+    if (!channel) return null
+    const titleModelId = resolveTitleModel({
+      provider: channel.provider,
+      defaultModelId: channel.id === channelId
+        ? modelId
+        : channel.models.find((model) => model.enabled)?.id ?? modelId,
+      models: channel.models,
+    })
     if (channel.provider === 'openai-codex') {
-      return this.callCodexTitleModel(channelId, modelId, prompt)
+      return this.callCodexTitleModel(channel.id, titleModelId, prompt)
     }
+    if (channel.provider === 'anthropic-oauth') return null
 
-    const apiKey = await resolveChannelRuntimeApiKey(channelId)
+    const apiKey = await resolveChannelRuntimeApiKey(channel.id)
     const providerAdapter = getAdapter(channel.provider)
-    const request = providerAdapter.buildTitleRequest({ baseUrl: channel.baseUrl, apiKey, modelId, prompt })
+    const request = providerAdapter.buildTitleRequest({ baseUrl: channel.baseUrl, apiKey, modelId: titleModelId, prompt })
 
     const proxyUrl = await getEffectiveProxyUrl()
     const fetchFn = getFetchFn(proxyUrl)
@@ -572,34 +583,17 @@ export class AgentOrchestrator {
     console.log('[Agent 标题生成] 开始生成标题:', { channelId, modelId, userMessage: userMessage.slice(0, 50) })
 
     try {
-      const channels = listChannels()
-      const channel = channels.find((c) => c.id === channelId)
-      if (channel?.provider === 'openai-codex') {
-        const fallbackTitle = createFallbackTitle(userMessage)
-        try {
-          const title = await this.callTitleModel(channelId, modelId, TITLE_PROMPT + userMessage)
-          if (title) {
-            console.log(`[Agent 标题生成] ChatGPT OAuth 语义标题生成成功: "${title}"`)
-            return title
-          }
-          console.warn('[Agent 标题生成] ChatGPT OAuth 返回空标题，使用本地兜底')
-        } catch (error) {
-          console.warn('[Agent 标题生成] ChatGPT OAuth 语义标题生成失败，使用本地兜底:', error)
-        }
-        return fallbackTitle
-      }
-
+      // 标题渠道由 callTitleModel 按设置解析；Codex 也走同一条轻量请求/回退链路。
       const result = await this.callTitleModel(channelId, modelId, TITLE_PROMPT + userMessage)
-      if (!result && channel?.provider === 'opencode-go-openai') {
-        // OpenCode Go 的服务端偶发返回空标题时，仍要完成重命名，避免会话长期停在默认标题。
-        console.warn('[Agent 标题生成] OpenCode Go 返回空标题，使用本地兜底')
+      if (!result) {
+        console.warn('[Agent 标题生成] API 返回空标题，使用本地兜底')
         return createFallbackTitle(userMessage)
       }
       console.log(`[Agent 标题生成] 生成标题成功: "${result}"`)
       return result
     } catch (error) {
-      console.warn('[Agent 标题生成] 生成失败:', error)
-      return null
+      console.warn('[Agent 标题生成] 生成失败，使用本地兜底:', error)
+      return createFallbackTitle(userMessage)
     }
   }
 
@@ -617,12 +611,12 @@ export class AgentOrchestrator {
   ): Promise<void> {
     try {
       const meta = getAgentSessionMeta(sessionId)
-      if (!meta || meta.title !== DEFAULT_SESSION_TITLE) return
+      if (!meta || meta.titleSource === 'manual' || meta.title !== DEFAULT_SESSION_TITLE) return
 
       const title = await this.generateTitle({ userMessage, channelId, modelId })
       if (!title) return
 
-      updateAgentSessionMeta(sessionId, { title })
+      updateAgentSessionMeta(sessionId, { title, titleSource: 'auto' })
       callbacks.onTitleUpdated(title)
       console.log(`[Agent 编排] 自动标题生成完成: "${title}"`)
     } catch (error) {
@@ -644,6 +638,9 @@ export class AgentOrchestrator {
     callbacks: SessionCallbacks,
   ): Promise<void> {
     try {
+      const meta = getAgentSessionMeta(sessionId)
+      if (meta?.titleSource === 'manual') return
+
       const messages = getAgentSessionMessages(sessionId)
       const userMessageTexts = messages
         .map((m) => extractGenuineUserMessageText(m))
@@ -664,7 +661,7 @@ export class AgentOrchestrator {
       const title = await this.callTitleModel(channelId, modelId, prompt)
       if (!title) return
 
-      updateAgentSessionMeta(sessionId, { title })
+      updateAgentSessionMeta(sessionId, { title, titleSource: 'auto' })
       callbacks.onTitleUpdated(title)
       console.log(`[Agent 编排] 中段标题重新生成完成: "${title}"（用户消息数=${userMessageTexts.length}）`)
     } catch (error) {

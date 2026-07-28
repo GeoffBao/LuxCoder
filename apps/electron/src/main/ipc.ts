@@ -1896,7 +1896,7 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(
     AGENT_IPC_CHANNELS.UPDATE_TITLE,
     async (_, id: string, title: string): Promise<AgentSessionMeta> => {
-      return updateAgentSessionMeta(id, { title })
+      return updateAgentSessionMeta(id, { title, titleSource: 'manual' })
     }
   )
 

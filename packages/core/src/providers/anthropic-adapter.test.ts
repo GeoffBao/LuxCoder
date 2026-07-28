@@ -23,6 +23,35 @@ function buildRequest(provider: ProviderType, apiKey = 'test-key') {
   })
 }
 
+describe('AnthropicAdapter title requests', () => {
+  test('Kimi 标题请求提供足够输出预算且不发送不兼容的 thinking 字段', () => {
+    const adapter = new AnthropicAdapter('kimi-api')
+    const request = adapter.buildTitleRequest({
+      baseUrl: 'https://api.moonshot.cn/anthropic',
+      apiKey: 'test-key',
+      modelId: 'kimi-k2.6',
+      prompt: '生成标题',
+    })
+    const body = JSON.parse(request.body) as Record<string, unknown>
+
+    expect(body.max_tokens).toBeGreaterThanOrEqual(256)
+    expect(body.thinking).toBeUndefined()
+  })
+
+  test('Anthropic 标题请求保留兼容模型的思考能力配置', () => {
+    const adapter = new AnthropicAdapter('anthropic')
+    const request = adapter.buildTitleRequest({
+      baseUrl: 'https://api.anthropic.com',
+      apiKey: 'test-key',
+      modelId: 'claude-sonnet-4-5',
+      prompt: '生成标题',
+    })
+    const body = JSON.parse(request.body) as Record<string, unknown>
+
+    expect(body.max_tokens).toBe(50)
+  })
+})
+
 describe('AnthropicAdapter headers', () => {
   test('xiaomi API uses api-key authentication', () => {
     const request = buildRequest('xiaomi')

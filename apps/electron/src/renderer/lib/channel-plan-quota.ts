@@ -8,6 +8,8 @@ const PLAN_QUOTA_PROVIDERS = new Set<ProviderType>([
   'zhipu-coding',
   'zhipu-coding-team',
   'openai-codex',
+  'kimi-api',
+  'anthropic-oauth',
 ])
 
 export function supportsChannelPlanQuota(channel: Pick<Channel, 'provider' | 'baseUrl'> | null | undefined): boolean {

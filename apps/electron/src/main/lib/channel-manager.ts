@@ -40,6 +40,7 @@ import {
 import { refreshCodexOAuth } from './codex-oauth-service'
 import { refreshClaudeOAuthToken } from './claude-oauth-service'
 import { parseCodexPlanQuotaResponse } from './codex-plan-quota'
+import { getKimiApiBalanceUrl, parseKimiApiBalanceResponse } from './kimi-api-balance'
 import { listCodexModels } from './adapters/pi-model-registry'
 import { getFetchFn } from './proxy-fetch'
 import { getEffectiveProxyUrl } from './proxy-settings-service'
@@ -994,6 +995,28 @@ async function queryCodexPlanQuota(
   }
 }
 
+async function queryKimiApiBalance(apiKey: string, baseUrl: string, proxyUrl?: string): Promise<ChannelPlanQuotaResult> {
+  const requestUrl = getKimiApiBalanceUrl(baseUrl)
+  const response = await getFetchFn(proxyUrl)(requestUrl, withTimeout({
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+      'User-Agent': getAppUserAgent(pkg.version),
+      Authorization: `Bearer ${apiKey}`,
+    },
+  }))
+  const responseText = await response.text()
+  if (!response.ok) {
+    return createUnsupportedPlanQuota('kimi-api', `Kimi API 余额查询失败: HTTP ${response.status}`)
+  }
+
+  try {
+    return parseKimiApiBalanceResponse(JSON.parse(responseText))
+  } catch {
+    return createUnsupportedPlanQuota('kimi-api', 'Kimi API 余额响应格式错误')
+  }
+}
+
 async function queryKimiPlanQuota(apiKey: string, proxyUrl?: string): Promise<ChannelPlanQuotaResult> {
   const fetchFn = getFetchFn(proxyUrl)
   const response = await fetchFn('https://api.kimi.com/coding/v1/usages', withTimeout({
@@ -1544,8 +1567,17 @@ export async function getChannelPlanQuota(channelId: string): Promise<ChannelPla
     if (provider === 'openai-codex') {
       return await queryCodexPlanQuota(channelId, apiKey, proxyUrl)
     }
+    if (provider === 'anthropic-oauth') {
+      return createUnsupportedPlanQuota(
+        'anthropic-oauth',
+        'Claude Pro/Max 订阅额度请在 Claude Code 中运行 /usage 或 /usage-credits 查看',
+      )
+    }
     if (provider === 'deepseek') {
       return await queryDeepSeekBalance(apiKey, channel.baseUrl, proxyUrl)
+    }
+    if (provider === 'kimi-api') {
+      return await queryKimiApiBalance(apiKey, channel.baseUrl, proxyUrl)
     }
     if (provider === 'kimi-coding' || channel.baseUrl.includes('api.kimi.com/coding')) {
       return await queryKimiPlanQuota(apiKey, proxyUrl)
