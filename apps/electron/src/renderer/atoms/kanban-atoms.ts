@@ -4,6 +4,7 @@ import type { TaskAggregateSummary } from '@luxcoder/shared/tasks'
 import { buildKanbanViewModel } from '@/components/app-shell/kanban/kanban-view-model'
 import { workflowForKanbanColumn } from '@/components/app-shell/kanban/status-column'
 import type { SpecNodeSummary } from '@/components/app-shell/kanban/subtask-merge'
+import { taskBoardWorkflowFilterAtom, taskBoardLabelFilterAtom, taskBoardIncludeUnlabeledAtom } from './task-board-filter-atoms'
 import {
   type KanbanBoardMode,
   type KanbanItem,
@@ -63,8 +64,26 @@ export const kanbanItemsAtom = atom<KanbanItem[]>((get) => {
     fallbackModel: get(agentModelIdAtom) ?? '',
   }).listItems
 
+  // Task board workflow/label filters: applied after model projection, before streaming injection
+  const workflowFilter = get(taskBoardWorkflowFilterAtom)
+  const labelFilter = get(taskBoardLabelFilterAtom)
+  const includeUnlabeled = get(taskBoardIncludeUnlabeledAtom)
+  const streamFiltered = items
+    .filter((item) => {
+      if (workflowFilter !== 'all' && item.task?.workflow !== workflowFilter) return false
+      if (labelFilter.length === 0) return true
+      if (item.task) {
+        const matched = item.task.labelIds?.some((id) => labelFilter.includes(id)) === true
+        if (matched) return true
+        if (includeUnlabeled && (item.task.labelIds?.length ?? 0) === 0) return true
+        return false
+      }
+      // Legacy session items without task: always pass through when filter is set
+      return true
+    })
+
   // 流式 running 覆盖到卡片：只认真实 stream，避免陈旧 sessionStatus 假 live
-  return items.map((item) => {
+  return streamFiltered.map((item) => {
     const childIds = item.subtasks
       .map((subtask) => subtask.sessionId)
       .filter((id): id is string => Boolean(id))

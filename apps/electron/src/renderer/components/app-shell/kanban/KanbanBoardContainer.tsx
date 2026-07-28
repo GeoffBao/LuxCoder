@@ -38,6 +38,7 @@ import { consumeFirstNotification } from './board-model'
 import { buildKanbanModelCatalog } from './kanban-model-catalog'
 import { KanbanBoard } from './KanbanBoard'
 import { KanbanProjectFilter } from './KanbanProjectFilter'
+import { TaskBoardFilters } from './TaskBoardFilters'
 import { NewTaskComposer } from './NewTaskComposer'
 import { TaskEditor } from './TaskEditor'
 import { resolveTaskEditorTarget } from './task-editor-model'
@@ -258,6 +259,7 @@ export function KanbanBoardContainer({
         </div>
         <div className="flex items-center gap-2">
           <KanbanProjectFilter projects={projects} value={selectedProjectId} onChange={setSelectedProjectId} />
+          <TaskBoardFilters />
           <BoardListToggle value={mode} onChange={setMode} />
         </div>
       </header>
