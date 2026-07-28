@@ -330,7 +330,6 @@ export function TaskEditor({
   const generate = async (): Promise<void> => {
     const goal = draft.goal.trim() || draft.title.trim()
     if (!goal) { toast.error('请先输入任务目标'); return }
-    if (!draft.projectId.trim()) { toast.error('请选择项目'); return }
     if (generatedDraftRef.current) {
       void window.electronAPI.deleteAgentSession(generatedDraftRef.current).catch(() => undefined)
       generatedDraftRef.current = null
@@ -343,7 +342,7 @@ export function TaskEditor({
       const ack = await window.electronAPI.tasks.generate(workspaceRoot, workspaceId, {
         goal,
         ...(draft.title.trim() ? { title: draft.title.trim() } : {}),
-        projectId: draft.projectId.trim(),
+        ...(draft.projectId.trim() ? { projectId: draft.projectId.trim() } : {}),
         ...(draft.cwd?.trim() ? { cwd: draft.cwd.trim() } : {}),
         ...(orchModel ? { model: orchModel } : {}),
         ...(orchConnection ? { llmConnection: orchConnection } : {}),
@@ -490,7 +489,7 @@ export function TaskEditor({
                   onChange={(event) => patchDraft({ projectId: event.target.value })}
                   className="h-9 w-full rounded-md border border-border/60 bg-background px-2 text-sm disabled:opacity-70"
                 >
-                  <option value="" disabled>请选择项目</option>
+                  <option value="">Workspace Task（无项目）</option>
                   {projects.map((project) => (
                     <option key={project.id} value={project.id}>{project.name}</option>
                   ))}

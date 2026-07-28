@@ -50,12 +50,12 @@ describe('resolveTaskEditorTarget', () => {
 })
 
 describe('TaskEditor draft and submission', () => {
-  test('create task 缺少 projectId 时校验失败', () => {
+  test('create task 缺少 projectId 时作为 Workspace Task 通过校验', () => {
     expect(validateTaskDraft({
       title: '发布',
       projectId: '',
       subtasks: [{ prompt: '做发布' }],
-    }).ok).toBe(false)
+    }).ok).toBe(true)
   })
 
   test('从 spec 预填项目、路由、权限和依赖关系', () => {

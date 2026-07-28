@@ -190,10 +190,19 @@ export function WorkBoardView(): React.ReactElement {
   React.useEffect(() => {
     if (!workspaceRoot || !needsLivePoll) return
     const timer = window.setInterval(() => {
-      void refreshSessions().then(() => Promise.all([refreshRuns(), refreshSpecNodes()]))
+      void refreshSessions().then(() => Promise.all([refreshRuns(), refreshSpecNodes(), refreshTasks()]))
     }, 2000)
     return () => window.clearInterval(timer)
-  }, [needsLivePoll, refreshRuns, refreshSessions, refreshSpecNodes, workspaceRoot])
+  }, [needsLivePoll, refreshRuns, refreshSessions, refreshSpecNodes, refreshTasks, workspaceRoot])
+
+  // 最后一个 stream 结束时补一次收口读取，确保 Run 将 workflow 推到 needs-review 后立即反映。
+  const previousLivePollRef = React.useRef(false)
+  React.useEffect(() => {
+    const wasLive = previousLivePollRef.current
+    previousLivePollRef.current = needsLivePoll
+    if (!workspaceRoot || !wasLive || needsLivePoll) return
+    void Promise.all([refreshSessions(), refreshTasks(), refreshRuns(), refreshSpecNodes()])
+  }, [needsLivePoll, refreshRuns, refreshSessions, refreshSpecNodes, refreshTasks, workspaceRoot])
 
   React.useEffect(() => {
     if (!workspaceRoot) return
