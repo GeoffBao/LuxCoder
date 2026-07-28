@@ -114,6 +114,27 @@ describe('TaskRepository', () => {
     expect(existsSync(taskRecordPath(workspaceRoot, spec.id))).toBe(false)
   })
 
+  test('显式迁移入口回填旧 TaskRecord，listTaskAggregates 随后使用稳定 ID', () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    const repository = createRepository({ 'ws-alpha': workspaceRoot })
+    repository.saveTask('ws-alpha', buildSpec({ id: 'migrate-me' }))
+
+    const migration = repository.migrateLegacyTaskRecords('ws-alpha', [], {
+      now: () => 100,
+      generateTaskId: () => '018f47a8-6c26-7a13-9bf6-7c8d4f2e4c72',
+    })
+
+    expect(migration.migrated).toEqual([
+      expect.objectContaining({ taskSlug: 'migrate-me', taskId: '018f47a8-6c26-7a13-9bf6-7c8d4f2e4c72' }),
+    ])
+    expect(repository.listTaskAggregates('ws-alpha')).toEqual([
+      expect.objectContaining({
+        taskId: '018f47a8-6c26-7a13-9bf6-7c8d4f2e4c72',
+        legacyIdentity: false,
+      }),
+    ])
+  })
+
   test('按稳定 taskId 查找 TaskAggregate，并发现 record-only 恢复项', () => {
     const workspaceRoot = createTempWorkspaceRoot()
     const repository = createRepository({ 'ws-alpha': workspaceRoot })

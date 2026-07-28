@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { AgentSessionMeta } from '@luxcoder/shared'
 import type { NodeOutput } from '../../../../../packages/shared/src/tasks/refs.ts'
 import type { TaskSpec } from '../../../../../packages/shared/src/tasks/schema.ts'
 import type { ValidationResult } from '../../../../../packages/shared/src/tasks/validate.ts'
@@ -23,6 +24,11 @@ import type { TaskRecord } from '../../../../../packages/shared/src/tasks/task-r
 import { validateTaskInput } from '../../../../../packages/shared/src/tasks/validate.ts'
 import { getAgentWorkspace } from './agent-workspace-manager'
 import { getAgentWorkspacePath } from './config-paths'
+import {
+  backfillLegacyTaskRecords,
+  type BackfillLegacyTaskRecordsInput,
+  type TaskMigrationResult,
+} from './task-migration-service'
 
 const WorkspaceIdSchema = z.string().min(1, 'workspaceId 必填')
 const TaskSlugSchema = z.string().regex(/^[a-z0-9][a-z0-9-]*$/, 'task slug 必须是 URL-safe slug')
@@ -164,6 +170,20 @@ export class TaskRepository {
   getTaskAggregateById(workspaceId: string, taskId: string): TaskAggregate | null {
     const parsedTaskId = z.string().min(1, 'taskId 必填').parse(taskId)
     return this.listTaskAggregates(workspaceId).find((task) => task.taskId === parsedTaskId) ?? null
+  }
+
+  migrateLegacyTaskRecords(
+    workspaceId: string,
+    sessions: readonly AgentSessionMeta[],
+    options: Pick<BackfillLegacyTaskRecordsInput, 'now' | 'generateTaskId' | 'includeLegacyUnscopedSessions'> = {},
+  ): TaskMigrationResult {
+    const parsedWorkspaceId = WorkspaceIdSchema.parse(workspaceId)
+    return backfillLegacyTaskRecords({
+      workspaceId: parsedWorkspaceId,
+      workspaceRoot: this.resolveWorkspaceRoot(parsedWorkspaceId),
+      sessions,
+      ...options,
+    })
   }
 
   getTask(workspaceId: string, taskSlug: string): TaskValidationResult | null {
