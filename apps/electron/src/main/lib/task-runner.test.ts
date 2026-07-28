@@ -148,7 +148,7 @@ async function flushAsyncWork(): Promise<void> {
 }
 
 describe('TaskRunner', () => {
-  test.todo('重复 runId 必须拒绝且不得覆盖 snapshot 或追加旧日志')
+  test.todo('重复 runId 必须拒绝且不得覆盖 snapshot 或追加旧日志', () => {})
 
   test('按依赖顺序调度节点', async () => {
     const workspaceRoot = createTempWorkspaceRoot()

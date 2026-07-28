@@ -324,7 +324,7 @@ describe('task handler Kanban payloads', () => {
 })
 
 describe('materializeTaskFromSpec', () => {
-  test.todo('createSession 失败时不留下已正式可见的孤儿 task.yaml')
+  test.todo('createSession 失败时不留下已正式可见的孤儿 task.yaml', () => {})
 
   test('落盘 task.yaml 并创建 todo 状态的新会话，且向 createSession 转发完整字段', async () => {
     const { loadTaskSpec } = await import('@luxcoder/shared/tasks/storage')
