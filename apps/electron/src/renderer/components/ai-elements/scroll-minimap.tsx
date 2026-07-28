@@ -233,6 +233,20 @@ export function ScrollMinimap({ items }: ScrollMinimapProps): React.ReactElement
     }, 40)
   }
 
+  /**
+   * 在左缘条纹上直接滚轮，也能像 Codex 一样打开并平滑翻阅缩略卡片。
+   * 不能只依赖面板内部的原生滚动：用户的第一直觉是滚动“导航条”本身。
+   */
+  const handleNavigationWheel = (event: React.WheelEvent<HTMLDivElement>): void => {
+    event.preventDefault()
+    event.stopPropagation()
+    const deltaY = event.deltaY
+    handleShortcutOpen()
+    requestAnimationFrame(() => {
+      listRef.current?.scrollBy({ top: deltaY, behavior: 'smooth' })
+    })
+  }
+
   // ── 跳转到指定消息（直接操作 scrollTop，绕过 scrollIntoView） ──
 
   const scrollToMessage = React.useCallback((id: string) => {
@@ -359,14 +373,15 @@ export function ScrollMinimap({ items }: ScrollMinimapProps): React.ReactElement
 
   return (
     <div className="absolute inset-0 z-30 pointer-events-none">
-      {/* ── 左缘消息导航：Codex 风格条纹在前、缩略卡片从左侧滑出 ── */}
-      <div className="absolute left-0 top-0 bottom-0 flex items-start h-full">
-        {/* 迷你地图横杠 —— 只有这里触发面板展开 */}
+      {/* 左缘消息导航：条纹和预览卡片均垂直居中，避免长会话的导航永远贴在顶部。 */}
+      <div className="absolute left-0 top-1/2 flex -translate-y-1/2 items-center">
+        {/* 更宽的触发带提升可发现性；滚轮可直接展开并平滑浏览缩略内容。 */}
         <div
-          className="relative mt-3 flex-shrink-0 pointer-events-auto"
-          style={{ width: 24, height: barCount * MINIMAP_BAR_SPACING }}
+          className="relative flex-shrink-0 pointer-events-auto"
+          style={{ width: 42, height: barCount * MINIMAP_BAR_SPACING }}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
+          onWheel={handleNavigationWheel}
         >
           {Array.from({ length: barCount }, (_, i) => {
             const start = Math.floor((i * items.length) / barCount)
@@ -379,7 +394,7 @@ export function ScrollMinimap({ items }: ScrollMinimapProps): React.ReactElement
               <div
                 key={i}
                 className={cn(
-                  'absolute left-1 h-[2px] w-[20px] rounded-full transition-colors',
+                  'absolute left-2 h-[2px] w-[28px] rounded-full transition-colors',
                   isVisible
                     ? 'bg-primary dark:bg-primary/70 minimap-visible-indicator'
                     : hasUser
@@ -396,12 +411,12 @@ export function ScrollMinimap({ items }: ScrollMinimapProps): React.ReactElement
         {hovered && (
           <div
             className={cn(
-              'ml-1 w-[280px] rounded-lg border bg-popover shadow-xl origin-top-left flex flex-col overflow-hidden pointer-events-auto',
+              'ml-1 w-[340px] rounded-xl border bg-popover shadow-xl origin-left flex flex-col overflow-hidden pointer-events-auto',
               isLeaving
                 ? 'animate-out fade-out-0 zoom-out-95 duration-75'
                 : 'animate-in fade-in-0 zoom-in-95 duration-150'
             )}
-            style={{ maxHeight: 'min(420px, 60vh)', marginTop: 12 }}
+            style={{ height: 'min(460px, 66vh)' }}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
           >
