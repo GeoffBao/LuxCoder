@@ -153,6 +153,27 @@ describe('TaskRepository', () => {
     )
   })
 
+  test('live task.yaml 缺失时仍优先读取历史 Run snapshot', () => {
+    const repository = createRepository({ 'ws-alpha': createTempWorkspaceRoot() })
+    const spec = buildSpec({ id: 'historical-task', title: 'Historical snapshot' })
+
+    repository.writeRunSpecSnapshot('ws-alpha', spec.id, 'run-snapshot', spec)
+    repository.appendRunLog('ws-alpha', spec.id, 'run-snapshot', {
+      t: '2026-07-13T00:05:00.000Z',
+      kind: 'run-started',
+      taskId: spec.id,
+      runId: 'run-snapshot',
+    })
+
+    expect(repository.getTask('ws-alpha', spec.id)).toBeNull()
+    expect(repository.getRunState('ws-alpha', spec.id, 'run-snapshot')).toEqual(
+      expect.objectContaining({
+        runId: 'run-snapshot',
+        spec,
+      }),
+    )
+  })
+
   test('getRunState 在 spec 缺失时也会从 run-log 节点事件恢复 nodeStates', () => {
     const repository = createRepository({ 'ws-alpha': createTempWorkspaceRoot() })
 

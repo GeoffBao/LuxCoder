@@ -272,6 +272,19 @@ describe('task storage', () => {
     expect(readRunSpecSnapshot(workspaceRoot, slug, 'run-2')).toEqual(second);
   });
 
+  test('无 Project 的旧 Workspace Task snapshot 原样保留 scope 语义', () => {
+    const workspaceRoot = createTempWorkspaceRoot();
+    const slug = 'workspace-task';
+    const spec = buildSpec({ id: slug, project: undefined, cwd: undefined });
+
+    writeRunSpecSnapshot(workspaceRoot, slug, 'run-workspace', spec);
+
+    const snapshot = readRunSpecSnapshot(workspaceRoot, slug, 'run-workspace');
+    expect(snapshot).toEqual(spec);
+    expect(snapshot?.project).toBeUndefined();
+    expect(snapshot?.cwd).toBeUndefined();
+  });
+
   test('readRunSpecSnapshot 在结构无效时返回 null', () => {
     const workspaceRoot = createTempWorkspaceRoot();
     const slug = 'demo-task';
