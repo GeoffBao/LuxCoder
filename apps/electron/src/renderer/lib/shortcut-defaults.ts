@@ -91,6 +91,22 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
     category: 'app',
   },
   {
+    id: 'nav-back',
+    name: '后退',
+    description: '切换到最近访问的上一个标签页',
+    defaultMac: 'Cmd+[',
+    defaultWin: 'Ctrl+[',
+    category: 'navigation',
+  },
+  {
+    id: 'nav-forward',
+    name: '前进',
+    description: '切换到后退前访问的下一个标签页',
+    defaultMac: 'Cmd+]',
+    defaultWin: 'Ctrl+]',
+    category: 'navigation',
+  },
+  {
     id: 'global-search',
     name: '全局搜索',
     description: '搜索对话和会话',

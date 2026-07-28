@@ -54,6 +54,13 @@ import {
   updateShortcutOverrides,
 } from '@/lib/shortcut-registry'
 import { getFileParentPath } from '@/lib/file-utils'
+import {
+  popBackAtom,
+  popForwardAtom,
+  programmaticNavAtom,
+  recordTabActivationAtom,
+} from '@/atoms/tab-history-atoms'
+import { activateTab } from '@/components/tabs/activate-tab'
 
 /**
  * 快捷键初始化 + 全局 Handler 注册
@@ -71,9 +78,21 @@ export function GlobalShortcuts(): null {
   const shortcutOverrides = useAtomValue(shortcutOverridesAtom)
   const setSendWithCmdEnter = useSetAtom(sendWithCmdEnterAtom)
   const { createChat, createAgent } = useCreateSession()
+  const store = useStore()
 
   // Tab 管理（用于关闭标签页）
   const activeTabId = useAtomValue(activeTabIdAtom)
+
+  // 在 store 层同步记录 activeTabId，覆盖 TabBar 点击、会话创建、关闭后回退等所有入口。
+  // 前进/后退通过 programmaticNavAtom 抑制本次记录，避免导航动作污染历史栈。
+  useEffect(() => {
+    let previous = store.get(activeTabIdAtom)
+    return store.sub(activeTabIdAtom, () => {
+      const next = store.get(activeTabIdAtom)
+      store.set(recordTabActivationAtom, { prev: previous, next })
+      previous = next
+    })
+  }, [store])
 
   // 统一关闭逻辑：与 TabBar.handleClose 共用
   // 含 Agent 子进程 stop + 流式中的确认对话框（修复 Issue #357）
@@ -203,6 +222,20 @@ export function GlobalShortcuts(): null {
     ),
   )
 
+  // Cmd+[ / Cmd+] → Tab 历史后退 / 前进
+  const navigateHistory = useCallback((direction: 'back' | 'forward') => {
+    const target = store.set(direction === 'back' ? popBackAtom : popForwardAtom)
+    if (!target) return
+    store.set(programmaticNavAtom, true)
+    try {
+      activateTab(store, target)
+    } finally {
+      store.set(programmaticNavAtom, false)
+    }
+  }, [store])
+  useShortcut('nav-back', useCallback(() => navigateHistory('back'), [navigateHistory]))
+  useShortcut('nav-forward', useCallback(() => navigateHistory('forward'), [navigateHistory]))
+
   // Cmd+Shift+M → 切换模式
   useShortcut(
     'toggle-mode',
@@ -237,8 +270,6 @@ export function GlobalShortcuts(): null {
   )
 
   // ===== 快速任务窗口 → 创建会话并自动发送 =====
-
-  const store = useStore()
 
   useEffect(() => {
     const cleanup = window.electronAPI.onQuickTaskOpenSession(async (data) => {

@@ -9,7 +9,7 @@
  */
 
 import * as React from 'react'
-import { useAtom, useAtomValue, useSetAtom, useStore } from 'jotai'
+import { useAtom, useAtomValue, useStore } from 'jotai'
 import { PanelRight } from 'lucide-react'
 import {
   tabsAtom,
@@ -19,23 +19,20 @@ import {
 } from '@/atoms/tab-atoms'
 import type { TabItem } from '@/atoms/tab-atoms'
 import type { SessionIndicatorStatus } from '@/atoms/agent-atoms'
-import { currentConversationIdAtom } from '@/atoms/chat-atoms'
 import {
   agentSessionsAtom,
   agentSidePanelOpenAtom,
   agentWorkspacesAtom,
-  currentAgentSessionIdAtom,
   currentAgentWorkspaceIdAtom,
-  unviewedCompletedSessionIdsAtom,
 } from '@/atoms/agent-atoms'
-import { appModeAtom } from '@/atoms/app-mode'
-import { automationFormAtom } from '@/atoms/automation-atoms'
 import { tearOffPreviewToSplit } from '@/components/diff/preview-opener'
 import { tearOffScratchToSplit } from '@/components/scratch-pad/scratch-pad-opener'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { SidebarToggleButton } from '@/components/app-shell/SidebarToggleButton'
 import { TabBarItem } from './TabBarItem'
+import { TabNavigationControls } from './TabNavigationControls'
+import { activateTab } from './activate-tab'
 import { useCloseTab } from '@/hooks/useCloseTab'
 import {
   detectIsMac,
@@ -69,7 +66,7 @@ function useIsMacFullscreen(): boolean {
 
 export function TabBar(): React.ReactElement {
   const tabs = useAtomValue(tabsAtom)
-  const [activeTabId, setActiveTabId] = useAtom(activeTabIdAtom)
+  const [activeTabId] = useAtom(activeTabIdAtom)
   const indicatorMap = useAtomValue(tabIndicatorMapAtom)
   // 侧边栏折叠为完全隐藏后，TabBar 顶到窗口最左侧，需要自己避让 macOS 原生红绿灯
   // （侧边栏展开时红绿灯避让由侧边栏自身顶部留白负责，见 LeftSidebar 的 SidebarWindowDragStrip）
@@ -79,17 +76,9 @@ export function TabBar(): React.ReactElement {
   // 全屏时红绿灯自动隐藏，无需留 padding
   const needsMacTrafficLightGap = isMac && sidebarCollapsed && !isMacFullscreen
 
-  // Tab 切换时同步 sidebar 状态
-  const appMode = useAtomValue(appModeAtom)
-  const setAppMode = useSetAtom(appModeAtom)
-  const setCurrentConversationId = useSetAtom(currentConversationIdAtom)
-  const setCurrentAgentSessionId = useSetAtom(currentAgentSessionIdAtom)
   const agentSessions = useAtomValue(agentSessionsAtom)
   const agentWorkspaces = useAtomValue(agentWorkspacesAtom)
   const currentWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
-  const setCurrentAgentWorkspaceId = useSetAtom(currentAgentWorkspaceIdAtom)
-  const setUnviewedCompleted = useSetAtom(unviewedCompletedSessionIdsAtom)
-  const setAutomationForm = useSetAtom(automationFormAtom)
 
   // 统一关闭逻辑：关闭当前会话入口并回到 Scratch Pad，不停止后台 Agent
   const { requestClose } = useCloseTab()
@@ -147,42 +136,8 @@ export function TabBar(): React.ReactElement {
   } | null>(null)
 
   const handleActivate = React.useCallback((tabId: string) => {
-    setActiveTabId(tabId)
-    // 点击任意 tab 都关闭定时任务编辑表单（overlay 否则会盖在内容区上）
-    setAutomationForm({ open: false, draft: null })
-
-    const tab = tabs.find((t) => t.id === tabId)
-    if (!tab) return
-
-    if (tab.type === 'chat') {
-      setAppMode('chat')
-      setCurrentConversationId(tab.sessionId)
-    } else if (tab.type === 'agent' || tab.type === 'preview') {
-      setAppMode('agent')
-      setCurrentAgentSessionId(tab.sessionId)
-
-      // 用户打开查看后只清除未读角标；是否完成由用户通过对勾确认。
-      setUnviewedCompleted((prev) => {
-        if (!prev.has(tab.sessionId)) return prev
-        const next = new Set(prev)
-        next.delete(tab.sessionId)
-        return next
-      })
-
-      const session = agentSessions.find((s) => s.id === tab.sessionId)
-      if (session?.workspaceId) {
-        setCurrentAgentWorkspaceId(session.workspaceId)
-        window.electronAPI.updateSettings({
-          agentWorkspaceId: session.workspaceId,
-        }).catch(console.error)
-      }
-    } else if (tab.type === 'scratch' || tab.type === 'tutorial') {
-      setCurrentConversationId(null)
-      if (appMode !== 'agent') {
-        setCurrentAgentSessionId(null)
-      }
-    }
-  }, [setActiveTabId, setAutomationForm, tabs, agentSessions, appMode, setAppMode, setCurrentConversationId, setCurrentAgentSessionId, setCurrentAgentWorkspaceId, setUnviewedCompleted])
+    activateTab(store, tabId)
+  }, [store])
 
   const handleDragStart = React.useCallback((tabId: string, e: React.PointerEvent) => {
     if (e.button !== 0) return // 只处理左键
@@ -449,6 +404,8 @@ function TabBarInner({
           <SidebarToggleButton />
         </div>
       )}
+      {/* 浏览器式 Tab 历史：展开侧栏时仍在 TabBar 左缘，收起时紧随折叠按钮。 */}
+      <TabNavigationControls />
 
       <div
         ref={scrollRef}
