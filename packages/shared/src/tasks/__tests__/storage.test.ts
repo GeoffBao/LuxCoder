@@ -7,11 +7,15 @@ import type { RunLogEntry } from '../storage.ts';
 import {
   appendRunLog,
   ensureUniqueTaskSlug,
+  getLatestRunId,
+  initializeRun,
   isRunResumable,
   listResumableRuns,
   loadTaskSpec,
   readNodeOutput,
+  readRunContextSnapshot,
   readRunLog,
+  readRunLogIntegrity,
   readRunSpecSnapshot,
   rehydrateNodeStates,
   runDir,
@@ -224,6 +228,58 @@ describe('task storage', () => {
     ]);
   });
 
+  test('readRunLogIntegrity 允许尾行截断，但中段损坏进入 recovery-required', () => {
+    const workspaceRoot = createTempWorkspaceRoot();
+    const slug = 'demo-task';
+    const runId = 'run-integrity';
+    const logPath = join(runDir(workspaceRoot, slug, runId), 'run-log.jsonl');
+    mkdirSync(runDir(workspaceRoot, slug, runId), { recursive: true });
+    writeFileSync(logPath, [
+      JSON.stringify({ t: '2026-07-13T00:00:00.000Z', seq: 1, kind: 'run-started', taskId: slug, runId }),
+      '{broken-middle',
+      JSON.stringify({ t: '2026-07-13T00:00:02.000Z', seq: 2, kind: 'run-paused' }),
+      '',
+    ].join('\n'));
+
+    expect(readRunLogIntegrity(workspaceRoot, slug, runId)).toEqual(
+      expect.objectContaining({
+        recoveryRequired: true,
+        tailTruncated: false,
+        errors: expect.arrayContaining([expect.objectContaining({ line: 2 })]),
+      }),
+    );
+
+    writeFileSync(logPath, [
+      JSON.stringify({ t: '2026-07-13T00:00:00.000Z', seq: 1, kind: 'run-started', taskId: slug, runId }),
+      '{truncated-tail',
+    ].join('\n'));
+    expect(readRunLogIntegrity(workspaceRoot, slug, runId)).toEqual(
+      expect.objectContaining({ recoveryRequired: false, tailTruncated: true }),
+    );
+  });
+
+  test('readRunLogIntegrity 检测 sequence 断裂', () => {
+    const workspaceRoot = createTempWorkspaceRoot();
+    const slug = 'demo-task';
+    const runId = 'run-sequence-gap';
+    const logPath = join(runDir(workspaceRoot, slug, runId), 'run-log.jsonl');
+    mkdirSync(runDir(workspaceRoot, slug, runId), { recursive: true });
+    writeFileSync(logPath, [
+      JSON.stringify({ t: '2026-07-13T00:00:00.000Z', seq: 1, kind: 'run-started', taskId: slug, runId }),
+      JSON.stringify({ t: '2026-07-13T00:00:01.000Z', seq: 3, kind: 'run-paused' }),
+      '',
+    ].join('\n'));
+
+    expect(readRunLogIntegrity(workspaceRoot, slug, runId)).toEqual(
+      expect.objectContaining({
+        recoveryRequired: true,
+        errors: expect.arrayContaining([
+          expect.objectContaining({ message: expect.stringContaining('sequence 断裂') }),
+        ]),
+      }),
+    );
+  });
+
   test('readRunLog 会保留 run-started 的 params 与 verifyOnComplete', () => {
     const workspaceRoot = createTempWorkspaceRoot();
     const slug = 'demo-task';
@@ -283,6 +339,57 @@ describe('task storage', () => {
     expect(snapshot).toEqual(spec);
     expect(snapshot?.project).toBeUndefined();
     expect(snapshot?.cwd).toBeUndefined();
+  });
+
+  test('initializeRun 原子保留 runId 并写入不可变执行上下文', () => {
+    const workspaceRoot = createTempWorkspaceRoot();
+    const slug = 'demo-task';
+    const spec = buildSpec();
+    const context = {
+      schemaVersion: 1 as const,
+      taskId: '018f47a8-6c26-7a13-9bf6-7c8d4f2e4c72',
+      taskSlug: slug,
+      runId: 'run-fixed',
+      scope: { kind: 'workspace' as const },
+      effectiveCwd: '/repo/frozen',
+      effectiveCwdSource: 'workspace' as const,
+      createdAt: '2026-07-29T00:00:00.000Z',
+      verifyOnComplete: false,
+    };
+
+    initializeRun(workspaceRoot, slug, 'run-fixed', spec, context);
+
+    expect(readRunSpecSnapshot(workspaceRoot, slug, 'run-fixed')).toEqual(spec);
+    expect(readRunContextSnapshot(workspaceRoot, slug, 'run-fixed')).toEqual(context);
+    expect(() => initializeRun(workspaceRoot, slug, 'run-fixed', buildSpec({ title: 'overwrite' }), context))
+      .toThrow(/runId|已存在|占用/i);
+    expect(readRunSpecSnapshot(workspaceRoot, slug, 'run-fixed')).toEqual(spec);
+  });
+
+  test('getLatestRunId 按 context/run-started 时间选择，不依赖 runId 字典序', () => {
+    const workspaceRoot = createTempWorkspaceRoot();
+    const slug = 'demo-task';
+    const spec = buildSpec();
+    initializeRun(workspaceRoot, slug, 'z-older', spec, {
+      schemaVersion: 1,
+      taskId: slug,
+      taskSlug: slug,
+      runId: 'z-older',
+      scope: { kind: 'workspace' },
+      createdAt: '2026-07-28T00:00:00.000Z',
+      verifyOnComplete: false,
+    });
+    initializeRun(workspaceRoot, slug, 'a-newer', spec, {
+      schemaVersion: 1,
+      taskId: slug,
+      taskSlug: slug,
+      runId: 'a-newer',
+      scope: { kind: 'workspace' },
+      createdAt: '2026-07-29T00:00:00.000Z',
+      verifyOnComplete: false,
+    });
+
+    expect(getLatestRunId(workspaceRoot, slug)).toBe('a-newer');
   });
 
   test('readRunSpecSnapshot 在结构无效时返回 null', () => {

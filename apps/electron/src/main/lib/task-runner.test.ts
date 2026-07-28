@@ -1,15 +1,25 @@
 import { afterEach, describe, expect, test } from 'bun:test'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { TaskSpec } from '@luxcoder/shared/tasks/schema'
-import { appendRunLog, saveTaskSpec, writeRunSpecSnapshot } from '@luxcoder/shared/tasks/storage'
+import {
+  appendRunLog,
+  initializeRun,
+  readRunContextSnapshot,
+  readRunLog,
+  runDir,
+  saveTaskRecord,
+  saveTaskSpec,
+  writeRunSpecSnapshot,
+} from '@luxcoder/shared/tasks/storage'
 import {
   TaskRunner,
   type ConductorSendMessageOptions,
   type ConductorSessionHost,
   type CreateSessionOptions,
   type SessionCompletionEvent,
+  type TaskRunnerDeps,
 } from './task-runner'
 
 const tempRoots: string[] = []
@@ -110,6 +120,12 @@ class FakeConductorSessionHost implements ConductorSessionHost {
     return this.workingDirectories.get(sessionId)
   }
 
+  findSessionByTaskCorrelationKey(workspaceId: string, correlationKey: string): { id: string } | undefined {
+    return this.createdSessions.find((session) => (
+      session.workspaceId === workspaceId && session.options.taskCorrelationKey === correlationKey
+    ))
+  }
+
   completeSession(
     sessionId: string,
     overrides: Partial<SessionCompletionEvent> & Pick<SessionCompletionEvent, 'workspaceId'>,
@@ -131,7 +147,12 @@ class FakeConductorSessionHost implements ConductorSessionHost {
   }
 }
 
-function createRunner(workspaceRoot: string, host: FakeConductorSessionHost, runId = 'run-1'): TaskRunner {
+function createRunner(
+  workspaceRoot: string,
+  host: FakeConductorSessionHost,
+  runId = 'run-1',
+  overrides: Partial<TaskRunnerDeps> = {},
+): TaskRunner {
   return new TaskRunner({
     host,
     workspaceId: 'ws-1',
@@ -139,6 +160,7 @@ function createRunner(workspaceRoot: string, host: FakeConductorSessionHost, run
     defaultMaxParallel: 2,
     genRunId: () => runId,
     now: () => '2026-07-13T00:00:00.000Z',
+    ...overrides,
   })
 }
 
@@ -148,7 +170,148 @@ async function flushAsyncWork(): Promise<void> {
 }
 
 describe('TaskRunner', () => {
-  test.todo('重复 runId 必须拒绝且不得覆盖 snapshot 或追加旧日志', () => {})
+  test('重复 runId 必须拒绝且不得覆盖 snapshot 或追加旧日志', () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    saveTaskSpec(workspaceRoot, buildSpec())
+    const firstHost = new FakeConductorSessionHost()
+    const secondHost = new FakeConductorSessionHost()
+
+    createRunner(workspaceRoot, firstHost, 'run-fixed').run('demo-task', { verifyOnComplete: false })
+    const originalLog = readRunLog(workspaceRoot, 'demo-task', 'run-fixed')
+
+    expect(() => createRunner(workspaceRoot, secondHost, 'run-fixed').run('demo-task', { verifyOnComplete: false }))
+      .toThrow(/runId|已存在|占用|活跃 Run/i)
+    expect(readRunLog(workspaceRoot, 'demo-task', 'run-fixed')).toEqual(originalLog)
+  })
+
+  test('Run 使用稳定 taskId 并冻结 cwd 到 context、日志和所有 child Session', async () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    saveTaskSpec(workspaceRoot, buildSpec())
+    saveTaskRecord(workspaceRoot, {
+      schemaVersion: 1,
+      taskId: '018f47a8-6c26-7a13-9bf6-7c8d4f2e4c72',
+      slug: 'demo-task',
+      revision: 1,
+      workflow: 'todo',
+      labelIds: [],
+      createdAt: 1,
+      updatedAt: 1,
+    })
+    const host = new FakeConductorSessionHost()
+    const runner = createRunner(workspaceRoot, host, 'run-context', {
+      resolveTaskWorkingDirectory: () => ({
+        status: 'resolved',
+        cwd: '/repo/frozen',
+        source: 'workspace',
+      }),
+    })
+
+    const snapshot = runner.run('demo-task', { verifyOnComplete: false })
+    await flushAsyncWork()
+
+    expect(snapshot).toEqual(expect.objectContaining({
+      taskId: '018f47a8-6c26-7a13-9bf6-7c8d4f2e4c72',
+      effectiveCwd: '/repo/frozen',
+      effectiveCwdSource: 'workspace',
+    }))
+    expect(readRunContextSnapshot(workspaceRoot, 'demo-task', 'run-context')).toEqual(
+      expect.objectContaining({
+        taskId: '018f47a8-6c26-7a13-9bf6-7c8d4f2e4c72',
+        effectiveCwd: '/repo/frozen',
+        effectiveCwdSource: 'workspace',
+        scope: { kind: 'workspace' },
+      }),
+    )
+    expect(readRunLog(workspaceRoot, 'demo-task', 'run-context')[0]).toEqual(
+      expect.objectContaining({
+        kind: 'run-started',
+        taskId: '018f47a8-6c26-7a13-9bf6-7c8d4f2e4c72',
+        taskSlug: 'demo-task',
+        effectiveCwd: '/repo/frozen',
+      }),
+    )
+    expect(host.createdSessions[0]?.options.workingDirectory).toBe('/repo/frozen')
+  })
+
+  test('cwd resolver blocked 时不创建 Run 目录或 child Session', () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    saveTaskSpec(workspaceRoot, buildSpec())
+    const host = new FakeConductorSessionHost()
+    const runner = createRunner(workspaceRoot, host, 'run-blocked', {
+      resolveTaskWorkingDirectory: () => ({ status: 'blocked', reason: 'missing-cwd' }),
+    })
+
+    expect(() => runner.run('demo-task')).toThrow(/工作目录|cwd|Project|Workspace/i)
+    expect(existsSync(runDir(workspaceRoot, 'demo-task', 'run-blocked'))).toBe(false)
+    expect(host.createdSessions).toEqual([])
+  })
+
+  test('恢复时按 correlation key 复用已创建 Session，不重复派发副作用', async () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    const spec = buildSpec()
+    saveTaskSpec(workspaceRoot, spec)
+    initializeRun(workspaceRoot, spec.id, 'run-recover-intent', spec, {
+      schemaVersion: 1,
+      taskId: spec.id,
+      taskSlug: spec.id,
+      runId: 'run-recover-intent',
+      scope: { kind: 'workspace' },
+      createdAt: '2026-07-13T00:00:00.000Z',
+      verifyOnComplete: false,
+    })
+    const correlationKey = `${spec.id}/run-recover-intent/draft/1`
+    appendRunLog(workspaceRoot, spec.id, 'run-recover-intent', {
+      t: '2026-07-13T00:00:00.000Z',
+      seq: 1,
+      kind: 'run-started',
+      taskId: spec.id,
+      taskSlug: spec.id,
+      runId: 'run-recover-intent',
+      verifyOnComplete: false,
+    })
+    appendRunLog(workspaceRoot, spec.id, 'run-recover-intent', {
+      t: '2026-07-13T00:00:01.000Z',
+      seq: 2,
+      kind: 'node-scheduled',
+      nodeId: 'draft',
+    })
+    appendRunLog(workspaceRoot, spec.id, 'run-recover-intent', {
+      t: '2026-07-13T00:00:02.000Z',
+      seq: 3,
+      kind: 'node-dispatch-intent',
+      nodeId: 'draft',
+      attempt: 1,
+      correlationKey,
+    })
+
+    const host = new FakeConductorSessionHost()
+    host.createdSessions.push({
+      id: 'session-existing',
+      workspaceId: 'ws-1',
+      options: {
+        taskSlug: spec.id,
+        taskRunId: 'run-recover-intent',
+        taskNodeId: 'draft',
+        taskAttempt: 1,
+        taskCorrelationKey: correlationKey,
+      },
+    })
+    host.completeSession('session-existing', { workspaceId: 'ws-1', finalText: 'already completed' })
+    const runner = createRunner(workspaceRoot, host, 'unused', {
+      isSessionActive: () => false,
+    })
+
+    runner.resume(spec.id, 'run-recover-intent')
+    await flushAsyncWork()
+
+    expect(host.createdSessions).toHaveLength(1)
+    await expect(runner.waitUntilSettled(spec.id, 'run-recover-intent')).resolves.toEqual(
+      expect.objectContaining({
+        status: 'completed',
+        nodes: [expect.objectContaining({ id: 'draft', state: 'done', sessionId: 'session-existing', attempt: 1 })],
+      }),
+    )
+  })
 
   test('按依赖顺序调度节点', async () => {
     const workspaceRoot = createTempWorkspaceRoot()

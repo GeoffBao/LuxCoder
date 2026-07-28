@@ -9,7 +9,7 @@
  * 参照 OSS: packages/shared/src/tasks/storage.ts
  * 适配: yaml 包引用改为 js-yaml；atomicWriteFileSync → writeFileSync + renameSync
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync, appendFileSync, writeFileSync, renameSync } from 'fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, appendFileSync, writeFileSync, renameSync, rmSync, statSync } from 'fs';
 import { join } from 'path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { validateTaskInput } from './validate.ts';
@@ -36,23 +36,28 @@ const NODES_DIR = 'nodes';
 
 export type NodeRunState = 'pending' | 'running' | 'done' | 'failed' | 'cancelled' | 'skipped';
 
-export type RunLogEntry =
+export type RunLogEntry = { seq?: number } & (
   | {
       t: string;
       kind: 'run-started';
       taskId: string;
+      taskSlug?: string;
       runId: string;
       orchestratorSessionId?: string;
+      effectiveCwd?: string;
+      effectiveCwdSource?: 'task' | 'project' | 'workspace';
       params?: Record<string, unknown>;
       verifyOnComplete?: boolean;
     }
   | { t: string; kind: 'node-scheduled'; nodeId: string }
+  | { t: string; kind: 'node-dispatch-intent'; nodeId: string; attempt: number; correlationKey: string }
   | { t: string; kind: 'node-spawned'; nodeId: string; sessionId: string }
   | { t: string; kind: 'node-finished'; nodeId: string; sessionId: string; state: NodeRunState; reason?: string }
   | { t: string; kind: 'node-retry'; nodeId: string; attempt: number; reason: string }
   | { t: string; kind: 'run-paused' | 'run-resumed' | 'run-stopped' | 'run-completed' | 'run-failed' | 'run-verifying' }
   | { t: string; kind: 'verdict'; result: 'pass' | 'fail' | 'unparsed'; reason?: string; nodes?: string[] }
-  | { t: string; kind: 'budget-breach'; metric: 'tokens' | 'parallel' | 'iterations'; value: number; limit: number };
+  | { t: string; kind: 'budget-breach'; metric: 'tokens' | 'parallel' | 'iterations'; value: number; limit: number }
+);
 
 export interface RehydratedNodeState {
   state: NodeRunState;
@@ -60,13 +65,16 @@ export interface RehydratedNodeState {
   attempt: number;
 }
 
-const RunLogEntrySchema = z.discriminatedUnion('kind', [
+const RunLogPayloadSchema = z.discriminatedUnion('kind', [
   z.object({
     t: z.string(),
     kind: z.literal('run-started'),
     taskId: z.string(),
+    taskSlug: z.string().optional(),
     runId: z.string(),
     orchestratorSessionId: z.string().optional(),
+    effectiveCwd: z.string().optional(),
+    effectiveCwdSource: z.enum(['task', 'project', 'workspace']).optional(),
     params: z.record(z.string(), z.unknown()).optional(),
     verifyOnComplete: z.boolean().optional(),
   }),
@@ -74,6 +82,13 @@ const RunLogEntrySchema = z.discriminatedUnion('kind', [
     t: z.string(),
     kind: z.literal('node-scheduled'),
     nodeId: z.string(),
+  }),
+  z.object({
+    t: z.string(),
+    kind: z.literal('node-dispatch-intent'),
+    nodeId: z.string(),
+    attempt: z.number().int().positive(),
+    correlationKey: z.string().min(1),
   }),
   z.object({
     t: z.string(),
@@ -115,6 +130,11 @@ const RunLogEntrySchema = z.discriminatedUnion('kind', [
     limit: z.number(),
   }),
 ]);
+
+const RunLogEntrySchema = z.intersection(
+  z.object({ seq: z.number().int().positive().optional() }),
+  RunLogPayloadSchema,
+);
 
 // ---------------------------------------------------------------------------
 // 路径辅助
@@ -285,24 +305,73 @@ export function appendRunLog(workspaceRoot: string, slug: string, runId: string,
   appendFileSync(join(dir, RUN_LOG), JSON.stringify(entry) + '\n', 'utf-8');
 }
 
-/** 读取运行日志（按追加顺序） */
-export function readRunLog(workspaceRoot: string, slug: string, runId: string): RunLogEntry[] {
+export interface RunLogIntegrityResult {
+  entries: RunLogEntry[];
+  recoveryRequired: boolean;
+  tailTruncated: boolean;
+  errors: Array<{ line: number; message: string }>;
+}
+
+/**
+ * 读取并校验运行日志。只容忍最后一个非空行截断；中段损坏或新格式 sequence 断裂必须人工恢复。
+ */
+export function readRunLogIntegrity(workspaceRoot: string, slug: string, runId: string): RunLogIntegrityResult {
   const path = join(runDir(workspaceRoot, slug, runId), RUN_LOG);
-  if (!existsSync(path)) return [];
-  const out: RunLogEntry[] = [];
-  for (const line of readFileSync(path, 'utf-8').split('\n')) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
+  if (!existsSync(path)) return { entries: [], recoveryRequired: false, tailTruncated: false, errors: [] };
+
+  const lines = readFileSync(path, 'utf-8').split('\n');
+  const nonEmptyIndexes = lines
+    .map((line, index) => ({ line: line.trim(), index }))
+    .filter((item) => item.line.length > 0);
+  const lastNonEmptyIndex = nonEmptyIndexes.at(-1)?.index ?? -1;
+  const entries: RunLogEntry[] = [];
+  const errors: Array<{ line: number; message: string }> = [];
+  let tailTruncated = false;
+
+  for (const { line, index } of nonEmptyIndexes) {
     try {
-      const parsed = RunLogEntrySchema.safeParse(JSON.parse(trimmed));
-      if (parsed.success) {
-        out.push(parsed.data);
+      const parsed = RunLogEntrySchema.safeParse(JSON.parse(line));
+      if (!parsed.success) {
+        throw new Error(parsed.error.issues.map((issue) => issue.message).join('; '));
       }
-    } catch {
-      // 跳过损坏/截断的行
+      entries.push(parsed.data as RunLogEntry);
+    } catch (error) {
+      if (index === lastNonEmptyIndex) {
+        tailTruncated = true;
+      } else {
+        errors.push({ line: index + 1, message: (error as Error).message });
+      }
     }
   }
-  return out;
+
+  let expectedSequence: number | undefined;
+  for (const entry of entries) {
+    if (entry.seq === undefined) {
+      if (expectedSequence !== undefined) {
+        errors.push({ line: -1, message: 'sequence 日志中出现缺失 seq 的条目' });
+      }
+      continue;
+    }
+    if (expectedSequence === undefined) expectedSequence = 1;
+    if (entry.seq !== expectedSequence) {
+      errors.push({ line: -1, message: `run-log sequence 断裂: 期望 ${expectedSequence}，实际 ${entry.seq}` });
+      expectedSequence = entry.seq + 1;
+    } else {
+      expectedSequence += 1;
+    }
+  }
+
+  return {
+    entries,
+    recoveryRequired: errors.length > 0,
+    tailTruncated,
+    errors,
+  };
+}
+
+/** 兼容读取 API；恢复路径必须改用 readRunLogIntegrity 检查损坏状态。 */
+export function readRunLog(workspaceRoot: string, slug: string, runId: string): RunLogEntry[] {
+  return readRunLogIntegrity(workspaceRoot, slug, runId).entries;
 }
 
 /** 根据运行日志重建节点状态；缺失输出文件的 done 节点会回退为 pending */
@@ -372,6 +441,27 @@ export function listRunIds(workspaceRoot: string, slug: string): string[] {
     .sort();
 }
 
+function getRunCreatedAt(workspaceRoot: string, slug: string, runId: string): number {
+  const context = readRunContextSnapshot(workspaceRoot, slug, runId);
+  const contextTime = context ? Date.parse(context.createdAt) : Number.NaN;
+  if (Number.isFinite(contextTime)) return contextTime;
+  const started = readRunLog(workspaceRoot, slug, runId).find((entry) => entry.kind === 'run-started');
+  const startedTime = started ? Date.parse(started.t) : Number.NaN;
+  if (Number.isFinite(startedTime)) return startedTime;
+  try {
+    return statSync(runDir(workspaceRoot, slug, runId)).mtimeMs;
+  } catch {
+    return 0;
+  }
+}
+
+/** 返回真实最新 Run，不依赖 UUID/自定义 runId 的字典序。 */
+export function getLatestRunId(workspaceRoot: string, slug: string): string | undefined {
+  return listRunIds(workspaceRoot, slug)
+    .map((runId) => ({ runId, createdAt: getRunCreatedAt(workspaceRoot, slug, runId) }))
+    .sort((a, b) => b.createdAt - a.createdAt || b.runId.localeCompare(a.runId))[0]?.runId;
+}
+
 /** 运行日志是否仍可 resume（已 started 且尚未 completed/failed/stopped） */
 export function isRunResumable(log: RunLogEntry[]): boolean {
   let started = false;
@@ -398,7 +488,8 @@ export function listResumableRuns(workspaceRoot: string): Array<{ slug: string; 
   const result: Array<{ slug: string; runId: string }> = [];
   for (const slug of listTaskSlugs(workspaceRoot)) {
     for (const runId of listRunIds(workspaceRoot, slug)) {
-      if (isRunResumable(readRunLog(workspaceRoot, slug, runId))) {
+      const integrity = readRunLogIntegrity(workspaceRoot, slug, runId);
+      if (!integrity.recoveryRequired && isRunResumable(integrity.entries)) {
         result.push({ slug, runId });
       }
     }
@@ -411,6 +502,88 @@ export function listResumableRuns(workspaceRoot: string): Array<{ slug: string; 
 // ---------------------------------------------------------------------------
 
 const RUN_SPEC = 'spec.json';
+const RUN_CONTEXT = 'context-snapshot.json';
+
+export const RunContextSnapshotSchema = z.object({
+  schemaVersion: z.literal(1),
+  taskId: z.string().min(1),
+  taskSlug: z.string().min(1),
+  runId: z.string().min(1),
+  scope: z.discriminatedUnion('kind', [
+    z.object({ kind: z.literal('workspace') }),
+    z.object({ kind: z.literal('project'), projectId: z.string().min(1) }),
+  ]),
+  effectiveCwd: z.string().min(1).optional(),
+  effectiveCwdSource: z.enum(['task', 'project', 'workspace']).optional(),
+  orchestratorSessionId: z.string().min(1).optional(),
+  createdAt: z.string().min(1),
+  verifyOnComplete: z.boolean(),
+}).superRefine((value, ctx) => {
+  if (Boolean(value.effectiveCwd) !== Boolean(value.effectiveCwdSource)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'effectiveCwd 与 effectiveCwdSource 必须同时存在或同时缺失',
+      path: ['effectiveCwd'],
+    });
+  }
+});
+
+export type RunContextSnapshot = z.infer<typeof RunContextSnapshotSchema>;
+
+/**
+ * 原子预留 runId，并在派发任何节点前写入 spec 与执行上下文。
+ * 任一快照写失败会删除本次新建目录；已存在 runId 绝不覆盖。
+ */
+export function initializeRun(
+  workspaceRoot: string,
+  slug: string,
+  runId: string,
+  spec: TaskSpec,
+  context: RunContextSnapshot,
+): void {
+  const validation = validateTaskInput(spec);
+  if (!validation.valid || !validation.spec) {
+    throw new Error(`拒绝初始化无效 Run spec: ${validation.errors.map((issue) => issue.message).join('; ')}`);
+  }
+  const parsedContext = RunContextSnapshotSchema.parse(context);
+  if (parsedContext.taskSlug !== slug || parsedContext.runId !== runId) {
+    throw new Error('Run context 的 taskSlug/runId 与目标目录不一致');
+  }
+
+  ensureDir(join(taskDir(workspaceRoot, slug), RUNS_DIR));
+  const dir = runDir(workspaceRoot, slug, runId);
+  try {
+    mkdirSync(dir);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+      throw new Error(`runId 已存在或被占用: ${slug}:${runId}`);
+    }
+    throw error;
+  }
+
+  try {
+    atomicWriteSync(join(dir, RUN_SPEC), JSON.stringify(validation.spec, null, 2));
+    atomicWriteSync(join(dir, RUN_CONTEXT), JSON.stringify(parsedContext, null, 2));
+  } catch (error) {
+    rmSync(dir, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+export function readRunContextSnapshot(
+  workspaceRoot: string,
+  slug: string,
+  runId: string,
+): RunContextSnapshot | null {
+  const path = join(runDir(workspaceRoot, slug, runId), RUN_CONTEXT);
+  if (!existsSync(path)) return null;
+  try {
+    const parsed = RunContextSnapshotSchema.safeParse(JSON.parse(readFileSync(path, 'utf-8')));
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
 
 /** 快照运行时的 spec，确保 Results 视图显示的是运行当时而非当前编辑后的节点 */
 export function writeRunSpecSnapshot(workspaceRoot: string, slug: string, runId: string, spec: TaskSpec): void {

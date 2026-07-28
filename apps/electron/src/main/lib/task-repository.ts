@@ -11,6 +11,7 @@ import {
   loadTaskRecord,
   loadTaskSpec,
   readNodeOutput,
+  readRunContextSnapshot,
   readRunLog,
   readRunSpecSnapshot,
   rehydrateNodeStates,
@@ -51,12 +52,15 @@ export interface TaskAggregate {
 }
 
 export interface TaskRunState {
+  taskId: string
   taskSlug: string
   runId: string
   spec: TaskSpec | null
   log: RunLogEntry[]
   nodeStates: Record<string, RehydratedNodeState>
   nodeOutputs: Record<string, NodeOutput>
+  effectiveCwd?: string
+  effectiveCwdSource?: 'task' | 'project' | 'workspace'
 }
 
 export interface TaskRepositoryOptions {
@@ -243,8 +247,9 @@ export class TaskRepository {
       ?? loadTaskSpec(workspaceRoot, slug)?.spec
       ?? null
     const log = readRunLog(workspaceRoot, slug, parsedRunId)
+    const context = readRunContextSnapshot(workspaceRoot, slug, parsedRunId)
 
-    if (spec === null && log.length === 0) {
+    if (spec === null && log.length === 0 && context === null) {
       return null
     }
 
@@ -268,13 +273,20 @@ export class TaskRepository {
       return output
     })
 
+    const started = log.find((entry) => entry.kind === 'run-started')
+    const liveRecord = loadTaskRecord(workspaceRoot, slug)
     return {
+      taskId: context?.taskId
+        ?? started?.taskId
+        ?? (liveRecord.kind === 'valid' ? liveRecord.record.taskId : slug),
       taskSlug: slug,
       runId: parsedRunId,
       spec,
       log,
       nodeStates,
       nodeOutputs,
+      effectiveCwd: context?.effectiveCwd ?? started?.effectiveCwd,
+      effectiveCwdSource: context?.effectiveCwdSource ?? started?.effectiveCwdSource,
     }
   }
 }

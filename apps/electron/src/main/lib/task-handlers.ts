@@ -30,20 +30,24 @@ import {
 } from '@luxcoder/shared/tasks'
 import {
   ensureUniqueTaskSlug,
+  getLatestRunId,
   listResumableRuns,
   listTaskSlugs,
   loadTaskSpec,
   parseTaskYaml,
   readRunLog,
   readRunSpecSnapshot,
-  listRunIds,
   saveTaskSpec,
 } from '@luxcoder/shared/tasks/storage'
 import { createLuxCoderConductorSessionHost, type LuxCoderConductorSessionHost } from './conductor-session-host'
 import { getAgentSessionMeta, updateAgentSessionMeta } from './agent-session-manager'
 import { createSessionGroup, deleteSessionGroup, listSessionGroups, renameSessionGroup } from './agent-session-group-service'
 import { isAgentSessionActive } from './agent-service'
-import { getAgentWorkspace, listAgentWorkspaces } from './agent-workspace-manager'
+import {
+  getAgentWorkspace,
+  getWorkspaceDefaultWorkingDirectoryAtRoot,
+  listAgentWorkspaces,
+} from './agent-workspace-manager'
 import { getAgentWorkspacePath, getExpertsDir } from './config-paths'
 import { getExpert } from './expert-service'
 import { projectRepository } from './project-repository'
@@ -53,6 +57,10 @@ import {
   resolveEffectiveCwd,
 } from './project-path-service'
 import { TaskRunner, type RunOptions } from './task-runner'
+import {
+  resolveTaskWorkingDirectory as resolveTaskWorkingDirectoryWithPolicy,
+  type TaskWorkingDirectoryResult,
+} from './task-working-directory'
 import { TeambitionService, type ClaimTeambitionTaskInput, type TeambitionRemoteTask } from './teambition-service'
 
 const GENERATE_TIMEOUT_MS = 180_000
@@ -147,6 +155,7 @@ async function getRunnerFor(workspaceRoot: string, workspaceId: string): Promise
         return null
       }
     },
+    resolveTaskWorkingDirectory: (spec) => resolveTaskWorkingDirectoryResult(workspaceRoot, spec),
   })
   runners.set(workspaceId, runner)
   return runner
@@ -198,14 +207,36 @@ interface AdoptableTaskSpec {
   }
 }
 
-/** spec.cwd 优先，否则回退到项目配置的 workingDirectory。 */
+/** 解析 Task cwd 的结构化结果；配置失效时保留 blocked 原因，供 Run/UI 使用。 */
+export function resolveTaskWorkingDirectoryResult(
+  workspaceRoot: string,
+  spec: Pick<AdoptableTaskSpec, 'cwd' | 'project'>,
+): TaskWorkingDirectoryResult {
+  return resolveTaskWorkingDirectoryWithPolicy({
+    explicitCwd: spec.cwd,
+    projectId: spec.project,
+    workspaceDefaultCwd: getWorkspaceDefaultWorkingDirectoryAtRoot(workspaceRoot),
+    resolveProjectCwd: (projectId) => {
+      const result = projectRepository.resolveEffectiveCwdForProject(workspaceRoot, projectId)
+      if (!result) return null
+      if (result.status === 'unavailable' || !result.cwd) {
+        return {
+          status: 'unavailable',
+          ...(result.displayPath ? { attemptedPath: result.displayPath } : {}),
+        }
+      }
+      return { status: 'resolved', cwd: result.cwd }
+    },
+  })
+}
+
+/** 创建阶段兼容 helper：Task 可在缺少 cwd 时保存，因此 blocked 映射为 undefined。 */
 export function resolveTaskWorkingDirectory(
   workspaceRoot: string,
   spec: Pick<AdoptableTaskSpec, 'cwd' | 'project'>,
 ): string | undefined {
-  const cwd = spec.cwd?.trim()
-  if (cwd) return cwd
-  return projectRepository.resolveWorkingDirectory(workspaceRoot, spec.project)
+  const result = resolveTaskWorkingDirectoryResult(workspaceRoot, spec)
+  return result.status === 'resolved' ? result.cwd : undefined
 }
 
 /**
@@ -604,7 +635,7 @@ export function registerTaskHandlers(window: BrowserWindow): void {
   })
 
   ipcMain.handle(TASK_IPC_CHANNELS.GET_RESULTS, (_event, workspaceRoot: string, slug: string, runId?: string) => {
-    const selectedRunId = runId ?? listRunIds(workspaceRoot, slug).at(-1)
+    const selectedRunId = runId ?? getLatestRunId(workspaceRoot, slug)
     if (!selectedRunId) return null
     return {
       spec: readRunSpecSnapshot(workspaceRoot, slug, selectedRunId),

@@ -202,6 +202,7 @@ describe('TaskRepository', () => {
     expect(repository.listRuns('ws-alpha', spec.id)).toEqual(['run-1'])
     expect(repository.getRunState('ws-alpha', spec.id, 'run-1')).toEqual(
       expect.objectContaining({
+        taskId: 'demo-task',
         runId: 'run-1',
         spec,
         log: expect.arrayContaining([

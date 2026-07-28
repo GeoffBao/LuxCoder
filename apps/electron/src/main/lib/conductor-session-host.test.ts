@@ -133,6 +133,8 @@ describe('LuxCoderConductorSessionHost', () => {
       taskSlug: 'demo',
       taskRunId: 'run-1',
       taskNodeId: 'node-1',
+      taskAttempt: 2,
+      taskCorrelationKey: 'task/run-1/node-1/2',
       taskDraft: true,
     })).resolves.toEqual({ id: 'session-1' })
 
@@ -145,8 +147,25 @@ describe('LuxCoderConductorSessionHost', () => {
       taskSlug: 'demo',
       taskRunId: 'run-1',
       taskNodeId: 'node-1',
+      taskAttempt: 2,
+      taskCorrelationKey: 'task/run-1/node-1/2',
       taskDraft: true,
     }])
+  })
+
+  test('按 Workspace + correlation key 查找已创建的节点 Session', () => {
+    const testDeps = createDependencies()
+    const deps = Object.assign(testDeps.deps, {
+      listAgentSessions: () => [
+        { id: 'other-workspace', title: 'other', workspaceId: 'workspace-2', taskCorrelationKey: 'task/run/node/1', createdAt: 1, updatedAt: 1 },
+        { id: 'matched', title: 'matched', workspaceId: 'workspace-1', taskCorrelationKey: 'task/run/node/1', createdAt: 1, updatedAt: 1 },
+      ],
+    })
+    const host = new LuxCoderConductorSessionHost(deps)
+
+    expect(host.findSessionByTaskCorrelationKey('workspace-1', 'task/run/node/1')).toEqual(
+      expect.objectContaining({ id: 'matched' }),
+    )
   })
 
   test('历史 safe/ask 权限映射到 plan，不得升权为 bypass', async () => {

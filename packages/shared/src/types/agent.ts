@@ -789,6 +789,10 @@ export interface AgentSessionMeta {
   taskRunId?: string
   /** Tasks Conductor: DAG 节点 id */
   taskNodeId?: string
+  /** Tasks Conductor: 节点派发尝试序号，用于崩溃恢复去重 */
+  taskAttempt?: number
+  /** Tasks Conductor: 稳定派发关联键 taskId/runId/nodeId/attempt */
+  taskCorrelationKey?: string
   /** Tasks Conductor: orchestrator 上的 DAG 总节点数（看板进度分母） */
   taskNodeCount?: number
   /** Tasks Conductor: generate 时的草稿标记（adopt 前不在看板显示） */

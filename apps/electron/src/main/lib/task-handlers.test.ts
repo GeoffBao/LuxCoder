@@ -1,5 +1,5 @@
 import { describe, expect, mock, test } from 'bun:test'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PROJECT_IPC_CHANNELS } from '@luxcoder/shared/channels'
@@ -214,6 +214,26 @@ describe('task handler Kanban payloads', () => {
     }))
   })
 
+  test('Workspace Task 从 workspace root/config.json 解析默认 cwd', () => {
+    const resolveCwd = Reflect.get(taskHandlers, 'resolveTaskWorkingDirectoryResult')
+    expect(resolveCwd).toBeInstanceOf(Function)
+    if (typeof resolveCwd !== 'function') return
+
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'luxcoder-workspace-cwd-root-'))
+    const workspaceCwd = mkdtempSync(join(tmpdir(), 'luxcoder-workspace-cwd-target-'))
+    try {
+      writeFileSync(join(workspaceRoot, 'config.json'), JSON.stringify({ defaultWorkingDirectory: workspaceCwd }))
+      expect(resolveCwd(workspaceRoot, {})).toEqual({
+        status: 'resolved',
+        cwd: realpathSync(workspaceCwd),
+        source: 'workspace',
+      })
+    } finally {
+      rmSync(workspaceRoot, { recursive: true, force: true })
+      rmSync(workspaceCwd, { recursive: true, force: true })
+    }
+  })
+
   test('set_project_id 有有效 cwd 时写入 workingDirectory，解绑不清除', () => {
     const buildUpdates = Reflect.get(taskHandlers, 'buildSetProjectIdUpdates')
     expect(buildUpdates).toBeInstanceOf(Function)
@@ -285,24 +305,29 @@ describe('task handler Kanban payloads', () => {
       sessionStatus: 'todo',
     })
 
-    expect(buildPatch(
-      {
-        id: 'release-task',
-        project: 'project-a',
-        cwd: '/Users/me/repo',
-        defaults: { model: 'claude-sonnet', llmConnection: 'channel-1', permissionMode: 'allow-all' },
-      },
-      '/workspace',
-    )).toEqual({
-      taskSlug: 'release-task',
-      projectId: 'project-a',
-      workingDirectory: '/Users/me/repo',
-      modelId: 'claude-sonnet',
-      channelId: 'channel-1',
-      permissionMode: 'bypassPermissions',
-      taskDraft: undefined,
-      sessionStatus: 'todo',
-    })
+    const validCwd = mkdtempSync(join(tmpdir(), 'luxcoder-task-seed-cwd-'))
+    try {
+      expect(buildPatch(
+        {
+          id: 'release-task',
+          project: 'project-a',
+          cwd: validCwd,
+          defaults: { model: 'claude-sonnet', llmConnection: 'channel-1', permissionMode: 'allow-all' },
+        },
+        '/workspace',
+      )).toEqual({
+        taskSlug: 'release-task',
+        projectId: 'project-a',
+        workingDirectory: realpathSync(validCwd),
+        modelId: 'claude-sonnet',
+        channelId: 'channel-1',
+        permissionMode: 'bypassPermissions',
+        taskDraft: undefined,
+        sessionStatus: 'todo',
+      })
+    } finally {
+      rmSync(validCwd, { recursive: true, force: true })
+    }
   })
 
   test('只允许 taskDraft 草稿会话被生成路径转正，防止 stale id 污染普通会话', () => {
