@@ -29,7 +29,6 @@ import {
   extractYaml,
 } from '@luxcoder/shared/tasks'
 import {
-  ensureUniqueTaskSlug,
   getLatestRunId,
   listResumableRuns,
   listTaskSlugs,
@@ -37,10 +36,9 @@ import {
   parseTaskYaml,
   readRunLog,
   readRunSpecSnapshot,
-  saveTaskSpec,
 } from '@luxcoder/shared/tasks/storage'
 import { createLuxCoderConductorSessionHost, type LuxCoderConductorSessionHost } from './conductor-session-host'
-import { getAgentSessionMeta, updateAgentSessionMeta } from './agent-session-manager'
+import { deleteAgentSession, getAgentSessionMeta, updateAgentSessionMeta } from './agent-session-manager'
 import { createSessionGroup, deleteSessionGroup, listSessionGroups, renameSessionGroup } from './agent-session-group-service'
 import { isAgentSessionActive } from './agent-service'
 import {
@@ -56,7 +54,11 @@ import {
   relocateProjectWorkingDirectory,
   resolveEffectiveCwd,
 } from './project-path-service'
-import { TaskRunner, type RunOptions } from './task-runner'
+import { TaskRunner, type CreateSessionOptions, type RunOptions } from './task-runner'
+import {
+  materializeTaskTransaction,
+  type TaskMaterializationDependencies,
+} from './task-materialization-service'
 import {
   resolveTaskWorkingDirectory as resolveTaskWorkingDirectoryWithPolicy,
   type TaskWorkingDirectoryResult,
@@ -103,37 +105,47 @@ function getSessionHost(): Promise<LuxCoderConductorSessionHost> {
   return sessionHostPromise
 }
 
-/**
- * 落盘 task.yaml 并创建全新的 orchestrator 会话（sessionStatus: 'todo'，只创建不运行）。
- * tasks:create IPC（新建路径）与 create_task Agent 工具共用此函数，避免两条创建路径分叉。
- * 不支持"挂接到既有会话"——那是 IPC handler 自己的分支，调用方是表单 UI 的编辑场景，
- * Agent 工具没有这个场景，不需要覆盖。
- *
- * slug 冲突通过 ensureUniqueTaskSlug 追加 -2/-3... 规避，两条创建路径共用同一份保护：
- * `saveTaskSpec` 对同 slug 是无条件覆盖，若不在这里去重，后到的任务会静默顶掉先到的
- * task.yaml，把它的 orchestrator 会话变成孤儿。这里读 slug 集合和随后 saveTaskSpec 的
- * 写入之间没有 await，去重检查因此不会有 TOCTOU 竞态。
- */
+async function taskMaterializationDependencies(): Promise<TaskMaterializationDependencies> {
+  const host = await getSessionHost()
+  return {
+    createSession: async (workspaceId: string, options: CreateSessionOptions) => {
+      const created = await host.createSession(workspaceId, options)
+      return getAgentSessionMeta(created.id) ?? {
+        id: created.id,
+        title: options.name ?? 'Task',
+        workspaceId,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }
+    },
+    getSession: getAgentSessionMeta,
+    updateSession: updateAgentSessionMeta,
+    deleteSession: deleteAgentSession,
+  }
+}
+
+/** tasks:create 与 create_task 共用可恢复事务，只创建不运行。 */
 export async function materializeTaskFromSpec(
   workspaceRoot: string,
   workspaceId: string,
   spec: TaskSpec,
-): Promise<{ slug: string; orchestratorSessionId: string }> {
-  const uniqueId = ensureUniqueTaskSlug(workspaceRoot, spec.id)
-  const finalSpec = uniqueId === spec.id ? spec : { ...spec, id: uniqueId }
-  saveTaskSpec(workspaceRoot, finalSpec)
-  const seed = buildTaskSessionSeed(finalSpec, workspaceRoot)
-  const session = await (await getSessionHost()).createSession(workspaceId, {
-    name: finalSpec.title,
-    projectId: finalSpec.project,
-    taskSlug: finalSpec.id,
-    sessionStatus: 'todo',
-    ...(seed.workingDirectory ? { workingDirectory: seed.workingDirectory } : {}),
-    ...(seed.modelId ? { model: seed.modelId } : {}),
-    ...(seed.channelId ? { llmConnection: seed.channelId } : {}),
-    ...(spec.defaults?.permissionMode ? { permissionMode: spec.defaults.permissionMode } : {}),
-  })
-  return { slug: finalSpec.id, orchestratorSessionId: session.id }
+): Promise<{ slug: string; taskId: string; orchestratorSessionId: string }> {
+  const seed = buildTaskSessionSeed(spec, workspaceRoot)
+  return materializeTaskTransaction({
+    workspaceRoot,
+    workspaceId,
+    spec,
+    mode: {
+      kind: 'create',
+      sessionOptions: {
+        sessionStatus: 'todo',
+        ...(seed.workingDirectory ? { workingDirectory: seed.workingDirectory } : {}),
+        ...(seed.modelId ? { model: seed.modelId } : {}),
+        ...(seed.channelId ? { llmConnection: seed.channelId } : {}),
+        ...(spec.defaults?.permissionMode ? { permissionMode: spec.defaults.permissionMode } : {}),
+      },
+    },
+  }, await taskMaterializationDependencies())
 }
 
 async function getRunnerFor(workspaceRoot: string, workspaceId: string): Promise<TaskRunner> {
@@ -548,23 +560,37 @@ export function registerTaskHandlers(window: BrowserWindow): void {
 
     if (request.attachToExistingSessionId) {
       const sessionId = request.attachToExistingSessionId
-      saveTaskSpec(workspaceRoot, parsed.spec)
       const seed = buildTaskSessionSeed(parsed.spec, workspaceRoot)
-      if (!getAgentSessionMeta(sessionId)) throw new Error(`Agent 会话不存在: ${sessionId}`)
-      await updateAgentSessionMeta(sessionId, {
-        taskSlug: parsed.spec.id,
-        ...(parsed.spec.project ? { projectId: parsed.spec.project } : {}),
-        ...seed,
-      })
-      return { slug: parsed.spec.id, orchestratorSessionId: sessionId, valid: true }
+      const result = await materializeTaskTransaction({
+        workspaceRoot,
+        workspaceId,
+        spec: parsed.spec,
+        mode: {
+          kind: 'attach',
+          sessionId,
+          sessionPatch: {
+            ...(parsed.spec.project ? { projectId: parsed.spec.project } : {}),
+            ...seed,
+          },
+        },
+      }, await taskMaterializationDependencies())
+      return { ...result, valid: true }
     }
 
     if (request.orchestratorSessionId) {
       const sessionId = request.orchestratorSessionId
       assertAdoptableTaskDraftSession(sessionId, parsed.spec)
-      saveTaskSpec(workspaceRoot, parsed.spec)
-      await updateAgentSessionMeta(sessionId, buildAdoptedTaskSessionPatch(parsed.spec, workspaceRoot))
-      return { slug: parsed.spec.id, orchestratorSessionId: sessionId, valid: true }
+      const result = await materializeTaskTransaction({
+        workspaceRoot,
+        workspaceId,
+        spec: parsed.spec,
+        mode: {
+          kind: 'adopt',
+          sessionId,
+          sessionPatch: buildAdoptedTaskSessionPatch(parsed.spec, workspaceRoot),
+        },
+      }, await taskMaterializationDependencies())
+      return { ...result, valid: true }
     }
 
     const result = await materializeTaskFromSpec(workspaceRoot, workspaceId, parsed.spec)
