@@ -341,7 +341,8 @@ function createWindow(): void {
   const titleBarOptions = isMac
     ? {
         titleBarStyle: 'hiddenInset' as const,
-        trafficLightPosition: { x: 18, y: 18 },
+        // 对齐隐藏式标题栏的工具行：原 y=18 在大窗口圆角下视觉偏低，向上收至 10px。
+        trafficLightPosition: { x: 18, y: 10 },
       }
     : isWindows
       ? { titleBarStyle: 'hidden' as const }

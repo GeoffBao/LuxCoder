@@ -18,6 +18,7 @@ import { MarqueeText } from '@/components/ui/marquee-text'
 import { ModeSwitcher } from './ModeSwitcher'
 import { SearchDialog } from './SearchDialog'
 import { SidebarToggleButton } from './SidebarToggleButton'
+import { TabNavigationControls } from '@/components/tabs/TabNavigationControls'
 import { UserAvatar } from '@/components/chat/UserAvatar'
 import { activeViewAtom, agentSkillsTabAtom } from '@/atoms/active-view'
 import { automationFormAtom, automationsAtom } from '@/atoms/automation-atoms'
@@ -2892,10 +2893,12 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         height={isMac ? SIDEBAR_DRAG_STRIP_HEIGHT.expandedMac : SIDEBAR_DRAG_STRIP_HEIGHT.expanded}
       />
 
-      {/* macOS 需要避开左上角红绿灯；边栏覆盖全局标题栏拖拽层，因此留白自身也要可拖拽。
-          展开态的折叠按钮对齐 Codex：放在这一行右端（红绿灯右侧远端），按钮自身 titlebar-no-drag。 */}
-      <div className={cn('w-full flex-shrink-0 flex items-center justify-end titlebar-drag-region', isMac ? 'h-[30px] pr-2' : 'h-6 pr-1.5')}>
+      {/* 展开态顶部工具栏：全部留在左侧栏上方（折叠、后退、前进）。
+          SidebarWindowDragStrip 是 z-1 的原生窗口拖拽层；工具栏必须 z-10 + no-drag，
+          否则 Electron 会将点击吞为窗口拖拽，Tooltip 也不会触发。 */}
+      <div className={cn('relative z-10 w-full flex-shrink-0 flex items-center justify-end gap-1 titlebar-no-drag', isMac ? 'h-[30px] pr-2' : 'h-7 pr-1.5')}>
         <SidebarToggleButton className="size-6" />
+        <TabNavigationControls className="h-7 gap-0" />
       </div>
 
       {/* 模式切换器 + 搜索：并列一行 */}

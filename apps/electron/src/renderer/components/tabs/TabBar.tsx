@@ -404,8 +404,8 @@ function TabBarInner({
           <SidebarToggleButton />
         </div>
       )}
-      {/* 浏览器式 Tab 历史：展开侧栏时仍在 TabBar 左缘，收起时紧随折叠按钮。 */}
-      <TabNavigationControls />
+      {/* 侧栏展开时导航控件在 LeftSidebar 顶部；收起时紧随折叠按钮留在 TabBar 左端。 */}
+      {sidebarCollapsed && <TabNavigationControls />}
 
       <div
         ref={scrollRef}
