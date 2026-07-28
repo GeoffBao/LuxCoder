@@ -2,7 +2,7 @@
  * ScrollMinimap — 消息导航迷你地图 + 滚动进度条
  *
  * 在消息区域两侧提供导航：
- * 1. 左缘短横杠代表每条消息的位置；悬浮后从左侧滑出可 wheel 翻阅的 Wave 缩略卡片
+ * 1. 左缘短横杠代表每条消息的位置；悬浮后显示原有的消息预览列表
  * 2. 右缘保留可拖拽的极细滚动进度条，提供丝滑的长会话定位
  * 必须放在 StickToBottom（Conversation）内部使用。
  */
@@ -83,8 +83,6 @@ export function ScrollMinimap({ items }: ScrollMinimapProps): React.ReactElement
   const [centerVisibleId, setCenterVisibleId] = React.useState<string | undefined>(undefined)
   const [canScroll, setCanScroll] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState('')
-  // Wave 列表当前位置：让卡片按到视口中心的距离产生细微横向错位，形成 Apple/Codex 式流动层次。
-  const [previewScrollTop, setPreviewScrollTop] = React.useState(0)
   const [isDragging, setIsDragging] = React.useState(false)
   const [scrollMetrics, setScrollMetrics] = React.useState({ scrollTop: 0, scrollHeight: 1, clientHeight: 1 })
   const closeTimerRef = React.useRef<ReturnType<typeof setTimeout>>()
@@ -233,19 +231,6 @@ export function ScrollMinimap({ items }: ScrollMinimapProps): React.ReactElement
     }, 40)
   }
 
-  /**
-   * 在左缘条纹上直接滚轮，也能像 Codex 一样打开并平滑翻阅缩略卡片。
-   * 不能只依赖面板内部的原生滚动：用户的第一直觉是滚动“导航条”本身。
-   */
-  const handleNavigationWheel = (event: React.WheelEvent<HTMLDivElement>): void => {
-    event.preventDefault()
-    event.stopPropagation()
-    const deltaY = event.deltaY
-    handleShortcutOpen()
-    requestAnimationFrame(() => {
-      listRef.current?.scrollBy({ top: deltaY, behavior: 'smooth' })
-    })
-  }
 
   // ── 跳转到指定消息（直接操作 scrollTop，绕过 scrollIntoView） ──
 
@@ -373,15 +358,13 @@ export function ScrollMinimap({ items }: ScrollMinimapProps): React.ReactElement
 
   return (
     <div className="absolute inset-0 z-30 pointer-events-none">
-      {/* 左缘消息导航：条纹和预览卡片均垂直居中，避免长会话的导航永远贴在顶部。 */}
+      {/* 保持原导航交互与紧凑尺寸，仅从右上角迁到左侧垂直中央。 */}
       <div className="absolute left-0 top-1/2 flex -translate-y-1/2 items-center">
-        {/* 更宽的触发带提升可发现性；滚轮可直接展开并平滑浏览缩略内容。 */}
         <div
           className="relative flex-shrink-0 pointer-events-auto"
-          style={{ width: 42, height: barCount * MINIMAP_BAR_SPACING }}
+          style={{ width: 24, height: barCount * MINIMAP_BAR_SPACING }}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
-          onWheel={handleNavigationWheel}
         >
           {Array.from({ length: barCount }, (_, i) => {
             const start = Math.floor((i * items.length) / barCount)
@@ -394,7 +377,7 @@ export function ScrollMinimap({ items }: ScrollMinimapProps): React.ReactElement
               <div
                 key={i}
                 className={cn(
-                  'absolute left-2 h-[2px] w-[28px] rounded-full transition-colors',
+                  'absolute left-1 h-[2px] w-[20px] rounded-full transition-colors',
                   isVisible
                     ? 'bg-primary dark:bg-primary/70 minimap-visible-indicator'
                     : hasUser
@@ -411,12 +394,12 @@ export function ScrollMinimap({ items }: ScrollMinimapProps): React.ReactElement
         {hovered && (
           <div
             className={cn(
-              'ml-1 w-[340px] rounded-xl border bg-popover shadow-xl origin-left flex flex-col overflow-hidden pointer-events-auto',
+              'ml-1 w-[280px] rounded-lg border bg-popover shadow-xl origin-top-left flex flex-col overflow-hidden pointer-events-auto',
               isLeaving
                 ? 'animate-out fade-out-0 zoom-out-95 duration-75'
                 : 'animate-in fade-in-0 zoom-in-95 duration-150'
             )}
-            style={{ height: 'min(460px, 66vh)' }}
+            style={{ maxHeight: 'min(420px, 60vh)' }}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
           >
@@ -447,31 +430,22 @@ export function ScrollMinimap({ items }: ScrollMinimapProps): React.ReactElement
               </div>
             </div>
 
-            {/* 消息缩略卡片：独立 wheel/overscroll，滚动时按离中心的距离轻微错位，形成 wave 层次。 */}
-            <div
-              ref={listRef}
-              className="overflow-y-auto overscroll-contain scroll-smooth flex-1 p-1.5 space-y-0.5 scrollbar-thin"
-              onWheel={(event) => event.stopPropagation()}
-              onScroll={(event) => setPreviewScrollTop(event.currentTarget.scrollTop)}
-            >
+            {/* 消息列表：恢复原生滚动与原始卡片布局。 */}
+            <div ref={listRef} className="overflow-y-auto flex-1 p-1.5 space-y-0.5 scrollbar-thin">
               {filteredItems.length === 0 ? (
                 <div className="py-6 text-center text-xs text-muted-foreground">
                   未找到匹配消息
                 </div>
               ) : (
-                filteredItems.map((item, index) => {
-                  const distanceFromCenter = Math.abs((index * 58 + 29) - (previewScrollTop + 130))
-                  const waveOffset = Math.min(10, distanceFromCenter / 36)
-                  return (
+                filteredItems.map((item) => (
                   <button
                     key={item.id}
                     type="button"
                     data-minimap-visible={item.id === anchorId ? 'true' : undefined}
                     className={cn(
-                      'flex items-start gap-2 w-full rounded-md px-2 py-1.5 text-left transition-[transform,background-color,opacity] duration-200 ease-out hover:bg-accent',
+                      'flex items-start gap-2 w-full rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent',
                       visibleIds.has(item.id) && 'bg-accent/50'
                     )}
-                    style={{ transform: `translateX(${waveOffset}px)`, opacity: 1 - Math.min(0.22, distanceFromCenter / 1600) }}
                     onClick={() => scrollToMessage(item.id)}
                   >
                     <ItemIcon item={item} />
@@ -479,8 +453,7 @@ export function ScrollMinimap({ items }: ScrollMinimapProps): React.ReactElement
                       <HighlightedPreview text={item.preview} query={searchQuery} />
                     </div>
                   </button>
-                  )
-                })
+                ))
               )}
             </div>
           </div>

@@ -632,8 +632,7 @@ function ChatViewInner({ conversationId }: ChatViewProps): React.ReactElement {
         {/* Header 在 max-w 外，按钮可到达最右侧 */}
         {/* key 保证切换对话时重置标题编辑态（SidePanel 等父级不按对话重挂载 ChatView） */}
         <ChatHeader key={conversationId} conversation={conversation} />
-        {/* 宽屏时将消息列扩展至 80rem；左缘导航与右缘滚动条绝对悬浮，不再吞掉正文空间。 */}
-        <div className="flex flex-col flex-1 w-full max-w-[min(80rem,100%)] mx-auto overflow-hidden min-h-0">
+        <div className="flex flex-col flex-1 w-full max-w-[min(72rem,100%)] mx-auto overflow-hidden min-h-0">
           {/* 中间：消息区域 */}
           <ChatMessages
             conversationId={conversationId}
