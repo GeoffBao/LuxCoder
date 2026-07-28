@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import * as protocolContracts from '@luxcoder/shared/protocol';
 import {
+  LABEL_IPC_CHANNELS,
   PROJECT_IPC_CHANNELS,
   SESSION_KANBAN_IPC_CHANNELS,
   TASK_IPC_CHANNELS,
@@ -49,6 +50,7 @@ function readSessionCommandKind(command: SessionKanbanCommand): string {
 describe('kanban protocol contracts', () => {
   test('package export 会暴露 protocol 合约入口', () => {
     expect(protocolContracts).toMatchObject({
+      LABEL_IPC_CHANNELS,
       PROJECT_IPC_CHANNELS,
       TASK_IPC_CHANNELS,
       SESSION_KANBAN_IPC_CHANNELS,
@@ -72,6 +74,15 @@ describe('kanban protocol contracts', () => {
       RESOLVE_EFFECTIVE_CWD: 'projects:resolveEffectiveCwd',
       RELOCATE_WORKING_DIRECTORY: 'projects:relocateWorkingDirectory',
       CHANGED: 'projects:changed',
+    });
+
+    expect(LABEL_IPC_CHANNELS).toEqual({
+      LIST: 'labels:list',
+      CREATE: 'labels:create',
+      UPDATE: 'labels:update',
+      ARCHIVE: 'labels:archive',
+      SET_SESSION_LABELS: 'labels:setSessionLabels',
+      SET_TASK_LABELS: 'labels:setTaskLabels',
     });
 
     expect(TASK_IPC_CHANNELS).toEqual({

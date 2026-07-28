@@ -24,6 +24,7 @@ export { WECHAT_IPC_CHANNELS } from './types/wechat'
 export { AUTOMATION_IPC_CHANNELS } from './types/automation'
 export { EXPERT_IPC_CHANNELS } from './experts/channels'
 export {
+  LABEL_IPC_CHANNELS,
   PROJECT_IPC_CHANNELS,
   TASK_IPC_CHANNELS,
   TEAMBITION_IPC_CHANNELS,

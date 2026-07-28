@@ -22,6 +22,7 @@
     "./tasks/task-record": "./src/tasks/task-record.ts",
     "./tasks/storage": "./src/tasks/storage.ts",
     "./tasks/validate": "./src/tasks/validate.ts",
+    "./labels": "./src/labels/index.ts",
     "./experts": "./src/experts/index.ts"
   },
   "scripts": {

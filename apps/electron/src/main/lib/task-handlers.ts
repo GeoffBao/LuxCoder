@@ -6,6 +6,7 @@
 import { BrowserWindow, ipcMain } from 'electron'
 import { basename, join } from 'node:path'
 import {
+  LABEL_IPC_CHANNELS,
   PROJECT_IPC_CHANNELS,
   SESSION_COMMAND_CHANNEL,
   SESSION_GROUP_IPC_CHANNELS,
@@ -67,6 +68,7 @@ import {
   type TaskWorkingDirectoryResult,
 } from './task-working-directory'
 import { TeambitionService, type ClaimTeambitionTaskInput, type TeambitionRemoteTask } from './teambition-service'
+import { WorkspaceLabelService } from './workspace-label-service'
 
 const GENERATE_TIMEOUT_MS = 180_000
 
@@ -741,6 +743,38 @@ export function registerTaskHandlers(window: BrowserWindow): void {
 
   ipcMain.handle(SESSION_GROUP_IPC_CHANNELS.DELETE, (_event, workspaceSlug: string, id: string) => {
     deleteSessionGroup(workspaceSlug, id)
+  })
+
+  // === Workspace Labels ===
+
+  ipcMain.handle(LABEL_IPC_CHANNELS.LIST, (_event, workspaceRoot: string) => {
+    return new WorkspaceLabelService(workspaceRoot).list()
+  })
+
+  ipcMain.handle(LABEL_IPC_CHANNELS.CREATE, (_event, workspaceRoot: string, input: { name: string; color?: string }) => {
+    return new WorkspaceLabelService(workspaceRoot).create(input)
+  })
+
+  ipcMain.handle(LABEL_IPC_CHANNELS.UPDATE, (_event, workspaceRoot: string, labelId: string, patch: { name?: string; color?: string | null; archived?: boolean }) => {
+    return new WorkspaceLabelService(workspaceRoot).update(labelId, patch)
+  })
+
+  ipcMain.handle(LABEL_IPC_CHANNELS.ARCHIVE, (_event, workspaceRoot: string, labelId: string) => {
+    return new WorkspaceLabelService(workspaceRoot).archive(labelId)
+  })
+
+  ipcMain.handle(LABEL_IPC_CHANNELS.SET_SESSION_LABELS, (_event, _workspaceRoot: string, sessionId: string, labelIds: string[]) => {
+    return updateAgentSessionMeta(sessionId, { labelIds })
+  })
+
+  ipcMain.handle(LABEL_IPC_CHANNELS.SET_TASK_LABELS, (_event, workspaceRoot: string, workspaceId: string, taskId: string, labelIds: string[]) => {
+    const repository = new TaskRepository({ resolveWorkspaceRoot: () => workspaceRoot })
+    const aggregate = repository.getTaskAggregateById(workspaceId, taskId)
+    if (!aggregate?.record) throw new Error(`Task ${taskId} 缺少稳定 TaskRecord，不能设置 labels`)
+    return repository.updateTaskMetadata(workspaceId, taskId, {
+      labelIds,
+      expectedRevision: aggregate.record.revision,
+    })
   })
 
   ipcMain.handle(SESSION_COMMAND_CHANNEL, async (_event, sessionId: string, command: SessionKanbanCommand) => {

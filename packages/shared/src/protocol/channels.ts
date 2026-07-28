@@ -40,6 +40,15 @@ export const TASK_IPC_CHANNELS = {
   GET_RESULTS:  'tasks:getResults',
 } as const;
 
+export const LABEL_IPC_CHANNELS = {
+  LIST:         'labels:list',
+  CREATE:       'labels:create',
+  UPDATE:       'labels:update',
+  ARCHIVE:      'labels:archive',
+  SET_SESSION_LABELS: 'labels:setSessionLabels',
+  SET_TASK_LABELS:    'labels:setTaskLabels',
+} as const;
+
 export const SESSION_KANBAN_IPC_CHANNELS = {
   COMMAND: 'session:command',
 } as const;

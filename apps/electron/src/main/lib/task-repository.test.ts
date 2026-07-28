@@ -303,6 +303,33 @@ describe('TaskRepository', () => {
     expect(repository.getTask('ws-alpha', 'metadata-task')?.spec?.title).toBe('新标题')
   })
 
+  test('updateTaskMetadata 更新 Task labelIds，不改变标题和归档状态', () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    const repository = createRepository({ 'ws-alpha': workspaceRoot })
+    const taskId = '018f47a8-6c26-7a13-9bf6-7c8d4f2e4c72'
+    repository.saveTask('ws-alpha', buildSpec({ id: 'label-test', title: '标签任务' }))
+    saveTaskRecord(workspaceRoot, {
+      schemaVersion: 1,
+      taskId,
+      slug: 'label-test',
+      revision: 1,
+      workflow: 'todo',
+      labelIds: [],
+      createdAt: 1,
+      updatedAt: 1,
+    })
+
+    const updated = repository.updateTaskMetadata('ws-alpha', taskId, { labelIds: ['label-a', 'label-b'], expectedRevision: 1 }, () => 50)
+    expect(updated).toEqual(expect.objectContaining({
+      taskId,
+      title: '标签任务',
+      labelIds: ['label-a', 'label-b'],
+      revision: 2,
+      updatedAt: 50,
+    }))
+    expect(updated.archivedAt).toBeUndefined()
+  })
+
   test('按稳定 taskId 查找 TaskAggregate，并发现 record-only 恢复项', () => {
     const workspaceRoot = createTempWorkspaceRoot()
     const repository = createRepository({ 'ws-alpha': workspaceRoot })

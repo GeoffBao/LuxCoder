@@ -263,7 +263,7 @@ export class TaskRepository {
     patch: TaskMetadataPatch,
     now: () => number = Date.now,
   ): TaskAggregateSummary {
-    if (patch.title === undefined && patch.archived === undefined) {
+    if (patch.title === undefined && patch.archived === undefined && patch.labelIds === undefined) {
       throw new Error('Task metadata patch 不能为空')
     }
     const aggregate = this.getTaskAggregateById(workspaceId, taskId)
@@ -289,6 +289,7 @@ export class TaskRepository {
         const updatedAt = now()
         saveTaskRecord(workspaceRoot, {
           ...aggregate.record,
+          ...(patch.labelIds !== undefined ? { labelIds: patch.labelIds } : {}),
           ...(patch.archived === undefined
             ? {}
             : patch.archived

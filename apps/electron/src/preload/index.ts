@@ -9,6 +9,8 @@ import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { PROJECT_IPC_CHANNELS, TASK_IPC_CHANNELS, SESSION_COMMAND_CHANNEL, SESSION_GROUP_IPC_CHANNELS, TEAMBITION_IPC_CHANNELS, EXPERT_IPC_CHANNELS } from '@luxcoder/shared/channels'
 import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS } from '@luxcoder/shared'
 import type { TaskAggregateSummary, TaskMetadataPatch, TaskWorkflow } from '@luxcoder/shared/tasks'
+import { LABEL_IPC_CHANNELS } from '@luxcoder/shared/channels'
+import type { WorkspaceLabel } from '@luxcoder/shared/labels'
 import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, SCRATCH_PAD_IPC_CHANNELS, DOCK_BADGE_IPC_CHANNELS, STORAGE_IPC_CHANNELS } from '../types'
 import type {
   RuntimeStatus,
@@ -1310,6 +1312,14 @@ export interface ElectronAPI {
     updateWorkflow: (workspaceRoot: string, workspaceId: string, taskId: string, workflow: TaskWorkflow, expectedRevision?: number) => Promise<TaskAggregateSummary>
     updateMetadata: (workspaceRoot: string, workspaceId: string, taskId: string, patch: TaskMetadataPatch) => Promise<TaskAggregateSummary>
     getResults: (workspaceRoot: string, slug: string, runId?: string) => Promise<TaskResults | null>
+  }
+  labels: {
+    list: (workspaceRoot: string) => Promise<WorkspaceLabel[]>
+    create: (workspaceRoot: string, input: { name: string; color?: string }) => Promise<WorkspaceLabel>
+    update: (workspaceRoot: string, labelId: string, patch: { name?: string; color?: string | null; archived?: boolean }) => Promise<WorkspaceLabel>
+    archive: (workspaceRoot: string, labelId: string) => Promise<WorkspaceLabel>
+    setSessionLabels: (workspaceRoot: string, sessionId: string, labelIds: string[]) => Promise<AgentSessionMeta>
+    setTaskLabels: (workspaceRoot: string, workspaceId: string, taskId: string, labelIds: string[]) => Promise<TaskAggregateSummary>
   }
   sessions: {
     move: (sessionId: string, columnId: string) => Promise<AgentSessionMeta>
@@ -2905,6 +2915,20 @@ const electronAPI: ElectronAPI = {
       invokeTyped<TaskAggregateSummary>(TASK_IPC_CHANNELS.UPDATE_METADATA, workspaceRoot, workspaceId, taskId, patch),
     getResults: (workspaceRoot: string, slug: string, runId?: string): Promise<TaskResults | null> =>
       invokeTyped<TaskResults | null>(TASK_IPC_CHANNELS.GET_RESULTS, workspaceRoot, slug, runId),
+  },
+  labels: {
+    list: (workspaceRoot: string): Promise<WorkspaceLabel[]> =>
+      invokeTyped<WorkspaceLabel[]>(LABEL_IPC_CHANNELS.LIST, workspaceRoot),
+    create: (workspaceRoot: string, input: { name: string; color?: string }): Promise<WorkspaceLabel> =>
+      invokeTyped<WorkspaceLabel>(LABEL_IPC_CHANNELS.CREATE, workspaceRoot, input),
+    update: (workspaceRoot: string, labelId: string, patch: { name?: string; color?: string | null; archived?: boolean }): Promise<WorkspaceLabel> =>
+      invokeTyped<WorkspaceLabel>(LABEL_IPC_CHANNELS.UPDATE, workspaceRoot, labelId, patch),
+    archive: (workspaceRoot: string, labelId: string): Promise<WorkspaceLabel> =>
+      invokeTyped<WorkspaceLabel>(LABEL_IPC_CHANNELS.ARCHIVE, workspaceRoot, labelId),
+    setSessionLabels: (workspaceRoot: string, sessionId: string, labelIds: string[]): Promise<AgentSessionMeta> =>
+      invokeTyped<AgentSessionMeta>(LABEL_IPC_CHANNELS.SET_SESSION_LABELS, workspaceRoot, sessionId, labelIds),
+    setTaskLabels: (workspaceRoot: string, workspaceId: string, taskId: string, labelIds: string[]): Promise<TaskAggregateSummary> =>
+      invokeTyped<TaskAggregateSummary>(LABEL_IPC_CHANNELS.SET_TASK_LABELS, workspaceRoot, workspaceId, taskId, labelIds),
   },
   sessions: {
     move: (sessionId: string, columnId: string): Promise<AgentSessionMeta> =>

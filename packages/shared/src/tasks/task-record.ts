@@ -15,6 +15,7 @@ export type TaskWorkflow = z.infer<typeof TaskWorkflowSchema>;
 export interface TaskMetadataPatch {
   title?: string;
   archived?: boolean;
+  labelIds?: string[];
   expectedRevision?: number;
 }
 
