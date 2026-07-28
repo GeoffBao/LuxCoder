@@ -10,7 +10,7 @@
 
 import * as React from 'react'
 import { useAtom, useAtomValue, useSetAtom, useStore } from 'jotai'
-import { PanelRight, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { PanelRight } from 'lucide-react'
 import {
   tabsAtom,
   activeTabIdAtom,
@@ -34,6 +34,7 @@ import { tearOffPreviewToSplit } from '@/components/diff/preview-opener'
 import { tearOffScratchToSplit } from '@/components/scratch-pad/scratch-pad-opener'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { SidebarToggleButton } from '@/components/app-shell/SidebarToggleButton'
 import { TabBarItem } from './TabBarItem'
 import { useCloseTab } from '@/hooks/useCloseTab'
 import {
@@ -214,7 +215,8 @@ export function TabBar(): React.ReactElement {
   if (tabs.length === 0) {
     return (
       <div className={cn('h-[34px] flex items-center titlebar-drag-region', needsMacTrafficLightGap && MAC_TRAFFIC_LIGHTS_PADDING_LEFT)}>
-        <SidebarToggleButton />
+        {/* 侧边栏展开时折叠按钮在 LeftSidebar 顶部，这里只在收起态渲染 */}
+        {sidebarCollapsed && <SidebarToggleButton />}
       </div>
     )
   }
@@ -229,6 +231,7 @@ export function TabBar(): React.ReactElement {
         automationSessionIds={automationSessionIds}
         delegationSessionIds={delegationSessionIds}
         needsMacTrafficLightGap={needsMacTrafficLightGap}
+        sidebarCollapsed={sidebarCollapsed}
         onActivate={handleActivate}
         onClose={requestClose}
         onDragStart={handleDragStart}
@@ -238,40 +241,9 @@ export function TabBar(): React.ReactElement {
   )
 }
 
-/**
- * 折叠/展开侧边栏：紧邻第一个标签标题（如"草稿"），不随标签横向滚动。
- * 纯点击切换，没有悬停自动预览——之前做过悬停展开浮层的版本，会被浮层本身、
- * Tooltip 的高 z-index portal 抢事件等好几层问题反复卡住收起时机，体验不稳定，
- * 权衡后放弃悬停预览，只保留最简单可靠的点击展开/收起（同 VS Code）。
- * 用 h-[34px] + flex 居中包裹，和 TabBarItem 的 h-[34px] items-center 走同一套
- * "整行高度内居中"机制，和标签天然对齐。
- */
-function SidebarToggleButton(): React.ReactElement {
-  const [sidebarCollapsed, setSidebarCollapsed] = useAtom(sidebarCollapsedAtom)
-  const shortcutLabel = navigator.platform.includes('Mac') ? '⌘B' : 'Ctrl+B'
-
-  return (
-    <div className="flex h-[34px] w-7 flex-shrink-0 items-center justify-center">
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label={sidebarCollapsed ? `展开侧边栏 (${shortcutLabel})` : `收起侧边栏 (${shortcutLabel})`}
-            className="relative h-7 w-7 titlebar-no-drag"
-            onClick={() => setSidebarCollapsed((prev) => !prev)}
-          >
-            {sidebarCollapsed ? <PanelLeftOpen className="size-3.5" /> : <PanelLeftClose className="size-3.5" />}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom">
-          {sidebarCollapsed ? `展开侧边栏 (${shortcutLabel})` : `收起侧边栏 (${shortcutLabel})`}
-        </TooltipContent>
-      </Tooltip>
-    </div>
-  )
-}
+/** 折叠/展开侧边栏按钮已抽为共享组件（@/components/app-shell/SidebarToggleButton）：
+ * 展开态渲染在 LeftSidebar 顶部红绿灯行右端，收起态渲染在 TabBar 最左，
+ * 同一时刻只出现一处。纯点击切换（同 VS Code），无悬停自动预览。 */
 
 /** 内部组件：管理全局 hover 状态，确保同一时刻只有一个预览面板 */
 function TabBarInner({
@@ -282,6 +254,7 @@ function TabBarInner({
   automationSessionIds,
   delegationSessionIds,
   needsMacTrafficLightGap,
+  sidebarCollapsed,
   onActivate,
   onClose,
   onDragStart,
@@ -294,6 +267,7 @@ function TabBarInner({
   automationSessionIds: Set<string>
   delegationSessionIds: Set<string>
   needsMacTrafficLightGap: boolean
+  sidebarCollapsed: boolean
   onActivate: (tabId: string) => void
   onClose: (tabId: string) => void
   onDragStart: (tabId: string, e: React.PointerEvent) => void
@@ -468,10 +442,13 @@ function TabBarInner({
         <div className="pointer-events-none absolute -bottom-px left-0 right-0 h-px bg-primary/60 shadow-[0_0_8px_rgba(0,0,0,0.2)]" />
       )}
 
-      {/* 折叠/展开侧边栏：紧邻第一个标签，不随标签横向滚动 */}
-      <div className="flex-shrink-0 pl-1.5">
-        <SidebarToggleButton />
-      </div>
+      {/* 折叠/展开侧边栏：紧邻第一个标签，不随标签横向滚动。
+          侧边栏展开时该按钮改由 LeftSidebar 顶部渲染，这里只在收起态出现。 */}
+      {sidebarCollapsed && (
+        <div className="flex-shrink-0 pl-1.5">
+          <SidebarToggleButton />
+        </div>
+      )}
 
       <div
         ref={scrollRef}

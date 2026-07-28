@@ -17,6 +17,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import { MarqueeText } from '@/components/ui/marquee-text'
 import { ModeSwitcher } from './ModeSwitcher'
 import { SearchDialog } from './SearchDialog'
+import { SidebarToggleButton } from './SidebarToggleButton'
 import { UserAvatar } from '@/components/chat/UserAvatar'
 import { activeViewAtom, agentSkillsTabAtom } from '@/atoms/active-view'
 import { automationFormAtom, automationsAtom } from '@/atoms/automation-atoms'
@@ -2891,8 +2892,11 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         height={isMac ? SIDEBAR_DRAG_STRIP_HEIGHT.expandedMac : SIDEBAR_DRAG_STRIP_HEIGHT.expanded}
       />
 
-      {/* macOS 需要避开左上角红绿灯；边栏覆盖全局标题栏拖拽层，因此留白自身也要可拖拽。 */}
-      <div className={cn('w-full flex-shrink-0 titlebar-drag-region', isMac ? 'h-[30px]' : 'h-1')} />
+      {/* macOS 需要避开左上角红绿灯；边栏覆盖全局标题栏拖拽层，因此留白自身也要可拖拽。
+          展开态的折叠按钮对齐 Codex：放在这一行右端（红绿灯右侧远端），按钮自身 titlebar-no-drag。 */}
+      <div className={cn('w-full flex-shrink-0 flex items-center justify-end titlebar-drag-region', isMac ? 'h-[30px] pr-2' : 'h-6 pr-1.5')}>
+        <SidebarToggleButton className="size-6" />
+      </div>
 
       {/* 模式切换器 + 搜索：并列一行 */}
       <div className="px-3 flex items-center gap-1.5">
