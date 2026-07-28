@@ -74,9 +74,10 @@ export function isAgentThinkingLevel(value: unknown): value is AgentThinkingLeve
 
 /** 读取会话思考等级（兼容旧字段 openAIThinkingLevel） */
 export function getSessionThinkingLevel(
-  session: { thinkingLevel?: AgentThinkingLevel; openAIThinkingLevel?: AgentThinkingLevel } | undefined,
+  session: { reasoningLevel?: AgentThinkingLevel; thinkingLevel?: AgentThinkingLevel; openAIThinkingLevel?: AgentThinkingLevel } | undefined,
 ): AgentThinkingLevel | undefined {
   if (!session) return undefined
+  if (isAgentThinkingLevel(session.reasoningLevel)) return session.reasoningLevel
   if (isAgentThinkingLevel(session.thinkingLevel)) return session.thinkingLevel
   if (isAgentThinkingLevel(session.openAIThinkingLevel)) return session.openAIThinkingLevel
   return undefined
@@ -85,8 +86,8 @@ export function getSessionThinkingLevel(
 /** 写入会话思考等级时双写新旧字段，保证旧索引可读 */
 export function sessionThinkingLevelPatch(
   level: AgentThinkingLevel,
-): { thinkingLevel: AgentThinkingLevel; openAIThinkingLevel: AgentThinkingLevel } {
-  return { thinkingLevel: level, openAIThinkingLevel: level }
+): { reasoningLevel: AgentThinkingLevel; thinkingLevel: AgentThinkingLevel; openAIThinkingLevel: AgentThinkingLevel } {
+  return { reasoningLevel: level, thinkingLevel: level, openAIThinkingLevel: level }
 }
 
 /** 是否为 Proma 可暴露 reasoning.effort 的 OpenAI 推理模型。 */
@@ -717,8 +718,10 @@ export interface AgentSessionMeta {
    * 未设置时回退到 openAIThinkingLevel（旧字段）或应用默认。
    */
   thinkingLevel?: AgentThinkingLevel
+  /** 统一 reasoning profile 使用的会话级推理档位；读取时优先于旧字段。 */
+  reasoningLevel?: AgentThinkingLevel
   /**
-   * @deprecated 使用 thinkingLevel。保留以兼容旧会话索引与 OpenAI 推理扩展写入。
+   * @deprecated 使用 thinkingLevel。保留以兼容旧会话索引与 OpenAI 推理扩展写入.
    */
   openAIThinkingLevel?: AgentThinkingLevel
   /** 所属工作区 ID */
@@ -1794,6 +1797,8 @@ export const AGENT_IPC_CHANNELS = {
   UPDATE_SESSION_AGENT_RUNTIME: 'agent:update-session-agent-runtime',
   /** 切换指定会话的 ChatGPT Codex Fast Mode（下一轮 Pi 请求生效） */
   UPDATE_SESSION_CODEX_FAST_MODE: 'agent:update-session-codex-fast-mode',
+  /** 查询 Pi catalog 或专属 profile 支持的会话级推理档位 */
+  GET_PI_REASONING_CAPABILITY: 'agent:get-pi-reasoning-capability',
   /**
    * 更新指定会话的思考深度（下一轮 Pi 请求生效）。
    * 通道名保留 openai-reasoning 历史字符串，避免破坏已分发客户端。
@@ -1801,6 +1806,8 @@ export const AGENT_IPC_CHANNELS = {
   UPDATE_SESSION_THINKING_LEVEL: 'agent:update-session-openai-reasoning',
   /** @deprecated 使用 UPDATE_SESSION_THINKING_LEVEL */
   UPDATE_SESSION_OPENAI_REASONING: 'agent:update-session-openai-reasoning',
+  /** 更新统一 reasoning level */
+  UPDATE_SESSION_REASONING_LEVEL: 'agent:update-session-reasoning-level',
 
   // AskUserQuestion 交互式问答
   /** AskUser 响应（渲染进程 → 主进程） */

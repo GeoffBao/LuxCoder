@@ -36,6 +36,8 @@ export type ThinkingDisableStrategy =
 export interface ThinkingCapability {
   mode: ThinkingMode
   disableStrategy: ThinkingDisableStrategy
+  /** adaptive effort 模型的默认强度；仅在支持 output_config.effort 时设置。 */
+  effort?: string
 }
 
 /**

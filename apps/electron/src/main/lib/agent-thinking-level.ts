@@ -1,4 +1,4 @@
-import type { AgentSessionMeta, AgentThinkingLevel, ProviderType } from '@luxcoder/shared'
+import { inferReasoningTransport, normalizeReasoningCapabilityLevel, normalizeReasoningLevel, resolveReasoningProfile, type AgentSessionMeta, type AgentThinkingLevel, type ProviderType, type ReasoningCapability } from '@luxcoder/shared'
 import {
   DEFAULT_AGENT_THINKING_LEVEL,
   getSessionThinkingLevel,
@@ -8,7 +8,7 @@ import {
 import type { AppSettings } from '../../types'
 
 type ThinkingSettings = Pick<AppSettings, 'agentThinking' | 'agentEffort' | 'defaultThinkingLevel'>
-type ThinkingSessionMeta = Pick<AgentSessionMeta, 'thinkingLevel' | 'openAIThinkingLevel'>
+type ThinkingSessionMeta = Pick<AgentSessionMeta, 'thinkingLevel' | 'reasoningLevel' | 'openAIThinkingLevel'>
 
 /**
  * 解析 Pi 会话本轮思考深度。
@@ -25,7 +25,17 @@ export function resolvePiThinkingLevel(
   sessionMeta: ThinkingSessionMeta | undefined,
   _provider?: ProviderType,
   modelId?: string,
+  capability?: ReasoningCapability,
 ): AgentThinkingLevel {
+  const profile = resolveReasoningProfile({ modelId, transport: inferReasoningTransport(_provider) })
+  const persistedReasoningLevel = sessionMeta?.reasoningLevel
+    ?? sessionMeta?.thinkingLevel
+    ?? sessionMeta?.openAIThinkingLevel
+  const configuredLevel = settings.agentThinking?.type === 'disabled' ? 'off'
+    : (settings.defaultThinkingLevel ?? settings.agentEffort)
+  if (profile) return normalizeReasoningLevel(profile, persistedReasoningLevel ?? configuredLevel) ?? 'high'
+  if (capability) return normalizeReasoningCapabilityLevel(capability, persistedReasoningLevel ?? configuredLevel) ?? capability.defaultLevel
+
   const normalizeSupportedLevel = (level: AgentThinkingLevel): AgentThinkingLevel => {
     // max 是 GPT-5.6 专属；会话持久化后切换到其他模型时，降级为 xhigh，
     // 避免 UI/会话层保留不可用档位导致 Pi 最终请求与用户预期不一致。
@@ -33,7 +43,7 @@ export function resolvePiThinkingLevel(
     return level
   }
 
-  const sessionLevel = getSessionThinkingLevel(sessionMeta)
+  const sessionLevel = persistedReasoningLevel ?? getSessionThinkingLevel(sessionMeta)
   if (sessionLevel) return normalizeSupportedLevel(sessionLevel)
 
   if (isAgentThinkingLevel(settings.defaultThinkingLevel)) {

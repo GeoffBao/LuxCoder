@@ -111,8 +111,8 @@ import { AgentSessionProvider } from '@/contexts/session-context'
 import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
 import { sendWithCmdEnterAtom } from '@/atoms/shortcut-atoms'
 import { useOpenPreview } from '@/components/diff/preview-opener'
-import type { AgentRuntime, AgentSendInput, AgentPendingFile, AgentThinkingLevel, FileDialogLargeFile, ModelOption, SDKMessage, SDKUserMessage, ProviderType } from '@luxcoder/shared'
-import { DEFAULT_AGENT_THINKING_LEVEL, getSessionThinkingLevel, inferAgentSdkContextWindow, inferContextWindow, isCodexFastModeSupportedModel, isOpenAIReasoningMaxSupportedModel, MAX_ATTACHMENT_SIZE, CLAUDE_RUNTIME_ENABLED } from '@luxcoder/shared'
+import type { AgentRuntime, AgentSendInput, AgentPendingFile, AgentThinkingLevel, FileDialogLargeFile, ModelOption, ReasoningCapability, SDKMessage, SDKUserMessage, ProviderType } from '@luxcoder/shared'
+import { DEFAULT_AGENT_THINKING_LEVEL, getSessionThinkingLevel, inferAgentSdkContextWindow, inferContextWindow, inferReasoningTransport, isCodexFastModeSupportedModel, isOpenAIReasoningMaxSupportedModel, MAX_ATTACHMENT_SIZE, CLAUDE_RUNTIME_ENABLED, normalizeReasoningCapabilityLevel, normalizeReasoningLevel, resolveReasoningCapability, resolveReasoningProfile } from '@luxcoder/shared'
 import { fileToBase64, formatFileNames, getFileParentPath } from '@/lib/file-utils'
 import { buildQuotedSelectionBlock } from '@/lib/quoted-selection'
 import { createClipboardPendingFile, createClipboardTextDraft, makeUniqueAttachmentName } from '@/lib/clipboard-text-attachment'
@@ -611,16 +611,37 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     && agentChannelProvider === 'openai-codex'
     && isCodexFastModeSupportedModel(agentModelId ?? undefined)
   const codexFastModeEnabled = isCodexFastModeAvailable && sessionMeta?.codexFastMode === true
-  /** Pi 会话一律可调思考深度（对齐 craft sticky ThinkingLevel） */
+  /** Pi 会话一律可调思考深度；具体档位由模型 profile/catalog capability 决定。 */
   const isSessionThinkingAvailable = hasSessionMeta && sessionAgentRuntime === 'pi'
-  const sessionThinkingLevels = isOpenAIReasoningMaxSupportedModel(agentModelId ?? undefined)
-    ? UI_THINKING_LEVELS
-    : STANDARD_UI_THINKING_LEVELS
-  const rawSessionThinkingLevel: AgentThinkingLevel =
-    getSessionThinkingLevel(sessionMeta) ?? DEFAULT_AGENT_THINKING_LEVEL
-  const sessionThinkingLevel: AgentThinkingLevel = rawSessionThinkingLevel === 'max' && !isOpenAIReasoningMaxSupportedModel(agentModelId ?? undefined)
-    ? 'xhigh'
-    : rawSessionThinkingLevel
+  const reasoningProfile = isSessionThinkingAvailable
+    ? resolveReasoningProfile({ modelId: agentModelId ?? undefined, transport: inferReasoningTransport(agentChannelProvider) })
+    : undefined
+  const reasoningCapabilityKey = `${sessionAgentRuntime}:${agentChannelId ?? ''}:${agentModelId ?? ''}`
+  const [piReasoningCapability, setPiReasoningCapability] = React.useState<{ key: string; capability: ReasoningCapability | undefined }>({ key: '', capability: undefined })
+  React.useEffect(() => {
+    if (!isSessionThinkingAvailable || !agentChannelId || !agentModelId) {
+      setPiReasoningCapability({ key: reasoningCapabilityKey, capability: undefined })
+      return
+    }
+    let cancelled = false
+    void window.electronAPI.getPiReasoningCapability(agentChannelId, agentModelId)
+      .then((capability) => { if (!cancelled) setPiReasoningCapability({ key: reasoningCapabilityKey, capability }) })
+      .catch((error) => { if (!cancelled) { console.warn('[AgentView] 读取 reasoning capability 失败:', error); setPiReasoningCapability({ key: reasoningCapabilityKey, capability: undefined }) } })
+    return () => { cancelled = true }
+  }, [agentChannelId, agentModelId, isSessionThinkingAvailable, reasoningCapabilityKey])
+  const effectiveReasoningCapability = piReasoningCapability.key === reasoningCapabilityKey
+    ? piReasoningCapability.capability ?? resolveReasoningCapability({ profile: reasoningProfile })
+    : resolveReasoningCapability({ profile: reasoningProfile })
+  const sessionThinkingLevels = effectiveReasoningCapability
+    ? effectiveReasoningCapability.levels
+      .map((level) => UI_THINKING_LEVELS.find((item) => item.value === level))
+      .filter((item): item is (typeof UI_THINKING_LEVELS)[number] => item !== undefined)
+    : (isOpenAIReasoningMaxSupportedModel(agentModelId ?? undefined) ? UI_THINKING_LEVELS : STANDARD_UI_THINKING_LEVELS)
+  const persistedReasoningLevel = sessionMeta?.reasoningLevel ?? getSessionThinkingLevel(sessionMeta)
+  const rawSessionThinkingLevel: AgentThinkingLevel = persistedReasoningLevel ?? DEFAULT_AGENT_THINKING_LEVEL
+  const sessionThinkingLevel = reasoningProfile
+    ? normalizeReasoningLevel(reasoningProfile, rawSessionThinkingLevel) ?? 'high'
+    : normalizeReasoningCapabilityLevel(effectiveReasoningCapability, rawSessionThinkingLevel) ?? rawSessionThinkingLevel
 
   // 检查 Agent 渠道列表中是否存在可用的模型（渠道 enabled + 模型 enabled）
   const hasAvailableModel = React.useMemo(() => {
@@ -1830,12 +1851,12 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     const previousSessionMeta = sessionMeta
     setAgentSessions((prev) => prev.map((item) => (
       item.id === sessionId
-        ? { ...item, thinkingLevel, openAIThinkingLevel: thinkingLevel, updatedAt: Date.now() }
+        ? { ...item, reasoningLevel: thinkingLevel, thinkingLevel, openAIThinkingLevel: thinkingLevel, updatedAt: Date.now() }
         : item
     )))
 
     try {
-      const updated = await window.electronAPI.updateSessionThinkingLevel(sessionId, thinkingLevel)
+      const updated = await window.electronAPI.updateSessionReasoningLevel(sessionId, thinkingLevel)
       setAgentSessions((prev) => prev.map((item) => item.id === sessionId ? updated : item))
     } catch (error) {
       console.error('[AgentView] 更新思考深度失败:', error)

@@ -4,6 +4,7 @@ import {
   buildCurrentSessionCompactionTool,
   canRunCurrentSessionCompaction,
   compactCurrentSessionAfterTurn,
+  planPiCompactionContinuation,
   installCurrentSessionCompactionHooks,
 } from './pi-agent-adapter'
 
@@ -69,6 +70,13 @@ describe('Pi current-session context compaction tool', () => {
 
     expect(writeResult).toMatchObject({ block: true })
     expect(compactResult).toMatchObject({ block: true })
+  })
+
+  test('continues the original task after compaction unless stopped or capped', () => {
+    expect(planPiCompactionContinuation({ continuationCount: 0, abortRequested: false, runtimeLimitReached: false })).toMatchObject({ shouldContinue: true })
+    expect(planPiCompactionContinuation({ continuationCount: 20, abortRequested: false, runtimeLimitReached: false })).toEqual({ shouldContinue: false, reason: 'continuation_limit' })
+    expect(planPiCompactionContinuation({ continuationCount: 0, abortRequested: true, runtimeLimitReached: false })).toEqual({ shouldContinue: false, reason: 'aborted' })
+    expect(planPiCompactionContinuation({ continuationCount: 0, abortRequested: false, runtimeLimitReached: true })).toEqual({ shouldContinue: false, reason: 'runtime_limit' })
   })
 
   test('compacts the supplied session after the tool turn settles', async () => {

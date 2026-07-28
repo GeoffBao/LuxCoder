@@ -60,6 +60,17 @@ export function withCodexFastModeServiceTier<T extends object | undefined>(optio
   return { ...options, serviceTier: CODEX_FAST_MODE_SERVICE_TIER } as T & { serviceTier: typeof CODEX_FAST_MODE_SERVICE_TIER }
 }
 
+/** Pi inline extension for Codex priority service tier only. */
+export function createCodexFastModeExtension(settings: { fastMode?: boolean }): (pi: ExtensionAPI) => void {
+  return (pi) => {
+    pi.on('before_provider_request', (event) => {
+      if (!settings.fastMode) return undefined
+      const updatedPayload = injectCodexFastMode(event.payload)
+      return updatedPayload === event.payload ? undefined : updatedPayload
+    })
+  }
+}
+
 /** Pi 内联扩展：Proma 不依赖用户安装第三方 Pi extension。 */
 export function createCodexRequestSettingsExtension(settings: CodexRequestSettings): (pi: ExtensionAPI) => void {
   return (pi) => {

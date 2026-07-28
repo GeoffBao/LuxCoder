@@ -28,7 +28,8 @@ import {
   isPersistableSDKSystemMessage,
   normalizeMcpTransportType,
   inferAgentSdkContextWindow,
-  isOpenAIReasoningSupportedModel,
+  inferReasoningTransport,
+  resolveReasoningProfile,
   isAgentCompatibleProvider,
 } from '@luxcoder/shared'
 import type { LuxCoderPermissionMode, AskUserRequest, ExitPlanModeRequest, SDKSystemMessage } from '@luxcoder/shared'
@@ -71,6 +72,7 @@ import { isVisibleRunMessage } from './agent-run-message-visibility'
 import { applyAgentSdkAuthEnv } from './agent-sdk-auth-env'
 import { getAgentSdkMaxOutputTokens } from './agent-sdk-output-limits'
 import { resolvePiThinkingLevel } from './agent-thinking-level'
+import { resolvePiReasoningCapability } from './adapters/pi-model-registry'
 import { generateCodexTitle } from './adapters/pi-codex-title-generator'
 import { buildRegenerateTitlePrompt, createFallbackTitle, extractAssistantMessageText, extractGenuineUserMessageText, sanitizeGeneratedTitle, selectSpreadMessages, stripContextWrappersForTitle, TITLE_PROMPT } from './title-generation'
 
@@ -1139,7 +1141,9 @@ export class AgentOrchestrator {
 
     // 5. 状态初始化
     const accumulatedMessages: SDKMessage[] = []
-    let resolvedModel = modelId || DEFAULT_MODEL_ID
+    // 委派子会话与内置工具都必须继承当前实际运行的模型。
+    const selectedModelId = modelId || DEFAULT_MODEL_ID
+    let resolvedModel = selectedModelId
     let titleGenerationStarted = false
     /** 捕获到的 SDK session ID（用于 resume / recovery） */
     let capturedSdkSessionId = existingSdkSessionId
@@ -1294,7 +1298,7 @@ export class AgentOrchestrator {
             const result = await buildPiBuiltinTools(piSdk, {
               sessionId,
               channelId,
-              modelId,
+              modelId: selectedModelId,
               agentRuntime,
               workspaceId,
               workspaceSlug,
@@ -1608,7 +1612,12 @@ export class AgentOrchestrator {
       const maxTurns = appSettings.agentMaxTurns && appSettings.agentMaxTurns > 0
         ? appSettings.agentMaxTurns
         : undefined
-      const selectedModelId = modelId || DEFAULT_MODEL_ID
+      const piReasoningCapability = agentRuntime === 'pi'
+        ? await resolvePiReasoningCapability(channel.provider, selectedModelId)
+        : undefined
+      const piThinkingLevel = agentRuntime === 'pi'
+        ? resolvePiThinkingLevel(appSettings, sessionMeta, channel.provider, selectedModelId, piReasoningCapability)
+        : undefined
       const allAdditionalDirectories = collectAttachedDirectories({
         extraDirs: additionalDirectories,
         sessionMeta,
@@ -1621,6 +1630,7 @@ export class AgentOrchestrator {
         sessionId,
         permissionMode: initialPermissionMode,
         collaborationAvailable,
+        currentModelId: selectedModelId,
       }) + (automationContext ? `\n\n## 定时任务执行上下文\n\n${automationContext}` : '')
         + (workContext ? `
 
@@ -1703,11 +1713,14 @@ ${workContext}` : '')
             persistCodexOAuthCredentials(channelId, credentials)
           },
         }),
-        ...((channel.provider === 'openai-codex' || channel.provider === 'openai-responses')
-          && isOpenAIReasoningSupportedModel(selectedModelId) && {
-            openAIThinkingLevel: resolvePiThinkingLevel(appSettings, sessionMeta, channel.provider, selectedModelId),
+        ...((channel.provider === 'openai-codex' || channel.provider === 'openai-responses' || channel.provider === 'openai' || channel.provider === 'custom')
+          && resolveReasoningProfile({
+            modelId: selectedModelId,
+            transport: inferReasoningTransport(channel.provider),
+          })?.id.startsWith('openai-reasoning-') && {
+            openAIThinkingLevel: piThinkingLevel!,
           }),
-        thinkingLevel: resolvePiThinkingLevel(appSettings, sessionMeta, channel.provider, selectedModelId),
+        thinkingLevel: piThinkingLevel!,
         ...(appSettings.agentMaxBudgetUsd != null && appSettings.agentMaxBudgetUsd > 0 && {
           maxBudgetUsd: appSettings.agentMaxBudgetUsd,
         }),

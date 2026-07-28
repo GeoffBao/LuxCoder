@@ -267,10 +267,6 @@ const PROJECT_SESSION_RECENT_WINDOW_MS = 7 * 86_400_000
 const PROJECT_SESSION_EXPAND_STEP = 20
 /** 非当前工作区组的空项目列表；模块级常量保证引用稳定，不破坏 React.memo */
 const EMPTY_PROJECTS: KanbanProject[] = []
-/** 置顶区最多占用约 6 条会话的高度，超过后在置顶区内部滚动 */
-const PINNED_SESSION_VISIBLE_LIMIT = 6
-const PINNED_SESSION_ROW_HEIGHT_PX = 32
-const PINNED_SESSION_MAX_HEIGHT = PINNED_SESSION_VISIBLE_LIMIT * PINNED_SESSION_ROW_HEIGHT_PX
 const SESSION_QUICK_SWITCH_HINT_DELAY_MS = 1000
 const SESSION_QUICK_SWITCH_LIMIT = 9
 const SESSION_QUICK_SWITCH_KEYDOWN_EVENT = 'luxcoder:session-quick-switch-keydown'
@@ -3048,8 +3044,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             置顶
           </div>
           <div
-            className="overflow-y-auto scrollbar-thin"
-            style={{ maxHeight: PINNED_SESSION_MAX_HEIGHT }}
+            className=""
           >
             <div className="px-2">
               <div className="ml-4 flex flex-col gap-0.5">
@@ -3080,8 +3075,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             置顶
           </div>
           <div
-            className="overflow-y-auto scrollbar-thin"
-            style={{ maxHeight: PINNED_SESSION_MAX_HEIGHT }}
+            className=""
           >
             <div className="px-2">
               <div className="ml-4 flex flex-col gap-0.5">
