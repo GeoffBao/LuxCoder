@@ -16,8 +16,11 @@ export const selectedKanbanProjectAtom = atom((get) => {
 /** Work 主区视图：看板或项目详情。提升为 atom 以支持 Code 侧边栏「项目详情」跨模式跳转。 */
 export const workViewAtom = atom<'board' | 'project'>('board')
 
-/** Code（agent）模式主区视图：会话 | Work（看板 / 项目详情，子视图由 workViewAtom 决定） */
-export type CodeMainView = 'session' | 'work'
+/**
+ * Code（agent）模式主区视图。
+ * `work` 仅保留为一轮兼容 alias；正式入口使用 `tasks`，Project 页面后续使用 `project`。
+ */
+export type CodeMainView = 'session' | 'tasks' | 'project' | 'work'
 
 /** Code 模式主区视图（不持久化，启动默认会话视图；仅 agent 模式读取） */
 export const codeMainViewAtom = atom<CodeMainView>('session')

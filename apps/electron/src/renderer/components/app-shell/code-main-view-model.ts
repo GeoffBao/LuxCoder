@@ -42,7 +42,7 @@ export function isOverlayActiveView(activeView: ActiveView): boolean {
 }
 
 /**
- * agent 模式主区是否渲染 Work 视图（看板 / 项目详情）。
+ * agent 模式主区是否渲染正式 Task 看板。
  *
  * 优先级约束：
  * - 仅 agent 模式（遗留 cowork 由启动迁移落到 agent + codeMainView='work'）
@@ -53,5 +53,7 @@ export function shouldShowWorkViewInCode({
   codeMainView,
   activeView,
 }: CodeMainViewInput): boolean {
-  return appMode === 'agent' && codeMainView === 'work' && activeView === 'conversations'
+  return appMode === 'agent'
+    && (codeMainView === 'tasks' || codeMainView === 'work')
+    && activeView === 'conversations'
 }

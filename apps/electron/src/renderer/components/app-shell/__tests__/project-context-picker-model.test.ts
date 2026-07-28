@@ -18,7 +18,7 @@ describe('project-context-picker-model', () => {
     expect(allowsSkipProject('task')).toBe(false)
   })
 
-  test('session 分区含无项目；task 不含', () => {
+  test('session 可清除项目；task 提供正式 Workspace Task 入口', () => {
     const session = buildPickerSections({
       mode: 'session',
       projects,
@@ -34,6 +34,7 @@ describe('project-context-picker-model', () => {
       selectedProjectId: 'p2',
     })
     expect(task.actions.map((a) => a.id)).not.toContain('skip')
+    expect(task.actions.map((a) => a.id)).toContain('workspace-task')
   })
 
   test('projects：最近使用的排前面，不与其余项目重复', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import type { AgentSessionMeta } from '@luxcoder/shared'
+import type { AgentSessionMeta, TaskAggregateSummary } from '@luxcoder/shared'
 import {
   buildKanbanViewModel,
   deriveSubtaskRunState,
@@ -23,7 +23,80 @@ const projects: KanbanProject[] = [
   { id: 'project-b', name: '项目 B' },
 ]
 
+function createTask(overrides: Partial<TaskAggregateSummary>): TaskAggregateSummary {
+  return {
+    taskId: '11111111-1111-4111-8111-111111111111',
+    taskSlug: 'default-task',
+    title: '默认 Task',
+    scope: { kind: 'workspace' },
+    workflow: 'todo',
+    labelIds: [],
+    runCount: 0,
+    legacyIdentity: false,
+    health: 'ready',
+    diagnostics: [],
+    ...overrides,
+  }
+}
+
 describe('buildKanbanViewModel', () => {
+  test('正式模式只投影 TaskRepository summaries，并以 stable taskId 为卡片身份', () => {
+    const taskId = '22222222-2222-4222-8222-222222222222'
+    const model = buildKanbanViewModel({
+      projects,
+      tasks: [createTask({
+        taskId,
+        taskSlug: 'workspace-release',
+        title: 'Workspace 发布任务',
+        workflow: 'needs-review',
+        orchestratorSessionId: 'task-session',
+        updatedAt: 50,
+      })],
+      sessions: [
+        createSession({ id: 'plain-session', title: '普通聊天', updatedAt: 60 }),
+        createSession({ id: 'task-session', title: '旧会话标题', taskSlug: 'workspace-release', updatedAt: 40 }),
+      ],
+      runs: [],
+      bindings: [],
+      filter: { projectId: null },
+    })
+
+    expect(model.listItems).toHaveLength(1)
+    expect(model.listItems[0]).toEqual(expect.objectContaining({
+      id: taskId,
+      title: 'Workspace 发布任务',
+      columnId: 'done',
+      hasSession: true,
+    }))
+    expect(model.listItems[0]?.task?.taskSlug).toBe('workspace-release')
+  })
+
+  test('没有 orchestrator Session 的恢复项仍显示诊断卡片，Project facet 来自 Task scope', () => {
+    const taskId = '33333333-3333-4333-8333-333333333333'
+    const model = buildKanbanViewModel({
+      projects,
+      tasks: [createTask({
+        taskId,
+        taskSlug: 'recovered-task',
+        title: '待恢复 Task',
+        scope: { kind: 'project', projectId: 'project-a' },
+        health: 'warning',
+        diagnostics: [{ code: 'missing-session', severity: 'warning', message: '缺少 Session' }],
+      })],
+      sessions: [],
+      runs: [],
+      bindings: [],
+      filter: { projectId: 'project-a' },
+    })
+
+    expect(model.listItems).toHaveLength(1)
+    expect(model.listItems[0]).toEqual(expect.objectContaining({
+      id: taskId,
+      hasSession: false,
+      project: expect.objectContaining({ id: 'project-a' }),
+    }))
+  })
+
   test('未显式拖放的新会话默认落入待办列（不做收件箱 triage）', () => {
     const model = buildKanbanViewModel({
       projects,

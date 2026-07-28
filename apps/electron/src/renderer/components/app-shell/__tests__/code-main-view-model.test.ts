@@ -21,7 +21,15 @@ describe('normalizeAppModeForUi / isLegacyCoworkMode', () => {
 })
 
 describe('shouldShowWorkViewInCode', () => {
-  test('agent 模式 + work 视图 + conversations → 显示 Work 视图', () => {
+  test('agent 模式 + tasks 视图 + conversations → 显示正式 Task 看板', () => {
+    expect(shouldShowWorkViewInCode({
+      appMode: 'agent',
+      codeMainView: 'tasks',
+      activeView: 'conversations',
+    })).toBe(true)
+  })
+
+  test('遗留 work 仍作为 Task 看板兼容 alias', () => {
     expect(shouldShowWorkViewInCode({
       appMode: 'agent',
       codeMainView: 'work',
@@ -73,7 +81,7 @@ describe('shouldShowWorkViewInCode', () => {
 })
 
 describe('isOverlayActiveView', () => {
-  test('isOverlayActiveView 识别三类覆盖视图（projects Hub 已退役）', () => {
+  test('isOverlayActiveView 识别三类能力覆盖视图', () => {
     expect(isOverlayActiveView('conversations')).toBe(false)
     expect(isOverlayActiveView('automations')).toBe(true)
     expect(isOverlayActiveView('agent-skills')).toBe(true)

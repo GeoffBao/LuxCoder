@@ -14,7 +14,7 @@ import { RightSidePanel } from './RightSidePanel'
 import { MainArea } from '@/components/tabs/MainArea'
 import { AppShellProvider, type AppShellContextType } from '@/contexts/AppShellContext'
 import { appModeAtom } from '@/atoms/app-mode'
-import { codeMainViewAtom, workViewAtom } from '@/atoms/project-atoms'
+import { codeMainViewAtom } from '@/atoms/project-atoms'
 import { agentSidePanelWidthAtom, currentAgentSessionIdAtom, currentSessionSidePanelOpenAtom } from '@/atoms/agent-atoms'
 import { leftSidebarWidthAtom, MIN_LEFT_SIDEBAR_WIDTH } from '@/atoms/sidebar-atoms'
 import { sidebarCollapsedAtom } from '@/atoms/tab-atoms'
@@ -47,7 +47,6 @@ export interface AppShellProps {
 export function AppShell({ contextValue }: AppShellProps): React.ReactElement {
   const [appMode, setAppMode] = useAtom(appModeAtom)
   const [codeMainView, setCodeMainView] = useAtom(codeMainViewAtom)
-  const setWorkView = useSetAtom(workViewAtom)
   const currentSessionId = useAtomValue(currentAgentSessionIdAtom)
   const isPanelOpen = useAtomValue(currentSessionSidePanelOpenAtom)
   const automationForm = useAtomValue(automationFormAtom)
@@ -56,17 +55,20 @@ export function AppShell({ contextValue }: AppShellProps): React.ReactElement {
   // 定时任务表单打开时隐藏右侧文件面板，让中间区域扩展到全宽（表单内含自己的右栏配置）；
   // Code 模式切到看板 / 项目详情（codeMainView === 'work'）时同样隐藏，面板属于会话上下文
   const [activeView, setActiveView] = useAtom(activeViewAtom)
-  const showRightPanel = appMode === 'agent' && codeMainView === 'session' && !!currentSessionId && !automationForm.open && activeView !== 'automations' && activeView !== 'agent-skills' && activeView !== 'agent-experts'
+  const showRightPanel = appMode === 'agent'
+    && codeMainView === 'session'
+    && activeView === 'conversations'
+    && !!currentSessionId
+    && !automationForm.open
   const isWindows = React.useMemo(() => detectIsWindows(), [])
 
   // 遗留顶栏 Work（cowork）持久化值：一次性迁移到 Code 主区看板
   React.useEffect(() => {
     if (!isLegacyCoworkMode(appMode)) return
     setAppMode('agent')
-    setCodeMainView('work')
-    setWorkView('board')
+    setCodeMainView('tasks')
     setActiveView('conversations')
-  }, [appMode, setAppMode, setCodeMainView, setWorkView, setActiveView])
+  }, [appMode, setAppMode, setCodeMainView, setActiveView])
   // 左侧边栏可拖拽宽度
   const [leftSidebarWidth, setLeftSidebarWidth] = useAtom(leftSidebarWidthAtom)
   const sidebarCollapsed = useAtomValue(sidebarCollapsedAtom)

@@ -77,12 +77,16 @@ export function TaskTile({
   const dagAttention = resolveDagAttention(item.subtasks, progressTotal)
   const showDoneAttention = shouldShowDoneColumnAttention(item.columnId, dagAttention)
   const canRun = Boolean(onRunTask)
-    && Boolean(item.session.taskSlug)
+    && Boolean(item.task?.taskSlug ?? item.session.taskSlug)
     && !hasRunning
     && item.subtasks.some((subtask) => subtask.runState === 'pending')
   // 对齐 craft：编辑不要求已绑定 task spec，任何卡片都能打开编辑器（没有 taskSlug
   // 时编辑器从当前标题/模型起草新表单，保存即"升级"成正式任务）。
-  const canEdit = Boolean(onEdit)
+  const canEdit = Boolean(onEdit) && item.hasSession !== false
+  const canRename = Boolean(onRename) && (!item.task || !item.task.legacyIdentity)
+  const canArchive = Boolean(onArchive) && (!item.task || !item.task.legacyIdentity)
+  // 永久删除需等删除影响预览治理；正式 Task 当前只提供安全归档。
+  const canDelete = Boolean(onRequestDelete) && !item.task
   const handleEdit = (event?: React.SyntheticEvent): void => {
     event?.stopPropagation()
     onEdit?.(item)
@@ -116,7 +120,7 @@ export function TaskTile({
     }
   }
 
-  const hasCardMenu = canEdit || Boolean(onRename) || Boolean(onArchive) || Boolean(onRequestDelete)
+  const hasCardMenu = canEdit || canRename || canArchive || canDelete
 
   const card = (
     <article
@@ -193,6 +197,17 @@ export function TaskTile({
         )}
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        {item.task && (
+          <span className="inline-flex items-center rounded-full bg-foreground/[0.06] px-2 py-0.5 text-[11px] font-medium text-foreground/65">
+            {({
+              todo: '待办',
+              'in-progress': '进行中',
+              'needs-review': '待验收',
+              done: '已完成',
+              cancelled: '已取消',
+            } as const)[item.task.workflow]}
+          </span>
+        )}
         <StatusBadge status={item.session.sessionStatus} live={live} />
         {showDoneAttention && dagAttention && (
           <span
@@ -211,9 +226,9 @@ export function TaskTile({
         {item.expertId && expertLabel && (
           <ExpertChip expertId={item.expertId} label={expertLabel} />
         )}
-        {item.session.taskSlug && (
+        {(item.task?.taskSlug ?? item.session.taskSlug) && (
           <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-            <GitBranch className="h-3 w-3" />{item.session.taskSlug}
+            <GitBranch className="h-3 w-3" />{item.task?.taskSlug ?? item.session.taskSlug}
           </span>
         )}
       </div>
@@ -288,7 +303,7 @@ export function TaskTile({
       <div className="mt-2 flex items-center justify-end gap-2.5 text-[11px] text-muted-foreground">
         <span className="flex items-center gap-1">
           <Clock className="h-3 w-3" />
-          {formatRelativeUpdatedAt(item.session.updatedAt, Date.now())}
+          {formatRelativeUpdatedAt(item.task?.updatedAt ?? item.session.updatedAt, Date.now())}
         </span>
         {typeof item.session.messageCount === 'number' && item.session.messageCount > 0 && (
           <span className="flex items-center gap-1">
@@ -302,7 +317,7 @@ export function TaskTile({
 
   if (!hasCardMenu) return card
 
-  const archived = Boolean(item.session.archived)
+  const archived = Boolean(item.task?.archivedAt ?? item.session.archived)
 
   return (
     <ContextMenu>
@@ -317,22 +332,22 @@ export function TaskTile({
             编辑任务
           </ContextMenuItem>
         )}
-        {onRename && (
+        {canRename && (
           <ContextMenuItem onSelect={() => startRename()}>
             <Pencil className="mr-2 h-3.5 w-3.5" />
             重命名
           </ContextMenuItem>
         )}
-        {onArchive && (
-          <ContextMenuItem onSelect={() => onArchive(item)}>
+        {canArchive && (
+          <ContextMenuItem onSelect={() => onArchive?.(item)}>
             {archived ? <ArchiveRestore className="mr-2 h-3.5 w-3.5" /> : <Archive className="mr-2 h-3.5 w-3.5" />}
             {archived ? '取消归档' : '归档'}
           </ContextMenuItem>
         )}
-        {onRequestDelete && (
+        {canDelete && (
           <>
             <ContextMenuSeparator />
-            <ContextMenuItem className="text-destructive" onSelect={() => onRequestDelete(item)}>
+            <ContextMenuItem className="text-destructive" onSelect={() => onRequestDelete?.(item)}>
               <Trash2 className="mr-2 h-3.5 w-3.5" />
               删除任务
             </ContextMenuItem>

@@ -447,7 +447,7 @@ export function SearchDialog(): React.ReactElement {
     if (result.type === 'project') {
       const project = result as ProjectResult
       setSelectedProjectId(project.id)
-      setCodeMainView('work')
+      setCodeMainView('tasks')
       setActiveView('conversations')
       return
     }

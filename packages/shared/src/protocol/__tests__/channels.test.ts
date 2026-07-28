@@ -86,6 +86,9 @@ describe('kanban protocol contracts', () => {
       REHYDRATE: 'tasks:rehydrate',
       GET: 'tasks:get',
       LIST: 'tasks:list',
+      LIST_SUMMARIES: 'tasks:listSummaries',
+      UPDATE_WORKFLOW: 'tasks:updateWorkflow',
+      UPDATE_METADATA: 'tasks:updateMetadata',
       GET_RESULTS: 'tasks:getResults',
     });
 

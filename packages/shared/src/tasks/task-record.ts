@@ -12,6 +12,12 @@ export const TaskWorkflowSchema = z.enum([
 
 export type TaskWorkflow = z.infer<typeof TaskWorkflowSchema>;
 
+export interface TaskMetadataPatch {
+  title?: string;
+  archived?: boolean;
+  expectedRevision?: number;
+}
+
 export const TaskRecordSchema = z.object({
   schemaVersion: z.literal(TASK_RECORD_SCHEMA_VERSION),
   taskId: z.string().uuid(),
@@ -26,6 +32,31 @@ export const TaskRecordSchema = z.object({
 }).strict();
 
 export type TaskRecord = z.infer<typeof TaskRecordSchema>;
+
+/** Renderer-facing TaskRepository projection. The stable Task record is authoritative; spec supplies display content and optional Project scope. */
+export interface TaskAggregateSummary {
+  taskId: string;
+  taskSlug: string;
+  title: string;
+  goal?: string;
+  scope: { kind: 'workspace' } | { kind: 'project'; projectId: string };
+  workflow: TaskWorkflow;
+  revision?: number;
+  labelIds: string[];
+  orchestratorSessionId?: string;
+  archivedAt?: number;
+  createdAt?: number;
+  updatedAt?: number;
+  runCount: number;
+  latestRunId?: string;
+  legacyIdentity: boolean;
+  health: 'ready' | 'warning' | 'error';
+  diagnostics: Array<{
+    code: string;
+    severity: 'warning' | 'error';
+    message: string;
+  }>;
+}
 
 export type TaskRecordLoadResult =
   | { kind: 'missing' }

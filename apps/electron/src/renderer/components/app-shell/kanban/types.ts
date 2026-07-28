@@ -1,4 +1,5 @@
 import type { AgentSessionMeta } from '@luxcoder/shared'
+import type { TaskAggregateSummary } from '@luxcoder/shared/tasks'
 
 /** 历史遗留的收件箱列 ID；列已下线，存量值由 board fallback 归入待办。 */
 export const INBOX_COLUMN_ID = 'inbox'
@@ -90,6 +91,10 @@ export interface KanbanItem {
   title: string
   columnId: string
   session: AgentSessionMeta
+  /** 是否有可打开/可继续执行的真实 orchestrator Session；false 时 session 仅为诊断卡片展示适配。 */
+  hasSession?: boolean
+  /** 正式 TaskRepository 投影；旧 Session 看板兼容项缺省。 */
+  task?: TaskAggregateSummary
   project: KanbanProject | null
   /** craft 对齐：卡片上展开的子任务行（spec nodes ∪ child sessions） */
   subtasks: KanbanSubtask[]

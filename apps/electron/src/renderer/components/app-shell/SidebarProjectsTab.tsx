@@ -204,7 +204,7 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sor
   }, [])
 
   const enterWork = React.useCallback(() => {
-    setCodeMainView('work')
+    setCodeMainView('tasks')
     setActiveView('conversations')
   }, [setActiveView, setCodeMainView])
 

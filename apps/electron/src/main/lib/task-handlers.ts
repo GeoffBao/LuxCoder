@@ -23,6 +23,7 @@ import type {
   UploadProjectAssetInput,
 } from '@luxcoder/shared'
 import type { TaskSpec } from '@luxcoder/shared/tasks/schema'
+import type { TaskMetadataPatch, TaskWorkflow } from '@luxcoder/shared/tasks/task-record'
 import {
   buildGeneratorPrompt,
   buildRepairPrompt,
@@ -54,9 +55,11 @@ import {
   relocateProjectWorkingDirectory,
   resolveEffectiveCwd,
 } from './project-path-service'
+import { TaskRepository } from './task-repository'
 import { TaskRunner, type CreateSessionOptions, type RunOptions } from './task-runner'
 import {
   materializeTaskTransaction,
+  recoverTaskMaterializations,
   type TaskMaterializationDependencies,
 } from './task-materialization-service'
 import {
@@ -462,6 +465,19 @@ export function registerTaskHandlers(window: BrowserWindow): void {
   if (handlersRegistered) return
   handlersRegistered = true
 
+  // 进程启动后先收敛已完成 Session 绑定但尚未 rename 提交的 Task 事务。
+  // recovery-required 只报告，不猜测或删除用户数据。
+  for (const workspace of listAgentWorkspaces()) {
+    const workspaceRoot = getAgentWorkspacePath(workspace.slug)
+    for (const result of recoverTaskMaterializations(workspaceRoot, {})) {
+      if (result.status === 'recovery-required') {
+        console.warn(`[TaskMaterialization] 需要人工恢复 ${workspace.id}/${result.transactionId}: ${result.message ?? result.taskSlug}`)
+      } else {
+        console.info(`[TaskMaterialization] 启动恢复 ${workspace.id}/${result.taskSlug}: ${result.status}`)
+      }
+    }
+  }
+
   ipcMain.handle(PROJECT_IPC_CHANNELS.GET, (_event, workspaceRoot: string) => {
     return projectRepository.listProjectsAtRoot(workspaceRoot)
   })
@@ -560,6 +576,19 @@ export function registerTaskHandlers(window: BrowserWindow): void {
 
     if (request.attachToExistingSessionId) {
       const sessionId = request.attachToExistingSessionId
+      const repository = new TaskRepository({ resolveWorkspaceRoot: () => workspaceRoot })
+      const existingTask = repository.getTaskAggregate(workspaceId, parsed.spec.id)
+      const existingSession = getAgentSessionMeta(sessionId)
+      // TaskEditor 的“编辑”必须原地更新同一 Task，不能经 ensureUniqueTaskSlug 复制出第二个聚合根。
+      if (existingTask && existingSession?.taskSlug === parsed.spec.id) {
+        repository.updateTaskSpec(workspaceId, existingTask.taskId, parsed.spec)
+        return {
+          slug: existingTask.taskSlug,
+          taskId: existingTask.taskId,
+          orchestratorSessionId: sessionId,
+          valid: true,
+        }
+      }
       const seed = buildTaskSessionSeed(parsed.spec, workspaceRoot)
       const result = await materializeTaskTransaction({
         workspaceRoot,
@@ -658,6 +687,34 @@ export function registerTaskHandlers(window: BrowserWindow): void {
 
   ipcMain.handle(TASK_IPC_CHANNELS.LIST, (_event, workspaceRoot: string) => {
     return listTaskSlugs(workspaceRoot)
+  })
+
+  ipcMain.handle(TASK_IPC_CHANNELS.LIST_SUMMARIES, (_event, workspaceRoot: string, workspaceId: string) => {
+    const repository = new TaskRepository({ resolveWorkspaceRoot: () => workspaceRoot })
+    return repository.listTaskAggregateSummaries(workspaceId)
+  })
+
+  ipcMain.handle(TASK_IPC_CHANNELS.UPDATE_WORKFLOW, (
+    _event,
+    workspaceRoot: string,
+    workspaceId: string,
+    taskId: string,
+    workflow: TaskWorkflow,
+    expectedRevision?: number,
+  ) => {
+    const repository = new TaskRepository({ resolveWorkspaceRoot: () => workspaceRoot })
+    return repository.updateTaskWorkflow(workspaceId, taskId, workflow, expectedRevision)
+  })
+
+  ipcMain.handle(TASK_IPC_CHANNELS.UPDATE_METADATA, (
+    _event,
+    workspaceRoot: string,
+    workspaceId: string,
+    taskId: string,
+    patch: TaskMetadataPatch,
+  ) => {
+    const repository = new TaskRepository({ resolveWorkspaceRoot: () => workspaceRoot })
+    return repository.updateTaskMetadata(workspaceId, taskId, patch)
   })
 
   ipcMain.handle(TASK_IPC_CHANNELS.GET_RESULTS, (_event, workspaceRoot: string, slug: string, runId?: string) => {

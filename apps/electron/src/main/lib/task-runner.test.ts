@@ -6,6 +6,7 @@ import type { TaskSpec } from '@luxcoder/shared/tasks/schema'
 import {
   appendRunLog,
   initializeRun,
+  loadTaskRecord,
   readRunContextSnapshot,
   readRunLog,
   runDir,
@@ -346,6 +347,52 @@ describe('TaskRunner', () => {
         ],
       }),
     )
+  })
+
+  test('Run 生命周期只自动 todo → in-progress → needs-review，不覆盖用户终态', async () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    const spec = buildSpec()
+    saveTaskSpec(workspaceRoot, spec)
+    saveTaskRecord(workspaceRoot, {
+      schemaVersion: 1,
+      taskId: '018f47a8-6c26-7a13-9bf6-7c8d4f2e4c72',
+      slug: spec.id,
+      revision: 1,
+      workflow: 'todo',
+      labelIds: [],
+      createdAt: 1,
+      updatedAt: 1,
+    })
+    const host = new FakeConductorSessionHost()
+    const runner = createRunner(workspaceRoot, host)
+
+    runner.run(spec.id, { verifyOnComplete: false })
+    expect(loadTaskRecord(workspaceRoot, spec.id)).toEqual(expect.objectContaining({
+      kind: 'valid',
+      record: expect.objectContaining({ workflow: 'in-progress', revision: 2 }),
+    }))
+
+    await flushAsyncWork()
+    host.completeSession('session-1', { workspaceId: 'ws-1', finalText: 'done' })
+    await runner.waitUntilSettled(spec.id, 'run-1')
+    expect(loadTaskRecord(workspaceRoot, spec.id)).toEqual(expect.objectContaining({
+      kind: 'valid',
+      record: expect.objectContaining({ workflow: 'needs-review', revision: 3 }),
+    }))
+
+    const settledRecord = loadTaskRecord(workspaceRoot, spec.id)
+    if (settledRecord.kind !== 'valid') throw new Error('expected valid TaskRecord')
+    saveTaskRecord(workspaceRoot, { ...settledRecord.record, workflow: 'done', revision: 4 })
+    const secondHost = new FakeConductorSessionHost()
+    const secondRunner = createRunner(workspaceRoot, secondHost, 'run-2')
+    secondRunner.run(spec.id, { verifyOnComplete: false })
+    await flushAsyncWork()
+    secondHost.completeSession('session-1', { workspaceId: 'ws-1', finalText: 'done again' })
+    await secondRunner.waitUntilSettled(spec.id, 'run-2')
+    expect(loadTaskRecord(workspaceRoot, spec.id)).toEqual(expect.objectContaining({
+      kind: 'valid',
+      record: expect.objectContaining({ workflow: 'done', revision: 4 }),
+    }))
   })
 
   test('遵守 max_parallel 限制，直到有空槽才继续派发', async () => {

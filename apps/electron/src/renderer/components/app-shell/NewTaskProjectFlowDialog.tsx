@@ -1,5 +1,5 @@
 /**
- * NewTaskProjectFlowDialog — 新任务流第一步：必须选/建项目
+ * NewTaskProjectFlowDialog — 新任务流第一步：选择 Project 或创建 Workspace Task
  */
 
 import * as React from 'react'
@@ -17,7 +17,6 @@ import {
   codeMainViewAtom,
   pendingTaskEditorTargetAtom,
   selectedProjectIdAtom,
-  workViewAtom,
 } from '@/atoms/project-atoms'
 import { activeViewAtom } from '@/atoms/active-view'
 
@@ -26,16 +25,13 @@ export function NewTaskProjectFlowDialog(): React.ReactElement {
   const setPendingEditor = useSetAtom(pendingTaskEditorTargetAtom)
   const setSelectedProjectId = useSetAtom(selectedProjectIdAtom)
   const setCodeMainView = useSetAtom(codeMainViewAtom)
-  const setWorkView = useSetAtom(workViewAtom)
   const setActiveView = useSetAtom(activeViewAtom)
 
   const handleSelect = React.useCallback(async (projectId: string | null): Promise<void> => {
-    if (!projectId) return
     setSelectedProjectId(projectId)
-    setPendingEditor({ mode: 'create', initialProjectId: projectId })
+    setPendingEditor({ mode: 'create', initialProjectId: projectId ?? undefined })
+    setCodeMainView('tasks')
     setActiveView('conversations')
-    setCodeMainView('work')
-    setWorkView('board')
     setOpen(false)
   }, [
     setActiveView,
@@ -43,7 +39,6 @@ export function NewTaskProjectFlowDialog(): React.ReactElement {
     setOpen,
     setPendingEditor,
     setSelectedProjectId,
-    setWorkView,
   ])
 
   return (
@@ -52,7 +47,7 @@ export function NewTaskProjectFlowDialog(): React.ReactElement {
         <DialogHeader>
           <DialogTitle>新建任务</DialogTitle>
           <DialogDescription>
-            选择项目后填写任务。也可新建项目或打开本地文件夹。
+            可绑定项目，也可直接创建 Workspace Task。
           </DialogDescription>
         </DialogHeader>
         <ProjectContextPicker

@@ -11,7 +11,7 @@
 import * as React from 'react'
 import { useAtom, useSetAtom, useAtomValue, useStore } from 'jotai'
 import { toast } from 'sonner'
-import { Pin, PinOff, Settings, Plus, Trash2, Pencil, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MessageSquare, MoreHorizontal, FolderOpen, GripVertical, Clock, AlarmClock, ChevronRight, Blocks, GitBranch, Download, Loader2, RotateCw, Layers, UserRound } from 'lucide-react'
+import { Pin, PinOff, Settings, Plus, Trash2, Pencil, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MessageSquare, MoreHorizontal, FolderOpen, GripVertical, Clock, AlarmClock, ChevronRight, Blocks, GitBranch, Download, Loader2, RotateCw, Layers, UserRound, LayoutDashboard } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { MarqueeText } from '@/components/ui/marquee-text'
@@ -79,7 +79,7 @@ import {
   sessionViewStateMapAtom,
 } from '@/atoms/tab-atoms'
 import { userProfileAtom } from '@/atoms/user-profile'
-import { selectedProjectIdAtom, serverKanbanProjectsAtom, workViewAtom, codeMainViewAtom } from '@/atoms/project-atoms'
+import { selectedProjectIdAtom, serverKanbanProjectsAtom, codeMainViewAtom, pendingTaskEditorTargetAtom } from '@/atoms/project-atoms'
 import { sessionGroupsAtom } from '@/atoms/session-groups-atoms'
 import { sessionListPreferenceAtom } from '@/atoms/session-list-preference-atoms'
 import { buildRecentSessionList } from './sidebar-session-views'
@@ -671,8 +671,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   const kanbanProjects = useAtomValue(serverKanbanProjectsAtom)
   const setKanbanProjects = useSetAtom(serverKanbanProjectsAtom)
   const setSelectedProjectId = useSetAtom(selectedProjectIdAtom)
-  const setWorkView = useSetAtom(workViewAtom)
-  const setCodeMainView = useSetAtom(codeMainViewAtom)
+  const setPendingTaskEditorTarget = useSetAtom(pendingTaskEditorTargetAtom)
+  const [codeMainView, setCodeMainView] = useAtom(codeMainViewAtom)
 
   // 当前工作区能力（MCP + Skill 计数）
   const [capabilities, setCapabilities] = React.useState<WorkspaceCapabilities | null>(null)
@@ -1001,6 +1001,14 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     setActiveView('agent-experts')
   }, [setActiveView])
 
+  /** 打开唯一正式 Task 看板；重复点击保持当前页面，不隐式退回会话。 */
+  const handleOpenTaskBoard = React.useCallback((): void => {
+    if (codeMainView === 'tasks' && activeView === 'conversations') return
+    setAutomationForm({ open: false, draft: null })
+    setCodeMainView('tasks')
+    setActiveView('conversations')
+  }, [activeView, codeMainView, setActiveView, setAutomationForm, setCodeMainView])
+
   /** 打开当前工作区的 MCP 管理页 */
   const handleOpenMcpManagement = React.useCallback((): void => {
     setAgentSkillsTab('mcp')
@@ -1267,9 +1275,9 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       setKanbanProjects((prev) => [project, ...prev.filter((existing) => existing.id !== project.id)])
       setCreateProjectOpen(false)
       toast.success('项目已创建')
-      // 新建后跳到该项目的看板
+      // 新建后进入唯一 Task 看板并按该 Project 筛选。
       setSelectedProjectId(project.id)
-      setCodeMainView('work')
+      setCodeMainView('tasks')
       setActiveView('conversations')
     } catch (cause) {
       toast.error('创建项目失败', { description: cause instanceof Error ? cause.message : String(cause) })
@@ -1310,25 +1318,32 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     }
   }, [createGroupTargetSessionId, currentWorkspaceSlug, handleMoveToGroup, setSessionGroups])
 
-  /** Code 侧边栏打开项目详情：留在当前模式，主区切到项目详情（Work 视图） */
+  /** Project 行“查看任务”进入唯一 Task 看板并预设 Project facet。 */
   const handleOpenProjectDetail = React.useCallback((projectId: string): void => {
     setSelectedProjectId(projectId)
-    setWorkView('board')
-    setCodeMainView('work')
-    // 显式主区导航，需退出 automations / agent-skills 覆盖视图
+    setCodeMainView('tasks')
     setActiveView('conversations')
-  }, [setActiveView, setCodeMainView, setSelectedProjectId, setWorkView])
+  }, [setActiveView, setCodeMainView, setSelectedProjectId])
 
   /** 切换当前工作区（WorkspaceSwitcher / 组头共用）；同 ID 时不折叠 */
   const handleSwitchWorkspace = React.useCallback((workspaceId: string): void => {
     if (workspaceId === currentWorkspaceId) return
-    // 切换期间先清空项目列表，避免闪旧 Workspace 数据
+    // 切换期间先清空 Project facet 与未保存 Task 草稿，避免跨 Workspace 泄漏。
     setKanbanProjects([])
+    setSelectedProjectId(null)
+    setPendingTaskEditorTarget(null)
     setCurrentWorkspaceId(workspaceId)
     setActiveView('conversations')
     setCollapsedWorkspaceIds((prev) => deleteSetEntry(prev, workspaceId))
     window.electronAPI.updateSettings({ agentWorkspaceId: workspaceId }).catch(console.error)
-  }, [currentWorkspaceId, setCurrentWorkspaceId, setActiveView, setKanbanProjects])
+  }, [
+    currentWorkspaceId,
+    setCurrentWorkspaceId,
+    setActiveView,
+    setKanbanProjects,
+    setPendingTaskEditorTarget,
+    setSelectedProjectId,
+  ])
 
   /** 组头点击：当前工作区则折叠/展开，否则切换 */
   const handleSelectProject = React.useCallback((workspaceId: string): void => {
@@ -2279,8 +2294,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     // 遗留顶栏 Work：并入 Code 主区看板视图
     if (targetMode === 'cowork') {
       setMode('agent')
-      setCodeMainView('work')
-      setWorkView('board')
+      setCodeMainView('tasks')
       setActiveView('conversations')
       return
     }
@@ -2327,7 +2341,6 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     setMode,
     setViewMode,
     setCodeMainView,
-    setWorkView,
     setActiveView,
   ])
 
@@ -2722,6 +2735,27 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             </Tooltip>
           )}
 
+          {mode === 'agent' && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Task 看板"
+                  onClick={handleOpenTaskBoard}
+                  className={cn(
+                    'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag border',
+                    codeMainView === 'tasks' && activeView === 'conversations'
+                      ? 'border-primary/80 bg-primary text-primary-foreground shadow-sm'
+                      : 'border-border/45 bg-foreground/[0.025] text-foreground/45 hover:border-border/70 hover:bg-foreground/[0.045] hover:text-primary',
+                  )}
+                >
+                  <LayoutDashboard size={16} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Task 看板</TooltipContent>
+            </Tooltip>
+          )}
+
         </div>
 
         <div className="my-3 h-px w-8 bg-border/70" />
@@ -3038,6 +3072,19 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             active={activeView === 'agent-experts'}
             onClick={handleOpenAgentExperts}
             ariaLabel={`Agent 专家，${expertsCount} 个角色`}
+          />
+        </div>
+      )}
+
+      {/* Task 看板：Workspace 级正式工作项入口，位于 Agent 专家下方。 */}
+      {mode === 'agent' && (
+        <div className="sidebar-module-zone px-3 pb-0.5">
+          <SidebarModule
+            icon={LayoutDashboard}
+            title="Task 看板"
+            active={codeMainView === 'tasks' && activeView === 'conversations'}
+            onClick={handleOpenTaskBoard}
+            ariaLabel="Task 看板"
           />
         </div>
       )}

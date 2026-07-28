@@ -26,8 +26,9 @@ describe('buildQuickTaskRequest', () => {
     ])
   })
 
-  test('缺少 projectId / 标题 / 目标时拒绝提交', () => {
-    expect(() => buildQuickTaskRequest({ ...draft, projectId: ' ' }, 'quick-42')).toThrow('请选择项目')
+  test('projectId 可空以创建 Workspace Task；标题 / 目标仍必填', () => {
+    const workspaceSpec = TaskSpecSchema.parse(JSON.parse(buildQuickTaskRequest({ ...draft, projectId: ' ' }, 'quick-42').yaml))
+    expect(workspaceSpec.project).toBeUndefined()
     expect(() => buildQuickTaskRequest({ ...draft, title: ' ' }, 'quick-42')).toThrow('请输入任务标题')
     expect(() => buildQuickTaskRequest({ ...draft, goal: ' ' }, 'quick-42')).toThrow('请输入任务目标')
   })

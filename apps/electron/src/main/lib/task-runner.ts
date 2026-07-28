@@ -22,6 +22,7 @@ import {
   initializeRun,
   listResumableRuns,
   loadTaskRecord,
+  saveTaskRecord,
   writeNodeOutput,
   readNodeOutput,
   readRunContextSnapshot,
@@ -168,6 +169,27 @@ const FAILED_STATUS = 'needs-review';
 /** 中断/孤儿节点回退到 todo，避免 UI 永久显示「运行中」 */
 const IDLE_STATUS = 'todo';
 const MAX_UNPARSED_REASKS = 2;
+
+/** Run 只推进机器可控的 workflow；用户已设 done/cancelled 时绝不回写覆盖。 */
+function transitionTaskWorkflow(
+  workspaceRoot: string,
+  slug: string,
+  phase: 'started' | 'settled',
+): void {
+  const loaded = loadTaskRecord(workspaceRoot, slug)
+  if (loaded.kind !== 'valid') return
+  const current = loaded.record.workflow
+  const next = phase === 'started'
+    ? (current === 'todo' ? 'in-progress' : current)
+    : (current === 'done' || current === 'cancelled' ? current : 'needs-review')
+  if (next === current) return
+  saveTaskRecord(workspaceRoot, {
+    ...loaded.record,
+    workflow: next,
+    revision: loaded.record.revision + 1,
+    updatedAt: Date.now(),
+  })
+}
 const INPUTS_REF_RE = /\$\{\s*inputs\.([a-zA-Z_][a-zA-Z0-9_]*)\s*\}/g;
 
 type DistributiveOmit<T, K extends keyof T> = T extends unknown ? Omit<T, K> : never;
@@ -357,6 +379,7 @@ class ActiveRun {
     this.inFlight = 0;
     const orchestrator = this.opts.orchestratorSessionId;
     if (orchestrator) void this.deps.host.setSessionStatus(orchestrator, IDLE_STATUS);
+    transitionTaskWorkflow(this.deps.workspaceRoot, this.slug, 'settled')
     this.finalize();
   }
 
@@ -605,6 +628,7 @@ class ActiveRun {
   private finish(status: RunStatus): void {
     this.runStatus = status;
     this.log({ kind: status === 'completed' ? 'run-completed' : 'run-failed' });
+    transitionTaskWorkflow(this.deps.workspaceRoot, this.slug, 'settled')
     const orchestrator = this.opts.orchestratorSessionId;
     if (orchestrator) {
       if (status === 'completed') {
@@ -863,6 +887,8 @@ export class TaskRunner {
       verifyOnComplete,
     })
 
+    transitionTaskWorkflow(this.deps.workspaceRoot, slug, 'started')
+
     const run = new ActiveRun(
       loaded.spec, slug, runId,
       {
@@ -880,6 +906,7 @@ export class TaskRunner {
       run.start();
     } catch (error) {
       this.runs.delete(this.key(slug, runId))
+      transitionTaskWorkflow(this.deps.workspaceRoot, slug, 'settled')
       throw error
     }
     return run.snapshot();

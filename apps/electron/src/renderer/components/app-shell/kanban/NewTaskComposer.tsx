@@ -1,12 +1,11 @@
 import * as React from 'react'
-import { useAtomValue, useSetAtom } from 'jotai'
+import { useAtomValue } from 'jotai'
 import { Settings2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { selectedProjectIdAtom, serverKanbanProjectsAtom } from '@/atoms/project-atoms'
-import { newTaskProjectFlowOpenAtom } from '@/atoms/project-context-picker'
 import { submitQuickTask, type QuickTaskDraft } from './quick-task-model'
 
 interface NewTaskComposerProps {
@@ -19,15 +18,14 @@ const EMPTY_DRAFT: QuickTaskDraft = { title: '', goal: '', projectId: '' }
 
 /**
  * 看板"新建任务"入口，对齐 craft 的两层模型：
- * - 默认是列顶部常驻的单行标题输入框（对齐 craft 截图）——回车直接建一个普通会话
- *   落到待办列，不生成 task spec；后续要不要变成正式任务，靠卡片的「编辑任务」升级。
+ * - 默认单行标题回车直接物化最小正式 Task，并创建 orchestrator Session。
+ * - Project 可选；未选时创建 Workspace Task。
  * - 右侧「详细设置」图标按钮展开成原有的完整表单（标题+目标+项目），走
  *   tasks:create 生成真正的 task spec（子任务 DAG 场景仍然需要这条重路径）。
  */
 export function NewTaskComposer({ workspaceRoot, workspaceId, onCreated }: NewTaskComposerProps): React.ReactElement {
   const selectedProjectId = useAtomValue(selectedProjectIdAtom)
   const projects = useAtomValue(serverKanbanProjectsAtom)
-  const setNewTaskProjectFlowOpen = useSetAtom(newTaskProjectFlowOpenAtom)
   const [detailed, setDetailed] = React.useState(false)
   const [quickTitle, setQuickTitle] = React.useState('')
   const [quickCreating, setQuickCreating] = React.useState(false)
@@ -42,37 +40,28 @@ export function NewTaskComposer({ workspaceRoot, workspaceId, onCreated }: NewTa
     }))
   }, [detailed, selectedProjectId])
 
-  const requireProject = (): boolean => {
-    if (selectedProjectId) return true
-    setNewTaskProjectFlowOpen(true)
-    return false
-  }
-
-  /** 轻量创建：只要标题，直接建普通会话落到待办列——对齐 craft 看板内联输入框；
-   * 是否升级成正式任务留给卡片右上角的「编辑任务」（不要求已绑定 task spec）。 */
+  /** 轻量创建：只要标题，直接物化最小正式 Task；未选 Project 时属于 Workspace。 */
   const submitQuick = async (): Promise<void> => {
     const title = quickTitle.trim()
     if (!title || quickCreating) return
-    if (!selectedProjectId) { requireProject(); return }
     setQuickCreating(true)
-    try {
-      const created = await window.electronAPI.createAgentSession(title, undefined, workspaceId)
-      await window.electronAPI.sendSessionCommand(created.id, { kind: 'set_project_id', projectId: selectedProjectId })
-      setQuickTitle('')
-      await onCreated?.()
-    } catch (cause) {
-      toast.error('创建任务失败', { description: cause instanceof Error ? cause.message : String(cause) })
-    } finally {
-      setQuickCreating(false)
+    const result = await submitQuickTask({
+      draft: { title, goal: title, projectId: selectedProjectId ?? '' },
+      fallbackId: `quick-${Date.now()}`,
+      create: (request) => window.electronAPI.tasks.create(workspaceRoot, workspaceId, request),
+    })
+    setQuickCreating(false)
+    if (!result.ok) {
+      toast.error('创建任务失败', { description: result.error })
+      return
     }
+    setQuickTitle('')
+    toast.success('Task 已创建')
+    await onCreated?.()
   }
 
   const submitDetailed = async (): Promise<void> => {
     if (submitting) return
-    if (!draft.projectId.trim()) {
-      toast.error('请选择项目')
-      return
-    }
     setSubmitting(true)
     const result = await submitQuickTask({
       draft,
@@ -106,7 +95,7 @@ export function NewTaskComposer({ workspaceRoot, workspaceId, onCreated }: NewTa
           onChange={(event) => setDraft((current) => ({ ...current, projectId: event.target.value }))}
           className="h-9 w-full rounded-md border border-border/60 bg-background px-2 text-sm"
         >
-          <option value="" disabled>请选择项目</option>
+          <option value="">Workspace Task（无项目）</option>
           {projects.map((project) => (
             <option key={project.id} value={project.id}>{project.name}</option>
           ))}
@@ -149,7 +138,7 @@ export function NewTaskComposer({ workspaceRoot, workspaceId, onCreated }: NewTa
         size="icon-sm"
         title="详细设置（目标、项目、子任务…）"
         aria-label="详细设置"
-        onClick={() => { if (requireProject()) setDetailed(true) }}
+        onClick={() => setDetailed(true)}
       >
         <Settings2 className="h-4 w-4" />
       </Button>

@@ -15,6 +15,7 @@ import {
   kanbanItemsAtom,
   kanbanNotificationsAtom,
   moveCardAtom,
+  serverTaskSummariesAtom,
 } from '@/atoms/kanban-atoms'
 import {
   pendingTaskEditorTargetAtom,
@@ -70,6 +71,7 @@ export function KanbanBoardContainer({
   const [mode, setMode] = useAtom(boardModeAtom)
   const [notifications, setNotifications] = useAtom(kanbanNotificationsAtom)
   const moveCard = useSetAtom(moveCardAtom)
+  const setTaskSummaries = useSetAtom(serverTaskSummariesAtom)
   const workspaces = useAtomValue(agentWorkspacesAtom)
   const currentWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
   const workspace = workspaces.find((candidate) => candidate.id === currentWorkspaceId) ?? null
@@ -138,17 +140,31 @@ export function KanbanBoardContainer({
     onOpenItem?.(item)
   }
 
-  // 铅笔按钮 / 右键菜单「编辑任务」：任何卡片都能打开编辑器，不要求已绑定 task spec。
+  // 恢复诊断卡片没有真实 Session，不能把 synthetic id 当成 Session 写回。
   const editItem = (item: KanbanItem): void => {
+    if (item.hasSession === false) {
+      toast.info('该 Task 暂无可编辑的编排会话', { description: '请先处理 Task 恢复诊断。' })
+      return
+    }
     setEditorTarget(resolveTaskEditorTarget(item))
   }
 
-  // 右键菜单「重命名」：卡片对应的就是一个 Agent 会话，直接改会话标题；
-  // 若该会话恰好开着标签页，同步标签标题（对齐 AgentHeader.tsx 的重命名调用）。
+  // 正式看板的标题/归档属于 Task；legacy Session 看板才继续操作 Session。
   const renameItem = (item: KanbanItem, newTitle: string): void => {
+    if (item.task && !item.task.legacyIdentity && workspaceRoot && workspace) {
+      void window.electronAPI.tasks.updateMetadata(workspaceRoot, workspace.id, item.task.taskId, {
+        title: newTitle,
+        expectedRevision: item.task.revision,
+      }).then((updated) => {
+        setTaskSummaries((tasks) => tasks?.map((task) => task.taskId === updated.taskId ? updated : task))
+      }).catch((cause: unknown) => {
+        toast.error('重命名 Task 失败', { description: cause instanceof Error ? cause.message : String(cause) })
+      })
+      return
+    }
     void window.electronAPI.updateAgentSessionTitle(item.session.id, newTitle)
       .then((updated) => {
-        setAgentSessions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
+        setAgentSessions((prev) => prev.map((session) => session.id === updated.id ? updated : session))
         setTabs((prev) => updateTabTitle(prev, item.session.id, newTitle))
       })
       .catch((cause: unknown) => {
@@ -156,12 +172,22 @@ export function KanbanBoardContainer({
       })
   }
 
-  // 右键菜单「归档 / 取消归档」：只操作卡片本身对应的会话，不级联处理其展开的子任务。
-  // 若该会话恰好开着标签页，复用 useCloseTab 里已验证过的关闭清理逻辑。
   const archiveItem = (item: KanbanItem): void => {
+    if (item.task && !item.task.legacyIdentity && workspaceRoot && workspace) {
+      void window.electronAPI.tasks.updateMetadata(workspaceRoot, workspace.id, item.task.taskId, {
+        archived: !item.task.archivedAt,
+        expectedRevision: item.task.revision,
+      }).then((updated) => {
+        setTaskSummaries((tasks) => tasks?.map((task) => task.taskId === updated.taskId ? updated : task))
+        toast.success(updated.archivedAt ? 'Task 已归档' : 'Task 已取消归档')
+      }).catch((cause: unknown) => {
+        toast.error('归档 Task 失败', { description: cause instanceof Error ? cause.message : String(cause) })
+      })
+      return
+    }
     void window.electronAPI.toggleArchiveAgentSession(item.session.id)
       .then((updated) => {
-        setAgentSessions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
+        setAgentSessions((prev) => prev.map((session) => session.id === updated.id ? updated : session))
         if (updated.archived) executeClose(item.session.id)
         toast.success(updated.archived ? '已归档' : '已取消归档')
       })
@@ -227,8 +253,8 @@ export function KanbanBoardContainer({
     <div className="flex h-full min-h-0 flex-col bg-background p-4">
       <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-semibold">Projects & Kanban</h1>
-          <p className="text-xs text-muted-foreground">{items.length} 个会话任务</p>
+          <h1 className="text-lg font-semibold">Task 看板</h1>
+          <p className="text-xs text-muted-foreground">{items.length} 个正式 Task</p>
         </div>
         <div className="flex items-center gap-2">
           <KanbanProjectFilter projects={projects} value={selectedProjectId} onChange={setSelectedProjectId} />
@@ -238,23 +264,38 @@ export function KanbanBoardContainer({
       <KanbanBoard
         items={items}
         mode={mode}
-        onMove={(sessionId, columnId) => { void moveCard({ sessionId, columnId }) }}
+        onMove={(itemId, columnId) => {
+          void moveCard({
+            itemId,
+            columnId,
+            ...(workspaceRoot ? { workspaceRoot } : {}),
+            ...(workspace ? { workspaceId: workspace.id } : {}),
+          })
+        }}
         onOpenItem={openItem}
         onEditItem={editItem}
         onRenameItem={renameItem}
         onArchiveItem={archiveItem}
-        onDeleteItem={setPendingDeleteItem}
+        onDeleteItem={(item) => {
+          if (item.task && !item.task.legacyIdentity) {
+            toast.info('永久删除 Task 暂未开放', { description: '请先归档；安全删除将在影响预览中提供。' })
+            return
+          }
+          setPendingDeleteItem(item)
+        }}
         onOpenSubtask={onOpenSubtask}
         onRunTask={(item) => {
-          if (!workspaceRoot || !workspace || !item.session.taskSlug) return
-          void window.electronAPI.tasks.run(workspaceRoot, workspace.id, item.session.taskSlug, {
-            orchestratorSessionId: item.id,
+          const taskSlug = item.task?.taskSlug ?? item.session.taskSlug
+          if (!workspaceRoot || !workspace || !taskSlug) return
+          const orchestratorSessionId = item.hasSession === false ? undefined : item.session.id
+          void window.electronAPI.tasks.run(workspaceRoot, workspace.id, taskSlug, {
+            ...(orchestratorSessionId ? { orchestratorSessionId } : {}),
           })
             .then(async () => {
               toast.success('任务已开始运行')
               await onTaskCreated?.({
-                sessionId: item.id,
-                slug: item.session.taskSlug ?? undefined,
+                sessionId: orchestratorSessionId ?? '',
+                slug: taskSlug,
                 ran: true,
               })
             })

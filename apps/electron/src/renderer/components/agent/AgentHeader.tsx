@@ -50,7 +50,7 @@ export function AgentHeader({ sessionId }: AgentHeaderProps): React.ReactElement
   const handleEditTask = (): void => {
     if (!session.taskSlug) return
     setPendingTaskEditorTarget({ mode: 'edit', sessionId: session.id, taskSlug: session.taskSlug })
-    setCodeMainView('work')
+    setCodeMainView('tasks')
     setActiveView('conversations')
   }
 
