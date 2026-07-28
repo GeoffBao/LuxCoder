@@ -400,7 +400,9 @@ function TabBarInner({
       {/* 折叠/展开侧边栏：紧邻第一个标签，不随标签横向滚动。
           侧边栏展开时该按钮改由 LeftSidebar 顶部渲染，这里只在收起态出现。 */}
       {sidebarCollapsed && (
-        <div className="flex-shrink-0 pl-1.5">
+        // TabBar 本身 items-end；必须保留满高居中容器，否则按钮会被贴到底部、
+        // 与 macOS 红绿灯及后退/前进按钮出现约 5px 的垂直偏差。
+        <div className="flex h-[34px] flex-shrink-0 items-center pl-1.5">
           <SidebarToggleButton />
         </div>
       )}
