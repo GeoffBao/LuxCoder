@@ -82,6 +82,8 @@ import { userProfileAtom } from '@/atoms/user-profile'
 import { selectedProjectIdAtom, serverKanbanProjectsAtom, codeMainViewAtom, pendingTaskEditorTargetAtom } from '@/atoms/project-atoms'
 import { sessionGroupsAtom } from '@/atoms/session-groups-atoms'
 import { sessionListPreferenceAtom } from '@/atoms/session-list-preference-atoms'
+import { WorkspaceLabelManagerDialog } from '@/components/labels/WorkspaceLabelManagerDialog'
+import { labelManagerOpenAtom, labelManagerWorkspaceRootAtom } from '@/atoms/label-manager-atoms'
 import { workspaceLabelsAtom, loadWorkspaceLabels } from '@/atoms/workspace-labels-atoms'
 import type { WorkspaceLabel } from '@luxcoder/shared/labels'
 import { buildRecentSessionList } from './sidebar-session-views'
@@ -886,6 +888,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
   // 加载当前工作区 Labels
   const setWorkspaceLabels = useSetAtom(workspaceLabelsAtom)
+  const workspaceLabels = useAtomValue(workspaceLabelsAtom)
   React.useEffect(() => {
     if (!workspaceRoot || mode !== 'agent') return
     const setLabels = (list: WorkspaceLabel[]) => setWorkspaceLabels(list)
@@ -1328,7 +1331,25 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     }
   }, [createGroupTargetSessionId, currentWorkspaceSlug, handleMoveToGroup, setSessionGroups])
 
-  /** Project 行“查看任务”进入唯一 Task 看板并预设 Project facet。 */
+  /** 设置会话标签 */
+  const handleSetSessionLabels = React.useCallback(async (sessionId: string, labelIds: string[]): Promise<void> => {
+    if (!workspaceRoot) return
+    try {
+      const updated = await window.electronAPI.labels.setSessionLabels(workspaceRoot, sessionId, labelIds)
+      setAgentSessions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
+    } catch (error) {
+      console.error('[侧边栏] 设置标签失败:', error)
+      toast.error('设置标签失败')
+    }
+  }, [setAgentSessions, workspaceRoot])
+
+  /** 打开标签管理弹窗 */
+  const handleManageLabels = React.useCallback((): void => {
+    store.set(labelManagerWorkspaceRootAtom, workspaceRoot)
+    store.set(labelManagerOpenAtom, true)
+  }, [store, workspaceRoot])
+
+  /** Project 行"查看任务"进入唯一 Task 看板并预设 Project facet。 */
   const handleOpenProjectDetail = React.useCallback((projectId: string): void => {
     setSelectedProjectId(projectId)
     setCodeMainView('tasks')
@@ -2271,6 +2292,13 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   // 项目模式下「新建项目」弹窗（状态已在顶层声明 creatingProject/setCreatingProject）
   const [createProjectOpen, setCreateProjectOpen] = React.useState(false)
 
+  /** 会话项标签 Props（复用，避免每行单独计算） */
+  const agentSessionItemLabelProps = React.useMemo(() => ({
+    labels: workspaceLabels.length > 0 ? workspaceLabels : undefined,
+    onSetLabels: handleSetSessionLabels,
+    onManageLabels: handleManageLabels,
+  }), [workspaceLabels, handleSetSessionLabels, handleManageLabels])
+
   /** Projects Tab 会话行操作包：与会话 Tab 共享同一批 handler，保证两个 Tab 行为一致 */
   const projectTabSessionHandlers = React.useMemo<ProjectSessionHandlers>(() => ({
     onSelectSession: handleSelectAgentSession,
@@ -2285,6 +2313,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     sessionGroups,
     onMoveToGroup: handleMoveToGroup,
     onCreateGroup: handleRequestCreateGroup,
+    ...agentSessionItemLabelProps,
   }), [
     createAgentSessionInProject,
     handleAgentRename,
@@ -2860,6 +2889,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         sessionGroups={sessionGroups}
         onMoveToGroup={handleMoveToGroup}
         onCreateGroup={handleRequestCreateGroup}
+        {...agentSessionItemLabelProps}
         onSelect={handleSelectAgentSession}
         onRequestDelete={handleRequestDelete}
         onRequestMove={handleRequestMove}
@@ -2895,6 +2925,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
           sessionGroups={sessionGroups}
           onMoveToGroup={handleMoveToGroup}
           onCreateGroup={handleRequestCreateGroup}
+          {...agentSessionItemLabelProps}
           relativeTimeNow={relativeTimeNow}
           onSelect={handleSelectAgentSession}
           onRequestDelete={handleRequestDelete}
@@ -3187,6 +3218,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                         sessionGroups={sessionGroups}
                         onMoveToGroup={handleMoveToGroup}
                         onCreateGroup={handleRequestCreateGroup}
+                        {...agentSessionItemLabelProps}
                         relativeTimeNow={relativeTimeNow}
                         onSelect={handleSelectAgentSession}
                         onRequestDelete={handleRequestDelete}
@@ -3217,6 +3249,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                               sessionGroups={sessionGroups}
                               onMoveToGroup={handleMoveToGroup}
                               onCreateGroup={handleRequestCreateGroup}
+                              {...agentSessionItemLabelProps}
                               onSelect={handleSelectAgentSession}
                               onRequestDelete={handleRequestDelete}
                               onRequestMove={handleRequestMove}
@@ -3356,6 +3389,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                     sessionGroups={sessionGroups}
                     onMoveToGroup={handleMoveToGroup}
                     onCreateGroup={handleRequestCreateGroup}
+                    {...agentSessionItemLabelProps}
                     onSelectSession={handleSelectAgentSession}
                     onRequestDelete={handleRequestDelete}
                     onRequestMove={handleRequestMove}

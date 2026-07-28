@@ -15,6 +15,8 @@ import { MainArea } from '@/components/tabs/MainArea'
 import { AppShellProvider, type AppShellContextType } from '@/contexts/AppShellContext'
 import { appModeAtom } from '@/atoms/app-mode'
 import { codeMainViewAtom } from '@/atoms/project-atoms'
+import { WorkspaceLabelManagerDialog } from '@/components/labels/WorkspaceLabelManagerDialog'
+import { labelManagerOpenAtom, labelManagerWorkspaceRootAtom } from '@/atoms/label-manager-atoms'
 import { agentSidePanelWidthAtom, currentAgentSessionIdAtom, currentSessionSidePanelOpenAtom } from '@/atoms/agent-atoms'
 import { leftSidebarWidthAtom, MIN_LEFT_SIDEBAR_WIDTH } from '@/atoms/sidebar-atoms'
 import { sidebarCollapsedAtom } from '@/atoms/tab-atoms'
@@ -52,6 +54,8 @@ export function AppShell({ contextValue }: AppShellProps): React.ReactElement {
   const automationForm = useAtomValue(automationFormAtom)
   const interfaceVariant = useAtomValue(interfaceVariantAtom)
   const isClassic = interfaceVariant === 'classic'
+  const [labelManagerOpen, setLabelManagerOpen] = useAtom(labelManagerOpenAtom)
+  const labelManagerWorkspaceRoot = useAtomValue(labelManagerWorkspaceRootAtom)
   // 定时任务表单打开时隐藏右侧文件面板，让中间区域扩展到全宽（表单内含自己的右栏配置）；
   // Code 模式切到看板 / 项目详情（codeMainView === 'work'）时同样隐藏，面板属于会话上下文
   const [activeView, setActiveView] = useAtom(activeViewAtom)
@@ -248,6 +252,13 @@ export function AppShell({ contextValue }: AppShellProps): React.ReactElement {
 
       {/* 全局搜索：与侧边栏折叠态解耦，收起侧边栏后 ⌘⇧F 仍要能唤出 */}
       <SearchDialog />
+      {labelManagerWorkspaceRoot && (
+        <WorkspaceLabelManagerDialog
+          workspaceRoot={labelManagerWorkspaceRoot}
+          open={labelManagerOpen}
+          onOpenChange={setLabelManagerOpen}
+        />
+      )}
     </AppShellProvider>
   )
 }

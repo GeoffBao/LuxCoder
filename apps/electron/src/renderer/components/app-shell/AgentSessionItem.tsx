@@ -20,6 +20,8 @@ import {
   Clock,
   ChevronRight,
   GitBranch,
+  Check,
+  Settings,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
@@ -306,6 +308,10 @@ export interface AgentSessionItemProps {
   onMoveToGroup?: (sessionId: string, groupId?: string) => void | Promise<void>
   /** 打开「新建分组」对话框（点击「+ 新建分组...」时调用，创建后由调用方自行归组） */
   onCreateGroup?: (sessionId: string) => void
+  /** Workspace Labels for assignment submenu */
+  labels?: import('@luxcoder/shared/labels').WorkspaceLabel[]
+  onSetLabels?: (sessionId: string, labelIds: string[]) => Promise<void>
+  onManageLabels?: () => void
   /** 用同一个时间戳刷新相对时间，避免每行独立计时 */
   relativeTimeNow: number
   onSelect: (id: string, title: string) => void
@@ -331,6 +337,9 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
   sessionGroups,
   onMoveToGroup,
   onCreateGroup,
+  labels,
+  onSetLabels,
+  onManageLabels,
   relativeTimeNow,
   onSelect,
   onRequestDelete,
@@ -447,6 +456,39 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
                 <MenuSeparator className="my-0.5" />
                 <MenuItem className="text-xs py-1" onSelect={() => onMoveToProject(session.id, undefined)}>
                   移出项目
+                </MenuItem>
+              </>
+            )}
+          </MenuSubContent>
+        </MenuSub>
+      )}
+      {labels && labels.length > 0 && onSetLabels && (
+        <MenuSub>
+          <MenuSubTrigger className="text-xs py-1 [&>svg]:size-3.5">
+            <Tag size={14} />
+            标签
+          </MenuSubTrigger>
+          <MenuSubContent className="w-44 z-[9999] min-w-0 p-0.5 max-h-64 overflow-y-auto">
+            {labels.filter((l) => !l.archivedAt).map((label) => (
+              <MenuItem
+                key={label.id}
+                className="text-xs py-1"
+                onSelect={() => {
+                  const current = session.labelIds ?? []
+                  void onSetLabels(session.id, current.includes(label.id) ? current.filter((id) => id !== label.id) : [...current, label.id])
+                }}
+              >
+                { (session.labelIds ?? []).includes(label.id) && <Check className="mr-1 h-3 w-3" /> }
+                <span className="mr-1.5 size-2 rounded-full" style={{ backgroundColor: label.color ?? '#888' }} />
+                {label.name}
+              </MenuItem>
+            ))}
+            {onManageLabels && (
+              <>
+                <MenuSeparator className="my-0.5" />
+                <MenuItem className="text-xs py-1 [&>svg]:size-3.5" onSelect={onManageLabels}>
+                  <Settings size={14} />
+                  管理标签…
                 </MenuItem>
               </>
             )}
