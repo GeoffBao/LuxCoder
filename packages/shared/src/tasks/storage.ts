@@ -15,10 +15,17 @@ import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { validateTaskInput } from './validate.ts';
 import { z, type TaskSpec } from './schema.ts';
 import { NodeOutputSchema, type NodeOutput } from './refs.ts';
+import {
+  TASK_RECORD_SCHEMA_VERSION,
+  TaskRecordSchema,
+  type TaskRecord,
+  type TaskRecordLoadResult,
+} from './task-record.ts';
 import type { ValidationResult, ValidationIssue } from './validate.ts';
 
 const TASKS_DIR = 'tasks';
 const TASK_FILE = 'task.yaml';
+const TASK_RECORD_FILE = 'task.json';
 const RUNS_DIR = 'runs';
 const RUN_LOG = 'run-log.jsonl';
 const NODES_DIR = 'nodes';
@@ -122,6 +129,9 @@ export function taskDir(workspaceRoot: string, slug: string): string {
 export function taskYamlPath(workspaceRoot: string, slug: string): string {
   return join(taskDir(workspaceRoot, slug), TASK_FILE);
 }
+export function taskRecordPath(workspaceRoot: string, slug: string): string {
+  return join(taskDir(workspaceRoot, slug), TASK_RECORD_FILE);
+}
 export function runDir(workspaceRoot: string, slug: string, runId: string): string {
   return join(taskDir(workspaceRoot, slug), RUNS_DIR, runId);
 }
@@ -192,6 +202,56 @@ export function listTaskSlugs(workspaceRoot: string): string[] {
     .filter((d) => d.isDirectory() && existsSync(join(root, d.name, TASK_FILE)))
     .map((d) => d.name)
     .sort();
+}
+
+/** 列出可参与 Task 聚合/恢复的目录；保留 listTaskSlugs 的旧语义。 */
+export function listTaskAggregateSlugs(workspaceRoot: string): string[] {
+  const root = tasksRoot(workspaceRoot);
+  if (!existsSync(root)) return [];
+  return readdirSync(root, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .filter((entry) => (
+      existsSync(join(root, entry.name, TASK_FILE))
+      || existsSync(join(root, entry.name, TASK_RECORD_FILE))
+    ))
+    .map((entry) => entry.name)
+    .sort();
+}
+
+/** 读取 task.json；未知高版本只返回诊断，避免旧客户端降级覆盖。 */
+export function loadTaskRecord(workspaceRoot: string, slug: string): TaskRecordLoadResult {
+  const path = taskRecordPath(workspaceRoot, slug);
+  if (!existsSync(path)) return { kind: 'missing' };
+
+  let raw: unknown;
+  try {
+    raw = JSON.parse(stripBom(readFileSync(path, 'utf-8')));
+  } catch (error) {
+    return { kind: 'invalid', message: `task.json 解析错误: ${(error as Error).message}` };
+  }
+
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    const schemaVersion = Reflect.get(raw, 'schemaVersion');
+    if (typeof schemaVersion === 'number' && schemaVersion > TASK_RECORD_SCHEMA_VERSION) {
+      return { kind: 'unsupported', schemaVersion };
+    }
+  }
+
+  const parsed = TaskRecordSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { kind: 'invalid', message: parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; ') };
+  }
+  if (parsed.data.slug !== slug) {
+    return { kind: 'invalid', message: `task.json slug 与目录不一致: ${parsed.data.slug} != ${slug}` };
+  }
+  return { kind: 'valid', record: parsed.data };
+}
+
+/** 保存 task.json；该文件不拥有 title/project/cwd/plan，避免与 task.yaml 双写。 */
+export function saveTaskRecord(workspaceRoot: string, record: TaskRecord): void {
+  const parsed = TaskRecordSchema.parse(record);
+  ensureDir(taskDir(workspaceRoot, parsed.slug));
+  atomicWriteSync(taskRecordPath(workspaceRoot, parsed.slug), `${JSON.stringify(parsed, null, 2)}\n`);
 }
 
 /**

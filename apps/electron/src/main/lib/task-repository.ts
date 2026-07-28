@@ -5,7 +5,9 @@ import type { ValidationResult } from '../../../../../packages/shared/src/tasks/
 import {
   appendRunLog as appendRunLogInStorage,
   listRunIds,
+  listTaskAggregateSlugs,
   listTaskSlugs,
+  loadTaskRecord,
   loadTaskSpec,
   readNodeOutput,
   readRunLog,
@@ -17,6 +19,7 @@ import {
   type RehydratedNodeState,
   type RunLogEntry,
 } from '../../../../../packages/shared/src/tasks/storage.ts'
+import type { TaskRecord } from '../../../../../packages/shared/src/tasks/task-record.ts'
 import { validateTaskInput } from '../../../../../packages/shared/src/tasks/validate.ts'
 import { getAgentWorkspace } from './agent-workspace-manager'
 import { getAgentWorkspacePath } from './config-paths'
@@ -24,6 +27,22 @@ import { getAgentWorkspacePath } from './config-paths'
 const WorkspaceIdSchema = z.string().min(1, 'workspaceId 必填')
 const TaskSlugSchema = z.string().regex(/^[a-z0-9][a-z0-9-]*$/, 'task slug 必须是 URL-safe slug')
 const RunIdSchema = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/, 'runId 必须是安全的路径片段')
+
+export interface TaskDiagnostic {
+  code: 'missing-task-record' | 'invalid-task-record' | 'unsupported-task-record' | 'missing-task-spec' | 'invalid-task-spec'
+  severity: 'warning' | 'error'
+  message: string
+}
+
+export interface TaskAggregate {
+  taskId: string
+  taskSlug: string
+  spec: TaskSpec | null
+  record: TaskRecord | null
+  legacyIdentity: boolean
+  diagnostics: TaskDiagnostic[]
+  runIds: string[]
+}
 
 export interface TaskRunState {
   taskSlug: string
@@ -68,6 +87,83 @@ export class TaskRepository {
 
   listTasks(workspaceId: string): string[] {
     return listTaskSlugs(this.resolveWorkspaceRoot(workspaceId))
+  }
+
+  private buildTaskAggregate(workspaceId: string, workspaceRoot: string, taskSlug: string): TaskAggregate {
+    const slug = this.parseTaskSlug(taskSlug)
+    const loadedSpec = loadTaskSpec(workspaceRoot, slug)
+    const loadedRecord = loadTaskRecord(workspaceRoot, slug)
+    const diagnostics: TaskDiagnostic[] = []
+
+    let record: TaskRecord | null = null
+    if (loadedRecord.kind === 'valid') {
+      record = loadedRecord.record
+    } else if (loadedRecord.kind === 'missing') {
+      diagnostics.push({
+        code: 'missing-task-record',
+        severity: 'warning',
+        message: '旧版 Task 尚未建立稳定 taskId',
+      })
+    } else if (loadedRecord.kind === 'unsupported') {
+      diagnostics.push({
+        code: 'unsupported-task-record',
+        severity: 'error',
+        message: `task.json 版本 ${loadedRecord.schemaVersion} 高于当前客户端支持范围`,
+      })
+    } else {
+      diagnostics.push({
+        code: 'invalid-task-record',
+        severity: 'error',
+        message: loadedRecord.message,
+      })
+    }
+
+    let spec: TaskSpec | null = null
+    if (loadedSpec?.valid && loadedSpec.spec) {
+      spec = loadedSpec.spec
+    } else if (loadedSpec === null) {
+      diagnostics.push({
+        code: 'missing-task-spec',
+        severity: 'error',
+        message: '缺少 task.yaml；历史 Runs 仍可用于恢复和诊断',
+      })
+    } else {
+      diagnostics.push({
+        code: 'invalid-task-spec',
+        severity: 'error',
+        message: loadedSpec.errors.map((issue) => `${issue.path}: ${issue.message}`).join('; '),
+      })
+    }
+
+    return {
+      taskId: record?.taskId ?? `legacy:${workspaceId}:${slug}`,
+      taskSlug: slug,
+      spec,
+      record,
+      legacyIdentity: record === null,
+      diagnostics,
+      runIds: listRunIds(workspaceRoot, slug),
+    }
+  }
+
+  listTaskAggregates(workspaceId: string): TaskAggregate[] {
+    const parsedWorkspaceId = WorkspaceIdSchema.parse(workspaceId)
+    const workspaceRoot = this.resolveWorkspaceRoot(parsedWorkspaceId)
+    return listTaskAggregateSlugs(workspaceRoot)
+      .map((slug) => this.buildTaskAggregate(parsedWorkspaceId, workspaceRoot, slug))
+  }
+
+  getTaskAggregate(workspaceId: string, taskSlug: string): TaskAggregate | null {
+    const parsedWorkspaceId = WorkspaceIdSchema.parse(workspaceId)
+    const workspaceRoot = this.resolveWorkspaceRoot(parsedWorkspaceId)
+    const slug = this.parseTaskSlug(taskSlug)
+    if (!listTaskAggregateSlugs(workspaceRoot).includes(slug)) return null
+    return this.buildTaskAggregate(parsedWorkspaceId, workspaceRoot, slug)
+  }
+
+  getTaskAggregateById(workspaceId: string, taskId: string): TaskAggregate | null {
+    const parsedTaskId = z.string().min(1, 'taskId 必填').parse(taskId)
+    return this.listTaskAggregates(workspaceId).find((task) => task.taskId === parsedTaskId) ?? null
   }
 
   getTask(workspaceId: string, taskSlug: string): TaskValidationResult | null {

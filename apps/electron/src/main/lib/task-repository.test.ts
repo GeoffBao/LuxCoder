@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, test } from 'bun:test'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { TaskSpec } from '../../../../../packages/shared/src/tasks/schema.ts'
+import { saveTaskRecord, taskRecordPath } from '../../../../../packages/shared/src/tasks/storage.ts'
 import { TaskRepository } from './task-repository'
 
 const tempRoots: string[] = []
@@ -88,6 +89,56 @@ describe('TaskRepository', () => {
       expect.objectContaining({
         valid: true,
         spec,
+      }),
+    )
+  })
+
+  test('listTaskAggregates 合成旧 Task 身份但只读不写 task.json', () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    const repository = createRepository({ 'ws-alpha': workspaceRoot })
+    const spec = buildSpec()
+    repository.saveTask('ws-alpha', spec)
+
+    expect(repository.listTaskAggregates('ws-alpha')).toEqual([
+      expect.objectContaining({
+        taskId: 'legacy:ws-alpha:demo-task',
+        taskSlug: 'demo-task',
+        spec,
+        record: null,
+        legacyIdentity: true,
+        diagnostics: expect.arrayContaining([
+          expect.objectContaining({ code: 'missing-task-record', severity: 'warning' }),
+        ]),
+      }),
+    ])
+    expect(existsSync(taskRecordPath(workspaceRoot, spec.id))).toBe(false)
+  })
+
+  test('按稳定 taskId 查找 TaskAggregate，并发现 record-only 恢复项', () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    const repository = createRepository({ 'ws-alpha': workspaceRoot })
+    const taskId = '018f47a8-6c26-7a13-9bf6-7c8d4f2e4c72'
+    saveTaskRecord(workspaceRoot, {
+      schemaVersion: 1,
+      taskId,
+      slug: 'record-only',
+      revision: 1,
+      workflow: 'needs-review',
+      labelIds: ['label-a'],
+      createdAt: 1,
+      updatedAt: 2,
+    })
+
+    expect(repository.getTaskAggregateById('ws-alpha', taskId)).toEqual(
+      expect.objectContaining({
+        taskId,
+        taskSlug: 'record-only',
+        spec: null,
+        record: expect.objectContaining({ workflow: 'needs-review', labelIds: ['label-a'] }),
+        legacyIdentity: false,
+        diagnostics: expect.arrayContaining([
+          expect.objectContaining({ code: 'missing-task-spec', severity: 'error' }),
+        ]),
       }),
     )
   })
