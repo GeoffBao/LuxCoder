@@ -34,6 +34,7 @@ import {
   type NodeRunState,
 } from '@luxcoder/shared/tasks/storage'
 import type { ExpertPackage } from '@luxcoder/shared/experts'
+import type { ExpertWorkspaceBinding } from '@luxcoder/shared/experts/workspace-binding'
 import {
   formatExpertPreamble,
   mergeMcpIds,
@@ -116,6 +117,8 @@ export interface TaskRunnerDeps {
   isSessionActive?: (sessionId: string) => boolean;
   /** 按专家 id 读取包；缺失返回 null；未注入则跳过专家 preamble */
   getExpert?: (expertId: string) => ExpertPackage | null;
+  /** 读取工作区级 Expert binding（覆盖全局 skillSlugs/mcpIds） */
+  getWorkspaceExpertBinding?: (expertId: string) => ExpertWorkspaceBinding | null;
   /** 解析项目 defaultExpertId；失败返回 null */
   resolveProjectDefaultExpertId?: (projectId: string) => string | null;
   /** 生产运行必须注入唯一 cwd resolver；测试/旧恢复路径可缺省。 */
@@ -448,6 +451,17 @@ class ActiveRun {
         } catch (cause) {
           console.warn(`[TaskRunner] 读取专家失败，跳过注入: ${expertId}`, cause);
           expert = null;
+        }
+        // Resolve workspace binding: override skillSlugs/mcpIds from workspace if present
+        if (expert && this.deps.getWorkspaceExpertBinding) {
+          const wsBinding = this.deps.getWorkspaceExpertBinding(expertId);
+          if (wsBinding) {
+            expert = {
+              ...expert,
+              skillSlugs: wsBinding.skillSlugs,
+              mcpIds: wsBinding.mcpIds,
+            }
+          }
         }
       }
       const mergedSkills = mergeSkillSlugs(this.spec.skills, expert?.skillSlugs);

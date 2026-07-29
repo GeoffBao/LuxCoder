@@ -716,10 +716,19 @@ function scanSkillsInDir(dir: string, enabled: boolean): SkillMeta[] {
         const importSource = readSkillImportSource(join(dir, entry.name))
         if (importSource) {
           meta.importSource = importSource
+          // 检测本地修改
+          if (importSource.sourceContentHash && !importSource.detached) {
+            try {
+              const currentHash = computeSkillContentHash(join(dir, entry.name))
+              meta.importSource = { ...importSource, localModified: currentHash !== importSource.sourceContentHash }
+            } catch { /* 无法读取时保持现有状态 */ }
+          }
           const sourceSkillDir = resolveSkillDir(importSource.sourceWorkspaceSlug, entry.name)
           if (sourceSkillDir) {
             const currentSourceVersion = parseSkillVersion(sourceSkillDir)
-            meta.hasUpdate = isNewerVersion(currentSourceVersion, importSource.sourceVersion)
+            meta.hasUpdate = !importSource.detached && isNewerVersion(currentSourceVersion, importSource.sourceVersion)
+          } else {
+            meta.importSource = { ...importSource, sourceRemoved: true }
           }
         }
 
@@ -840,6 +849,7 @@ export function importSkillFromWorkspace(
     sourceWorkspaceName: sourceWorkspace?.name ?? sourceSlug,
     importedAt: new Date().toISOString(),
     sourceVersion: parseSkillVersion(sourcePath),
+    sourceContentHash: computeSkillContentHash(sourcePath),
   }
   writeSkillImportSource(targetPath, importSource)
 
@@ -908,6 +918,8 @@ export function updateSkillFromSource(
     sourceWorkspaceName: sourceWorkspace?.name ?? existingSource.sourceWorkspaceName,
     importedAt: existingSource.importedAt,
     sourceVersion: parseSkillVersion(sourcePath),
+    sourceContentHash: computeSkillContentHash(sourcePath),
+    syncedAt: new Date().toISOString(),
   }
   writeSkillImportSource(targetPath, updatedSource)
 
@@ -924,6 +936,19 @@ export function updateSkillFromSource(
 // ===== Skill 来源追踪 helpers =====
 
 const SOURCE_META_FILE = '.source.json'
+
+function computeSkillContentHash(skillDir: string): string {
+  const crypto = require('node:crypto')
+  const files = readdirSync(skillDir, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name !== SOURCE_META_FILE)
+    .map((entry) => join(entry.parentPath ?? entry.path, entry.name))
+    .sort()
+  const hash = crypto.createHash('sha256')
+  for (const file of files) {
+    hash.update(readFileSync(file))
+  }
+  return hash.digest('hex').slice(0, 16)
+}
 
 function readSkillImportSource(skillDir: string): SkillImportSource | undefined {
   const p = join(skillDir, SOURCE_META_FILE)

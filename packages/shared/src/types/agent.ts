@@ -1019,6 +1019,16 @@ export interface SkillImportSource {
   sourceWorkspaceName: string
   importedAt: string        // ISO 8601
   sourceVersion: string     // 导入时源 Skill 的 version，无则 '0.0.0'
+  /** 导入时源 Skill 目录的内容哈希（用于本地修改检测） */
+  sourceContentHash?: string
+  /** 最近一次与源 Skill 同步的时间（ISO 8601）；为空则从未同步 */
+  syncedAt?: string
+  /** 本地快照是否已被修改（用于 diff/覆盖/保留/Detach 决策） */
+  localModified?: boolean
+  /** 是否已与源 Skill 显式 Detach（不再显示更新提示） */
+  detached?: boolean
+  /** 源 Skill 已被删除（快照仍可用，但不再接收更新） */
+  sourceRemoved?: boolean
 }
 
 /** 工作区 Skill 元数据 */

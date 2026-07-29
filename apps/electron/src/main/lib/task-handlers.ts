@@ -50,6 +50,7 @@ import {
 } from './agent-workspace-manager'
 import { getAgentWorkspacePath, getExpertsDir } from './config-paths'
 import { getExpert } from './expert-service'
+import { loadExpertWorkspaceBinding } from './expert-binding-service'
 import { projectRepository } from './project-repository'
 import {
   openOrCreateProjectForPath,
@@ -164,6 +165,10 @@ async function getRunnerFor(workspaceRoot: string, workspaceId: string): Promise
     workspaceRoot,
     isSessionActive: isAgentSessionActive,
     getExpert: (expertId) => getExpert(expertsRoot, expertId),
+    getWorkspaceExpertBinding: (expertId) => {
+      const binding = loadExpertWorkspaceBinding(workspaceRoot, expertId)
+      return binding.kind === 'valid' ? binding.binding : null
+    },
     resolveProjectDefaultExpertId: (projectId) => {
       try {
         return projectRepository.getProjectAtRoot(workspaceRoot, projectId)?.config.defaultExpertId ?? null

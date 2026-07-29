@@ -23,7 +23,8 @@
     "./tasks/storage": "./src/tasks/storage.ts",
     "./tasks/validate": "./src/tasks/validate.ts",
     "./labels": "./src/labels/index.ts",
-    "./experts": "./src/experts/index.ts"
+    "./experts": "./src/experts/index.ts",
+    "./experts/workspace-binding": "./src/experts/workspace-binding.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
