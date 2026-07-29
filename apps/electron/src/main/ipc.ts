@@ -1872,11 +1872,21 @@ export function registerIpcHandlers(): void {
       if (!workspaceSlug || !title?.trim()) throw new Error('参数无效')
       const dir = getExcalidrawDir(workspaceSlug)
       // 清除文件名中的非法字符（路径分隔符、控制字符等）
-      const safeName = title.trim().replace(/[\/:*?"<>|]/g, '-')
-      const filename = `${safeName}.excalidraw`
+      let safeName = title.trim().replace(/[\\/:*?"<>|]/g, '-')
+      // 自动后缀避免重名
+      const existingFiles = new Set(
+        readdirSync(dir, { withFileTypes: true })
+          .filter((e) => e.isFile() && e.name.endsWith('.excalidraw'))
+          .map((e) => e.name.slice(0, -'.excalidraw'.length)),
+      )
+      let finalName = safeName
+      if (existingFiles.has(finalName)) {
+        let i = 1
+        while (existingFiles.has(`${safeName} (${i})`)) i++
+        finalName = `${safeName} (${i})`
+      }
+      const filename = `${finalName}.excalidraw`
       const filePath = join(dir, filename)
-
-      if (existsSync(filePath)) throw new Error(`文件 "${title}" 已存在`)
 
       const data = {
         type: 'excalidraw',
@@ -1888,8 +1898,8 @@ export function registerIpcHandlers(): void {
       }
       writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8')
 
-      const slug = title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w一-鿿぀-ヿ-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '')
-      return { slug, title }
+      const slug = finalName.toLowerCase().replace(/\s+/g, '-').replace(/[^\w一-鿿぀-ヿ-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '')
+      return { slug, title: finalName }
     }
   )
 
