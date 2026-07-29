@@ -1,9 +1,7 @@
 import * as React from 'react'
-import { useAtomValue, useSetAtom } from 'jotai'
+import { useAtomValue } from 'jotai'
 import { ExternalLink } from 'lucide-react'
 import { agentSessionsAtom } from '@/atoms/agent-atoms'
-import { selectedProjectIdAtom, codeMainViewAtom } from '@/atoms/project-atoms'
-import { activeViewAtom } from '@/atoms/active-view'
 import { useOpenSession } from '@/hooks/useOpenSession'
 import type { KanbanProject } from '@/components/app-shell/kanban/types'
 
@@ -11,13 +9,11 @@ interface ProjectSessionsTabProps {
   workspaceRoot: string
   project: KanbanProject
   onError: (message: string | null) => void
+  onOpenTasks: () => void
 }
 
-export function ProjectSessionsTab({ workspaceRoot: _workspaceRoot, project, onError: _onError }: ProjectSessionsTabProps): React.ReactElement {
+export function ProjectSessionsTab({ workspaceRoot: _workspaceRoot, project, onError: _onError, onOpenTasks }: ProjectSessionsTabProps): React.ReactElement {
   const sessions = useAtomValue(agentSessionsAtom)
-  const setSelectedProjectId = useSetAtom(selectedProjectIdAtom)
-  const setCodeMainView = useSetAtom(codeMainViewAtom)
-  const setActiveView = useSetAtom(activeViewAtom)
   const openSession = useOpenSession()
 
   const projectSessions = React.useMemo(
@@ -26,12 +22,6 @@ export function ProjectSessionsTab({ workspaceRoot: _workspaceRoot, project, onE
       .sort((a, b) => b.updatedAt - a.updatedAt),
     [sessions, project.id],
   )
-
-  const handleViewTasks = (): void => {
-    setSelectedProjectId(project.id)
-    setCodeMainView('tasks')
-    setActiveView('conversations')
-  }
 
   return (
     <div className="space-y-4 p-4">
@@ -45,7 +35,7 @@ export function ProjectSessionsTab({ workspaceRoot: _workspaceRoot, project, onE
           </div>
           <button
             type="button"
-            onClick={handleViewTasks}
+            onClick={onOpenTasks}
             className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
           >
             <ExternalLink className="h-3 w-3" />

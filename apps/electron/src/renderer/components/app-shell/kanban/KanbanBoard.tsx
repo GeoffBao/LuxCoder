@@ -1,12 +1,20 @@
 import { DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
-import { buildKanbanBoardModel, type KanbanColumnDefinition } from './board-model'
+import { activeBoardItems, buildKanbanBoardModel, type KanbanColumnDefinition } from './board-model'
 import { KanbanColumn } from './KanbanColumn'
-import { TaskTile } from './TaskTile'
+import { TaskListRow } from './TaskListRow'
+import type { TaskWorkflow } from '@luxcoder/shared/tasks'
 import type { KanbanBoardMode, KanbanItem } from './types'
+
+export interface KanbanBoardEmptyStateView {
+  title: string
+  actionLabel: string
+  onAction: () => void
+}
 
 interface KanbanBoardProps {
   items: KanbanItem[]
   mode: KanbanBoardMode
+  workflowFilter: 'all' | TaskWorkflow
   columns?: KanbanColumnDefinition[]
   onMove: (sessionId: string, columnId: string) => void
   onOpenItem?: (item: KanbanItem) => void
@@ -17,7 +25,9 @@ interface KanbanBoardProps {
   onOpenSubtask?: (sessionId: string) => void
   onRunTask?: (item: KanbanItem) => void
   onRetryTeambition?: (item: KanbanItem) => void
-  composer?: React.ReactNode
+  onSetLabels?: (item: KanbanItem, labelIds: string[]) => void
+  onChangeWorkflow?: (item: KanbanItem, workflow: TaskWorkflow) => void
+  emptyState?: KanbanBoardEmptyStateView | null
 }
 
 function dropColumnId(event: DragEndEvent): string | null {
@@ -25,14 +35,16 @@ function dropColumnId(event: DragEndEvent): string | null {
   return typeof value === 'string' ? value : null
 }
 
-export function KanbanBoard({ items, mode, columns, onMove, onOpenItem, onEditItem, onRenameItem, onArchiveItem, onDeleteItem, onOpenSubtask, onRunTask, onRetryTeambition, composer }: KanbanBoardProps): React.ReactElement {
+export function KanbanBoard({ items, mode, workflowFilter, columns, onMove, onOpenItem, onEditItem, onRenameItem, onArchiveItem, onDeleteItem, onOpenSubtask, onRunTask, onRetryTeambition, onSetLabels, onChangeWorkflow, emptyState }: KanbanBoardProps): React.ReactElement {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor),
   )
   const model = buildKanbanBoardModel(items, columns)
-  // 新建任务落在第一列（默认「待办」）
-  const composerColumnId = model.columns[0]?.id
+  const activeColumns = workflowFilter === 'cancelled'
+    ? [{ id: 'done', name: '已取消', color: '#94a3b8' }]
+    : columns
+  const activeModel = buildKanbanBoardModel(activeBoardItems(items, workflowFilter), activeColumns)
   const handleDragEnd = (event: DragEndEvent): void => {
     const columnId = dropColumnId(event)
     if (!columnId) return
@@ -41,26 +53,43 @@ export function KanbanBoard({ items, mode, columns, onMove, onOpenItem, onEditIt
     onMove(item.id, columnId)
   }
 
+  if ((mode === 'list' ? model.listItems.length : activeModel.listItems.length) === 0 && emptyState) {
+    return (
+      <div className="grid min-h-0 flex-1 place-items-center rounded-2xl border border-dashed border-border/60 bg-muted/20 p-8 text-center">
+        <div>
+          <p className="text-sm font-medium">{emptyState.title}</p>
+          <button type="button" onClick={emptyState.onAction} className="mt-3 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90">
+            {emptyState.actionLabel}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   if (mode === 'list') {
     return (
-      <div className="mx-auto grid w-full max-w-4xl gap-3 overflow-y-auto p-1">
-        {composer}
-        {model.listItems.map((item) => (
-          <TaskTile
-            key={item.id}
-            item={item}
-            draggable={false}
-            onOpen={onOpenItem}
-            onEdit={onEditItem}
-            onRename={onRenameItem}
-            onArchive={onArchiveItem}
-            onRequestDelete={onDeleteItem}
-            onOpenSubtask={onOpenSubtask}
-            onRunTask={onRunTask}
-            onRetryTeambition={onRetryTeambition}
-          />
-        ))}
-        {model.listItems.length === 0 && <div className="rounded-2xl bg-muted/40 p-10 text-center text-sm text-muted-foreground">暂无任务，先创建一个任务吧</div>}
+      <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-border/40 bg-card/40">
+        {model.listItems.length > 0 ? (
+          <>
+            <div className="sticky top-0 z-10 grid min-w-[820px] grid-cols-[minmax(220px,2fr)_minmax(110px,1fr)_100px_minmax(140px,1fr)_80px_90px_36px] gap-3 border-b border-border/50 bg-background/95 px-3 py-2 text-[11px] font-medium text-muted-foreground backdrop-blur">
+              <span>任务</span><span>归属</span><span>状态</span><span>Labels</span><span>进度</span><span>更新</span><span />
+            </div>
+            {model.listItems.map((item) => (
+              <TaskListRow
+                key={item.id}
+                item={item}
+                onOpen={onOpenItem}
+                onEdit={onEditItem}
+                onRename={onRenameItem}
+                onArchive={onArchiveItem}
+                onRequestDelete={onDeleteItem}
+                onRunTask={onRunTask}
+                onSetLabels={onSetLabels}
+                onChangeWorkflow={onChangeWorkflow}
+              />
+            ))}
+          </>
+        ) : null}
       </div>
     )
   }
@@ -68,7 +97,7 @@ export function KanbanBoard({ items, mode, columns, onMove, onOpenItem, onEditIt
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
       <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto pb-3">
-        {model.columns.map((column) => (
+        {activeModel.columns.map((column) => (
           <KanbanColumn
             key={column.id}
             column={column}
@@ -80,9 +109,9 @@ export function KanbanBoard({ items, mode, columns, onMove, onOpenItem, onEditIt
             onOpenSubtask={onOpenSubtask}
             onRunTask={onRunTask}
             onRetryTeambition={onRetryTeambition}
-          >
-            {column.id === composerColumnId ? composer : undefined}
-          </KanbanColumn>
+            onSetLabels={onSetLabels}
+            onChangeWorkflow={onChangeWorkflow}
+          />
         ))}
       </div>
     </DndContext>

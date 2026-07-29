@@ -34,8 +34,9 @@ import { interfaceVariantAtom } from '@/atoms/theme'
 import { appModeAtom } from '@/atoms/app-mode'
 import { codeMainViewAtom } from '@/atoms/project-atoms'
 import { cn } from '@/lib/utils'
-import { shouldShowWorkViewInCode } from '@/components/app-shell/code-main-view-model'
+import { resolveCodeMainRoute } from '@/components/app-shell/code-main-view-model'
 import { WorkBoardView } from '@/components/work/WorkBoardView'
+import { ProjectPageRoute } from '@/components/project/ProjectPageRoute'
 
 export function MainArea(): React.ReactElement {
   // 记录每个会话上次停留的视图（对话 / 预览），供切回时重建预览 Tab
@@ -50,8 +51,8 @@ export function MainArea(): React.ReactElement {
   const setActiveView = useSetAtom(activeViewAtom)
   const appMode = useAtomValue(appModeAtom)
   const codeMainView = useAtomValue(codeMainViewAtom)
-  // Code 模式主区是否渲染 Work 视图（看板 / 项目详情），优先级规则见 code-main-view-model
-  const showCodeWorkView = shouldShowWorkViewInCode({ appMode, codeMainView, activeView })
+  // Task Board 与 Project Page 是两个独立主区路由，覆盖视图优先级见 code-main-view-model。
+  const codeMainRoute = resolveCodeMainRoute({ appMode, codeMainView, activeView })
   const interfaceVariant = useAtomValue(interfaceVariantAtom)
   const isClassic = interfaceVariant === 'classic'
   const store = useStore()
@@ -235,8 +236,10 @@ export function MainArea(): React.ReactElement {
               // 遗留 cowork 兜底：AppShell 会迁移到 agent + codeMainView='work'；
               // 保留此分支避免迁移前一帧空白。
               <WorkBoardView />
-            ) : showCodeWorkView ? (
+            ) : codeMainRoute === 'task-board' ? (
               <WorkBoardView />
+            ) : codeMainRoute === 'project-page' ? (
+              <ProjectPageRoute />
             ) : activeView === 'automations' ? (
               automationFormOpen ? (
                 // 定时任务设置页：与列表同层级替换中间区，不经过 TabBar，避免切换时闪出会话 Tab。

@@ -65,6 +65,7 @@ describe('kanban protocol contracts', () => {
       CREATE: 'projects:create',
       UPDATE: 'projects:update',
       DELETE: 'projects:delete',
+      ANALYZE_DELETE_IMPACT: 'projects:analyzeDeleteImpact',
       LIST_ASSETS: 'projects:listAssets',
       UPLOAD_ASSET: 'projects:uploadAsset',
       DELETE_ASSET: 'projects:deleteAsset',
@@ -100,6 +101,8 @@ describe('kanban protocol contracts', () => {
       LIST_SUMMARIES: 'tasks:listSummaries',
       UPDATE_WORKFLOW: 'tasks:updateWorkflow',
       UPDATE_METADATA: 'tasks:updateMetadata',
+      DELETE: 'tasks:delete',
+      ANALYZE_DELETE_IMPACT: 'tasks:analyzeDeleteImpact',
       GET_RESULTS: 'tasks:getResults',
     });
 

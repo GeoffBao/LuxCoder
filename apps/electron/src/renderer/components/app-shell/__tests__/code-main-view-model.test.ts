@@ -1,8 +1,11 @@
 import { describe, expect, test } from 'bun:test'
 import {
+  buildProjectPageNavigation,
+  buildTaskBoardNavigation,
   isLegacyCoworkMode,
   isOverlayActiveView,
   normalizeAppModeForUi,
+  resolveCodeMainRoute,
   shouldShowWorkViewInCode,
 } from '../code-main-view-model'
 
@@ -17,6 +20,58 @@ describe('normalizeAppModeForUi / isLegacyCoworkMode', () => {
     expect(normalizeAppModeForUi('agent')).toBe('agent')
     expect(normalizeAppModeForUi('scratch')).toBe('scratch')
     expect(isLegacyCoworkMode('agent')).toBe(false)
+  })
+})
+
+describe('Task Board / Project Page navigation', () => {
+  test('Project Page 是独立主区路由，不会被 Task Board 分支吞掉', () => {
+    expect(resolveCodeMainRoute({
+      appMode: 'agent',
+      codeMainView: 'project',
+      activeView: 'conversations',
+    })).toBe('project-page')
+    expect(resolveCodeMainRoute({
+      appMode: 'agent',
+      codeMainView: 'tasks',
+      activeView: 'conversations',
+    })).toBe('task-board')
+  })
+
+  test('覆盖视图优先于 Project Page 路由', () => {
+    expect(resolveCodeMainRoute({
+      appMode: 'agent',
+      codeMainView: 'project',
+      activeView: 'automations',
+    })).toBe('overlay')
+  })
+
+  test('Project Page 默认打开概览，而不是直接进入 Knowledge 编辑器', () => {
+    expect(buildProjectPageNavigation('project-alpha')).toEqual(expect.objectContaining({
+      activeProjectPageId: 'project-alpha',
+      projectPageTab: 'overview',
+    }))
+  })
+
+  test('打开 Project Page 只设置页面身份，不复用 Task Board project facet', () => {
+    expect(buildProjectPageNavigation('project-alpha', 'assets')).toEqual({
+      codeMainView: 'project',
+      activeView: 'conversations',
+      activeProjectPageId: 'project-alpha',
+      projectPageTab: 'assets',
+    })
+  })
+
+  test('从 Project Page 返回 Task Board 时保留正确 project facet', () => {
+    expect(buildTaskBoardNavigation('project-alpha')).toEqual({
+      codeMainView: 'tasks',
+      activeView: 'conversations',
+      selectedProjectId: 'project-alpha',
+    })
+    expect(buildTaskBoardNavigation(null)).toEqual({
+      codeMainView: 'tasks',
+      activeView: 'conversations',
+      selectedProjectId: null,
+    })
   })
 })
 

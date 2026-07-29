@@ -82,6 +82,18 @@ function atomicWriteConfig(workspaceRoot: string, config: WorkspaceLabelConfig):
   }
 }
 
+export function assertValidWorkspaceLabelIds(workspaceRoot: string, labelIds: readonly string[]): string[] {
+  const uniqueIds = [...new Set(labelIds)]
+  const labels = requireConfig(workspaceRoot).labels
+  const byId = new Map(labels.map((label) => [label.id, label]))
+  for (const labelId of uniqueIds) {
+    const label = byId.get(labelId)
+    if (!label) throw new Error(`Label 不存在于当前 Workspace: ${labelId}`)
+    if (label.archivedAt !== undefined) throw new Error(`Label 已归档，不能继续分配: ${labelId}`)
+  }
+  return uniqueIds
+}
+
 function normalizedName(name: string): string {
   return name.trim().toLocaleLowerCase()
 }

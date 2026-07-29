@@ -1,3 +1,4 @@
+import type { TaskWorkflow } from '@luxcoder/shared/tasks'
 import { INBOX_COLUMN_ID, type KanbanItem } from './types'
 
 export interface KanbanColumnDefinition {
@@ -21,13 +22,13 @@ export interface BoardNotification {
 }
 
 /**
- * 默认三列（对齐 craft / Synara / Orca：品类无 inbox 列先例）。
- * 「未分类」语义由项目维度（侧边栏未归属分组 / 项目过滤器）表达，不再占用一列；
- * 存量 kanbanColumn='inbox' 的卡片由 buildKanbanBoardModel 的 fallback 自动归入第一列。
+ * 活跃 Workflow 的默认四列。cancelled 仍是可筛选状态，但不占活动看板列。
+ * 「未分类」由 scope facet 表达；历史 inbox 卡片回退到第一列。
  */
 export const DEFAULT_KANBAN_COLUMNS: KanbanColumnDefinition[] = [
   { id: 'todo', name: '待办', color: '#6366f1' },
   { id: 'in-progress', name: '进行中', color: '#f59e0b' },
+  { id: 'needs-review', name: '待验收', color: '#8b5cf6' },
   { id: 'done', name: '已完成', color: '#10b981' },
 ]
 
@@ -43,6 +44,12 @@ function resolveColumns(customColumns?: KanbanColumnDefinition[]): KanbanColumnD
     columns.push(column)
   }
   return columns.length > 0 ? columns : DEFAULT_KANBAN_COLUMNS
+}
+
+/** Cancelled 不属于活动流程；只有用户显式筛选该状态时才投影到 Board。 */
+export function activeBoardItems(items: KanbanItem[], workflow: 'all' | TaskWorkflow): KanbanItem[] {
+  if (workflow === 'cancelled') return items
+  return items.filter((item) => item.task?.workflow !== 'cancelled')
 }
 
 /** Board 与 List 从同一输入序列派生，分组过程不会改变卡片顺序。 */

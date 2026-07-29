@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useAtom, useAtomValue, useSetAtom, useStore } from 'jotai'
-import { FolderKanban, RefreshCw, Settings } from 'lucide-react'
+import { FolderKanban } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   agentSessionsAtom,
@@ -18,28 +18,18 @@ import {
   serverTeambitionBindingsAtom,
 } from '@/atoms/kanban-atoms'
 import {
-  selectedKanbanProjectAtom,
   selectedProjectIdAtom,
   serverKanbanProjectsAtom,
-  workViewAtom,
 } from '@/atoms/project-atoms'
-import { ProjectPage } from '@/components/project/ProjectPage'
-import { Button } from '@/components/ui/button'
 import { KanbanBoardContainer } from '@/components/app-shell/kanban/KanbanBoardContainer'
 import type { SpecNodeSummary } from '@/components/app-shell/kanban/subtask-merge'
-import type { KanbanItem, KanbanProject, KanbanTaskRun } from '@/components/app-shell/kanban/types'
+import type { KanbanItem, KanbanTaskRun } from '@/components/app-shell/kanban/types'
 import { useOpenSession } from '@/hooks/useOpenSession'
-import { ProjectSettingsDialog } from './ProjectSettingsDialog'
 import { buildKanbanTaskRun } from './work-board-model'
+import { matchesWorkspaceLoad, type WorkspaceLoadIdentity } from './work-board-load-guard'
 
 function errorMessage(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause)
-}
-
-function upsertProject(projects: KanbanProject[], project: KanbanProject): KanbanProject[] {
-  const existingIndex = projects.findIndex((candidate) => candidate.id === project.id)
-  if (existingIndex === -1) return [...projects, project]
-  return projects.map((candidate) => candidate.id === project.id ? project : candidate)
 }
 
 export function WorkBoardView(): React.ReactElement {
@@ -49,8 +39,6 @@ export function WorkBoardView(): React.ReactElement {
   const [agentSessions, setAgentSessions] = useAtom(agentSessionsAtom)
   const [projects, setProjects] = useAtom(serverKanbanProjectsAtom)
   const [selectedProjectId, setSelectedProjectId] = useAtom(selectedProjectIdAtom)
-  const selectedProject = useAtomValue(selectedKanbanProjectAtom)
-  const [workView, setWorkView] = useAtom(workViewAtom)
   const setSessions = useSetAtom(serverKanbanSessionsAtom)
   const [taskSummaries, setTaskSummaries] = useAtom(serverTaskSummariesAtom)
   const setRuns = useSetAtom(serverKanbanRunsAtom)
@@ -62,9 +50,9 @@ export function WorkBoardView(): React.ReactElement {
   const openSession = useOpenSession()
   const store = useStore()
   const [workspaceRoot, setWorkspaceRoot] = React.useState<string | null>(null)
+  const activeWorkspaceLoadRef = React.useRef<WorkspaceLoadIdentity | null>(null)
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
-  const [settingsOpen, setSettingsOpen] = React.useState(false)
 
   React.useEffect(() => {
     setSessions(agentSessions)
@@ -72,9 +60,12 @@ export function WorkBoardView(): React.ReactElement {
 
   React.useEffect(() => {
     let cancelled = false
-    // 项目 atom 的生命周期由全局 ProjectsInitializer 管理（工作区切换时按 slug 重载），WorkBoardView 不再清空
-    // 挂载/工作区切换时不再重置 view 与 selectedProjectId：跨模式跳转（Code 侧边栏「项目详情」）
-    // 需要保留这两个 atom 状态；无效 selectedProjectId 由下方效果收敛（清空选择并回到看板）。
+    const generation = (activeWorkspaceLoadRef.current?.generation ?? 0) + 1
+    activeWorkspaceLoadRef.current = workspace
+      ? { generation, workspaceId: workspace.id, root: null }
+      : null
+    // 项目 atom 的生命周期由全局 ProjectsInitializer 管理（工作区切换时按 slug 重载），WorkBoardView 不再清空。
+    // selectedProjectId 只表示 Task Board 的 Project facet；Project Page 使用独立页面身份。
     setRuns([])
     setTaskSummaries([])
     setBindings([])
@@ -87,7 +78,10 @@ export function WorkBoardView(): React.ReactElement {
     setLoading(true)
     void window.electronAPI.getWorkspaceRootPath(workspace.slug)
       .then((root) => {
-        if (!cancelled) setWorkspaceRoot(root)
+        if (!cancelled && activeWorkspaceLoadRef.current?.generation === generation) {
+          activeWorkspaceLoadRef.current = { generation, workspaceId: workspace.id, root }
+          setWorkspaceRoot(root)
+        }
       })
       .catch((cause: unknown) => {
         if (!cancelled) setError(`加载工作区失败：${errorMessage(cause)}`)
@@ -99,6 +93,15 @@ export function WorkBoardView(): React.ReactElement {
     return () => { cancelled = true }
   }, [setBindings, setRuns, setSpecNodes, setTaskExpertIds, setTaskSummaries, workspace])
 
+  const captureWorkspaceLoad = React.useCallback((): WorkspaceLoadIdentity | null => {
+    const active = activeWorkspaceLoadRef.current
+    return active?.root ? { ...active } : null
+  }, [])
+
+  const isCurrentWorkspaceLoad = React.useCallback((expected: WorkspaceLoadIdentity): boolean => {
+    return matchesWorkspaceLoad(activeWorkspaceLoadRef.current, expected)
+  }, [])
+
   const refreshSessions = React.useCallback(async (): Promise<void> => {
     const sessions = await window.electronAPI.listAgentSessions()
     setAgentSessions(sessions)
@@ -106,23 +109,29 @@ export function WorkBoardView(): React.ReactElement {
 
   const refreshProjects = React.useCallback(async (): Promise<void> => {
     if (!workspaceRoot) return
-    const nextProjects = await window.electronAPI.projects.list(workspaceRoot)
-    setProjects(nextProjects)
-  }, [setProjects, workspaceRoot])
+    const load = captureWorkspaceLoad()
+    if (!load?.root) return
+    const nextProjects = await window.electronAPI.projects.list(load.root)
+    if (isCurrentWorkspaceLoad(load)) setProjects(nextProjects)
+  }, [captureWorkspaceLoad, isCurrentWorkspaceLoad, setProjects, workspaceRoot])
 
   const refreshTasks = React.useCallback(async (): Promise<void> => {
     if (!workspaceRoot || !workspace) return
-    const summaries = await window.electronAPI.tasks.listSummaries(workspaceRoot, workspace.id)
-    setTaskSummaries(summaries)
-  }, [setTaskSummaries, workspace, workspaceRoot])
+    const load = captureWorkspaceLoad()
+    if (!load?.root || load.workspaceId !== workspace.id) return
+    const summaries = await window.electronAPI.tasks.listSummaries(load.root, load.workspaceId)
+    if (isCurrentWorkspaceLoad(load)) setTaskSummaries(summaries)
+  }, [captureWorkspaceLoad, isCurrentWorkspaceLoad, setTaskSummaries, workspace, workspaceRoot])
 
   React.useEffect(() => {
-    if (!selectedProjectId || projects.some((project) => project.id === selectedProjectId)) return
+    if (!selectedProjectId || projects.some((project) => project.id === selectedProjectId && !project.archivedAt)) return
     setSelectedProjectId(null)
   }, [projects, selectedProjectId, setSelectedProjectId])
 
   const refreshRuns = React.useCallback(async (): Promise<void> => {
     if (!workspaceRoot) return
+    const load = captureWorkspaceLoad()
+    if (!load?.root) return
     const taskRefs = new Map<string, { slug: string; runId?: string }>()
     for (const task of taskSummaries ?? []) {
       const linkedSession = task.orchestratorSessionId
@@ -134,18 +143,20 @@ export function WorkBoardView(): React.ReactElement {
     }
 
     const runs = await Promise.all(Array.from(taskRefs.values()).map(async ({ slug, runId }) => {
-      const results = await window.electronAPI.tasks.getResults(workspaceRoot, slug, runId)
+      const results = await window.electronAPI.tasks.getResults(load.root!, slug, runId)
       return results ? buildKanbanTaskRun(slug, results) : null
     }))
-    setRuns(runs.filter((run): run is KanbanTaskRun => run !== null))
-  }, [agentSessions, setRuns, taskSummaries, workspaceRoot])
+    if (isCurrentWorkspaceLoad(load)) setRuns(runs.filter((run): run is KanbanTaskRun => run !== null))
+  }, [agentSessions, captureWorkspaceLoad, isCurrentWorkspaceLoad, setRuns, taskSummaries, workspaceRoot])
 
   const refreshSpecNodes = React.useCallback(async (): Promise<void> => {
     if (!workspaceRoot) return
+    const load = captureWorkspaceLoad()
+    if (!load?.root) return
     const slugs = (taskSummaries ?? []).map((task) => task.taskSlug)
     const results = await Promise.all(slugs.map(async (slug) => {
       try {
-        const validation = await window.electronAPI.tasks.get(workspaceRoot, slug)
+        const validation = await window.electronAPI.tasks.get(load.root!, slug)
         if (!validation?.valid || !validation.spec?.nodes) {
           return { slug, nodes: [] as SpecNodeSummary[], expertId: undefined as string | undefined }
         }
@@ -160,17 +171,21 @@ export function WorkBoardView(): React.ReactElement {
         return { slug, nodes: [] as SpecNodeSummary[], expertId: undefined as string | undefined }
       }
     }))
+    if (!isCurrentWorkspaceLoad(load)) return
     setSpecNodes(new Map(results.map((entry) => [entry.slug, entry.nodes])))
     setTaskExpertIds(new Map(
       results
         .filter((entry): entry is typeof entry & { expertId: string } => Boolean(entry.expertId))
         .map((entry) => [entry.slug, entry.expertId]),
     ))
-  }, [agentSessions, setSpecNodes, setTaskExpertIds, taskSummaries, workspaceRoot])
+  }, [captureWorkspaceLoad, isCurrentWorkspaceLoad, setSpecNodes, setTaskExpertIds, taskSummaries, workspaceRoot])
 
   const refreshBindings = React.useCallback(async (): Promise<void> => {
     if (!workspaceRoot) return
-    const bindings = await window.electronAPI.teambition.listBindings(workspaceRoot)
+    const load = captureWorkspaceLoad()
+    if (!load?.root) return
+    const bindings = await window.electronAPI.teambition.listBindings(load.root)
+    if (!isCurrentWorkspaceLoad(load)) return
     setBindings(bindings.map((binding) => ({
       bindingId: binding.id,
       sessionId: binding.sessionId,
@@ -180,7 +195,7 @@ export function WorkBoardView(): React.ReactElement {
       syncState: binding.syncState,
       ...(binding.error ? { error: binding.error } : {}),
     })))
-  }, [setBindings, workspaceRoot])
+  }, [captureWorkspaceLoad, isCurrentWorkspaceLoad, setBindings, workspaceRoot])
 
   const refreshAll = React.useCallback(async (): Promise<void> => {
     await Promise.all([refreshSessions(), refreshTasks()])
@@ -265,24 +280,6 @@ export function WorkBoardView(): React.ReactElement {
     if (session) openSession('agent', session.id, session.title)
   }, [agentSessions, openSession])
 
-  const handleProjectChanged = React.useCallback((project: KanbanProject): void => {
-    setProjects((current) => upsertProject(current, project))
-    // 归档后列表默认隐藏该项；若仍保持选中会导致看板过滤到「看不见的项目」
-    if (project.archivedAt && selectedProjectId === project.id) {
-      setSelectedProjectId(null)
-    }
-  }, [selectedProjectId, setProjects, setSelectedProjectId])
-
-  const handleProjectDeleted = React.useCallback((projectId: string): void => {
-    setProjects((current) => current.filter((project) => project.id !== projectId))
-    if (selectedProjectId === projectId) setSelectedProjectId(null)
-  }, [selectedProjectId, setProjects, setSelectedProjectId])
-
-  const handleOpenSession = React.useCallback((sessionId: string): void => {
-    const session = agentSessions.find((candidate) => candidate.id === sessionId)
-    if (session) openSession('agent', session.id, session.title)
-  }, [agentSessions, openSession])
-
   const handleRefresh = async (): Promise<void> => {
     setError(null)
     setLoading(true)
@@ -315,54 +312,8 @@ export function WorkBoardView(): React.ReactElement {
     )
   }
 
-  if (workView === 'project' && selectedProject && workspaceRoot) {
-    return (
-      <ProjectPage
-        workspaceRoot={workspaceRoot}
-        project={selectedProject}
-      />
-    )
-  }
-
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2 bg-background p-3">
-      {/* Header: 项目名称 + 设置 + 刷新
-          顶部 50px 是 AppShell 全局窗口拖动区（app-region 按矩形并集计算，与 z-index 无关），
-          不声明 no-drag 的按钮点击会被当成窗口拖动吞掉——对齐 SessionHeader 的模式：
-          整行声明 drag-region 保留空白处拖窗口能力，交互区声明 no-drag 保证可点击。 */}
-      <div className="titlebar-drag-region flex min-h-9 items-center justify-between rounded-xl bg-card px-3 shadow-sm">
-        <div className="flex items-center gap-2 min-w-0">
-          {selectedProject ? (
-            <>
-              <span
-                className="size-2.5 shrink-0 rounded-full"
-                style={{ backgroundColor: selectedProject.color ?? 'hsl(var(--muted-foreground))' }}
-              />
-              <button
-                type="button"
-                onClick={() => setWorkView('project')}
-                className="titlebar-no-drag truncate rounded px-1 py-0.5 text-[13px] font-medium hover:bg-foreground/[0.06] hover:text-primary transition-colors"
-                title="打开项目详情"
-              >
-                {selectedProject.name}
-              </button>
-            </>
-          ) : (
-            <span className="text-[13px] text-foreground/50">全部 Task</span>
-          )}
-        </div>
-        <div className="titlebar-no-drag flex items-center gap-1">
-          {selectedProject && workspaceRoot && (
-            <Button size="sm" variant="ghost" onClick={() => setSettingsOpen(true)}>
-              <Settings className="h-4 w-4" />
-            </Button>
-          )}
-          <Button size="sm" variant="ghost" disabled={loading} onClick={() => void handleRefresh()}>
-            <RefreshCw className={loading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
-          </Button>
-        </div>
-      </div>
-
+    <div className="flex h-full min-h-0 flex-col bg-background">
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {error && (
           <div className="mb-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -376,6 +327,8 @@ export function WorkBoardView(): React.ReactElement {
             onSessionCreated={(session) => {
               setAgentSessions((current) => [session, ...current.filter((candidate) => candidate.id !== session.id)])
             }}
+            onRefresh={handleRefresh}
+            refreshing={loading}
             onTaskCreated={async (created) => {
               await refreshAll()
               if (!created?.ran || !created.sessionId) return
@@ -389,17 +342,6 @@ export function WorkBoardView(): React.ReactElement {
           />
         </div>
       </div>
-
-      {/* 设置弹窗 */}
-      {selectedProject && workspaceRoot && (
-        <ProjectSettingsDialog
-          open={settingsOpen}
-          workspaceRoot={workspaceRoot}
-          project={selectedProject}
-          onOpenChange={setSettingsOpen}
-          onProjectChanged={handleProjectChanged}
-        />
-      )}
     </div>
   )
 }

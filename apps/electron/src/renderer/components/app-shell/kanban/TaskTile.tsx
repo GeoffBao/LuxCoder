@@ -1,19 +1,21 @@
 import { useDraggable } from '@dnd-kit/core'
-import { Archive, ArchiveRestore, ChevronDown, Clock, ExternalLink, GitBranch, Link2, MessageSquare, Pencil, Play, Trash2 } from 'lucide-react'
+import { useAtomValue } from 'jotai'
+import { Archive, ArchiveRestore, ChevronDown, Clock, Link2, MessageSquare, MoreHorizontal, Pencil, Play, Tag, Trash2 } from 'lucide-react'
 import * as React from 'react'
 import { cn } from '@/lib/utils'
-import { ModelChip } from './ModelChip'
-import { ExpertChip } from './ExpertChip'
 import { StatusBadge } from './StatusBadge'
 import { SubtaskProgress } from './SubtaskProgress'
 import { SubtaskRow } from './SubtaskRow'
 import { resolveDagAttention, shouldShowDoneColumnAttention } from './dag-attention'
+import type { TaskWorkflow } from '@luxcoder/shared/tasks'
 import type { KanbanItem } from './types'
 import { resolveTeambitionSyncBadge } from '@/components/work/teambition-view'
-import { useExpertOptions } from '@/components/agent-experts/useExpertOptions'
-import { getTaskExpertOption } from './task-editor-ui-model'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu'
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { workspaceLabelsAtom } from '@/atoms/workspace-labels-atoms'
+import { LabelChips } from '@/components/labels/LabelChips'
 import { formatRelativeUpdatedAt } from '../AgentSessionItem'
+import { buildTaskCardViewModel } from './task-card-view-model'
 
 interface TaskTileProps {
   item: KanbanItem
@@ -32,6 +34,8 @@ interface TaskTileProps {
   onOpenSubtask?: (sessionId: string) => void
   onRunTask?: (item: KanbanItem) => void
   onRetryTeambition?: (item: KanbanItem) => void
+  onSetLabels?: (item: KanbanItem, labelIds: string[]) => void
+  onChangeWorkflow?: (item: KanbanItem, workflow: TaskWorkflow) => void
   className?: string
 }
 
@@ -51,19 +55,19 @@ export function TaskTile({
   onOpenSubtask,
   onRunTask,
   onRetryTeambition,
+  onSetLabels,
+  onChangeWorkflow,
   className,
 }: TaskTileProps): React.ReactElement {
   const [expanded, setExpanded] = React.useState(
-    () => item.subtasks.some((subtask) => subtask.runState === 'running') || item.subtasks.length > 0,
+    () => item.subtasks.some((subtask) => subtask.runState === 'running' || subtask.runState === 'failed'),
   )
   const [renaming, setRenaming] = React.useState(false)
   const [renameValue, setRenameValue] = React.useState(item.title)
   const renameInputRef = React.useRef<HTMLInputElement>(null)
   const justStartedRenaming = React.useRef(false)
-  const { options: expertOptions } = useExpertOptions()
-  const expertLabel = item.expertId
-    ? getTaskExpertOption(item.expertId, expertOptions).label
-    : null
+  const workspaceLabels = useAtomValue(workspaceLabelsAtom)
+  const viewModel = buildTaskCardViewModel(item)
   const drag = useDraggable({ id: item.id, disabled: !draggable, data: { kind: 'kanban-item' } })
   const teambitionBadge = item.teambition?.syncState
     ? resolveTeambitionSyncBadge(item.teambition.syncState)
@@ -85,8 +89,7 @@ export function TaskTile({
   const canEdit = Boolean(onEdit) && item.hasSession !== false
   const canRename = Boolean(onRename) && (!item.task || !item.task.legacyIdentity)
   const canArchive = Boolean(onArchive) && (!item.task || !item.task.legacyIdentity)
-  // 永久删除需等删除影响预览治理；正式 Task 当前只提供安全归档。
-  const canDelete = Boolean(onRequestDelete) && !item.task
+  const canDelete = Boolean(onRequestDelete) && (!item.task || !item.task.legacyIdentity)
   const handleEdit = (event?: React.SyntheticEvent): void => {
     event?.stopPropagation()
     onEdit?.(item)
@@ -120,7 +123,9 @@ export function TaskTile({
     }
   }
 
-  const hasCardMenu = canEdit || canRename || canArchive || canDelete
+  const canSetLabels = Boolean(onSetLabels) && Boolean(item.task && !item.task.legacyIdentity)
+  const canChangeWorkflow = Boolean(onChangeWorkflow) && Boolean(item.task && !item.task.legacyIdentity)
+  const hasCardMenu = canEdit || canRename || canArchive || canDelete || canSetLabels || canChangeWorkflow
 
   const card = (
     <article
@@ -134,7 +139,15 @@ export function TaskTile({
       }}
       {...drag.attributes}
       {...drag.listeners}
+      role="button"
+      tabIndex={0}
+      aria-label={`打开任务：${item.title}`}
       onClick={() => onOpen?.(item)}
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return
+        event.preventDefault()
+        onOpen?.(item)
+      }}
       className={cn(
         'group cursor-pointer rounded-xl bg-card p-3 shadow-sm ring-1 ring-border/30 transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         live && 'ring-amber-500/40',
@@ -162,7 +175,12 @@ export function TaskTile({
           ) : (
             <h3 className="line-clamp-2 text-sm font-medium leading-5">{item.title}</h3>
           )}
-          {item.project && <p className="mt-1 truncate text-[11px] text-muted-foreground">{item.project.name}</p>}
+          {viewModel.projectName && <p className="mt-1 truncate text-[11px] text-muted-foreground">{viewModel.projectName}</p>}
+          {viewModel.labelIds.length > 0 && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-1">
+              <LabelChips labels={workspaceLabels} activeIds={viewModel.labelIds} max={2} />
+            </div>
+          )}
         </div>
         {canRun && (
           <button
@@ -175,25 +193,98 @@ export function TaskTile({
               event.stopPropagation()
               onRunTask?.(item)
             }}
-            className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100"
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground shadow-sm"
           >
             <Play className="h-3.5 w-3.5 fill-current" />
           </button>
         )}
-        {canEdit ? (
-          <button
-            type="button"
-            title="编辑任务"
-            aria-label="编辑任务"
-            data-no-dnd
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={handleEdit}
-            className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
-        ) : (
-          <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+        {hasCardMenu && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                title="任务操作"
+                aria-label="任务操作"
+                data-no-dnd
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => event.stopPropagation()}
+                className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40 z-[9999]" onClick={(event) => event.stopPropagation()}>
+              {canEdit && (
+                <DropdownMenuItem onSelect={() => handleEdit()}>
+                  <Pencil className="mr-2 h-3.5 w-3.5" />编辑任务
+                </DropdownMenuItem>
+              )}
+              {canRename && (
+                <DropdownMenuItem onSelect={startRename}>
+                  <Pencil className="mr-2 h-3.5 w-3.5" />重命名
+                </DropdownMenuItem>
+              )}
+              {canChangeWorkflow && item.task && (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>更改状态</DropdownMenuSubTrigger>
+                  <DropdownMenuPortal>
+                    <DropdownMenuSubContent className="z-[10000] w-36">
+                      {([
+                        ['todo', '待办'],
+                        ['in-progress', '进行中'],
+                        ['needs-review', '待验收'],
+                        ['done', '已完成'],
+                        ['cancelled', '已取消'],
+                      ] as Array<[TaskWorkflow, string]>).map(([workflow, label]) => (
+                        <DropdownMenuCheckboxItem key={workflow} checked={item.task?.workflow === workflow} onCheckedChange={() => onChangeWorkflow?.(item, workflow)}>
+                          {label}
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuPortal>
+                </DropdownMenuSub>
+              )}
+              {canSetLabels && workspaceLabels.length > 0 && (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger><Tag className="mr-2 h-3.5 w-3.5" />Labels</DropdownMenuSubTrigger>
+                  <DropdownMenuPortal>
+                    <DropdownMenuSubContent className="z-[10000] w-44">
+                      {workspaceLabels.map((label) => {
+                        const checked = viewModel.labelIds.includes(label.id)
+                        return (
+                          <DropdownMenuCheckboxItem
+                            key={label.id}
+                            checked={checked}
+                            onCheckedChange={() => onSetLabels?.(item, checked
+                              ? viewModel.labelIds.filter((id) => id !== label.id)
+                              : [...viewModel.labelIds, label.id])}
+                          >
+                            <span className="mr-2 size-2 rounded-full" style={{ backgroundColor: label.color }} />{label.name}
+                          </DropdownMenuCheckboxItem>
+                        )
+                      })}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuPortal>
+                </DropdownMenuSub>
+              )}
+              {canArchive && (
+                <DropdownMenuItem onSelect={() => onArchive?.(item)}>
+                  {item.task?.archivedAt ?? item.session.archived
+                    ? <ArchiveRestore className="mr-2 h-3.5 w-3.5" />
+                    : <Archive className="mr-2 h-3.5 w-3.5" />}
+                  {item.task?.archivedAt ?? item.session.archived ? '取消归档' : '归档'}
+                </DropdownMenuItem>
+              )}
+              {canDelete && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="text-destructive" onSelect={() => onRequestDelete?.(item)}>
+                    <Trash2 className="mr-2 h-3.5 w-3.5" />删除任务
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
@@ -208,7 +299,7 @@ export function TaskTile({
             } as const)[item.task.workflow]}
           </span>
         )}
-        <StatusBadge status={item.session.sessionStatus} live={live} />
+        {viewModel.showSessionStatus && <StatusBadge status={item.session.sessionStatus} live={live} />}
         {showDoneAttention && dagAttention && (
           <span
             title="列在「已完成」，但任务 DAG 尚未全部成功结束"
@@ -220,15 +311,6 @@ export function TaskTile({
             )}
           >
             {dagAttention.label}
-          </span>
-        )}
-        <ModelChip model={item.session.modelId} className="max-w-32" />
-        {item.expertId && expertLabel && (
-          <ExpertChip expertId={item.expertId} label={expertLabel} />
-        )}
-        {(item.task?.taskSlug ?? item.session.taskSlug) && (
-          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-            <GitBranch className="h-3 w-3" />{item.task?.taskSlug ?? item.session.taskSlug}
           </span>
         )}
       </div>

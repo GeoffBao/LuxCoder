@@ -5,15 +5,18 @@ import { estimateTokenCount, MEMORY_TOKEN_CAP } from '@luxcoder/shared/projects'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import type { KanbanProject } from '@/components/app-shell/kanban/types'
+import { getProjectKnowledgeDraft, removeProjectKnowledgeDraft, setProjectKnowledgeDraft } from './project-knowledge-draft-store'
 
 interface ProjectKnowledgeTabProps {
   workspaceRoot: string
   project: KanbanProject
   onError: (message: string | null) => void
+  onDirtyChange?: (dirty: boolean) => void
 }
 
-export function ProjectKnowledgeTab({ workspaceRoot, project, onError }: ProjectKnowledgeTabProps): React.ReactElement {
+export function ProjectKnowledgeTab({ workspaceRoot, project, onError, onDirtyChange }: ProjectKnowledgeTabProps): React.ReactElement {
   const slug = project.slug
+  const draftKey = `${workspaceRoot}/${slug ?? project.id}`
   const [memory, setMemory] = React.useState('')
   const [loaded, setLoaded] = React.useState(false)
   const [dirty, setDirty] = React.useState(false)
@@ -22,11 +25,32 @@ export function ProjectKnowledgeTab({ workspaceRoot, project, onError }: Project
   React.useEffect(() => {
     if (!slug) return
     let cancelled = false
+    setLoaded(false)
+    setDirty(false)
+    onDirtyChange?.(false)
     window.electronAPI.projects.readMemory(workspaceRoot, slug)
-      .then((content) => { if (!cancelled) { setMemory(content); setLoaded(true); setDirty(false) } })
-      .catch(() => { if (!cancelled) { setMemory(''); setLoaded(true) } })
+      .then((content) => {
+        if (cancelled) return
+        const cachedDraft = getProjectKnowledgeDraft(draftKey)
+        setMemory(cachedDraft ?? content)
+        setLoaded(true)
+        const hasDraft = cachedDraft !== undefined && cachedDraft !== content
+        setDirty(hasDraft)
+        onDirtyChange?.(hasDraft)
+      })
+      .catch(() => {
+        if (cancelled) return
+        const cachedDraft = getProjectKnowledgeDraft(draftKey)
+        setMemory(cachedDraft ?? '')
+        setLoaded(true)
+        const hasDraft = cachedDraft !== undefined
+        setDirty(hasDraft)
+        onDirtyChange?.(hasDraft)
+      })
     return () => { cancelled = true }
-  }, [workspaceRoot, slug])
+  }, [draftKey, onDirtyChange, slug, workspaceRoot])
+
+  // 退出保护由跨页面 draft store 统一维护，切换 Tab/路由后仍然有效。
 
   const handleSave = async (): Promise<void> => {
     if (!slug || busy) return
@@ -34,7 +58,9 @@ export function ProjectKnowledgeTab({ workspaceRoot, project, onError }: Project
     try {
       // Allow clearing: write empty string to save
       await window.electronAPI.projects.writeMemory(workspaceRoot, slug, memory)
+      removeProjectKnowledgeDraft(draftKey)
       setDirty(false)
+      onDirtyChange?.(false)
       onError(null)
       toast.success('Project Knowledge 已保存')
     } catch (cause) {
@@ -66,15 +92,20 @@ export function ProjectKnowledgeTab({ workspaceRoot, project, onError }: Project
         </div>
         <Textarea
           value={memory}
-          onChange={(e) => { setMemory(e.target.value); setDirty(true) }}
+          onChange={(e) => {
+            setMemory(e.target.value)
+            setProjectKnowledgeDraft(draftKey, e.target.value)
+            setDirty(true)
+            onDirtyChange?.(true)
+          }}
           placeholder="例如：## 架构&#10;- 使用 React + TypeScript&#10;- API 网关地址: ...&#10;&#10;## 常用命令&#10;- bun run dev&#10;- bun test&#10;&#10;## 注意事项&#10;..."
           className="min-h-[300px] w-full resize-y font-mono text-sm"
-          disabled={busy}
+          disabled={busy || !loaded}
         />
         <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
           <span>Markdown 格式 · 约 {tokens} tokens（上限 {MEMORY_TOKEN_CAP}）</span>
           {overCap && <span className="font-medium text-destructive">超出推荐上限</span>}
-          {dirty && <span className="font-medium text-amber-500">未保存</span>}
+          {dirty && <span className="font-medium text-amber-500">未保存 · 本次应用会话中会保留草稿</span>}
         </div>
       </div>
 

@@ -424,7 +424,8 @@ export function TaskEditor({
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 bg-background p-3">
-      <header className="flex flex-wrap items-center gap-2 rounded-xl bg-card px-3 py-2.5 shadow-sm">
+      <header className="titlebar-drag-region flex flex-wrap items-center gap-2 rounded-xl bg-card px-3 py-2.5 shadow-sm">
+        <div className="titlebar-no-drag flex flex-wrap items-center gap-2">
         <Button variant="ghost" size="sm" onClick={onClose}><ArrowLeft className="h-4 w-4" />返回看板</Button>
         <span className="text-sm font-semibold">{target.mode === 'edit' ? '编辑任务' : '新增任务'}</span>
         {target.mode === 'edit' && target.taskSlug && (
@@ -447,6 +448,7 @@ export function TaskEditor({
               </Button>
             </>
           )}
+        </div>
         </div>
       </header>
 

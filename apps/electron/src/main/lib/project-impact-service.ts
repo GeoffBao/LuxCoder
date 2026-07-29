@@ -1,33 +1,19 @@
-import { existsSync, readdirSync } from 'node:fs'
+import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import type { AgentSessionMeta } from '@luxcoder/shared'
-import { listTaskSlugs, loadTaskSpec } from '@luxcoder/shared/tasks/storage'
+import type { AgentSessionMeta, ProjectDeleteImpact, TaskDeleteImpact } from '@luxcoder/shared'
+import {
+  getProjectWorkdirPath,
+} from '@luxcoder/shared/projects/storage'
+import {
+  listResumableRuns,
+  listRunIds,
+  listTaskSlugs,
+  loadTaskRecord,
+  loadTaskSpec,
+} from '@luxcoder/shared/tasks/storage'
 import type { ProjectAsset, ProjectConfig } from '@luxcoder/shared/projects'
 
-export interface ProjectDeleteImpact {
-  taskCount: number
-  /** Tasks with active (unresolved) runs that would be orphaned */
-  activeRunTaskSlugs: string[]
-  sessionCount: number
-  assetCount: number
-  hasKnowledge: boolean
-  /** Whether the project workdir is actively managed */
-  hasManagedWorkdir: boolean
-  /** Blockers that prevent purge (active runs, etc.) */
-  blockers: string[]
-  canPurge: boolean
-}
-
-export interface TaskDeleteImpact {
-  runCount: number
-  activeRunCount: number
-  sessionCount: number
-  canPurge: boolean
-  blockers: string[]
-}
-
 function countProjectSessions(
-  workspaceRoot: string,
   projectId: string,
   sessions: readonly AgentSessionMeta[],
 ): number {
@@ -48,6 +34,14 @@ function hasProjectKnowledge(workspaceRoot: string, slug: string): boolean {
   return existsSync(join(workspaceRoot, 'projects', slug, 'MEMORY.md'))
 }
 
+function isDirectory(path: string): boolean {
+  try {
+    return statSync(path).isDirectory()
+  } catch {
+    return false
+  }
+}
+
 /**
  * Analyze the impact of deleting/archiving a project.
  * Does NOT perform any mutations.
@@ -63,37 +57,46 @@ export function analyzeProjectDeleteImpact(
   const blockers: string[] = []
   const activeRunTaskSlugs: string[] = []
 
+  const activeRuns = listResumableRuns(workspaceRoot)
+  const activeRunSlugs = new Set(activeRuns.map((run) => run.slug))
   let taskCount = 0
+  let runCount = 0
+  let activeRunCount = 0
   for (const slug of slugs) {
     const loaded = loadTaskSpec(workspaceRoot, slug)
     if (!loaded?.spec || loaded.spec.project !== projectId) continue
     taskCount += 1
-    // Check for active runs
-    const runsDir = join(workspaceRoot, 'tasks', slug, 'runs')
-    if (existsSync(runsDir)) {
-      try {
-        const runIds = readdirSync(runsDir)
-        if (runIds.length > 0) activeRunTaskSlugs.push(slug)
-      } catch { /* ignore */ }
-    }
+    runCount += listRunIds(workspaceRoot, slug).length
+    const taskActiveRunCount = activeRuns.filter((run) => run.slug === slug).length
+    activeRunCount += taskActiveRunCount
+    if (activeRunSlugs.has(slug)) activeRunTaskSlugs.push(slug)
   }
 
+  if (taskCount > 0) {
+    blockers.push(`${taskCount} 个关联 Task 仍引用该 Project；请先移动或归档这些 Task`)
+  }
   if (activeRunTaskSlugs.length > 0) {
-    blockers.push(`${activeRunTaskSlugs.length} 个 Task 仍有 Run 记录（归档后仍可查看，但永久删除会失去历史）`)
+    blockers.push(`${activeRunTaskSlugs.length} 个 Task 仍有活跃 Run；必须先停止或完成运行`)
   }
 
-  const sessionCount = countProjectSessions(workspaceRoot, projectId, sessions)
-  const hasManagedWorkdir = Boolean(project.workingDirectory)
+  const sessionCount = countProjectSessions(projectId, sessions)
+  if (sessionCount > 0) {
+    blockers.push(`${sessionCount} 个关联会话仍引用该 Project；请先移动这些会话`)
+  }
+  const hasManagedWorkdir = !project.workingDirectory?.trim()
+    && isDirectory(getProjectWorkdirPath(workspaceRoot, project.slug))
 
   return {
     taskCount,
+    runCount,
+    activeRunCount,
     activeRunTaskSlugs,
     sessionCount,
     assetCount: countProjectAssets(workspaceRoot, project.slug),
     hasKnowledge: hasProjectKnowledge(workspaceRoot, project.slug),
     hasManagedWorkdir,
     blockers,
-    canPurge: activeRunTaskSlugs.length === 0,
+    canPurge: taskCount === 0 && sessionCount === 0 && activeRunTaskSlugs.length === 0,
   }
 }
 
@@ -106,17 +109,16 @@ export function analyzeTaskDeleteImpact(
   sessions: readonly AgentSessionMeta[],
 ): TaskDeleteImpact {
   const blockers: string[] = []
+  const record = loadTaskRecord(workspaceRoot, taskSlug)
+  const orchestratorSessionId = record.kind === 'valid' ? record.record.orchestratorSessionId : undefined
   const taskSessions = sessions.filter(
-    (s) => s.taskSlug === taskSlug || s.id === sessions.find((t) => t.taskSlug === taskSlug)?.id,
+    (session) => session.taskSlug === taskSlug || session.id === orchestratorSessionId,
   )
 
-  let runCount = 0
-  const runsDir = join(workspaceRoot, 'tasks', taskSlug, 'runs')
-  if (existsSync(runsDir)) {
-    try {
-      runCount = readdirSync(runsDir).length
-    } catch { /* ignore */ }
-  }
+  const runCount = listRunIds(workspaceRoot, taskSlug).length
+  const activeRunCount = listResumableRuns(workspaceRoot)
+    .filter((run) => run.slug === taskSlug)
+    .length
 
   if (runCount > 0) {
     blockers.push(`${runCount} 个 Run 记录将被永久删除`)
@@ -127,7 +129,7 @@ export function analyzeTaskDeleteImpact(
 
   return {
     runCount,
-    activeRunCount: 0, // Requires live runner state; v1 only counts directory entries
+    activeRunCount,
     sessionCount: taskSessions.length,
     blockers,
     canPurge: true, // User can always choose to purge with warnings

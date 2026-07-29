@@ -1,5 +1,6 @@
 import { TaskSpecSchema } from '@luxcoder/shared/tasks/schema'
 import { slugify } from '@luxcoder/shared/utils'
+import type { TaskEditorTarget } from './types'
 
 export interface QuickTaskDraft {
   title: string
@@ -11,17 +12,30 @@ export interface QuickTaskCreateRequest {
   yaml: string
 }
 
-export interface SubmitQuickTaskInput {
+export interface SubmitQuickTaskInput<TResult = unknown> {
   draft: QuickTaskDraft
   fallbackId: string
-  create: (request: QuickTaskCreateRequest) => Promise<unknown>
+  create: (request: QuickTaskCreateRequest) => Promise<TResult>
 }
 
-export type SubmitQuickTaskResult =
-  | { ok: true; draft: QuickTaskDraft }
+export type SubmitQuickTaskResult<TResult = unknown> =
+  | { ok: true; draft: QuickTaskDraft; created: TResult }
   | { ok: false; draft: QuickTaskDraft; error: string }
 
 export const EMPTY_QUICK_TASK_DRAFT: QuickTaskDraft = { title: '', goal: '', projectId: '' }
+
+/** 将轻量输入平滑升级到唯一完整 TaskEditor，不能丢失用户已输入内容。 */
+export function toTaskEditorTarget(draft: QuickTaskDraft): TaskEditorTarget {
+  const title = draft.title.trim()
+  const goal = draft.goal.trim() || title
+  const projectId = draft.projectId.trim()
+  return {
+    mode: 'create',
+    ...(projectId ? { initialProjectId: projectId } : {}),
+    ...(title ? { initialTitle: title } : {}),
+    ...(goal ? { initialGoal: goal } : {}),
+  }
+}
 
 export function buildQuickTaskRequest(draft: QuickTaskDraft, fallbackId: string): QuickTaskCreateRequest {
   const title = draft.title.trim()
@@ -45,11 +59,11 @@ function toErrorMessage(cause: unknown): string {
   return cause instanceof Error ? cause.message : '创建任务失败'
 }
 
-export async function submitQuickTask(input: SubmitQuickTaskInput): Promise<SubmitQuickTaskResult> {
+export async function submitQuickTask<TResult>(input: SubmitQuickTaskInput<TResult>): Promise<SubmitQuickTaskResult<TResult>> {
   try {
     const request = buildQuickTaskRequest(input.draft, input.fallbackId)
-    await input.create(request)
-    return { ok: true, draft: EMPTY_QUICK_TASK_DRAFT }
+    const created = await input.create(request)
+    return { ok: true, draft: EMPTY_QUICK_TASK_DRAFT, created }
   } catch (cause) {
     return { ok: false, draft: input.draft, error: toErrorMessage(cause) }
   }

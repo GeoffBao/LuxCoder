@@ -3,6 +3,7 @@ import type { TaskAggregateSummary } from '@luxcoder/shared/tasks'
 import { resolveExpertId } from '@luxcoder/shared/experts'
 import { mergeSubtaskRows, type SpecNodeSummary, type SubtaskChildRow } from './subtask-merge'
 import { deriveDefaultKanbanColumn } from './status-column'
+import { resolveTaskBoardScope, taskMatchesBoardFilter } from './task-board-filter-model'
 import {
   DEFAULT_KANBAN_COLUMN_ID,
   type KanbanFilter,
@@ -165,11 +166,9 @@ export function buildKanbanViewModel(input: BuildKanbanViewModelInput): KanbanVi
         .filter((session): session is AgentSessionMeta & { taskSlug: string } => Boolean(session.taskSlug))
         .map((session) => [session.taskSlug, session]),
     )
-    const summaries = repositoryTasks.filter((summary) => {
-      if (summary.archivedAt !== undefined) return false
-      if (input.filter.projectId === null) return true
-      return summary.scope.kind === 'project' && summary.scope.projectId === input.filter.projectId
-    })
+    const summaries = repositoryTasks.filter((summary) =>
+      summary.archivedAt === undefined && taskMatchesBoardFilter(summary, input.filter),
+    )
     const items = summaries.map((summary) => {
       const linkedSession = (summary.orchestratorSessionId
         ? sessionsById.get(summary.orchestratorSessionId)
@@ -213,9 +212,12 @@ export function buildKanbanViewModel(input: BuildKanbanViewModelInput): KanbanVi
     return { boardItems: items, listItems: items }
   }
 
-  const sessions = input.filter.projectId === null
+  const scope = resolveTaskBoardScope(input.filter)
+  const sessions = scope.kind === 'all'
     ? topLevelSessions
-    : topLevelSessions.filter((session) => session.projectId === input.filter.projectId)
+    : scope.kind === 'workspace'
+      ? topLevelSessions.filter((session) => !session.projectId)
+      : topLevelSessions.filter((session) => session.projectId === scope.projectId)
   const items = sessions
     .map((session) => buildItem(
       session,

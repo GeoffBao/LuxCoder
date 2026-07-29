@@ -1,14 +1,12 @@
 /**
  * ProjectSettingsDialog — 项目设置弹窗
  *
- * 从看板顶部 ⚙️ 按钮触发，编辑项目元信息、默认专家和 MEMORY.md。
+ * 从侧栏项目菜单触发，编辑项目元信息和默认专家。Project Knowledge 只在项目页面维护。
  */
 
 import * as React from 'react'
 import { Save } from 'lucide-react'
 import { toast } from 'sonner'
-import { estimateTokenCount, MEMORY_TOKEN_CAP } from '@luxcoder/shared/projects'
-import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -79,24 +77,12 @@ export function ProjectSettingsDialog({
   const slug = project.slug
 
   const [settingsDraft, setSettingsDraft] = React.useState<ProjectSettingsDraft>(() => draftFromProject(project))
-  const [memory, setMemory] = React.useState('')
   const [busy, setBusy] = React.useState(false)
 
   // 重置 draft 当 project 变化
   React.useEffect(() => {
     setSettingsDraft(draftFromProject(project))
   }, [project])
-
-  // 加载 MEMORY.md
-  React.useEffect(() => {
-    if (!open || !slug) return
-    window.electronAPI.projects.readMemory(workspaceRoot, slug)
-      .then(setMemory)
-      .catch(() => setMemory(''))
-  }, [open, slug, workspaceRoot])
-
-  const memoryTokens = React.useMemo(() => estimateTokenCount(memory), [memory])
-  const memoryOverCap = memoryTokens > MEMORY_TOKEN_CAP
 
   const saveSettings = async (): Promise<void> => {
     if (!slug || !settingsDraft.name.trim()) {
@@ -110,10 +96,6 @@ export function ProjectSettingsDialog({
         slug,
         buildProjectUpdate(settingsDraft),
       )
-      // 如果有 MEMORY.md 变更，也保存
-      if (memory !== '') {
-        await window.electronAPI.projects.writeMemory(workspaceRoot, slug, memory)
-      }
       onProjectChanged(updated)
       toast.success('项目设置已保存')
       onOpenChange(false)
@@ -193,20 +175,6 @@ export function ProjectSettingsDialog({
               onChange={(e) => setSettingsDraft((d) => ({ ...d, details: e.target.value }))}
               rows={4}
             />
-          </SettingsCard>
-
-          <SettingsCard title="MEMORY.md" hint="项目内 Agent 共享的长期记忆；Agent 会自动积累，也可以手动编辑">
-            <Textarea
-              value={memory}
-              onChange={(e) => setMemory(e.target.value)}
-              rows={12}
-              className="font-mono text-xs"
-            />
-            <p className={cn('text-[11px]', memoryOverCap ? 'text-amber-600 dark:text-amber-500' : 'text-muted-foreground')}>
-              {memoryOverCap
-                ? `约 ${memoryTokens} token，超过注入上限 ${MEMORY_TOKEN_CAP}——超出部分不会被读取，建议保留最新/最重要的内容在最前面`
-                : `约 ${memoryTokens} / ${MEMORY_TOKEN_CAP} token`}
-            </p>
           </SettingsCard>
         </div>
 

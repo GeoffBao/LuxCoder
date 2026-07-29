@@ -623,3 +623,13 @@ export function readNodeOutput(workspaceRoot: string, slug: string, runId: strin
     return null;
   }
 }
+
+// ---------------------------------------------------------------------------
+// 删除
+// ---------------------------------------------------------------------------
+
+/** 永久删除 Task 目录（task.yaml + task.json + runs）。调用方应在删除前验证影响。 */
+export function deleteTaskSpec(workspaceRoot: string, slug: string): void {
+  const dir = taskDir(workspaceRoot, slug);
+  if (existsSync(dir)) rmSync(dir, { recursive: true, force: true });
+}

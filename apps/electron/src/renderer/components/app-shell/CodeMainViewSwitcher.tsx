@@ -24,7 +24,7 @@ interface SwitcherOption {
 
 const OPTIONS: SwitcherOption[] = [
   { id: 'session', label: '会话', icon: <MessageSquare size={12} /> },
-  { id: 'tasks', label: '项目看板', icon: <LayoutDashboard size={12} /> },
+  { id: 'tasks', label: '任务看板', icon: <LayoutDashboard size={12} /> },
 ]
 
 export interface CodeMainViewSwitchControlProps {

@@ -3,6 +3,7 @@ import { TaskSpecSchema } from '@luxcoder/shared/tasks/schema'
 import {
   buildQuickTaskRequest,
   submitQuickTask,
+  toTaskEditorTarget,
   type QuickTaskDraft,
 } from '../quick-task-model'
 
@@ -34,6 +35,29 @@ describe('buildQuickTaskRequest', () => {
   })
 })
 
+describe('toTaskEditorTarget', () => {
+  test('把 Composer 草稿完整带入 canonical TaskEditor', () => {
+    expect(toTaskEditorTarget({
+      title: ' 发布准备 ',
+      goal: '',
+      projectId: 'project-a',
+    })).toEqual({
+      mode: 'create',
+      initialProjectId: 'project-a',
+      initialTitle: '发布准备',
+      initialGoal: '发布准备',
+    })
+  })
+
+  test('Workspace Task 不写入 project identity', () => {
+    expect(toTaskEditorTarget({ title: '整理资料', goal: '输出清单', projectId: '' })).toEqual({
+      mode: 'create',
+      initialTitle: '整理资料',
+      initialGoal: '输出清单',
+    })
+  })
+})
+
 describe('submitQuickTask', () => {
   test('创建成功后清空草稿', async () => {
     let submittedYaml = ''
@@ -42,11 +66,16 @@ describe('submitQuickTask', () => {
       fallbackId: 'quick-42',
       create: async (request) => {
         submittedYaml = request.yaml
+        return { taskId: 'task-1', slug: 'release', orchestratorSessionId: 'session-1', valid: true as const }
       },
     })
 
     expect(TaskSpecSchema.safeParse(JSON.parse(submittedYaml)).success).toBe(true)
-    expect(result).toEqual({ ok: true, draft: { title: '', goal: '', projectId: '' } })
+    expect(result).toEqual({
+      ok: true,
+      draft: { title: '', goal: '', projectId: '' },
+      created: { taskId: 'task-1', slug: 'release', orchestratorSessionId: 'session-1', valid: true },
+    })
   })
 
   test('创建失败时保留用户输入并返回错误', async () => {

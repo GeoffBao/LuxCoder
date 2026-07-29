@@ -80,6 +80,7 @@ import {
 } from '@/atoms/tab-atoms'
 import { userProfileAtom } from '@/atoms/user-profile'
 import { selectedProjectIdAtom, serverKanbanProjectsAtom, codeMainViewAtom, pendingTaskEditorTargetAtom } from '@/atoms/project-atoms'
+import { serverTaskSummariesAtom } from '@/atoms/kanban-atoms'
 import { sessionGroupsAtom } from '@/atoms/session-groups-atoms'
 import { sessionListPreferenceAtom } from '@/atoms/session-list-preference-atoms'
 import { WorkspaceLabelManagerDialog } from '@/components/labels/WorkspaceLabelManagerDialog'
@@ -684,6 +685,14 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   const skillsCount = capabilities?.skills.length ?? 0
   const skillsUpdateCount = capabilities?.skills.filter((s) => s.hasUpdate).length ?? 0
   const [expertsCount, setExpertsCount] = React.useState(0)
+
+  // 任务看板未完成任务数（仅统计非终态）
+  const taskSummaries = useAtomValue(serverTaskSummariesAtom)
+  const activeTaskCount = React.useMemo(() => {
+    if (!taskSummaries) return 0
+    return taskSummaries.filter((t) => t.workflow !== 'done' && t.workflow !== 'cancelled' && !t.archivedAt).length
+  }, [taskSummaries])
+
   const capabilitiesVersion = useAtomValue(workspaceCapabilitiesVersionAtom)
 
   // Tab 状态
@@ -1014,7 +1023,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     setActiveView('agent-experts')
   }, [setActiveView])
 
-  /** 打开唯一正式项目看板；重复点击保持当前页面，不隐式退回会话。 */
+  /** 打开唯一正式任务看板；重复点击保持当前页面，不隐式退回会话。 */
   const handleOpenTaskBoard = React.useCallback((): void => {
     if (codeMainView === 'tasks' && activeView === 'conversations') return
     setAutomationForm({ open: false, draft: null })
@@ -1288,7 +1297,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       setKanbanProjects((prev) => [project, ...prev.filter((existing) => existing.id !== project.id)])
       setCreateProjectOpen(false)
       toast.success('项目已创建')
-      // 新建后进入唯一项目看板并按该 Project 筛选。
+      // 新建后进入唯一任务看板并按该 Project 筛选。
       setSelectedProjectId(project.id)
       setCodeMainView('tasks')
       setActiveView('conversations')
@@ -1349,7 +1358,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     store.set(labelManagerOpenAtom, true)
   }, [store, workspaceRoot])
 
-  /** Project 行"查看任务"进入唯一项目看板并预设 Project facet。 */
+  /** Project 行"查看任务"进入唯一任务看板并预设 Project facet。 */
   const handleOpenProjectDetail = React.useCallback((projectId: string): void => {
     setSelectedProjectId(projectId)
     setCodeMainView('tasks')
@@ -2782,7 +2791,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  aria-label="项目看板"
+                  aria-label={`任务看板，${activeTaskCount} 个未完成`}
                   onClick={handleOpenTaskBoard}
                   className={cn(
                     'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag border',
@@ -2792,9 +2801,21 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                   )}
                 >
                   <LayoutDashboard size={16} />
+                  {activeTaskCount > 0 && (
+                    <span
+                      className={cn(
+                        'absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-medium tabular-nums',
+                        codeMainView === 'tasks' && activeView === 'conversations'
+                          ? 'bg-primary-foreground text-primary'
+                          : 'bg-primary text-primary-foreground',
+                      )}
+                    >
+                      {formatSidebarModuleCount(activeTaskCount)}
+                    </span>
+                  )}
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="right">项目看板</TooltipContent>
+              <TooltipContent side="right">任务看板（{activeTaskCount} 个未完成）</TooltipContent>
             </Tooltip>
           )}
 
@@ -3120,15 +3141,17 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         </div>
       )}
 
-      {/* 项目看板：Workspace 级正式工作项入口，位于 Agent 专家下方。 */}
+      {/* 任务看板：Workspace 级正式工作项入口，位于 Agent 专家下方。 */}
       {mode === 'agent' && (
         <div className="sidebar-module-zone px-3 pb-0.5">
           <SidebarModule
             icon={LayoutDashboard}
-            title="项目看板"
+            title="任务看板"
+            count={activeTaskCount}
+            badgeTone="accent"
             active={codeMainView === 'tasks' && activeView === 'conversations'}
             onClick={handleOpenTaskBoard}
-            ariaLabel="Task 看板"
+            ariaLabel={`Task 看板，${activeTaskCount} 个未完成`}
           />
         </div>
       )}

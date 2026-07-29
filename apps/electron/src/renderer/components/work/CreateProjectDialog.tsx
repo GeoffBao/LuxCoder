@@ -41,12 +41,13 @@ export function CreateProjectDialog({
   const canSubmit = draft.name.trim().length > 0 && !busy
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>新建项目</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3 py-2">
+    <Dialog open={open} onOpenChange={(next) => { if (!busy || next) onOpenChange(next) }}>
+      <DialogContent className="sm:max-w-md" aria-busy={busy}>
+        <form onSubmit={(event) => { event.preventDefault(); if (canSubmit) onSubmit(buildCreateProjectInput(draft)) }}>
+          <DialogHeader>
+            <DialogTitle>新建项目</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
           <label className="block space-y-1.5 text-xs font-medium">
             名称
             <Input
@@ -79,18 +80,16 @@ export function CreateProjectDialog({
               onChange={(color) => setDraft((d) => ({ ...d, color }))}
             />
           </div>
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
-            取消
-          </Button>
-          <Button
-            disabled={!canSubmit}
-            onClick={() => onSubmit(buildCreateProjectInput(draft))}
-          >
-            创建
-          </Button>
-        </DialogFooter>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
+              取消
+            </Button>
+            <Button type="submit" disabled={!canSubmit}>
+              {busy ? '创建中…' : '创建'}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   )

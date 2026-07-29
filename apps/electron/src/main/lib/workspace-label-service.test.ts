@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import {
   WorkspaceLabelService,
+  assertValidWorkspaceLabelIds,
   loadWorkspaceLabelConfig,
   workspaceLabelsConfigPath,
 } from './workspace-label-service'
@@ -69,6 +70,26 @@ describe('WorkspaceLabelService', () => {
     expect(archived).toEqual(expect.objectContaining({ id: LABEL_ID, archivedAt: 3 }))
     expect(service.list()).toEqual([])
     expect(service.list({ includeArchived: true })).toEqual([archived])
+  })
+
+  test('assignment validation accepts active local labels and rejects archived, unknown, or cross-workspace IDs', () => {
+    const rootA = tempRoot()
+    const rootB = tempRoot()
+    const active = new WorkspaceLabelService(rootA, { now: () => 10, generateId: () => LABEL_ID }).create({ name: 'Active' })
+    const archived = new WorkspaceLabelService(rootA, {
+      now: () => 20,
+      generateId: () => '118f47a8-6c26-7a13-9bf6-7c8d4f2e4c73',
+    }).create({ name: 'Archived' })
+    new WorkspaceLabelService(rootA).archive(archived.id)
+    const foreign = new WorkspaceLabelService(rootB, {
+      now: () => 30,
+      generateId: () => '218f47a8-6c26-7a13-9bf6-7c8d4f2e4c74',
+    }).create({ name: 'Foreign' })
+
+    expect(assertValidWorkspaceLabelIds(rootA, [active.id, active.id])).toEqual([active.id])
+    expect(() => assertValidWorkspaceLabelIds(rootA, [archived.id])).toThrow(/归档/)
+    expect(() => assertValidWorkspaceLabelIds(rootA, ['unknown'])).toThrow(/不存在/)
+    expect(() => assertValidWorkspaceLabelIds(rootA, [foreign.id])).toThrow(/不存在/)
   })
 
   test('invalid or future config is never overwritten by a mutation', () => {

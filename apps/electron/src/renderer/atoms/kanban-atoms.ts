@@ -12,7 +12,7 @@ import {
   type TeambitionBinding,
 } from '@/components/app-shell/kanban/types'
 import { agentModelIdAtom, agentStreamingStatesAtom } from './agent-atoms'
-import { selectedProjectIdAtom, serverKanbanProjectsAtom } from './project-atoms'
+import { serverKanbanProjectsAtom, taskBoardScopeAtom } from './project-atoms'
 
 /** 服务端会话快照，始终保持原始 AgentSessionMeta。 */
 export const serverKanbanSessionsAtom = atom<AgentSessionMeta[]>([])
@@ -58,32 +58,19 @@ export const kanbanItemsAtom = atom<KanbanItem[]>((get) => {
     runs: get(serverKanbanRunsAtom),
     bindings: get(serverTeambitionBindingsAtom),
     tasks: get(serverTaskSummariesAtom),
-    filter: { projectId: get(selectedProjectIdAtom) },
+    filter: {
+      scope: get(taskBoardScopeAtom),
+      workflow: get(taskBoardWorkflowFilterAtom),
+      labelIds: get(taskBoardLabelFilterAtom),
+      includeUnlabeled: get(taskBoardIncludeUnlabeledAtom),
+    },
     specNodesBySlug: get(kanbanSpecNodesAtom),
     expertIdsBySlug: get(kanbanTaskExpertIdsAtom),
     fallbackModel: get(agentModelIdAtom) ?? '',
   }).listItems
 
-  // Task board workflow/label filters: applied after model projection, before streaming injection
-  const workflowFilter = get(taskBoardWorkflowFilterAtom)
-  const labelFilter = get(taskBoardLabelFilterAtom)
-  const includeUnlabeled = get(taskBoardIncludeUnlabeledAtom)
-  const streamFiltered = items
-    .filter((item) => {
-      if (workflowFilter !== 'all' && item.task?.workflow !== workflowFilter) return false
-      if (labelFilter.length === 0) return true
-      if (item.task) {
-        const matched = item.task.labelIds?.some((id) => labelFilter.includes(id)) === true
-        if (matched) return true
-        if (includeUnlabeled && (item.task.labelIds?.length ?? 0) === 0) return true
-        return false
-      }
-      // Legacy session items without task: always pass through when filter is set
-      return true
-    })
-
   // 流式 running 覆盖到卡片：只认真实 stream，避免陈旧 sessionStatus 假 live
-  return streamFiltered.map((item) => {
+  return items.map((item) => {
     const childIds = item.subtasks
       .map((subtask) => subtask.sessionId)
       .filter((id): id is string => Boolean(id))

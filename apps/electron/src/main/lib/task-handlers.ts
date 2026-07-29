@@ -4,7 +4,7 @@
  * 这里是 Electron 主进程与本地文件存储、TaskRunner、Agent 编排器之间的薄桥接层。
  */
 import { BrowserWindow, ipcMain } from 'electron'
-import { basename, join } from 'node:path'
+import { basename, join, resolve } from 'node:path'
 import {
   LABEL_IPC_CHANNELS,
   PROJECT_IPC_CHANNELS,
@@ -35,12 +35,13 @@ import {
   listResumableRuns,
   listTaskSlugs,
   loadTaskSpec,
+  deleteTaskSpec,
   parseTaskYaml,
   readRunLog,
   readRunSpecSnapshot,
 } from '@luxcoder/shared/tasks/storage'
 import { createLuxCoderConductorSessionHost, type LuxCoderConductorSessionHost } from './conductor-session-host'
-import { deleteAgentSession, getAgentSessionMeta, updateAgentSessionMeta } from './agent-session-manager'
+import { deleteAgentSession, getAgentSessionMeta, listAgentSessions, updateAgentSessionMeta } from './agent-session-manager'
 import { createSessionGroup, deleteSessionGroup, listSessionGroups, renameSessionGroup } from './agent-session-group-service'
 import { isAgentSessionActive } from './agent-service'
 import {
@@ -52,6 +53,7 @@ import { getAgentWorkspacePath, getExpertsDir } from './config-paths'
 import { getExpert } from './expert-service'
 import { loadExpertWorkspaceBinding } from './expert-binding-service'
 import { projectRepository } from './project-repository'
+import { analyzeProjectDeleteImpact, analyzeTaskDeleteImpact } from './project-impact-service'
 import {
   openOrCreateProjectForPath,
   relocateProjectWorkingDirectory,
@@ -69,7 +71,7 @@ import {
   type TaskWorkingDirectoryResult,
 } from './task-working-directory'
 import { TeambitionService, type ClaimTeambitionTaskInput, type TeambitionRemoteTask } from './teambition-service'
-import { WorkspaceLabelService } from './workspace-label-service'
+import { WorkspaceLabelService, assertValidWorkspaceLabelIds } from './workspace-label-service'
 
 const GENERATE_TIMEOUT_MS = 180_000
 
@@ -185,6 +187,28 @@ async function getRunnerFor(workspaceRoot: string, workspaceId: string): Promise
 
 function workspaceIdFor(workspaceRoot: string): string {
   return basename(workspaceRoot)
+}
+
+type WorkspaceRootResolver = (workspaceId: string) => string | undefined
+
+function resolveKnownWorkspaceRoot(workspaceId: string): string | undefined {
+  const workspace = getAgentWorkspace(workspaceId)
+  return workspace ? getAgentWorkspacePath(workspace.slug) : undefined
+}
+
+export function validateSessionLabelAssignment(
+  workspaceRoot: string,
+  session: AgentSessionMeta,
+  labelIds: readonly string[],
+  resolveWorkspaceRoot: WorkspaceRootResolver = resolveKnownWorkspaceRoot,
+): string[] {
+  if (session.workspaceId) {
+    const associatedRoot = resolveWorkspaceRoot(session.workspaceId)
+    if (associatedRoot && resolve(associatedRoot) !== resolve(workspaceRoot)) {
+      throw new Error(`Session ${session.id} 不属于当前 Workspace`)
+    }
+  }
+  return assertValidWorkspaceLabelIds(workspaceRoot, labelIds)
 }
 
 function sendToMainWindow(channel: string, payload: unknown): void {
@@ -506,8 +530,24 @@ export function registerTaskHandlers(window: BrowserWindow): void {
   })
 
   ipcMain.handle(PROJECT_IPC_CHANNELS.DELETE, (_event, workspaceRoot: string, slug: string) => {
+    const project = projectRepository.getProjectAtRoot(workspaceRoot, slug)
+    if (!project) throw new Error(`项目不存在: ${slug}`)
+    if (!project.config.archivedAt) throw new Error('永久删除前必须先归档项目')
+
+    // 在执行删除的同一主进程 command 内重新分析，不能信任 Renderer 中可能过期的预览。
+    const impact = analyzeProjectDeleteImpact(workspaceRoot, project.config, listAgentSessions())
+    if (!impact.canPurge) {
+      throw new Error(`项目仍有关联数据，不能永久删除：${impact.blockers.join('；')}`)
+    }
+
     projectRepository.deleteProjectAtRoot(workspaceRoot, slug)
     broadcastProjectsChanged(workspaceRoot, workspaceIdFor(workspaceRoot))
+  })
+
+  ipcMain.handle(PROJECT_IPC_CHANNELS.ANALYZE_DELETE_IMPACT, (_event, workspaceRoot: string, idOrSlug: string) => {
+    const project = projectRepository.getProjectAtRoot(workspaceRoot, idOrSlug)
+    if (!project) throw new Error(`项目不存在: ${idOrSlug}`)
+    return analyzeProjectDeleteImpact(workspaceRoot, project.config, listAgentSessions())
   })
 
   ipcMain.handle(PROJECT_IPC_CHANNELS.LIST_ASSETS, (_event, workspaceRoot: string, slug: string) => {
@@ -721,7 +761,27 @@ export function registerTaskHandlers(window: BrowserWindow): void {
     patch: TaskMetadataPatch,
   ) => {
     const repository = new TaskRepository({ resolveWorkspaceRoot: () => workspaceRoot })
-    return repository.updateTaskMetadata(workspaceId, taskId, patch)
+    const validatedPatch = patch.labelIds === undefined
+      ? patch
+      : { ...patch, labelIds: assertValidWorkspaceLabelIds(workspaceRoot, patch.labelIds) }
+    return repository.updateTaskMetadata(workspaceId, taskId, validatedPatch)
+  })
+
+  ipcMain.handle(TASK_IPC_CHANNELS.ANALYZE_DELETE_IMPACT, (_event, workspaceRoot: string, slug: string) => {
+    const loaded = loadTaskSpec(workspaceRoot, slug)
+    if (!loaded?.spec) throw new Error(`Task 不存在: ${slug}`)
+    return analyzeTaskDeleteImpact(workspaceRoot, slug, listAgentSessions())
+  })
+
+  ipcMain.handle(TASK_IPC_CHANNELS.DELETE, (_event, workspaceRoot: string, _workspaceId: string, slug: string) => {
+    const loaded = loadTaskSpec(workspaceRoot, slug)
+    if (!loaded?.spec) throw new Error(`Task 不存在: ${slug}`)
+    // 删除前重新验证影响分析
+    const impact = analyzeTaskDeleteImpact(workspaceRoot, slug, listAgentSessions())
+    if (impact.activeRunCount > 0) {
+      throw new Error(`仍有 ${impact.activeRunCount} 个活跃 Run，请先停止运行`)
+    }
+    deleteTaskSpec(workspaceRoot, slug)
   })
 
   ipcMain.handle(TASK_IPC_CHANNELS.GET_RESULTS, (_event, workspaceRoot: string, slug: string, runId?: string) => {
@@ -768,16 +828,20 @@ export function registerTaskHandlers(window: BrowserWindow): void {
     return new WorkspaceLabelService(workspaceRoot).archive(labelId)
   })
 
-  ipcMain.handle(LABEL_IPC_CHANNELS.SET_SESSION_LABELS, (_event, _workspaceRoot: string, sessionId: string, labelIds: string[]) => {
-    return updateAgentSessionMeta(sessionId, { labelIds })
+  ipcMain.handle(LABEL_IPC_CHANNELS.SET_SESSION_LABELS, (_event, workspaceRoot: string, sessionId: string, labelIds: string[]) => {
+    const session = getAgentSessionMeta(sessionId)
+    if (!session) throw new Error(`Agent 会话不存在: ${sessionId}`)
+    const validatedLabelIds = validateSessionLabelAssignment(workspaceRoot, session, labelIds)
+    return updateAgentSessionMeta(sessionId, { labelIds: validatedLabelIds })
   })
 
   ipcMain.handle(LABEL_IPC_CHANNELS.SET_TASK_LABELS, (_event, workspaceRoot: string, workspaceId: string, taskId: string, labelIds: string[]) => {
+    const validatedLabelIds = assertValidWorkspaceLabelIds(workspaceRoot, labelIds)
     const repository = new TaskRepository({ resolveWorkspaceRoot: () => workspaceRoot })
     const aggregate = repository.getTaskAggregateById(workspaceId, taskId)
     if (!aggregate?.record) throw new Error(`Task ${taskId} 缺少稳定 TaskRecord，不能设置 labels`)
     return repository.updateTaskMetadata(workspaceId, taskId, {
-      labelIds,
+      labelIds: validatedLabelIds,
       expectedRevision: aggregate.record.revision,
     })
   })

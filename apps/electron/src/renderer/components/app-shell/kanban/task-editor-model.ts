@@ -45,8 +45,8 @@ export function createTaskEditorDraft(
   // 直接用卡片当前标题/模型起草——即"升级"这个普通会话的起点。
   const promoting = target.mode === 'edit' && !target.taskSlug
   return {
-    title: promoting ? target.initialTitle ?? '' : '',
-    goal: '',
+    title: target.mode === 'create' ? target.initialTitle ?? '' : promoting ? target.initialTitle ?? '' : '',
+    goal: target.mode === 'create' ? target.initialGoal ?? '' : '',
     projectId: target.mode === 'create' ? target.initialProjectId ?? '' : '',
     orchModel: (promoting && target.initialModel) ? target.initialModel : defaultModel,
     permissionMode: 'allow-all',

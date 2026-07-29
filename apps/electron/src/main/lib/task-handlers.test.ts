@@ -2,7 +2,8 @@ import { describe, expect, mock, test } from 'bun:test'
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { PROJECT_IPC_CHANNELS } from '@luxcoder/shared/channels'
+import { LABEL_IPC_CHANNELS, PROJECT_IPC_CHANNELS, TASK_IPC_CHANNELS } from '@luxcoder/shared/channels'
+import { saveTaskSpec } from '@luxcoder/shared/tasks/storage'
 import type { BrowserWindow as ElectronBrowserWindow } from 'electron'
 
 type RegisteredHandler = (...args: unknown[]) => unknown
@@ -135,9 +136,15 @@ describe('task handler Kanban payloads', () => {
     registerHandlers(windowStub)
     const createHandler = registeredHandlers.get(PROJECT_IPC_CHANNELS.CREATE)
     const updateHandler = registeredHandlers.get(PROJECT_IPC_CHANNELS.UPDATE)
+    const projectDeleteHandler = registeredHandlers.get(PROJECT_IPC_CHANNELS.DELETE)
+    const projectImpactHandler = registeredHandlers.get(PROJECT_IPC_CHANNELS.ANALYZE_DELETE_IMPACT)
+    const taskImpactHandler = registeredHandlers.get(TASK_IPC_CHANNELS.ANALYZE_DELETE_IMPACT)
     expect(createHandler).toBeInstanceOf(Function)
     expect(updateHandler).toBeInstanceOf(Function)
-    if (!createHandler || !updateHandler) return
+    expect(projectDeleteHandler).toBeInstanceOf(Function)
+    expect(projectImpactHandler).toBeInstanceOf(Function)
+    expect(taskImpactHandler).toBeInstanceOf(Function)
+    if (!createHandler || !updateHandler || !projectDeleteHandler || !projectImpactHandler || !taskImpactHandler) return
 
     const workspaceRoot = mkdtempSync(join(tmpdir(), 'luxcoder-project-handler-'))
     try {
@@ -157,6 +164,83 @@ describe('task handler Kanban payloads', () => {
         config: expect.objectContaining({ description: '桌面端' }),
         workspaceRootPath: workspaceRoot,
       }))
+      expect(projectImpactHandler(undefined, workspaceRoot, slug)).toEqual(expect.objectContaining({
+        taskCount: 0,
+        activeRunCount: 0,
+      }))
+      expect(() => projectDeleteHandler(undefined, workspaceRoot, slug)).toThrow(/先归档/)
+      updateHandler(undefined, workspaceRoot, slug, { archivedAt: Date.now() })
+      expect(() => projectDeleteHandler(undefined, workspaceRoot, slug)).not.toThrow()
+
+      const secondCreated = createHandler(undefined, workspaceRoot, { name: '含引用项目' })
+      if (typeof secondCreated !== 'object' || secondCreated === null) throw new Error('create handler 未返回第二个项目')
+      const secondConfig = Reflect.get(secondCreated, 'config')
+      if (typeof secondConfig !== 'object' || secondConfig === null) throw new Error('create handler 未返回第二个 config')
+      const secondSlug = Reflect.get(secondConfig, 'slug') as string
+      const secondId = Reflect.get(secondConfig, 'id') as string
+      updateHandler(undefined, workspaceRoot, secondSlug, { archivedAt: Date.now() })
+
+      saveTaskSpec(workspaceRoot, {
+        id: 'referenced-task',
+        title: 'Referenced task',
+        goal: 'Keep project reference safe',
+        project: secondId,
+        runner: 'conduct',
+        nodes: [{ id: 'node', kind: 'session', prompt: 'test' }],
+      })
+      expect(() => projectDeleteHandler(undefined, workspaceRoot, secondSlug)).toThrow(/仍有关联/)
+
+      saveTaskSpec(workspaceRoot, {
+        id: 'impact-task',
+        title: 'Impact task',
+        goal: 'Test impact IPC',
+        runner: 'conduct',
+        nodes: [{ id: 'node', kind: 'session', prompt: 'test' }],
+      })
+      expect(taskImpactHandler(undefined, workspaceRoot, 'impact-task')).toEqual(expect.objectContaining({
+        runCount: 0,
+        sessionCount: 0,
+      }))
+    } finally {
+      rmSync(workspaceRoot, { recursive: true, force: true })
+    }
+  })
+
+  test('session label assignment rejects a workspace mismatch before persistence', () => {
+    const validateAssignment = Reflect.get(taskHandlers, 'validateSessionLabelAssignment')
+    expect(validateAssignment).toBeInstanceOf(Function)
+    if (typeof validateAssignment !== 'function') return
+
+    expect(() => validateAssignment('/workspaces/alpha', {
+      id: 'session-1',
+      title: 'Session',
+      workspaceId: 'workspace-beta',
+      createdAt: 1,
+      updatedAt: 1,
+    }, [], (workspaceId: string) => workspaceId === 'workspace-beta' ? '/workspaces/beta' : undefined)).toThrow(/Workspace/)
+
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'luxcoder-session-label-handler-'))
+    try {
+      expect(() => validateAssignment(workspaceRoot, {
+        id: 'session-2',
+        title: 'Session',
+        createdAt: 1,
+        updatedAt: 1,
+      }, ['unknown'])).toThrow(/不存在/)
+    } finally {
+      rmSync(workspaceRoot, { recursive: true, force: true })
+    }
+  })
+
+  test('label persistence handlers validate IDs before calling persistence', () => {
+    expect(registeredHandlers.get(LABEL_IPC_CHANNELS.SET_SESSION_LABELS)).toBeInstanceOf(Function)
+    const taskHandler = registeredHandlers.get(LABEL_IPC_CHANNELS.SET_TASK_LABELS)
+    expect(taskHandler).toBeInstanceOf(Function)
+    if (!taskHandler) return
+
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'luxcoder-task-label-handler-'))
+    try {
+      expect(() => taskHandler(undefined, workspaceRoot, 'workspace-1', 'task-1', ['unknown'])).toThrow(/不存在/)
     } finally {
       rmSync(workspaceRoot, { recursive: true, force: true })
     }

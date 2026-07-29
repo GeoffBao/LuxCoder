@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import type { AgentSessionMeta } from '@luxcoder/shared'
 import {
+  activeBoardItems,
   buildKanbanBoardModel,
   consumeFirstNotification,
   openKanbanItem,
@@ -24,13 +25,27 @@ function createItem(id: string, columnId: string): KanbanItem {
   }
 }
 
+describe('activeBoardItems', () => {
+  test('默认活动看板排除 cancelled，显式筛选 cancelled 时才显示', () => {
+    const active = createItem('active', 'todo')
+    const cancelled = {
+      ...createItem('cancelled', 'done'),
+      task: { workflow: 'cancelled', legacyIdentity: false },
+    } as KanbanItem
+
+    expect(activeBoardItems([active, cancelled], 'all').map((item) => item.id)).toEqual(['active'])
+    expect(activeBoardItems([cancelled], 'cancelled').map((item) => item.id)).toEqual(['cancelled'])
+  })
+})
+
 describe('buildKanbanBoardModel', () => {
-  test('默认提供待办、进行中、已完成三列（无收件箱）', () => {
+  test('默认提供待办、进行中、待验收、已完成四列（取消态不占活动列）', () => {
     const model = buildKanbanBoardModel([])
 
     expect(model.columns.map((column) => column.id)).toEqual([
       'todo',
       'in-progress',
+      'needs-review',
       'done',
     ])
   })
@@ -38,7 +53,7 @@ describe('buildKanbanBoardModel', () => {
   test('历史 inbox 卡片自动归入第一列（存量迁移）', () => {
     const model = buildKanbanBoardModel([createItem('legacy', 'inbox')])
 
-    expect(model.columns.map((column) => column.id)).toEqual(['todo', 'in-progress', 'done'])
+    expect(model.columns.map((column) => column.id)).toEqual(['todo', 'in-progress', 'needs-review', 'done'])
     expect(model.columns[0]?.items.map((item) => item.id)).toEqual(['legacy'])
   })
 
