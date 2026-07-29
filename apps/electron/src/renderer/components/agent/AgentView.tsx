@@ -27,6 +27,7 @@ import { PermissionModeSelector } from './PermissionModeSelector'
 import { AskUserBanner } from './AskUserBanner'
 import { ExitPlanModeBanner } from './ExitPlanModeBanner'
 import { DraftProjectPicker } from './DraftProjectPicker'
+import { DraftGitContextPicker, type DraftGitContextSelection } from './DraftGitContextPicker'
 import { PlanModeDashedBorder } from './PlanModeDashedBorder'
 import { ModelSelector } from '@/components/chat/ModelSelector'
 import { AttachmentPreviewItem } from '@/components/chat/AttachmentPreviewItem'
@@ -1885,6 +1886,49 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
   if (computedSelectedModel) stableSelectedModelRef.current = computedSelectedModel
   const externalSelectedModel = computedSelectedModel ?? stableSelectedModelRef.current
 
+  const [draftGitContextSelection, setDraftGitContextSelection] = React.useState<DraftGitContextSelection | null>(null)
+  const isEmptySession = messagesLoaded && persistedSDKMessages.length === 0 && liveMessages.length === 0
+  const canPrepareDraftGitContext = isDraftSession || isEmptySession
+
+  const handleDraftGitContextChange = React.useCallback((selection: DraftGitContextSelection | null): void => {
+    setDraftGitContextSelection(selection)
+  }, [])
+
+  const prepareDraftGitContextForSend = React.useCallback(async (additionalDirectoriesForRun: Set<string>): Promise<boolean> => {
+    if (!canPrepareDraftGitContext || !draftGitContextSelection) return true
+    try {
+      const result = await window.electronAPI.prepareSessionGitContext({
+        sessionId,
+        repoPath: draftGitContextSelection.repoPath,
+        executionMode: draftGitContextSelection.executionMode,
+        branch: draftGitContextSelection.branch,
+        newBranchName: draftGitContextSelection.newBranchName,
+        slug: draftGitContextSelection.slug,
+      })
+      if (!result) return true
+      additionalDirectoriesForRun.add(result.context.workingDirectory)
+      setAgentSessions((prev) => prev.map((session) => (
+        session.id === sessionId
+          ? {
+              ...session,
+              workingDirectory: result.context.workingDirectory,
+              gitRepoPath: result.context.repoPath,
+              gitBranch: result.context.branch,
+              gitExecutionMode: result.context.executionMode,
+              gitWorktreePath: result.context.worktreePath,
+              gitBaseRef: result.context.baseRef,
+              updatedAt: Date.now(),
+            }
+          : session
+      )))
+      return true
+    } catch (error) {
+      console.error('[AgentView] 准备 Git 上下文失败:', error)
+      toast.error('准备 Git 上下文失败', { description: getErrorMessage(error) })
+      return false
+    }
+  }, [canPrepareDraftGitContext, draftGitContextSelection, sessionId, setAgentSessions])
+
   /** 发送消息 */
   const handleSend = React.useCallback(async (overrideText?: string): Promise<void> => {
     const text = (overrideText ?? inputContent).trim()
@@ -1984,6 +2028,9 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
       })
       return
     }
+
+    const gitContextReady = await prepareDraftGitContextForSend(additionalDirectoriesForRun)
+    if (!gitContextReady) return
 
     // 清除当前会话的错误消息
     setAgentStreamErrors((prev) => {
@@ -2095,7 +2142,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         return map
       })
     })
-  }, [inputContent, createBaseAdditionalDirectories, preparePendingFilesForSend, restoreQueuedAttachmentsToPending, sessionId, agentChannelId, agentModelId, sessionAgentRuntime, agentChannelProvider, currentWorkspaceId, streaming, backgroundWaiting, suggestion, hasAvailableModel, store, consumeQuotedSelection, setStreamingStates, setAgentStreamErrors, setPromptSuggestions, setInputContent, setLiveMessagesMap, permissionMode, messagesLoaded, setQueuedMessages, setQuotedSelectionMap, sendPlainTextAgentMessage])
+  }, [inputContent, createBaseAdditionalDirectories, preparePendingFilesForSend, prepareDraftGitContextForSend, restoreQueuedAttachmentsToPending, sessionId, agentChannelId, agentModelId, sessionAgentRuntime, agentChannelProvider, currentWorkspaceId, streaming, backgroundWaiting, suggestion, hasAvailableModel, store, consumeQuotedSelection, setStreamingStates, setAgentStreamErrors, setPromptSuggestions, setInputContent, setLiveMessagesMap, permissionMode, messagesLoaded, setQueuedMessages, setQuotedSelectionMap, sendPlainTextAgentMessage])
 
   /** 停止生成 */
   const handleStop = React.useCallback((): void => {
@@ -2752,8 +2799,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
   )
 
   // 冷启动重开旧 draft 会话时，内存态 draftSessionIds 已丢失（不跨进程持久化）；
-  // 用"消息为空"兜底识别，避免刷新后项目选择器消失
-  const isEmptySession = messagesLoaded && persistedSDKMessages.length === 0 && liveMessages.length === 0
+  // isEmptySession 已在发送逻辑前提前派生，供 Project/Git 选择器和首发准备共用。
 
   return (
     <>
@@ -2811,6 +2857,12 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
               projectId={sessionMeta?.projectId}
               isDraft={isDraftSession || isEmptySession}
               className="px-3 pt-2.5"
+            />
+            <DraftGitContextPicker
+              sessionId={sessionId}
+              projectId={sessionMeta?.projectId}
+              isDraft={isDraftSession || isEmptySession}
+              onSelectionChange={handleDraftGitContextChange}
             />
             {/* 无 Agent 渠道或无可用模型提示 */}
             {(!agentChannelId || !hasAvailableModel) && (

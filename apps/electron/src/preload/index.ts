@@ -12,6 +12,10 @@ import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, SCRATCH_PAD_IPC_CHANN
 import type {
   RuntimeStatus,
   GitRepoStatus,
+  GitBranchInfo,
+  ListGitBranchesInput,
+  PrepareSessionGitContextInput,
+  PrepareSessionGitContextResult,
   Channel,
   ChannelCreateInput,
   ChannelUpdateInput,
@@ -322,6 +326,10 @@ export interface ElectronAPI {
   getDiffContents: (input: import('@luxcoder/shared').GetFileDiffInput) => Promise<{ oldContent: string; newContent: string } | null>
   /** 列出 Git Worktree */
   listWorktrees: (repoPath: string, sessionId: string) => Promise<import('@luxcoder/shared').WorktreeInfo[]>
+  /** 列出新 Agent 会话可选择的 Git 分支 */
+  listGitBranches: (input: ListGitBranchesInput) => Promise<GitBranchInfo[]>
+  /** 准备新 Agent 会话 Git 上下文（Local checkout 或 Worktree 创建） */
+  prepareSessionGitContext: (input: PrepareSessionGitContextInput) => Promise<PrepareSessionGitContextResult | null>
   /** 获取 Worktree 相对于基准分支的全量变更 */
   getWorktreeChanges: (worktreePath: string, baseBranch: string, sessionId: string) => Promise<import('@luxcoder/shared').UnstagedChangesResult>
   /** 在独立窗口打开当前文件预览 */
@@ -1393,6 +1401,14 @@ const electronAPI: ElectronAPI = {
 
   listWorktrees: (repoPath: string, sessionId: string) => {
     return ipcRenderer.invoke(IPC_CHANNELS.LIST_WORKTREES, repoPath, sessionId)
+  },
+
+  listGitBranches: (input: ListGitBranchesInput) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.LIST_GIT_BRANCHES, input)
+  },
+
+  prepareSessionGitContext: (input: PrepareSessionGitContextInput) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.PREPARE_SESSION_GIT_CONTEXT, input)
   },
 
   getWorktreeChanges: (worktreePath: string, baseBranch: string, sessionId: string) => {

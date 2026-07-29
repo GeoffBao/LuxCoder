@@ -268,6 +268,35 @@ describe('Agent 会话 runtime 元数据', () => {
     expect(manager.getAgentSessionMeta(session.id)?.messageCount).toBe(3)
   })
 
+  test('Given 新会话准备 Git Worktree 上下文 When 更新元数据 Then 持久化完整执行上下文', () => {
+    const session = manager.createAgentSession('Git 上下文会话')
+
+    const updated = manager.updateAgentSessionMeta(session.id, {
+      workingDirectory: '/repo/.worktrees/git-context-session',
+      gitRepoPath: '/repo',
+      gitBranch: 'main',
+      gitExecutionMode: 'worktree',
+      gitWorktreePath: '/repo/.worktrees/git-context-session',
+      gitBaseRef: 'main',
+    })
+
+    expect(updated).toMatchObject({
+      workingDirectory: '/repo/.worktrees/git-context-session',
+      gitRepoPath: '/repo',
+      gitBranch: 'main',
+      gitExecutionMode: 'worktree',
+      gitWorktreePath: '/repo/.worktrees/git-context-session',
+      gitBaseRef: 'main',
+    })
+    expect(manager.getAgentSessionMeta(session.id)).toMatchObject({
+      gitRepoPath: '/repo',
+      gitBranch: 'main',
+      gitExecutionMode: 'worktree',
+      gitWorktreePath: '/repo/.worktrees/git-context-session',
+      gitBaseRef: 'main',
+    })
+  })
+
   test('Given 空数组 When appendSDKMessages Then 直接返回不改动 messageCount', () => {
     const session = manager.createAgentSession('空追加会话')
 

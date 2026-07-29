@@ -779,8 +779,18 @@ export interface AgentSessionMeta {
   projectId?: string
   /** 用户自建分组 ID（SessionGroup.id），与 projectId 独立，用于侧边栏「分组方式：自定义分组」 */
   customGroupId?: string
-  /** 项目继承的工作目录绝对路径（Conductor / additionalDirectories） */
+  /** 项目继承的工作目录绝对路径（Conductor / additionalDirectories）；Git Worktree 模式下为 worktree 路径 */
   workingDirectory?: string
+  /** Git 会话源仓库根目录；用于重启后恢复 Branch/Worktree UI 语义 */
+  gitRepoPath?: string
+  /** Git 会话起始/绑定分支 */
+  gitBranch?: string
+  /** Git 会话执行位置：local 表示项目主目录，worktree 表示隔离 worktree */
+  gitExecutionMode?: import('./runtime').GitExecutionMode
+  /** LuxCoder 为该会话准备或复用的 worktree 路径 */
+  gitWorktreePath?: string
+  /** Worktree 的起始基线 ref；通常等于所选 branch */
+  gitBaseRef?: string
   /** 看板列 ID（'todo' | 'in-progress' | 'done'），与 sessionStatus 独立 */
   kanbanColumn?: string
   /** Tasks Conductor: 所属 task spec slug */

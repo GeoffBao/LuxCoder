@@ -27,6 +27,10 @@ import type {
 import type {
   RuntimeStatus,
   GitRepoStatus,
+  GitBranchInfo,
+  ListGitBranchesInput,
+  PrepareSessionGitContextInput,
+  PrepareSessionGitContextResult,
   Channel,
   ChannelCreateInput,
   ChannelUpdateInput,
@@ -119,6 +123,7 @@ import type { ExpertManifest, ExpertPackage } from '@luxcoder/shared/experts'
 import type { UserProfile, AppSettings } from '../types'
 import { getRuntimeStatus, getGitRepoStatus, reinitializeRuntime } from './lib/runtime-init'
 import { getUnstagedChanges, getFileDiff, getUntrackedContent, revertFile, getDiffContents, listWorktrees, getWorktreeChanges, getMainRepoRoot } from './lib/git-diff-service'
+import { listGitBranchesForSession, prepareSessionGitContext } from './lib/git-session-context-service'
 import { registerPromaFilePath } from './lib/local-file-protocol'
 import { registerUpdaterIpc } from './lib/updater/updater-ipc'
 import {
@@ -988,6 +993,30 @@ export function registerIpcHandlers(): void {
     async (_, repoPath: string, _sessionId: string) => {
       if (!repoPath || typeof repoPath !== 'string') return []
       return await listWorktrees(repoPath)
+    }
+  )
+
+  // 列出新 Agent 会话可选择的 Git 分支
+  ipcMain.handle(
+    IPC_CHANNELS.LIST_GIT_BRANCHES,
+    async (_, input: ListGitBranchesInput): Promise<GitBranchInfo[]> => {
+      if (!input || typeof input.repoPath !== 'string' || !input.repoPath) return []
+      const access = normalizeFileAccessOptions({ sessionId: input.sessionId })
+      if (input.sessionId && !(await ensurePathAllowedWithWorktree(input.repoPath, access))) return []
+      return listGitBranchesForSession(input)
+    }
+  )
+
+  // 准备新 Agent 会话 Git 上下文（Local checkout 或 Worktree 创建）
+  ipcMain.handle(
+    IPC_CHANNELS.PREPARE_SESSION_GIT_CONTEXT,
+    async (_, input: PrepareSessionGitContextInput): Promise<PrepareSessionGitContextResult | null> => {
+      if (!input || typeof input.sessionId !== 'string' || typeof input.repoPath !== 'string' || !input.repoPath) return null
+      const access = normalizeFileAccessOptions({ sessionId: input.sessionId })
+      if (!(await ensurePathAllowedWithWorktree(input.repoPath, access))) {
+        throw new Error('当前会话无权访问该 Git 仓库')
+      }
+      return prepareSessionGitContext(input, { updateSessionMeta: updateAgentSessionMeta })
     }
   )
 

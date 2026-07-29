@@ -142,7 +142,7 @@ export interface UnstagedChangesResult {
 export interface WorktreeInfo {
   /** worktree 绝对路径 */
   path: string
-  /** 分支名 */
+  /** 分支名；detached HEAD 时可为 commit/ref 描述 */
   branch: string
   /** HEAD commit hash (short) */
   head: string
@@ -150,6 +150,66 @@ export interface WorktreeInfo {
   isMain: boolean
   /** 显示名（路径最后一段） */
   name: string
+}
+
+/** 新 Agent 会话的 Git 执行位置 */
+export type GitExecutionMode = 'local' | 'worktree'
+
+/** Git 分支列表中的单个分支 */
+export interface GitBranchInfo {
+  /** 分支短名称，如 main 或 feature/a */
+  name: string
+  /** 完整 ref 名称，如 refs/heads/main */
+  ref: string
+  /** true 表示本地分支；false 表示远端跟踪分支 */
+  local: boolean
+  /** 是否为当前 repo checkout 的分支 */
+  current: boolean
+  /** upstream 短名称，如 origin/main */
+  upstream?: string
+  /** HEAD commit hash (short) */
+  head?: string
+  /** 该分支已被某个 worktree checkout 时的路径 */
+  checkedOutPath?: string
+}
+
+/** 会话最终落盘的 Git 执行上下文 */
+export interface SessionGitContext {
+  repoPath: string
+  branch: string
+  executionMode: GitExecutionMode
+  workingDirectory: string
+  worktreePath?: string
+  baseRef?: string
+}
+
+/** 列出 Git 分支的输入 */
+export interface ListGitBranchesInput {
+  repoPath: string
+  /** 当前 Agent 会话 ID，用于主进程路径授权 */
+  sessionId?: string
+  /** 是否包含远端跟踪分支；第一版默认 false */
+  includeRemote?: boolean
+}
+
+/** 准备新会话 Git 上下文的输入 */
+export interface PrepareSessionGitContextInput {
+  sessionId: string
+  repoPath: string
+  executionMode: GitExecutionMode
+  /** 起始分支或 start point */
+  branch: string
+  /** 创建新分支时传入；local 下创建并 checkout，worktree 下创建并绑定到新 worktree */
+  newBranchName?: string
+  /** 用于生成 worktree 目录名；未传时由 session / branch 推导 */
+  slug?: string
+}
+
+/** 准备新会话 Git 上下文的结果 */
+export interface PrepareSessionGitContextResult {
+  context: SessionGitContext
+  /** true 表示本次创建了新的 worktree；false 表示复用或 Local */
+  createdWorktree: boolean
 }
 
 /** 获取文件 Diff 的输入 */
@@ -355,6 +415,10 @@ export const IPC_CHANNELS = {
   GET_DIFF_CONTENTS: 'git:get-diff-contents',
   /** 列出 Git Worktree */
   LIST_WORKTREES: 'git:list-worktrees',
+  /** 列出新 Agent 会话可选择的 Git 分支 */
+  LIST_GIT_BRANCHES: 'git:list-branches',
+  /** 准备新 Agent 会话 Git 上下文（Local checkout 或 Worktree 创建） */
+  PREPARE_SESSION_GIT_CONTEXT: 'git:prepare-session-context',
   /** 获取 Worktree 相对于基准分支的全量变更 */
   GET_WORKTREE_CHANGES: 'git:get-worktree-changes',
   /** 在系统默认浏览器中打开外部链接 */
