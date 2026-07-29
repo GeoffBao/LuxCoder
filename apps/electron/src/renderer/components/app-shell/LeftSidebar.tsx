@@ -11,7 +11,7 @@
 import * as React from 'react'
 import { useAtom, useSetAtom, useAtomValue, useStore } from 'jotai'
 import { toast } from 'sonner'
-import { Pin, PinOff, Settings, Plus, Trash2, Pencil, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MessageSquare, MoreHorizontal, FolderOpen, GripVertical, Clock, AlarmClock, ChevronRight, Blocks, GitBranch, Download, Loader2, RotateCw, Layers, UserRound, LayoutDashboard } from 'lucide-react'
+import { Pin, PinOff, Settings, Plus, Trash2, Pencil, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MessageSquare, MoreHorizontal, FolderOpen, GripVertical, Clock, AlarmClock, ChevronRight, Blocks, GitBranch, Download, Loader2, RotateCw, Layers, UserRound, LayoutDashboard, PenTool } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { MarqueeText } from '@/components/ui/marquee-text'
@@ -852,6 +852,19 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     return map
   }, [workspaces])
 
+  // Excalidraw 画布计数
+  const [excalidrawCount, setExcalidrawCount] = React.useState(0)
+  React.useEffect(() => {
+    if (!currentWorkspaceSlug || mode !== 'agent') {
+      setExcalidrawCount(0)
+      return
+    }
+    window.electronAPI
+      .listExcalidrawFiles(currentWorkspaceSlug)
+      .then((list) => setExcalidrawCount(list.length))
+      .catch(() => setExcalidrawCount(0))
+  }, [currentWorkspaceSlug, mode])
+
   /**
    * 当前工作区的 craft Project 列表。
    * ProjectsInitializer 按 slug 加载，这里再按 workspaceId 过滤，
@@ -1030,6 +1043,16 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     setCodeMainView('tasks')
     setActiveView('conversations')
   }, [activeView, codeMainView, setActiveView, setAutomationForm, setCodeMainView])
+
+  /** 打开/关闭 Excalidraw 画板 */
+  const handleOpenExcalidraw = React.useCallback((): void => {
+    if (activeView === 'excalidraw-gallery' || activeView === 'excalidraw-editor') {
+      setActiveView('conversations')
+      return
+    }
+    setAutomationForm({ open: false, draft: null })
+    setActiveView('excalidraw-gallery')
+  }, [activeView, setActiveView, setAutomationForm])
 
   /** 打开当前工作区的 MCP 管理页 */
   const handleOpenMcpManagement = React.useCallback((): void => {
@@ -2819,6 +2842,39 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             </Tooltip>
           )}
 
+          {mode === 'agent' && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Excalidraw 画板"
+                  onClick={handleOpenExcalidraw}
+                  className={cn(
+                    'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag border',
+                    activeView === 'excalidraw-gallery' || activeView === 'excalidraw-editor'
+                      ? 'border-primary/80 bg-primary text-primary-foreground shadow-sm'
+                      : 'border-border/45 bg-foreground/[0.025] text-foreground/45 hover:border-border/70 hover:bg-foreground/[0.045] hover:text-primary',
+                  )}
+                >
+                  <PenTool size={16} />
+                  {excalidrawCount > 0 && (
+                    <span
+                      className={cn(
+                        'absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-medium tabular-nums',
+                        activeView === 'excalidraw-gallery' || activeView === 'excalidraw-editor'
+                          ? 'bg-primary-foreground text-primary'
+                          : 'bg-primary text-primary-foreground',
+                      )}
+                    >
+                      {formatSidebarModuleCount(excalidrawCount)}
+                    </span>
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Excalidraw 画板{excalidrawCount > 0 ? `（${excalidrawCount} 个画布）` : ''}</TooltipContent>
+            </Tooltip>
+          )}
+
         </div>
 
         <div className="my-3 h-px w-8 bg-border/70" />
@@ -3152,6 +3208,20 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             active={codeMainView === 'tasks' && activeView === 'conversations'}
             onClick={handleOpenTaskBoard}
             ariaLabel={`Task 看板，${activeTaskCount} 个未完成`}
+          />
+        </div>
+      )}
+
+      {/* Excalidraw 画板：手绘风格白板，仅 Agent 模式可见 */}
+      {mode === 'agent' && (
+        <div className="sidebar-module-zone px-3 pb-0.5">
+          <SidebarModule
+            icon={PenTool}
+            title="Excalidraw 画板"
+            count={excalidrawCount}
+            active={activeView === 'excalidraw-gallery' || activeView === 'excalidraw-editor'}
+            onClick={handleOpenExcalidraw}
+            ariaLabel={`Excalidraw 画板，${excalidrawCount} 个画布`}
           />
         </div>
       )}

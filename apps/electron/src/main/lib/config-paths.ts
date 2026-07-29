@@ -769,3 +769,19 @@ export function getScratchPadPath(): string {
 export function getAutomationsPath(): string {
   return join(getConfigDir(), 'automations.json')
 }
+
+/**
+ * 获取 Excalidraw 画板文件目录路径（按 Workspace）
+ *
+ * @param workspaceSlug 工作区 slug
+ * @returns ~/.luxcoder/agent-workspaces/{slug}/excalidraw/
+ */
+export function getExcalidrawDir(workspaceSlug: string): string {
+  const dir = join(getAgentWorkspacePath(workspaceSlug), 'excalidraw')
+
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true })
+  }
+
+  return dir
+}

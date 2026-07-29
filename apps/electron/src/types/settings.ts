@@ -325,6 +325,26 @@ export const SCRATCH_PAD_IPC_CHANNELS = {
   COPY_IMAGE: 'scratch-pad:copy-image',
 } as const
 
+/** Excalidraw 画板 IPC 通道 */
+export const EXCALIDRAW_IPC_CHANNELS = {
+  /** 列出 Workspace 下所有画板文件 */
+  LIST: 'excalidraw:list',
+  /** 读取单个画板文件 */
+  READ: 'excalidraw:read',
+  /** 新建空白画板文件 */
+  CREATE: 'excalidraw:create',
+  /** 保存画板文件 */
+  WRITE: 'excalidraw:write',
+  /** 导出到指定路径 */
+  EXPORT: 'excalidraw:export',
+  /** 打开保存对话框选择导出路径 */
+  CHOOSE_EXPORT_PATH: 'excalidraw:choose-export-path',
+  /** 删除画板文件 */
+  DELETE: 'excalidraw:delete',
+  /** 重命名画板文件 */
+  RENAME: 'excalidraw:rename',
+} as const
+
 /** Dock/Launcher 角标 IPC 通道 */
 export const DOCK_BADGE_IPC_CHANNELS = {
   /** 设置系统应用角标数量 */

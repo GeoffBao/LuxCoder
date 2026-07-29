@@ -44,6 +44,7 @@
     "@earendil-works/pi-agent-core": "0.80.9",
     "@earendil-works/pi-ai": "0.80.9",
     "@earendil-works/pi-coding-agent": "0.80.9",
+    "@excalidraw/excalidraw": "^0.18.1",
     "@fontsource-variable/geist": "5.3.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@pierre/diffs": "^1.1.20",

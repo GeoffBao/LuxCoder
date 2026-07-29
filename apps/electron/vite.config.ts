@@ -27,5 +27,13 @@ export default defineConfig({
     port: 5173,
     strictPort: true, // 确保使用指定端口，如被占用则报错
     open: false,
+    fs: {
+      // Allow serving files from node_modules (needed by @excalidraw/excalidraw CSS)
+      allow: [
+        resolve(__dirname, 'src/renderer'),
+        resolve(__dirname, 'node_modules'),
+        resolve(__dirname, '../..'), // workspace root for monorepo hoisted deps
+      ],
+    },
   },
 })

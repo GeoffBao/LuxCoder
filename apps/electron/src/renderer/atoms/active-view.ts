@@ -16,6 +16,8 @@ export type ActiveView =
   | 'automations'
   | 'agent-skills'
   | 'agent-experts'
+  | 'excalidraw-gallery'
+  | 'excalidraw-editor'
 export type AgentSkillsCapabilityTab = 'skills' | 'mcp' | 'context'
 
 /** 当前活跃视图（不持久化，每次启动默认显示对话） */

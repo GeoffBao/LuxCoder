@@ -11,7 +11,7 @@ import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNE
 import type { TaskAggregateSummary, TaskMetadataPatch, TaskWorkflow } from '@luxcoder/shared/tasks'
 import { LABEL_IPC_CHANNELS } from '@luxcoder/shared/channels'
 import type { WorkspaceLabel } from '@luxcoder/shared/labels'
-import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, SCRATCH_PAD_IPC_CHANNELS, DOCK_BADGE_IPC_CHANNELS, STORAGE_IPC_CHANNELS } from '../types'
+import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, SCRATCH_PAD_IPC_CHANNELS, EXCALIDRAW_IPC_CHANNELS, DOCK_BADGE_IPC_CHANNELS, STORAGE_IPC_CHANNELS } from '../types'
 import type {
   RuntimeStatus,
   GitRepoStatus,
@@ -541,6 +541,29 @@ export interface ElectronAPI {
 
   /** 将图片 data URL 写入系统剪贴板 */
   copyImageToClipboard: (dataUrl: string) => Promise<{ success: boolean; message?: string }>
+
+  // ===== Excalidraw 画板 =====
+
+  /** 列出 Workspace 下所有画板文件 */
+  listExcalidrawFiles: (workspaceSlug: string) => Promise<Array<{ slug: string; title: string; elementCount: number; background: string; mtime: number; error?: boolean }>>
+
+  /** 读取单个画板文件的完整数据 */
+  readExcalidrawFile: (workspaceSlug: string, slug: string) => Promise<{ elements: unknown[]; appState: Record<string, unknown>; files: Record<string, unknown> } | null>
+
+  /** 新建空白画板文件 */
+  createExcalidrawFile: (workspaceSlug: string, title: string) => Promise<{ slug: string; title: string }>
+
+  /** 保存画板文件 */
+  writeExcalidrawFile: (workspaceSlug: string, slug: string, payload: { elements?: unknown[]; appState?: Record<string, unknown>; files?: Record<string, unknown> }) => Promise<{ ok: boolean }>
+
+  /** 导出画板到指定路径（打开保存对话框） */
+  exportExcalidrawFile: (workspaceSlug: string, slug: string) => Promise<string>
+
+  /** 删除画板文件 */
+  deleteExcalidrawFile: (workspaceSlug: string, slug: string) => Promise<{ ok: boolean }>
+
+  /** 重命名画板文件 */
+  renameExcalidrawFile: (workspaceSlug: string, slug: string, newTitle: string) => Promise<{ ok: boolean; slug: string; title: string }>
 
   /** 设置 Dock/Launcher 角标数量（0 表示清除） */
   setDockBadgeCount: (count: number) => Promise<boolean>
@@ -1708,6 +1731,35 @@ const electronAPI: ElectronAPI = {
 
   copyImageToClipboard: (dataUrl: string) => {
     return ipcRenderer.invoke(SCRATCH_PAD_IPC_CHANNELS.COPY_IMAGE, dataUrl)
+  },
+
+  // Excalidraw 画板
+  listExcalidrawFiles: (workspaceSlug: string) => {
+    return ipcRenderer.invoke(EXCALIDRAW_IPC_CHANNELS.LIST, workspaceSlug)
+  },
+
+  readExcalidrawFile: (workspaceSlug: string, slug: string) => {
+    return ipcRenderer.invoke(EXCALIDRAW_IPC_CHANNELS.READ, workspaceSlug, slug)
+  },
+
+  createExcalidrawFile: (workspaceSlug: string, title: string) => {
+    return ipcRenderer.invoke(EXCALIDRAW_IPC_CHANNELS.CREATE, workspaceSlug, title)
+  },
+
+  writeExcalidrawFile: (workspaceSlug: string, slug: string, payload: object) => {
+    return ipcRenderer.invoke(EXCALIDRAW_IPC_CHANNELS.WRITE, workspaceSlug, slug, payload)
+  },
+
+  exportExcalidrawFile: (workspaceSlug: string, slug: string) => {
+    return ipcRenderer.invoke(EXCALIDRAW_IPC_CHANNELS.EXPORT, workspaceSlug, slug)
+  },
+
+  deleteExcalidrawFile: (workspaceSlug: string, slug: string) => {
+    return ipcRenderer.invoke(EXCALIDRAW_IPC_CHANNELS.DELETE, workspaceSlug, slug)
+  },
+
+  renameExcalidrawFile: (workspaceSlug: string, slug: string, newTitle: string) => {
+    return ipcRenderer.invoke(EXCALIDRAW_IPC_CHANNELS.RENAME, workspaceSlug, slug, newTitle)
   },
 
   // Dock/Launcher 角标

@@ -6,11 +6,11 @@
 
 import { ipcMain, nativeTheme, shell, dialog, BrowserWindow, app, clipboard, nativeImage } from 'electron'
 import { join, resolve, sep, dirname } from 'node:path'
-import { existsSync, realpathSync, rmSync, readFileSync, writeFileSync, mkdirSync, statSync } from 'node:fs'
+import { existsSync, realpathSync, rmSync, readFileSync, writeFileSync, mkdirSync, statSync, readdirSync, copyFileSync, renameSync } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS, EXPERT_IPC_CHANNELS, AGENT_THINKING_LEVELS, isLuxCoderPermissionMode, normalizePathForCompare } from '@luxcoder/shared'
-import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, SCRATCH_PAD_IPC_CHANNELS, QUICK_TASK_IPC_CHANNELS, VOICE_DICTATION_IPC_CHANNELS, DOCK_BADGE_IPC_CHANNELS, STORAGE_IPC_CHANNELS } from '../types'
+import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, SCRATCH_PAD_IPC_CHANNELS, EXCALIDRAW_IPC_CHANNELS, QUICK_TASK_IPC_CHANNELS, VOICE_DICTATION_IPC_CHANNELS, DOCK_BADGE_IPC_CHANNELS, STORAGE_IPC_CHANNELS } from '../types'
 import type {
   QuickTaskSubmitInput,
   VoiceDictationAudioChunkInput,
@@ -212,7 +212,7 @@ import { runAgent, stopAgent, generateAgentTitle, saveFilesToAgentSession, saveF
 import { permissionService } from './lib/agent-permission-service'
 import { askUserService } from './lib/agent-ask-user-service'
 import { exitPlanService } from './lib/agent-exit-plan-service'
-import { getAgentSessionWorkspacePath, getAgentWorkspacesDir, getWorkspaceSkillsDir, getWorkspaceFilesDir, getScratchPadPath, getExpertsDir } from './lib/config-paths'
+import { getAgentSessionWorkspacePath, getAgentWorkspacesDir, getWorkspaceSkillsDir, getWorkspaceFilesDir, getScratchPadPath, getExcalidrawDir, getExpertsDir } from './lib/config-paths'
 import { getAgentWorkspacePath } from './lib/config-paths'
 import { getCachedDefaultAppInfo, saveCachedDefaultAppInfo } from './lib/default-app-cache'
 import { calculateStorageStats, cleanupStorage, cleanupTempFiles } from './lib/storage-service'
@@ -1789,6 +1789,242 @@ export function registerIpcHandlers(): void {
         console.error('[ScratchPad] 复制图片到剪贴板失败:', err)
         return { success: false, message: '复制失败' }
       }
+    }
+  )
+
+  // ===== Excalidraw 画板 =====
+
+  // 列出 Workspace 下所有画板文件
+  ipcMain.handle(
+    EXCALIDRAW_IPC_CHANNELS.LIST,
+    async (_, workspaceSlug: string) => {
+      if (!workspaceSlug || typeof workspaceSlug !== 'string') return []
+      const dir = getExcalidrawDir(workspaceSlug)
+      try {
+        const entries = readdirSync(dir, { withFileTypes: true })
+        const files: Array<{
+          slug: string
+          title: string
+          elementCount: number
+          background: string
+          mtime: number
+          error?: boolean
+        }> = []
+
+        for (const entry of entries) {
+          if (!entry.isFile() || !entry.name.endsWith('.excalidraw')) continue
+          const filePath = join(dir, entry.name)
+          const title = entry.name.slice(0, -'.excalidraw'.length)
+          const slug = title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w一-鿿぀-ヿ-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '')
+          try {
+            const raw = readFileSync(filePath, 'utf-8')
+            const data = JSON.parse(raw)
+            const elements = (data.elements || []).filter((e: { isDeleted?: boolean }) => !e.isDeleted)
+            files.push({
+              slug,
+              title,
+              elementCount: elements.length,
+              background: data.appState?.viewBackgroundColor || '#ffffff',
+              mtime: statSync(filePath).mtimeMs,
+            })
+          } catch {
+            files.push({ slug, title, elementCount: 0, background: '#ffffff', mtime: 0, error: true })
+          }
+        }
+
+        return files.sort((a, b) => b.mtime - a.mtime)
+      } catch (err) {
+        console.error('[Excalidraw] 列出文件失败:', err)
+        return []
+      }
+    }
+  )
+
+  // 读取单个画板文件
+  ipcMain.handle(
+    EXCALIDRAW_IPC_CHANNELS.READ,
+    async (_, workspaceSlug: string, slug: string) => {
+      if (!workspaceSlug || !slug) return null
+      const dir = getExcalidrawDir(workspaceSlug)
+      // 从文件系统找到匹配 slug 的文件
+      try {
+        const entries = readdirSync(dir, { withFileTypes: true })
+        for (const entry of entries) {
+          if (!entry.isFile() || !entry.name.endsWith('.excalidraw')) continue
+          const title = entry.name.slice(0, -'.excalidraw'.length)
+          const entrySlug = title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w一-鿿぀-ヿ-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '')
+          if (entrySlug !== slug) continue
+          const raw = readFileSync(join(dir, entry.name), 'utf-8')
+          return JSON.parse(raw)
+        }
+        return null
+      } catch (err) {
+        console.error('[Excalidraw] 读取文件失败:', err)
+        return null
+      }
+    }
+  )
+
+  // 新建空白画板文件
+  ipcMain.handle(
+    EXCALIDRAW_IPC_CHANNELS.CREATE,
+    async (_, workspaceSlug: string, title: string) => {
+      if (!workspaceSlug || !title?.trim()) throw new Error('参数无效')
+      const dir = getExcalidrawDir(workspaceSlug)
+      // 清除文件名中的非法字符（路径分隔符、控制字符等）
+      const safeName = title.trim().replace(/[\/:*?"<>|]/g, '-')
+      const filename = `${safeName}.excalidraw`
+      const filePath = join(dir, filename)
+
+      if (existsSync(filePath)) throw new Error(`文件 "${title}" 已存在`)
+
+      const data = {
+        type: 'excalidraw',
+        version: 2,
+        source: 'luxcoder',
+        elements: [],
+        appState: { viewBackgroundColor: '#ffffff' },
+        files: {},
+      }
+      writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8')
+
+      const slug = title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w一-鿿぀-ヿ-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '')
+      return { slug, title }
+    }
+  )
+
+  // 保存画板文件
+  ipcMain.handle(
+    EXCALIDRAW_IPC_CHANNELS.WRITE,
+    async (_, workspaceSlug: string, slug: string, payload: { elements?: unknown[]; appState?: Record<string, unknown>; files?: Record<string, unknown> }) => {
+      if (!workspaceSlug || !slug) throw new Error('参数无效')
+      const dir = getExcalidrawDir(workspaceSlug)
+
+      // 找到匹配 slug 的文件
+      const entries = readdirSync(dir, { withFileTypes: true })
+      for (const entry of entries) {
+        if (!entry.isFile() || !entry.name.endsWith('.excalidraw')) continue
+        const title = entry.name.slice(0, -'.excalidraw'.length)
+        const entrySlug = title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w一-鿿぀-ヿ-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '')
+        if (entrySlug !== slug) continue
+
+        const filePath = join(dir, entry.name)
+        // 读取现有文件（保留 files 数据中的嵌入图片）
+        let existing: Record<string, unknown> = {}
+        try {
+          existing = JSON.parse(readFileSync(filePath, 'utf-8'))
+        } catch { /* 现有文件损坏则覆盖 */ }
+
+        const data = {
+          type: 'excalidraw',
+          version: 2,
+          source: 'luxcoder',
+          elements: payload.elements || [],
+          appState: payload.appState || (existing.appState as Record<string, unknown>) || {},
+          files: { ...((existing.files as Record<string, unknown>) || {}), ...(payload.files || {}) },
+        }
+        await writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8')
+        return { ok: true }
+      }
+
+      throw new Error(`未找到文件: ${slug}`)
+    }
+  )
+
+  // 导出到指定路径
+  ipcMain.handle(
+    EXCALIDRAW_IPC_CHANNELS.EXPORT,
+    async (_, workspaceSlug: string, slug: string): Promise<string> => {
+      if (!workspaceSlug || !slug) throw new Error('参数无效')
+      const dir = getExcalidrawDir(workspaceSlug)
+
+      const entries = readdirSync(dir, { withFileTypes: true })
+      for (const entry of entries) {
+        if (!entry.isFile() || !entry.name.endsWith('.excalidraw')) continue
+        const title = entry.name.slice(0, -'.excalidraw'.length)
+        const entrySlug = title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w一-鿿぀-ヿ-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '')
+        if (entrySlug !== slug) continue
+
+        const srcPath = join(dir, entry.name)
+        const win = BrowserWindow.getFocusedWindow()
+        if (!win) throw new Error('无活跃窗口')
+
+        const result = await dialog.showSaveDialog(win, {
+          title: '导出 Excalidraw 画板',
+          defaultPath: `${title}.excalidraw`,
+          filters: [
+            { name: 'Excalidraw', extensions: ['excalidraw'] },
+            { name: '所有文件', extensions: ['*'] },
+          ],
+        })
+
+        if (result.canceled || !result.filePath) return ''
+        copyFileSync(srcPath, result.filePath)
+        return result.filePath
+      }
+
+      throw new Error(`未找到文件: ${slug}`)
+    }
+  )
+
+  // 打开保存对话框选择导出路径
+  ipcMain.handle(
+    EXCALIDRAW_IPC_CHANNELS.CHOOSE_EXPORT_PATH,
+    async (_, defaultName: string): Promise<string | null> => {
+      const win = BrowserWindow.getFocusedWindow()
+      if (!win) return null
+      const result = await dialog.showSaveDialog(win, {
+        title: '保存 Excalidraw 画板',
+        defaultPath: defaultName || 'drawing.excalidraw',
+        filters: [
+          { name: 'Excalidraw', extensions: ['excalidraw'] },
+          { name: '所有文件', extensions: ['*'] },
+        ],
+      })
+      return result.canceled ? null : result.filePath
+    }
+  )
+
+  // 删除画板文件
+  ipcMain.handle(
+    EXCALIDRAW_IPC_CHANNELS.DELETE,
+    async (_, workspaceSlug: string, slug: string) => {
+      if (!workspaceSlug || !slug) throw new Error('参数无效')
+      const dir = getExcalidrawDir(workspaceSlug)
+      const entries = readdirSync(dir, { withFileTypes: true })
+      for (const entry of entries) {
+        if (!entry.isFile() || !entry.name.endsWith('.excalidraw')) continue
+        const title = entry.name.slice(0, -'.excalidraw'.length)
+        const entrySlug = title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w一-鿿぀-ヿ-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '')
+        if (entrySlug !== slug) continue
+        rmSync(join(dir, entry.name))
+        return { ok: true }
+      }
+      throw new Error(`未找到文件: ${slug}`)
+    }
+  )
+
+  // 重命名画板文件
+  ipcMain.handle(
+    EXCALIDRAW_IPC_CHANNELS.RENAME,
+    async (_, workspaceSlug: string, slug: string, newTitle: string) => {
+      if (!workspaceSlug || !slug || !newTitle?.trim()) throw new Error('参数无效')
+      const dir = getExcalidrawDir(workspaceSlug)
+      const entries = readdirSync(dir, { withFileTypes: true })
+      const safeTitle = newTitle.trim().replace(/[\\/:*?"<>|]/g, '-')
+      for (const entry of entries) {
+        if (!entry.isFile() || !entry.name.endsWith('.excalidraw')) continue
+        const title = entry.name.slice(0, -'.excalidraw'.length)
+        const entrySlug = title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w一-鿿぀-ヿ-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '')
+        if (entrySlug !== slug) continue
+        const oldPath = join(dir, entry.name)
+        const newPath = join(dir, `${safeTitle}.excalidraw`)
+        if (oldPath !== newPath && existsSync(newPath)) throw new Error(`文件 "${safeTitle}" 已存在`)
+        renameSync(oldPath, newPath)
+        const newSlug = safeTitle.toLowerCase().replace(/\s+/g, '-').replace(/[^\w一-鿿぀-ヿ-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '')
+        return { ok: true, slug: newSlug, title: safeTitle }
+      }
+      throw new Error(`未找到文件: ${slug}`)
     }
   )
 

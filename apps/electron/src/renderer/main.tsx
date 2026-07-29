@@ -9,6 +9,9 @@
 // 浏览器仅按需下载实际用到的子集（本应用拉丁字符走 Geist，中文回退系统字体）。
 import '@fontsource-variable/geist/index.css'
 
+// Excalidraw editor styles — use package's official CSS export
+import '@excalidraw/excalidraw/index.css'
+
 import React, { useEffect, useMemo, useRef } from 'react'
 import ReactDOM from 'react-dom/client'
 import { useSetAtom, useAtomValue, useStore } from 'jotai'

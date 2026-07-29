@@ -28,6 +28,7 @@ import { AutomationFormView } from '@/components/automation/AutomationFormView'
 import { AutomationsListView } from '@/components/automation/AutomationsListView'
 import { AgentSkillsView } from '@/components/agent-skills/AgentSkillsView'
 import { AgentExpertsView } from '@/components/agent-experts/AgentExpertsView'
+import { ExcalidrawView } from '@/components/excalidraw/ExcalidrawView'
 import { automationFormAtom } from '@/atoms/automation-atoms'
 import { activeViewAtom } from '@/atoms/active-view'
 import { interfaceVariantAtom } from '@/atoms/theme'
@@ -253,6 +254,8 @@ export function MainArea(): React.ReactElement {
               <AgentSkillsView />
             ) : activeView === 'agent-experts' ? (
               <AgentExpertsView />
+            ) : activeView === 'excalidraw-gallery' || activeView === 'excalidraw-editor' ? (
+              <ExcalidrawView />
             ) : (
               <>
                 <TabBar />
