@@ -48,6 +48,7 @@ export interface ConductorSessionHostDependencies {
     modelId?: string,
   ) => AgentSessionMeta
   getAgentSessionMeta: (sessionId: string) => AgentSessionMeta | undefined
+  listAgentSessions?: () => AgentSessionMeta[]
   updateAgentSessionMeta: (sessionId: string, updates: AgentSessionMetaUpdates) => AgentSessionMeta
   getAgentSessionMessages: (sessionId: string) => AgentMessage[]
   getAgentWorkspace: (workspaceId: string) => AgentWorkspace | undefined
@@ -95,6 +96,8 @@ export class LuxCoderConductorSessionHost implements ConductorSessionHost {
     if (options.taskSlug !== undefined) updates.taskSlug = options.taskSlug
     if (options.taskRunId !== undefined) updates.taskRunId = options.taskRunId
     if (options.taskNodeId !== undefined) updates.taskNodeId = options.taskNodeId
+    if (options.taskAttempt !== undefined) updates.taskAttempt = options.taskAttempt
+    if (options.taskCorrelationKey !== undefined) updates.taskCorrelationKey = options.taskCorrelationKey
     if (options.taskDraft !== undefined) updates.taskDraft = options.taskDraft
     if (Object.keys(updates).length > 0) {
       this.deps.updateAgentSessionMeta(session.id, updates)
@@ -225,6 +228,12 @@ export class LuxCoderConductorSessionHost implements ConductorSessionHost {
       : undefined
   }
 
+  findSessionByTaskCorrelationKey(workspaceId: string, correlationKey: string): { id: string } | undefined {
+    return this.deps.listAgentSessions?.().find((session) => (
+      session.workspaceId === workspaceId && session.taskCorrelationKey === correlationKey
+    ))
+  }
+
   private dispatchCompletion(event: SessionCompletionEvent): void {
     for (const listener of [...this.listeners]) {
       try {
@@ -252,6 +261,7 @@ export async function createLuxCoderConductorSessionHost(): Promise<LuxCoderCond
       return sessionManager.createAgentSession(title, channelId, workspaceId, modelId, agentRuntime)
     },
     getAgentSessionMeta: sessionManager.getAgentSessionMeta,
+    listAgentSessions: sessionManager.listAgentSessions,
     updateAgentSessionMeta: sessionManager.updateAgentSessionMeta,
     getAgentSessionMessages: sessionManager.getAgentSessionMessages,
     getAgentWorkspace: workspaceManager.getAgentWorkspace,

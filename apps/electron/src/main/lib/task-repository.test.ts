@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, test } from 'bun:test'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { TaskSpec } from '../../../../../packages/shared/src/tasks/schema.ts'
+import { saveTaskRecord, taskRecordPath } from '../../../../../packages/shared/src/tasks/storage.ts'
 import { TaskRepository } from './task-repository'
 
 const tempRoots: string[] = []
@@ -92,6 +93,272 @@ describe('TaskRepository', () => {
     )
   })
 
+  test('listTaskAggregates 合成旧 Task 身份但只读不写 task.json', () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    const repository = createRepository({ 'ws-alpha': workspaceRoot })
+    const spec = buildSpec()
+    repository.saveTask('ws-alpha', spec)
+
+    expect(repository.listTaskAggregates('ws-alpha')).toEqual([
+      expect.objectContaining({
+        taskId: 'legacy:ws-alpha:demo-task',
+        taskSlug: 'demo-task',
+        spec,
+        record: null,
+        legacyIdentity: true,
+        diagnostics: expect.arrayContaining([
+          expect.objectContaining({ code: 'missing-task-record', severity: 'warning' }),
+        ]),
+      }),
+    ])
+    expect(existsSync(taskRecordPath(workspaceRoot, spec.id))).toBe(false)
+  })
+
+  test('显式迁移入口回填旧 TaskRecord，listTaskAggregates 随后使用稳定 ID', () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    const repository = createRepository({ 'ws-alpha': workspaceRoot })
+    repository.saveTask('ws-alpha', buildSpec({ id: 'migrate-me' }))
+
+    const migration = repository.migrateLegacyTaskRecords('ws-alpha', [], {
+      now: () => 100,
+      generateTaskId: () => '018f47a8-6c26-7a13-9bf6-7c8d4f2e4c72',
+    })
+
+    expect(migration.migrated).toEqual([
+      expect.objectContaining({ taskSlug: 'migrate-me', taskId: '018f47a8-6c26-7a13-9bf6-7c8d4f2e4c72' }),
+    ])
+    expect(repository.listTaskAggregates('ws-alpha')).toEqual([
+      expect.objectContaining({
+        taskId: '018f47a8-6c26-7a13-9bf6-7c8d4f2e4c72',
+        legacyIdentity: false,
+      }),
+    ])
+  })
+
+  test('listTaskAggregateSummaries 从 TaskRepository 投影 Workspace / Project scope 与恢复健康度', () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    const repository = createRepository({ 'ws-alpha': workspaceRoot })
+    repository.saveTask('ws-alpha', buildSpec({ id: 'workspace-task', title: 'Workspace task' }))
+    repository.saveTask('ws-alpha', buildSpec({ id: 'project-task', title: 'Project task', project: 'project-alpha' }))
+    saveTaskRecord(workspaceRoot, {
+      schemaVersion: 1,
+      taskId: '018f47a8-6c26-7a13-9bf6-7c8d4f2e4c72',
+      slug: 'project-task',
+      revision: 1,
+      workflow: 'in-progress',
+      labelIds: ['urgent'],
+      orchestratorSessionId: 'session-project',
+      createdAt: 10,
+      updatedAt: 20,
+    })
+
+    expect(repository.listTaskAggregateSummaries('ws-alpha')).toEqual([
+      expect.objectContaining({
+        taskId: '018f47a8-6c26-7a13-9bf6-7c8d4f2e4c72',
+        taskSlug: 'project-task',
+        title: 'Project task',
+        scope: { kind: 'project', projectId: 'project-alpha' },
+        workflow: 'in-progress',
+        labelIds: ['urgent'],
+        orchestratorSessionId: 'session-project',
+        health: 'ready',
+      }),
+      expect.objectContaining({
+        taskId: 'legacy:ws-alpha:workspace-task',
+        taskSlug: 'workspace-task',
+        title: 'Workspace task',
+        scope: { kind: 'workspace' },
+        workflow: 'todo',
+        health: 'warning',
+        legacyIdentity: true,
+      }),
+    ])
+  })
+
+  test('updateTaskWorkflow 以 stable taskId 更新 workflow、revision 与时间戳', () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    const repository = createRepository({ 'ws-alpha': workspaceRoot })
+    const taskId = '018f47a8-6c26-7a13-9bf6-7c8d4f2e4c72'
+    repository.saveTask('ws-alpha', buildSpec({ id: 'workflow-task' }))
+    saveTaskRecord(workspaceRoot, {
+      schemaVersion: 1,
+      taskId,
+      slug: 'workflow-task',
+      revision: 1,
+      workflow: 'todo',
+      labelIds: [],
+      createdAt: 10,
+      updatedAt: 10,
+    })
+
+    const updated = repository.updateTaskWorkflow('ws-alpha', taskId, 'in-progress', undefined, () => 42)
+
+    expect(updated).toEqual(expect.objectContaining({ taskId, workflow: 'in-progress', updatedAt: 42 }))
+    expect(repository.getTaskAggregateById('ws-alpha', taskId)?.record).toEqual(
+      expect.objectContaining({ revision: 2, workflow: 'in-progress', updatedAt: 42 }),
+    )
+  })
+
+  test('updateTaskWorkflow 不会静默物化 legacy TaskRecord', () => {
+    const repository = createRepository({ 'ws-alpha': createTempWorkspaceRoot() })
+    repository.saveTask('ws-alpha', buildSpec({ id: 'legacy-workflow' }))
+
+    expect(() => repository.updateTaskWorkflow(
+      'ws-alpha',
+      'legacy:ws-alpha:legacy-workflow',
+      'done',
+    )).toThrow('稳定 TaskRecord')
+  })
+
+  test('updateTaskWorkflow 按 stable taskId 与 revision 更新 TaskRecord', () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    const repository = createRepository({ 'ws-alpha': workspaceRoot })
+    const taskId = '018f47a8-6c26-7a13-9bf6-7c8d4f2e4c72'
+    repository.saveTask('ws-alpha', buildSpec({ id: 'workflow-task' }))
+    saveTaskRecord(workspaceRoot, {
+      schemaVersion: 1,
+      taskId,
+      slug: 'workflow-task',
+      revision: 3,
+      workflow: 'todo',
+      labelIds: [],
+      createdAt: 1,
+      updatedAt: 2,
+    })
+
+    expect(repository.updateTaskWorkflow('ws-alpha', taskId, 'in-progress', 3)).toEqual(
+      expect.objectContaining({ taskId, workflow: 'in-progress' }),
+    )
+    expect(repository.getTaskAggregateById('ws-alpha', taskId)?.record).toEqual(
+      expect.objectContaining({ revision: 4, workflow: 'in-progress' }),
+    )
+    expect(() => repository.updateTaskWorkflow('ws-alpha', taskId, 'done', 3))
+      .toThrow('revision 冲突')
+  })
+
+  test('updateTaskSpec 原地更新同一 slug 并递增 TaskRecord revision', () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    const repository = createRepository({ 'ws-alpha': workspaceRoot })
+    const taskId = '018f47a8-6c26-7a13-9bf6-7c8d4f2e4c72'
+    repository.saveTask('ws-alpha', buildSpec({ id: 'editable-task', title: '旧标题' }))
+    saveTaskRecord(workspaceRoot, {
+      schemaVersion: 1,
+      taskId,
+      slug: 'editable-task',
+      revision: 2,
+      workflow: 'todo',
+      labelIds: [],
+      orchestratorSessionId: 'session-1',
+      createdAt: 1,
+      updatedAt: 1,
+    })
+
+    const updated = repository.updateTaskSpec(
+      'ws-alpha',
+      taskId,
+      buildSpec({ id: 'editable-task', title: '新标题', goal: '更新目标' }),
+      () => 50,
+    )
+    expect(updated).toEqual(expect.objectContaining({
+      taskId,
+      taskSlug: 'editable-task',
+      title: '新标题',
+      goal: '更新目标',
+      revision: 3,
+      updatedAt: 50,
+    }))
+    expect(repository.listTasks('ws-alpha')).toEqual(['editable-task'])
+    expect(() => repository.updateTaskSpec(
+      'ws-alpha',
+      taskId,
+      buildSpec({ id: 'renamed-task' }),
+    )).toThrow('Task slug 不可在编辑时变更')
+  })
+
+  test('updateTaskMetadata 以 Task 为边界重命名和归档，不改 Session', () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    const repository = createRepository({ 'ws-alpha': workspaceRoot })
+    const taskId = '018f47a8-6c26-7a13-9bf6-7c8d4f2e4c72'
+    repository.saveTask('ws-alpha', buildSpec({ id: 'metadata-task', title: '旧标题' }))
+    saveTaskRecord(workspaceRoot, {
+      schemaVersion: 1,
+      taskId,
+      slug: 'metadata-task',
+      revision: 1,
+      workflow: 'todo',
+      labelIds: [],
+      createdAt: 1,
+      updatedAt: 1,
+    })
+
+    const renamed = repository.updateTaskMetadata(
+      'ws-alpha', taskId, { title: '新标题', archived: true, expectedRevision: 1 }, () => 50,
+    )
+    expect(renamed).toEqual(expect.objectContaining({
+      taskId,
+      title: '新标题',
+      archivedAt: 50,
+      revision: 2,
+    }))
+    expect(repository.getTask('ws-alpha', 'metadata-task')?.spec?.title).toBe('新标题')
+  })
+
+  test('updateTaskMetadata 更新 Task labelIds，不改变标题和归档状态', () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    const repository = createRepository({ 'ws-alpha': workspaceRoot })
+    const taskId = '018f47a8-6c26-7a13-9bf6-7c8d4f2e4c72'
+    repository.saveTask('ws-alpha', buildSpec({ id: 'label-test', title: '标签任务' }))
+    saveTaskRecord(workspaceRoot, {
+      schemaVersion: 1,
+      taskId,
+      slug: 'label-test',
+      revision: 1,
+      workflow: 'todo',
+      labelIds: [],
+      createdAt: 1,
+      updatedAt: 1,
+    })
+
+    const updated = repository.updateTaskMetadata('ws-alpha', taskId, { labelIds: ['label-a', 'label-b'], expectedRevision: 1 }, () => 50)
+    expect(updated).toEqual(expect.objectContaining({
+      taskId,
+      title: '标签任务',
+      labelIds: ['label-a', 'label-b'],
+      revision: 2,
+      updatedAt: 50,
+    }))
+    expect(updated.archivedAt).toBeUndefined()
+  })
+
+  test('按稳定 taskId 查找 TaskAggregate，并发现 record-only 恢复项', () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    const repository = createRepository({ 'ws-alpha': workspaceRoot })
+    const taskId = '018f47a8-6c26-7a13-9bf6-7c8d4f2e4c72'
+    saveTaskRecord(workspaceRoot, {
+      schemaVersion: 1,
+      taskId,
+      slug: 'record-only',
+      revision: 1,
+      workflow: 'needs-review',
+      labelIds: ['label-a'],
+      createdAt: 1,
+      updatedAt: 2,
+    })
+
+    expect(repository.getTaskAggregateById('ws-alpha', taskId)).toEqual(
+      expect.objectContaining({
+        taskId,
+        taskSlug: 'record-only',
+        spec: null,
+        record: expect.objectContaining({ workflow: 'needs-review', labelIds: ['label-a'] }),
+        legacyIdentity: false,
+        diagnostics: expect.arrayContaining([
+          expect.objectContaining({ code: 'missing-task-spec', severity: 'error' }),
+        ]),
+      }),
+    )
+  })
+
   test('getRunState 聚合 snapshot、run-log 和 node output', () => {
     const repository = createRepository({ 'ws-alpha': createTempWorkspaceRoot() })
     const spec = buildSpec()
@@ -130,6 +397,7 @@ describe('TaskRepository', () => {
     expect(repository.listRuns('ws-alpha', spec.id)).toEqual(['run-1'])
     expect(repository.getRunState('ws-alpha', spec.id, 'run-1')).toEqual(
       expect.objectContaining({
+        taskId: 'demo-task',
         runId: 'run-1',
         spec,
         log: expect.arrayContaining([
@@ -149,6 +417,27 @@ describe('TaskRepository', () => {
             state: 'done',
           },
         },
+      }),
+    )
+  })
+
+  test('live task.yaml 缺失时仍优先读取历史 Run snapshot', () => {
+    const repository = createRepository({ 'ws-alpha': createTempWorkspaceRoot() })
+    const spec = buildSpec({ id: 'historical-task', title: 'Historical snapshot' })
+
+    repository.writeRunSpecSnapshot('ws-alpha', spec.id, 'run-snapshot', spec)
+    repository.appendRunLog('ws-alpha', spec.id, 'run-snapshot', {
+      t: '2026-07-13T00:05:00.000Z',
+      kind: 'run-started',
+      taskId: spec.id,
+      runId: 'run-snapshot',
+    })
+
+    expect(repository.getTask('ws-alpha', spec.id)).toBeNull()
+    expect(repository.getRunState('ws-alpha', spec.id, 'run-snapshot')).toEqual(
+      expect.objectContaining({
+        runId: 'run-snapshot',
+        spec,
       }),
     )
   })

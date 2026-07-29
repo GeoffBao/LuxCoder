@@ -1,7 +1,10 @@
 import { atom } from 'jotai'
 import type { AgentSessionMeta } from '@luxcoder/shared'
+import type { TaskAggregateSummary } from '@luxcoder/shared/tasks'
 import { buildKanbanViewModel } from '@/components/app-shell/kanban/kanban-view-model'
+import { workflowForKanbanColumn } from '@/components/app-shell/kanban/status-column'
 import type { SpecNodeSummary } from '@/components/app-shell/kanban/subtask-merge'
+import { taskBoardWorkflowFilterAtom, taskBoardLabelFilterAtom, taskBoardIncludeUnlabeledAtom } from './task-board-filter-atoms'
 import {
   type KanbanBoardMode,
   type KanbanItem,
@@ -9,10 +12,12 @@ import {
   type TeambitionBinding,
 } from '@/components/app-shell/kanban/types'
 import { agentModelIdAtom, agentStreamingStatesAtom } from './agent-atoms'
-import { selectedProjectIdAtom, serverKanbanProjectsAtom } from './project-atoms'
+import { serverKanbanProjectsAtom, taskBoardScopeAtom } from './project-atoms'
 
 /** 服务端会话快照，始终保持原始 AgentSessionMeta。 */
 export const serverKanbanSessionsAtom = atom<AgentSessionMeta[]>([])
+/** TaskRepository-first summaries. Empty during load so ordinary chats never flash as Tasks. */
+export const serverTaskSummariesAtom = atom<TaskAggregateSummary[] | undefined>([])
 export const serverKanbanRunsAtom = atom<KanbanTaskRun[]>([])
 export const serverTeambitionBindingsAtom = atom<TeambitionBinding[]>([])
 /** taskSlug → DAG nodes，供卡片合并子任务行 */
@@ -52,7 +57,13 @@ export const kanbanItemsAtom = atom<KanbanItem[]>((get) => {
     sessions,
     runs: get(serverKanbanRunsAtom),
     bindings: get(serverTeambitionBindingsAtom),
-    filter: { projectId: get(selectedProjectIdAtom) },
+    tasks: get(serverTaskSummariesAtom),
+    filter: {
+      scope: get(taskBoardScopeAtom),
+      workflow: get(taskBoardWorkflowFilterAtom),
+      labelIds: get(taskBoardLabelFilterAtom),
+      includeUnlabeled: get(taskBoardIncludeUnlabeledAtom),
+    },
     specNodesBySlug: get(kanbanSpecNodesAtom),
     expertIdsBySlug: get(kanbanTaskExpertIdsAtom),
     fallbackModel: get(agentModelIdAtom) ?? '',
@@ -63,7 +74,7 @@ export const kanbanItemsAtom = atom<KanbanItem[]>((get) => {
     const childIds = item.subtasks
       .map((subtask) => subtask.sessionId)
       .filter((id): id is string => Boolean(id))
-    const isProcessing = Boolean(streamStates.get(item.id)?.running)
+    const isProcessing = Boolean(streamStates.get(item.session.id)?.running)
       || childIds.some((id) => streamStates.get(id)?.running)
     if (!isProcessing) return item
     return {
@@ -78,8 +89,13 @@ export const kanbanItemsAtom = atom<KanbanItem[]>((get) => {
 })
 
 export interface MoveCardInput {
-  sessionId: string
+  /** stable taskId in TaskRepository-first mode */
+  itemId?: string
+  /** @deprecated legacy Session-board caller compatibility */
+  sessionId?: string
   columnId: string
+  workspaceRoot?: string
+  workspaceId?: string
 }
 
 function toErrorMessage(cause: unknown): string {
@@ -92,36 +108,80 @@ function toErrorMessage(cause: unknown): string {
 export const moveCardAtom = atom(
   null,
   async (get, set, input: MoveCardInput): Promise<void> => {
-    const currentOptimisticColumns = get(optimisticKanbanColumnsAtom)
+    const itemId = input.itemId ?? input.sessionId
+    if (!itemId) throw new Error('移动卡片缺少 itemId')
     const sequence = get(kanbanMoveSequenceAtom) + 1
     set(kanbanMoveSequenceAtom, sequence)
     set(latestKanbanMoveSequenceAtom, (sequences) => {
       const next = new Map(sequences)
-      next.set(input.sessionId, sequence)
+      next.set(itemId, sequence)
       return next
     })
+
+    const task = get(serverTaskSummariesAtom)?.find((candidate) => candidate.taskId === itemId)
+    if (task && !task.legacyIdentity) {
+      if (!input.workspaceRoot || !input.workspaceId) {
+        set(kanbanNotificationsAtom, (notifications) => [
+          ...notifications,
+          { level: 'error', message: 'Task Workflow 更新缺少 Workspace 上下文' },
+        ])
+        return
+      }
+      const workflow = workflowForKanbanColumn(input.columnId)
+      set(serverTaskSummariesAtom, (tasks) => tasks?.map((candidate) =>
+        candidate.taskId === task.taskId ? { ...candidate, workflow } : candidate,
+      ))
+      try {
+        const updated = await window.electronAPI.tasks.updateWorkflow(
+          input.workspaceRoot,
+          input.workspaceId,
+          task.taskId,
+          workflow,
+          task.revision,
+        )
+        if (get(latestKanbanMoveSequenceAtom).get(itemId) !== sequence) return
+        set(serverTaskSummariesAtom, (tasks) => tasks?.map((candidate) =>
+          candidate.taskId === task.taskId ? updated : candidate,
+        ))
+      } catch (cause) {
+        if (get(latestKanbanMoveSequenceAtom).get(itemId) !== sequence) return
+        set(serverTaskSummariesAtom, (tasks) => tasks?.map((candidate) =>
+          candidate.taskId === task.taskId ? task : candidate,
+        ))
+        set(kanbanNotificationsAtom, (notifications) => [
+          ...notifications,
+          { level: 'error', message: toErrorMessage(cause) },
+        ])
+      }
+      return
+    }
+
+    const sessionId = task?.orchestratorSessionId
+      ?? get(serverKanbanSessionsAtom).find((session) => session.taskSlug === task?.taskSlug && !session.parentSessionId)?.id
+      ?? itemId
+    const currentOptimisticColumns = get(optimisticKanbanColumnsAtom)
     const nextOptimisticColumns = new Map(currentOptimisticColumns)
-    nextOptimisticColumns.set(input.sessionId, { columnId: input.columnId, sequence })
+    nextOptimisticColumns.set(sessionId, { columnId: input.columnId, sequence })
     set(optimisticKanbanColumnsAtom, nextOptimisticColumns)
 
     try {
-      const updated = await window.electronAPI.sessions.move(input.sessionId, input.columnId)
-      if (get(latestKanbanMoveSequenceAtom).get(input.sessionId) !== sequence) return
+      const updated = await window.electronAPI.sessions.move(sessionId, input.columnId)
+      if (get(latestKanbanMoveSequenceAtom).get(itemId) !== sequence) return
       set(serverKanbanSessionsAtom, (sessions) =>
-        sessions.map((item) => item.id === input.sessionId ? updated : item),
+        sessions.map((item) => item.id === sessionId ? updated : item),
       )
       set(optimisticKanbanColumnsAtom, (columns) => {
-        if (columns.get(input.sessionId)?.sequence !== sequence) return columns
+        if (columns.get(sessionId)?.sequence !== sequence) return columns
         const next = new Map(columns)
-        next.delete(input.sessionId)
+        next.delete(sessionId)
         return next
       })
     } catch (cause) {
-      if (get(latestKanbanMoveSequenceAtom).get(input.sessionId) !== sequence) return
+      if (get(latestKanbanMoveSequenceAtom).get(itemId) !== sequence) return
       set(optimisticKanbanColumnsAtom, (columns) => {
-        if (columns.get(input.sessionId)?.sequence !== sequence) return columns
+        if (columns.get(sessionId)?.sequence !== sequence) return columns
         const next = new Map(columns)
-        next.delete(input.sessionId)
+        next.delete(sessionId)
         return next
       })
       set(kanbanNotificationsAtom, (notifications) => [

@@ -30,6 +30,29 @@ describe('tasks package contracts', () => {
     expect(parsed.data.nodes[0]?.kind).toBe('session');
   });
 
+  test('旧版无 project/taskId/version 的 task.yaml 继续作为 Workspace Task 解析', () => {
+    const yaml = [
+      'id: workspace-task',
+      'title: Workspace task',
+      'goal: Preserve legacy workspace task compatibility',
+      'nodes:',
+      '  - id: execute',
+      '    prompt: do the work',
+      '',
+    ].join('\n');
+
+    const parsed = parseTaskYaml(yaml);
+
+    expect(parsed.valid).toBe(true);
+    expect(parsed.spec).toEqual(expect.objectContaining({
+      id: 'workspace-task',
+      title: 'Workspace task',
+    }));
+    expect(parsed.spec?.project).toBeUndefined();
+    expect(parsed.spec && Object.hasOwn(parsed.spec, 'taskId')).toBe(false);
+    expect(parsed.spec && Object.hasOwn(parsed.spec, 'version')).toBe(false);
+  });
+
   test('重复 node id 视为无效 spec', () => {
     const parsed = TaskSpecSchema.safeParse({
       id: 'demo-task',

@@ -8,6 +8,9 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { PROJECT_IPC_CHANNELS, TASK_IPC_CHANNELS, SESSION_COMMAND_CHANNEL, SESSION_GROUP_IPC_CHANNELS, TEAMBITION_IPC_CHANNELS, EXPERT_IPC_CHANNELS } from '@luxcoder/shared/channels'
 import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS } from '@luxcoder/shared'
+import type { TaskAggregateSummary, TaskMetadataPatch, TaskWorkflow } from '@luxcoder/shared/tasks'
+import { LABEL_IPC_CHANNELS } from '@luxcoder/shared/channels'
+import type { WorkspaceLabel } from '@luxcoder/shared/labels'
 import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, SCRATCH_PAD_IPC_CHANNELS, DOCK_BADGE_IPC_CHANNELS, STORAGE_IPC_CHANNELS } from '../types'
 import type {
   RuntimeStatus,
@@ -79,6 +82,8 @@ import type {
   GitHubReleaseListOptions,
   PermissionRequest,
   PermissionResponse,
+  ProjectDeleteImpact,
+  TaskDeleteImpact,
   LuxCoderPermissionMode,
   AskUserRequest,
   AskUserResponse,
@@ -216,6 +221,7 @@ export interface TaskValidationResult extends ValidationResult {
 }
 
 export interface TaskCreateResult {
+  taskId: string
   slug: string
   orchestratorSessionId: string
   valid: true
@@ -1277,6 +1283,7 @@ export interface ElectronAPI {
     create: (workspaceRoot: string, input: BrowserProjectCreateInput) => Promise<BrowserProject>
     update: (workspaceRoot: string, slug: string, patch: BrowserProjectUpdateInput) => Promise<BrowserProject>
     delete: (workspaceRoot: string, slug: string) => Promise<void>
+    analyzeDeleteImpact: (workspaceRoot: string, idOrSlug: string) => Promise<ProjectDeleteImpact>
     listAssets: (workspaceRoot: string, slug: string) => Promise<BrowserProjectAsset[]>
     uploadAsset: (workspaceRoot: string, slug: string, input: BrowserProjectAssetUploadInput) => Promise<BrowserProjectAsset>
     deleteAsset: (workspaceRoot: string, slug: string, filename: string) => Promise<void>
@@ -1314,7 +1321,20 @@ export interface ElectronAPI {
     stop: (workspaceRoot: string, workspaceId: string, slug: string, runId: string) => Promise<void>
     get: (workspaceRoot: string, slug: string) => Promise<TaskValidationResult | null>
     list: (workspaceRoot: string) => Promise<string[]>
+    listSummaries: (workspaceRoot: string, workspaceId: string) => Promise<TaskAggregateSummary[]>
+    updateWorkflow: (workspaceRoot: string, workspaceId: string, taskId: string, workflow: TaskWorkflow, expectedRevision?: number) => Promise<TaskAggregateSummary>
+    updateMetadata: (workspaceRoot: string, workspaceId: string, taskId: string, patch: TaskMetadataPatch) => Promise<TaskAggregateSummary>
+    analyzeDeleteImpact: (workspaceRoot: string, slug: string) => Promise<TaskDeleteImpact>
+    delete: (workspaceRoot: string, workspaceId: string, slug: string) => Promise<void>
     getResults: (workspaceRoot: string, slug: string, runId?: string) => Promise<TaskResults | null>
+  }
+  labels: {
+    list: (workspaceRoot: string) => Promise<WorkspaceLabel[]>
+    create: (workspaceRoot: string, input: { name: string; color?: string }) => Promise<WorkspaceLabel>
+    update: (workspaceRoot: string, labelId: string, patch: { name?: string; color?: string | null; archived?: boolean }) => Promise<WorkspaceLabel>
+    archive: (workspaceRoot: string, labelId: string) => Promise<WorkspaceLabel>
+    setSessionLabels: (workspaceRoot: string, sessionId: string, labelIds: string[]) => Promise<AgentSessionMeta>
+    setTaskLabels: (workspaceRoot: string, workspaceId: string, taskId: string, labelIds: string[]) => Promise<TaskAggregateSummary>
   }
   sessions: {
     move: (sessionId: string, columnId: string) => Promise<AgentSessionMeta>
@@ -1337,6 +1357,7 @@ export interface ElectronAPI {
   createProject: (workspaceRoot: string, input: CreateProjectInput) => Promise<LoadedProject>
   updateProject: (workspaceRoot: string, slug: string, patch: UpdateProjectInput) => Promise<LoadedProject>
   deleteProject: (workspaceRoot: string, slug: string) => Promise<void>
+  analyzeProjectDeleteImpact: (workspaceRoot: string, idOrSlug: string) => Promise<ProjectDeleteImpact>
   listProjectAssets: (workspaceRoot: string, slug: string) => Promise<ProjectAsset[]>
   uploadProjectAsset: (workspaceRoot: string, slug: string, input: UploadProjectAssetInput) => Promise<ProjectAsset>
   deleteProjectAsset: (workspaceRoot: string, slug: string, filename: string) => Promise<void>
@@ -1350,6 +1371,7 @@ export interface ElectronAPI {
   getTask: (workspaceRoot: string, slug: string) => Promise<unknown>
   listTasks: (workspaceRoot: string) => Promise<string[]>
   getTaskResults: (workspaceRoot: string, slug: string, runId?: string) => Promise<TaskResults | null>
+  analyzeTaskDeleteImpact: (workspaceRoot: string, slug: string) => Promise<TaskDeleteImpact>
   sendSessionCommand: (sessionId: string, command: SessionKanbanCommand) => Promise<AgentSessionMeta>
   onProjectsChanged: (callback: (payload: ProjectsChangedEventPayload) => void) => () => void
   onTaskGenerated: (callback: (payload: TaskGeneratedEventPayload) => void) => () => void
@@ -2818,6 +2840,8 @@ const electronAPI: ElectronAPI = {
     },
     delete: (workspaceRoot: string, slug: string): Promise<void> =>
       invokeTyped<void>(PROJECT_IPC_CHANNELS.DELETE, workspaceRoot, slug),
+    analyzeDeleteImpact: (workspaceRoot: string, idOrSlug: string): Promise<ProjectDeleteImpact> =>
+      invokeTyped<ProjectDeleteImpact>(PROJECT_IPC_CHANNELS.ANALYZE_DELETE_IMPACT, workspaceRoot, idOrSlug),
     listAssets: async (workspaceRoot: string, slug: string): Promise<BrowserProjectAsset[]> => {
       const assets = await invokeTyped<ProjectAsset[]>(PROJECT_IPC_CHANNELS.LIST_ASSETS, workspaceRoot, slug)
       return assets.map(toBrowserProjectAsset)
@@ -2914,8 +2938,32 @@ const electronAPI: ElectronAPI = {
     get: (workspaceRoot: string, slug: string): Promise<TaskValidationResult | null> =>
       invokeTyped<TaskValidationResult | null>(TASK_IPC_CHANNELS.GET, workspaceRoot, slug),
     list: (workspaceRoot: string): Promise<string[]> => invokeTyped<string[]>(TASK_IPC_CHANNELS.LIST, workspaceRoot),
+    listSummaries: (workspaceRoot: string, workspaceId: string): Promise<TaskAggregateSummary[]> =>
+      invokeTyped<TaskAggregateSummary[]>(TASK_IPC_CHANNELS.LIST_SUMMARIES, workspaceRoot, workspaceId),
+    updateWorkflow: (workspaceRoot: string, workspaceId: string, taskId: string, workflow: TaskWorkflow, expectedRevision?: number): Promise<TaskAggregateSummary> =>
+      invokeTyped<TaskAggregateSummary>(TASK_IPC_CHANNELS.UPDATE_WORKFLOW, workspaceRoot, workspaceId, taskId, workflow, expectedRevision),
+    updateMetadata: (workspaceRoot: string, workspaceId: string, taskId: string, patch: TaskMetadataPatch): Promise<TaskAggregateSummary> =>
+      invokeTyped<TaskAggregateSummary>(TASK_IPC_CHANNELS.UPDATE_METADATA, workspaceRoot, workspaceId, taskId, patch),
+    analyzeDeleteImpact: (workspaceRoot: string, slug: string): Promise<TaskDeleteImpact> =>
+      invokeTyped<TaskDeleteImpact>(TASK_IPC_CHANNELS.ANALYZE_DELETE_IMPACT, workspaceRoot, slug),
+    delete: (workspaceRoot: string, workspaceId: string, slug: string): Promise<void> =>
+      invokeTyped<void>(TASK_IPC_CHANNELS.DELETE, workspaceRoot, workspaceId, slug),
     getResults: (workspaceRoot: string, slug: string, runId?: string): Promise<TaskResults | null> =>
       invokeTyped<TaskResults | null>(TASK_IPC_CHANNELS.GET_RESULTS, workspaceRoot, slug, runId),
+  },
+  labels: {
+    list: (workspaceRoot: string): Promise<WorkspaceLabel[]> =>
+      invokeTyped<WorkspaceLabel[]>(LABEL_IPC_CHANNELS.LIST, workspaceRoot),
+    create: (workspaceRoot: string, input: { name: string; color?: string }): Promise<WorkspaceLabel> =>
+      invokeTyped<WorkspaceLabel>(LABEL_IPC_CHANNELS.CREATE, workspaceRoot, input),
+    update: (workspaceRoot: string, labelId: string, patch: { name?: string; color?: string | null; archived?: boolean }): Promise<WorkspaceLabel> =>
+      invokeTyped<WorkspaceLabel>(LABEL_IPC_CHANNELS.UPDATE, workspaceRoot, labelId, patch),
+    archive: (workspaceRoot: string, labelId: string): Promise<WorkspaceLabel> =>
+      invokeTyped<WorkspaceLabel>(LABEL_IPC_CHANNELS.ARCHIVE, workspaceRoot, labelId),
+    setSessionLabels: (workspaceRoot: string, sessionId: string, labelIds: string[]): Promise<AgentSessionMeta> =>
+      invokeTyped<AgentSessionMeta>(LABEL_IPC_CHANNELS.SET_SESSION_LABELS, workspaceRoot, sessionId, labelIds),
+    setTaskLabels: (workspaceRoot: string, workspaceId: string, taskId: string, labelIds: string[]): Promise<TaskAggregateSummary> =>
+      invokeTyped<TaskAggregateSummary>(LABEL_IPC_CHANNELS.SET_TASK_LABELS, workspaceRoot, workspaceId, taskId, labelIds),
   },
   sessions: {
     move: (sessionId: string, columnId: string): Promise<AgentSessionMeta> =>
@@ -2948,6 +2996,7 @@ const electronAPI: ElectronAPI = {
   createProject: (workspaceRoot: string, input: CreateProjectInput) => ipcRenderer.invoke(PROJECT_IPC_CHANNELS.CREATE, workspaceRoot, input),
   updateProject: (workspaceRoot: string, slug: string, patch: UpdateProjectInput) => ipcRenderer.invoke(PROJECT_IPC_CHANNELS.UPDATE, workspaceRoot, slug, patch),
   deleteProject: (workspaceRoot: string, slug: string) => ipcRenderer.invoke(PROJECT_IPC_CHANNELS.DELETE, workspaceRoot, slug),
+  analyzeProjectDeleteImpact: (workspaceRoot: string, idOrSlug: string) => ipcRenderer.invoke(PROJECT_IPC_CHANNELS.ANALYZE_DELETE_IMPACT, workspaceRoot, idOrSlug),
   listProjectAssets: (workspaceRoot: string, slug: string) => ipcRenderer.invoke(PROJECT_IPC_CHANNELS.LIST_ASSETS, workspaceRoot, slug),
   uploadProjectAsset: (workspaceRoot: string, slug: string, input: UploadProjectAssetInput) => ipcRenderer.invoke(PROJECT_IPC_CHANNELS.UPLOAD_ASSET, workspaceRoot, slug, input),
   deleteProjectAsset: (workspaceRoot: string, slug: string, filename: string) => ipcRenderer.invoke(PROJECT_IPC_CHANNELS.DELETE_ASSET, workspaceRoot, slug, filename),
@@ -2961,6 +3010,7 @@ const electronAPI: ElectronAPI = {
   getTask: (workspaceRoot: string, slug: string) => ipcRenderer.invoke(TASK_IPC_CHANNELS.GET, workspaceRoot, slug),
   listTasks: (workspaceRoot: string) => ipcRenderer.invoke(TASK_IPC_CHANNELS.LIST, workspaceRoot),
   getTaskResults: (workspaceRoot: string, slug: string, runId?: string) => ipcRenderer.invoke(TASK_IPC_CHANNELS.GET_RESULTS, workspaceRoot, slug, runId),
+  analyzeTaskDeleteImpact: (workspaceRoot: string, slug: string) => ipcRenderer.invoke(TASK_IPC_CHANNELS.ANALYZE_DELETE_IMPACT, workspaceRoot, slug),
   sendSessionCommand: (sessionId: string, command: SessionKanbanCommand) => ipcRenderer.invoke(SESSION_COMMAND_CHANNEL, sessionId, command),
   onProjectsChanged: (callback: (payload: ProjectsChangedEventPayload) => void) => {
     const listener = (_event: unknown, payload: ProjectsChangedEventPayload): void => callback(payload)

@@ -2,9 +2,11 @@
 
 **日期：** 2026-07-22
 
-**状态：** 规格已确认；实现计划见 `docs/superpowers/plans/2026-07-22-workspace-project-session-ia.md`
+**状态：** 部分已被取代；原实现计划见 `docs/superpowers/plans/2026-07-22-workspace-project-session-ia.md`
 
 **范围：** Code 模式中的 Workspace、Project、Session、Task 归属与导航
+
+> **2026-07-28 更新：** `2026-07-28-workspace-task-context-labels-architecture-design.md` 已取代本文中“Task 必须属于 Project”、Project 主页旧 tabs、Code「会话｜看板」双模式以及 Project/Task 删除语义。Workspace、Project、Session、工作目录和侧栏的无冲突原则继续有效。
 
 **取代范围：** 本文在 Workspace / Project 侧栏层级和独立「项目中心」入口方面，取代 `2026-07-20-code-projects-board-ia-design.md` 与 `2026-07-21-projects-hub-agent-experts-design.md` 的对应设计；其中 Kanban、Agent 专家运行期等无冲突内容继续有效。
 

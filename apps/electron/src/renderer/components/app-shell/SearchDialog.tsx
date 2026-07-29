@@ -30,10 +30,12 @@ import {
 } from '@/atoms/agent-atoms'
 import { activeViewAtom } from '@/atoms/active-view'
 import {
+  activeProjectPageIdAtom,
   codeMainViewAtom,
-  selectedProjectIdAtom,
+  projectPageTabAtom,
   serverKanbanProjectsAtom,
 } from '@/atoms/project-atoms'
+import { buildProjectPageNavigation } from './code-main-view-model'
 import { useOpenSession } from '@/hooks/useOpenSession'
 import { useCreateSession } from '@/hooks/useCreateSession'
 import {
@@ -249,7 +251,8 @@ export function SearchDialog(): React.ReactElement {
   const setAgentPendingPrompt = useSetAtom(agentPendingPromptAtom)
   const setActiveView = useSetAtom(activeViewAtom)
   const kanbanProjects = useAtomValue(serverKanbanProjectsAtom)
-  const setSelectedProjectId = useSetAtom(selectedProjectIdAtom)
+  const setActiveProjectPageId = useSetAtom(activeProjectPageIdAtom)
+  const setProjectPageTab = useSetAtom(projectPageTabAtom)
   const setCodeMainView = useSetAtom(codeMainViewAtom)
   const currentWorkspaceSlug = React.useMemo(() => {
     const currentId = agentWorkspaces.find((w) => w.id === agentSessions.find((s) => s.workspaceId)?.workspaceId)?.slug
@@ -446,9 +449,11 @@ export function SearchDialog(): React.ReactElement {
 
     if (result.type === 'project') {
       const project = result as ProjectResult
-      setSelectedProjectId(project.id)
-      setCodeMainView('work')
-      setActiveView('conversations')
+      const navigation = buildProjectPageNavigation(project.id)
+      setActiveProjectPageId(navigation.activeProjectPageId)
+      setProjectPageTab(navigation.projectPageTab)
+      setCodeMainView(navigation.codeMainView)
+      setActiveView(navigation.activeView)
       return
     }
 
@@ -463,7 +468,7 @@ export function SearchDialog(): React.ReactElement {
       const title = session?.title ?? result.title
       openSession('agent', result.id, title)
     }
-  }, [setOpen, setActiveView, openSession, conversations, agentSessions, setSelectedProjectId, setCodeMainView])
+  }, [setOpen, setActiveView, openSession, conversations, agentSessions, setActiveProjectPageId, setProjectPageTab, setCodeMainView])
 
   /**
    * Enter 键语义：

@@ -4,8 +4,9 @@
  * 这里是 Electron 主进程与本地文件存储、TaskRunner、Agent 编排器之间的薄桥接层。
  */
 import { BrowserWindow, ipcMain } from 'electron'
-import { basename, join } from 'node:path'
+import { basename, join, resolve } from 'node:path'
 import {
+  LABEL_IPC_CHANNELS,
   PROJECT_IPC_CHANNELS,
   SESSION_COMMAND_CHANNEL,
   SESSION_GROUP_IPC_CHANNELS,
@@ -23,37 +24,54 @@ import type {
   UploadProjectAssetInput,
 } from '@luxcoder/shared'
 import type { TaskSpec } from '@luxcoder/shared/tasks/schema'
+import type { TaskMetadataPatch, TaskWorkflow } from '@luxcoder/shared/tasks/task-record'
 import {
   buildGeneratorPrompt,
   buildRepairPrompt,
   extractYaml,
 } from '@luxcoder/shared/tasks'
 import {
-  ensureUniqueTaskSlug,
+  getLatestRunId,
   listResumableRuns,
   listTaskSlugs,
   loadTaskSpec,
+  deleteTaskSpec,
   parseTaskYaml,
   readRunLog,
   readRunSpecSnapshot,
-  listRunIds,
-  saveTaskSpec,
 } from '@luxcoder/shared/tasks/storage'
 import { createLuxCoderConductorSessionHost, type LuxCoderConductorSessionHost } from './conductor-session-host'
-import { getAgentSessionMeta, updateAgentSessionMeta } from './agent-session-manager'
+import { deleteAgentSession, getAgentSessionMeta, listAgentSessions, updateAgentSessionMeta } from './agent-session-manager'
 import { createSessionGroup, deleteSessionGroup, listSessionGroups, renameSessionGroup } from './agent-session-group-service'
 import { isAgentSessionActive } from './agent-service'
-import { getAgentWorkspace, listAgentWorkspaces } from './agent-workspace-manager'
+import {
+  getAgentWorkspace,
+  getWorkspaceDefaultWorkingDirectoryAtRoot,
+  listAgentWorkspaces,
+} from './agent-workspace-manager'
 import { getAgentWorkspacePath, getExpertsDir } from './config-paths'
 import { getExpert } from './expert-service'
+import { loadExpertWorkspaceBinding } from './expert-binding-service'
 import { projectRepository } from './project-repository'
+import { analyzeProjectDeleteImpact, analyzeTaskDeleteImpact } from './project-impact-service'
 import {
   openOrCreateProjectForPath,
   relocateProjectWorkingDirectory,
   resolveEffectiveCwd,
 } from './project-path-service'
-import { TaskRunner, type RunOptions } from './task-runner'
+import { TaskRepository } from './task-repository'
+import { TaskRunner, type CreateSessionOptions, type RunOptions } from './task-runner'
+import {
+  materializeTaskTransaction,
+  recoverTaskMaterializations,
+  type TaskMaterializationDependencies,
+} from './task-materialization-service'
+import {
+  resolveTaskWorkingDirectory as resolveTaskWorkingDirectoryWithPolicy,
+  type TaskWorkingDirectoryResult,
+} from './task-working-directory'
 import { TeambitionService, type ClaimTeambitionTaskInput, type TeambitionRemoteTask } from './teambition-service'
+import { WorkspaceLabelService, assertValidWorkspaceLabelIds } from './workspace-label-service'
 
 const GENERATE_TIMEOUT_MS = 180_000
 
@@ -95,37 +113,47 @@ function getSessionHost(): Promise<LuxCoderConductorSessionHost> {
   return sessionHostPromise
 }
 
-/**
- * 落盘 task.yaml 并创建全新的 orchestrator 会话（sessionStatus: 'todo'，只创建不运行）。
- * tasks:create IPC（新建路径）与 create_task Agent 工具共用此函数，避免两条创建路径分叉。
- * 不支持"挂接到既有会话"——那是 IPC handler 自己的分支，调用方是表单 UI 的编辑场景，
- * Agent 工具没有这个场景，不需要覆盖。
- *
- * slug 冲突通过 ensureUniqueTaskSlug 追加 -2/-3... 规避，两条创建路径共用同一份保护：
- * `saveTaskSpec` 对同 slug 是无条件覆盖，若不在这里去重，后到的任务会静默顶掉先到的
- * task.yaml，把它的 orchestrator 会话变成孤儿。这里读 slug 集合和随后 saveTaskSpec 的
- * 写入之间没有 await，去重检查因此不会有 TOCTOU 竞态。
- */
+async function taskMaterializationDependencies(): Promise<TaskMaterializationDependencies> {
+  const host = await getSessionHost()
+  return {
+    createSession: async (workspaceId: string, options: CreateSessionOptions) => {
+      const created = await host.createSession(workspaceId, options)
+      return getAgentSessionMeta(created.id) ?? {
+        id: created.id,
+        title: options.name ?? 'Task',
+        workspaceId,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }
+    },
+    getSession: getAgentSessionMeta,
+    updateSession: updateAgentSessionMeta,
+    deleteSession: deleteAgentSession,
+  }
+}
+
+/** tasks:create 与 create_task 共用可恢复事务，只创建不运行。 */
 export async function materializeTaskFromSpec(
   workspaceRoot: string,
   workspaceId: string,
   spec: TaskSpec,
-): Promise<{ slug: string; orchestratorSessionId: string }> {
-  const uniqueId = ensureUniqueTaskSlug(workspaceRoot, spec.id)
-  const finalSpec = uniqueId === spec.id ? spec : { ...spec, id: uniqueId }
-  saveTaskSpec(workspaceRoot, finalSpec)
-  const seed = buildTaskSessionSeed(finalSpec, workspaceRoot)
-  const session = await (await getSessionHost()).createSession(workspaceId, {
-    name: finalSpec.title,
-    projectId: finalSpec.project,
-    taskSlug: finalSpec.id,
-    sessionStatus: 'todo',
-    ...(seed.workingDirectory ? { workingDirectory: seed.workingDirectory } : {}),
-    ...(seed.modelId ? { model: seed.modelId } : {}),
-    ...(seed.channelId ? { llmConnection: seed.channelId } : {}),
-    ...(spec.defaults?.permissionMode ? { permissionMode: spec.defaults.permissionMode } : {}),
-  })
-  return { slug: finalSpec.id, orchestratorSessionId: session.id }
+): Promise<{ slug: string; taskId: string; orchestratorSessionId: string }> {
+  const seed = buildTaskSessionSeed(spec, workspaceRoot)
+  return materializeTaskTransaction({
+    workspaceRoot,
+    workspaceId,
+    spec,
+    mode: {
+      kind: 'create',
+      sessionOptions: {
+        sessionStatus: 'todo',
+        ...(seed.workingDirectory ? { workingDirectory: seed.workingDirectory } : {}),
+        ...(seed.modelId ? { model: seed.modelId } : {}),
+        ...(seed.channelId ? { llmConnection: seed.channelId } : {}),
+        ...(spec.defaults?.permissionMode ? { permissionMode: spec.defaults.permissionMode } : {}),
+      },
+    },
+  }, await taskMaterializationDependencies())
 }
 
 async function getRunnerFor(workspaceRoot: string, workspaceId: string): Promise<TaskRunner> {
@@ -139,6 +167,10 @@ async function getRunnerFor(workspaceRoot: string, workspaceId: string): Promise
     workspaceRoot,
     isSessionActive: isAgentSessionActive,
     getExpert: (expertId) => getExpert(expertsRoot, expertId),
+    getWorkspaceExpertBinding: (expertId) => {
+      const binding = loadExpertWorkspaceBinding(workspaceRoot, expertId)
+      return binding.kind === 'valid' ? binding.binding : null
+    },
     resolveProjectDefaultExpertId: (projectId) => {
       try {
         return projectRepository.getProjectAtRoot(workspaceRoot, projectId)?.config.defaultExpertId ?? null
@@ -147,6 +179,7 @@ async function getRunnerFor(workspaceRoot: string, workspaceId: string): Promise
         return null
       }
     },
+    resolveTaskWorkingDirectory: (spec) => resolveTaskWorkingDirectoryResult(workspaceRoot, spec),
   })
   runners.set(workspaceId, runner)
   return runner
@@ -154,6 +187,28 @@ async function getRunnerFor(workspaceRoot: string, workspaceId: string): Promise
 
 function workspaceIdFor(workspaceRoot: string): string {
   return basename(workspaceRoot)
+}
+
+type WorkspaceRootResolver = (workspaceId: string) => string | undefined
+
+function resolveKnownWorkspaceRoot(workspaceId: string): string | undefined {
+  const workspace = getAgentWorkspace(workspaceId)
+  return workspace ? getAgentWorkspacePath(workspace.slug) : undefined
+}
+
+export function validateSessionLabelAssignment(
+  workspaceRoot: string,
+  session: AgentSessionMeta,
+  labelIds: readonly string[],
+  resolveWorkspaceRoot: WorkspaceRootResolver = resolveKnownWorkspaceRoot,
+): string[] {
+  if (session.workspaceId) {
+    const associatedRoot = resolveWorkspaceRoot(session.workspaceId)
+    if (associatedRoot && resolve(associatedRoot) !== resolve(workspaceRoot)) {
+      throw new Error(`Session ${session.id} 不属于当前 Workspace`)
+    }
+  }
+  return assertValidWorkspaceLabelIds(workspaceRoot, labelIds)
 }
 
 function sendToMainWindow(channel: string, payload: unknown): void {
@@ -198,14 +253,36 @@ interface AdoptableTaskSpec {
   }
 }
 
-/** spec.cwd 优先，否则回退到项目配置的 workingDirectory。 */
+/** 解析 Task cwd 的结构化结果；配置失效时保留 blocked 原因，供 Run/UI 使用。 */
+export function resolveTaskWorkingDirectoryResult(
+  workspaceRoot: string,
+  spec: Pick<AdoptableTaskSpec, 'cwd' | 'project'>,
+): TaskWorkingDirectoryResult {
+  return resolveTaskWorkingDirectoryWithPolicy({
+    explicitCwd: spec.cwd,
+    projectId: spec.project,
+    workspaceDefaultCwd: getWorkspaceDefaultWorkingDirectoryAtRoot(workspaceRoot),
+    resolveProjectCwd: (projectId) => {
+      const result = projectRepository.resolveEffectiveCwdForProject(workspaceRoot, projectId)
+      if (!result) return null
+      if (result.status === 'unavailable' || !result.cwd) {
+        return {
+          status: 'unavailable',
+          ...(result.displayPath ? { attemptedPath: result.displayPath } : {}),
+        }
+      }
+      return { status: 'resolved', cwd: result.cwd }
+    },
+  })
+}
+
+/** 创建阶段兼容 helper：Task 可在缺少 cwd 时保存，因此 blocked 映射为 undefined。 */
 export function resolveTaskWorkingDirectory(
   workspaceRoot: string,
   spec: Pick<AdoptableTaskSpec, 'cwd' | 'project'>,
 ): string | undefined {
-  const cwd = spec.cwd?.trim()
-  if (cwd) return cwd
-  return projectRepository.resolveWorkingDirectory(workspaceRoot, spec.project)
+  const result = resolveTaskWorkingDirectoryResult(workspaceRoot, spec)
+  return result.status === 'resolved' ? result.cwd : undefined
 }
 
 /**
@@ -419,6 +496,19 @@ export function registerTaskHandlers(window: BrowserWindow): void {
   if (handlersRegistered) return
   handlersRegistered = true
 
+  // 进程启动后先收敛已完成 Session 绑定但尚未 rename 提交的 Task 事务。
+  // recovery-required 只报告，不猜测或删除用户数据。
+  for (const workspace of listAgentWorkspaces()) {
+    const workspaceRoot = getAgentWorkspacePath(workspace.slug)
+    for (const result of recoverTaskMaterializations(workspaceRoot, {})) {
+      if (result.status === 'recovery-required') {
+        console.warn(`[TaskMaterialization] 需要人工恢复 ${workspace.id}/${result.transactionId}: ${result.message ?? result.taskSlug}`)
+      } else {
+        console.info(`[TaskMaterialization] 启动恢复 ${workspace.id}/${result.taskSlug}: ${result.status}`)
+      }
+    }
+  }
+
   ipcMain.handle(PROJECT_IPC_CHANNELS.GET, (_event, workspaceRoot: string) => {
     return projectRepository.listProjectsAtRoot(workspaceRoot)
   })
@@ -440,8 +530,24 @@ export function registerTaskHandlers(window: BrowserWindow): void {
   })
 
   ipcMain.handle(PROJECT_IPC_CHANNELS.DELETE, (_event, workspaceRoot: string, slug: string) => {
+    const project = projectRepository.getProjectAtRoot(workspaceRoot, slug)
+    if (!project) throw new Error(`项目不存在: ${slug}`)
+    if (!project.config.archivedAt) throw new Error('永久删除前必须先归档项目')
+
+    // 在执行删除的同一主进程 command 内重新分析，不能信任 Renderer 中可能过期的预览。
+    const impact = analyzeProjectDeleteImpact(workspaceRoot, project.config, listAgentSessions())
+    if (!impact.canPurge) {
+      throw new Error(`项目仍有关联数据，不能永久删除：${impact.blockers.join('；')}`)
+    }
+
     projectRepository.deleteProjectAtRoot(workspaceRoot, slug)
     broadcastProjectsChanged(workspaceRoot, workspaceIdFor(workspaceRoot))
+  })
+
+  ipcMain.handle(PROJECT_IPC_CHANNELS.ANALYZE_DELETE_IMPACT, (_event, workspaceRoot: string, idOrSlug: string) => {
+    const project = projectRepository.getProjectAtRoot(workspaceRoot, idOrSlug)
+    if (!project) throw new Error(`项目不存在: ${idOrSlug}`)
+    return analyzeProjectDeleteImpact(workspaceRoot, project.config, listAgentSessions())
   })
 
   ipcMain.handle(PROJECT_IPC_CHANNELS.LIST_ASSETS, (_event, workspaceRoot: string, slug: string) => {
@@ -517,23 +623,50 @@ export function registerTaskHandlers(window: BrowserWindow): void {
 
     if (request.attachToExistingSessionId) {
       const sessionId = request.attachToExistingSessionId
-      saveTaskSpec(workspaceRoot, parsed.spec)
+      const repository = new TaskRepository({ resolveWorkspaceRoot: () => workspaceRoot })
+      const existingTask = repository.getTaskAggregate(workspaceId, parsed.spec.id)
+      const existingSession = getAgentSessionMeta(sessionId)
+      // TaskEditor 的“编辑”必须原地更新同一 Task，不能经 ensureUniqueTaskSlug 复制出第二个聚合根。
+      if (existingTask && existingSession?.taskSlug === parsed.spec.id) {
+        repository.updateTaskSpec(workspaceId, existingTask.taskId, parsed.spec)
+        return {
+          slug: existingTask.taskSlug,
+          taskId: existingTask.taskId,
+          orchestratorSessionId: sessionId,
+          valid: true,
+        }
+      }
       const seed = buildTaskSessionSeed(parsed.spec, workspaceRoot)
-      if (!getAgentSessionMeta(sessionId)) throw new Error(`Agent 会话不存在: ${sessionId}`)
-      await updateAgentSessionMeta(sessionId, {
-        taskSlug: parsed.spec.id,
-        ...(parsed.spec.project ? { projectId: parsed.spec.project } : {}),
-        ...seed,
-      })
-      return { slug: parsed.spec.id, orchestratorSessionId: sessionId, valid: true }
+      const result = await materializeTaskTransaction({
+        workspaceRoot,
+        workspaceId,
+        spec: parsed.spec,
+        mode: {
+          kind: 'attach',
+          sessionId,
+          sessionPatch: {
+            ...(parsed.spec.project ? { projectId: parsed.spec.project } : {}),
+            ...seed,
+          },
+        },
+      }, await taskMaterializationDependencies())
+      return { ...result, valid: true }
     }
 
     if (request.orchestratorSessionId) {
       const sessionId = request.orchestratorSessionId
       assertAdoptableTaskDraftSession(sessionId, parsed.spec)
-      saveTaskSpec(workspaceRoot, parsed.spec)
-      await updateAgentSessionMeta(sessionId, buildAdoptedTaskSessionPatch(parsed.spec, workspaceRoot))
-      return { slug: parsed.spec.id, orchestratorSessionId: sessionId, valid: true }
+      const result = await materializeTaskTransaction({
+        workspaceRoot,
+        workspaceId,
+        spec: parsed.spec,
+        mode: {
+          kind: 'adopt',
+          sessionId,
+          sessionPatch: buildAdoptedTaskSessionPatch(parsed.spec, workspaceRoot),
+        },
+      }, await taskMaterializationDependencies())
+      return { ...result, valid: true }
     }
 
     const result = await materializeTaskFromSpec(workspaceRoot, workspaceId, parsed.spec)
@@ -603,8 +736,56 @@ export function registerTaskHandlers(window: BrowserWindow): void {
     return listTaskSlugs(workspaceRoot)
   })
 
+  ipcMain.handle(TASK_IPC_CHANNELS.LIST_SUMMARIES, (_event, workspaceRoot: string, workspaceId: string) => {
+    const repository = new TaskRepository({ resolveWorkspaceRoot: () => workspaceRoot })
+    return repository.listTaskAggregateSummaries(workspaceId)
+  })
+
+  ipcMain.handle(TASK_IPC_CHANNELS.UPDATE_WORKFLOW, (
+    _event,
+    workspaceRoot: string,
+    workspaceId: string,
+    taskId: string,
+    workflow: TaskWorkflow,
+    expectedRevision?: number,
+  ) => {
+    const repository = new TaskRepository({ resolveWorkspaceRoot: () => workspaceRoot })
+    return repository.updateTaskWorkflow(workspaceId, taskId, workflow, expectedRevision)
+  })
+
+  ipcMain.handle(TASK_IPC_CHANNELS.UPDATE_METADATA, (
+    _event,
+    workspaceRoot: string,
+    workspaceId: string,
+    taskId: string,
+    patch: TaskMetadataPatch,
+  ) => {
+    const repository = new TaskRepository({ resolveWorkspaceRoot: () => workspaceRoot })
+    const validatedPatch = patch.labelIds === undefined
+      ? patch
+      : { ...patch, labelIds: assertValidWorkspaceLabelIds(workspaceRoot, patch.labelIds) }
+    return repository.updateTaskMetadata(workspaceId, taskId, validatedPatch)
+  })
+
+  ipcMain.handle(TASK_IPC_CHANNELS.ANALYZE_DELETE_IMPACT, (_event, workspaceRoot: string, slug: string) => {
+    const loaded = loadTaskSpec(workspaceRoot, slug)
+    if (!loaded?.spec) throw new Error(`Task 不存在: ${slug}`)
+    return analyzeTaskDeleteImpact(workspaceRoot, slug, listAgentSessions())
+  })
+
+  ipcMain.handle(TASK_IPC_CHANNELS.DELETE, (_event, workspaceRoot: string, _workspaceId: string, slug: string) => {
+    const loaded = loadTaskSpec(workspaceRoot, slug)
+    if (!loaded?.spec) throw new Error(`Task 不存在: ${slug}`)
+    // 删除前重新验证影响分析
+    const impact = analyzeTaskDeleteImpact(workspaceRoot, slug, listAgentSessions())
+    if (impact.activeRunCount > 0) {
+      throw new Error(`仍有 ${impact.activeRunCount} 个活跃 Run，请先停止运行`)
+    }
+    deleteTaskSpec(workspaceRoot, slug)
+  })
+
   ipcMain.handle(TASK_IPC_CHANNELS.GET_RESULTS, (_event, workspaceRoot: string, slug: string, runId?: string) => {
-    const selectedRunId = runId ?? listRunIds(workspaceRoot, slug).at(-1)
+    const selectedRunId = runId ?? getLatestRunId(workspaceRoot, slug)
     if (!selectedRunId) return null
     return {
       spec: readRunSpecSnapshot(workspaceRoot, slug, selectedRunId),
@@ -627,6 +808,42 @@ export function registerTaskHandlers(window: BrowserWindow): void {
 
   ipcMain.handle(SESSION_GROUP_IPC_CHANNELS.DELETE, (_event, workspaceSlug: string, id: string) => {
     deleteSessionGroup(workspaceSlug, id)
+  })
+
+  // === Workspace Labels ===
+
+  ipcMain.handle(LABEL_IPC_CHANNELS.LIST, (_event, workspaceRoot: string) => {
+    return new WorkspaceLabelService(workspaceRoot).list()
+  })
+
+  ipcMain.handle(LABEL_IPC_CHANNELS.CREATE, (_event, workspaceRoot: string, input: { name: string; color?: string }) => {
+    return new WorkspaceLabelService(workspaceRoot).create(input)
+  })
+
+  ipcMain.handle(LABEL_IPC_CHANNELS.UPDATE, (_event, workspaceRoot: string, labelId: string, patch: { name?: string; color?: string | null; archived?: boolean }) => {
+    return new WorkspaceLabelService(workspaceRoot).update(labelId, patch)
+  })
+
+  ipcMain.handle(LABEL_IPC_CHANNELS.ARCHIVE, (_event, workspaceRoot: string, labelId: string) => {
+    return new WorkspaceLabelService(workspaceRoot).archive(labelId)
+  })
+
+  ipcMain.handle(LABEL_IPC_CHANNELS.SET_SESSION_LABELS, (_event, workspaceRoot: string, sessionId: string, labelIds: string[]) => {
+    const session = getAgentSessionMeta(sessionId)
+    if (!session) throw new Error(`Agent 会话不存在: ${sessionId}`)
+    const validatedLabelIds = validateSessionLabelAssignment(workspaceRoot, session, labelIds)
+    return updateAgentSessionMeta(sessionId, { labelIds: validatedLabelIds })
+  })
+
+  ipcMain.handle(LABEL_IPC_CHANNELS.SET_TASK_LABELS, (_event, workspaceRoot: string, workspaceId: string, taskId: string, labelIds: string[]) => {
+    const validatedLabelIds = assertValidWorkspaceLabelIds(workspaceRoot, labelIds)
+    const repository = new TaskRepository({ resolveWorkspaceRoot: () => workspaceRoot })
+    const aggregate = repository.getTaskAggregateById(workspaceId, taskId)
+    if (!aggregate?.record) throw new Error(`Task ${taskId} 缺少稳定 TaskRecord，不能设置 labels`)
+    return repository.updateTaskMetadata(workspaceId, taskId, {
+      labelIds: validatedLabelIds,
+      expectedRevision: aggregate.record.revision,
+    })
   })
 
   ipcMain.handle(SESSION_COMMAND_CHANNEL, async (_event, sessionId: string, command: SessionKanbanCommand) => {

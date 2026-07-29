@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import type { AgentSessionMeta } from '@luxcoder/shared'
+import type { AgentSessionMeta, TaskAggregateSummary } from '@luxcoder/shared'
 import {
   buildKanbanViewModel,
   deriveSubtaskRunState,
@@ -23,7 +23,149 @@ const projects: KanbanProject[] = [
   { id: 'project-b', name: '项目 B' },
 ]
 
+function createTask(overrides: Partial<TaskAggregateSummary>): TaskAggregateSummary {
+  return {
+    taskId: '11111111-1111-4111-8111-111111111111',
+    taskSlug: 'default-task',
+    title: '默认 Task',
+    scope: { kind: 'workspace' },
+    workflow: 'todo',
+    labelIds: [],
+    runCount: 0,
+    legacyIdentity: false,
+    health: 'ready',
+    diagnostics: [],
+    ...overrides,
+  }
+}
+
 describe('buildKanbanViewModel', () => {
+  test('正式模式只投影 TaskRepository summaries，并以 stable taskId 为卡片身份', () => {
+    const taskId = '22222222-2222-4222-8222-222222222222'
+    const model = buildKanbanViewModel({
+      projects,
+      tasks: [createTask({
+        taskId,
+        taskSlug: 'workspace-release',
+        title: 'Workspace 发布任务',
+        workflow: 'needs-review',
+        orchestratorSessionId: 'task-session',
+        updatedAt: 50,
+      })],
+      sessions: [
+        createSession({ id: 'plain-session', title: '普通聊天', updatedAt: 60 }),
+        createSession({ id: 'task-session', title: '旧会话标题', taskSlug: 'workspace-release', updatedAt: 40 }),
+      ],
+      runs: [],
+      bindings: [],
+      filter: { projectId: null },
+    })
+
+    expect(model.listItems).toHaveLength(1)
+    expect(model.listItems[0]).toEqual(expect.objectContaining({
+      id: taskId,
+      title: 'Workspace 发布任务',
+      columnId: 'needs-review',
+      hasSession: true,
+    }))
+    expect(model.listItems[0]?.task?.taskSlug).toBe('workspace-release')
+  })
+
+  test('没有 orchestrator Session 的恢复项仍显示诊断卡片，Project facet 来自 Task scope', () => {
+    const taskId = '33333333-3333-4333-8333-333333333333'
+    const model = buildKanbanViewModel({
+      projects,
+      tasks: [createTask({
+        taskId,
+        taskSlug: 'recovered-task',
+        title: '待恢复 Task',
+        scope: { kind: 'project', projectId: 'project-a' },
+        health: 'warning',
+        diagnostics: [{ code: 'missing-session', severity: 'warning', message: '缺少 Session' }],
+      })],
+      sessions: [],
+      runs: [],
+      bindings: [],
+      filter: { projectId: 'project-a' },
+    })
+
+    expect(model.listItems).toHaveLength(1)
+    expect(model.listItems[0]).toEqual(expect.objectContaining({
+      id: taskId,
+      hasSession: false,
+      project: expect.objectContaining({ id: 'project-a' }),
+    }))
+  })
+
+  test('scope 明确区分全部、Workspace Task 与指定 Project', () => {
+    const tasks = [
+      createTask({ taskId: 'workspace-task', taskSlug: 'workspace-task' }),
+      createTask({ taskId: 'project-a-task', taskSlug: 'project-a-task', scope: { kind: 'project', projectId: 'project-a' } }),
+      createTask({ taskId: 'project-b-task', taskSlug: 'project-b-task', scope: { kind: 'project', projectId: 'project-b' } }),
+    ]
+    const base = { projects, tasks, sessions: [], runs: [], bindings: [] }
+
+    expect(buildKanbanViewModel({ ...base, filter: { scope: { kind: 'all' } } }).listItems.map((item) => item.id)).toHaveLength(3)
+    expect(buildKanbanViewModel({ ...base, filter: { scope: { kind: 'workspace' } } }).listItems.map((item) => item.id)).toEqual(['workspace-task'])
+    expect(buildKanbanViewModel({ ...base, filter: { scope: { kind: 'project', projectId: 'project-a' } } }).listItems.map((item) => item.id)).toEqual(['project-a-task'])
+  })
+
+  test('Workflow facet 无需选择 Label 也能独立生效', () => {
+    const model = buildKanbanViewModel({
+      projects,
+      tasks: [
+        createTask({ taskId: 'todo-task', taskSlug: 'todo-task', workflow: 'todo' }),
+        createTask({ taskId: 'review-task', taskSlug: 'review-task', workflow: 'needs-review' }),
+      ],
+      sessions: [],
+      runs: [],
+      bindings: [],
+      filter: { scope: { kind: 'all' }, workflow: 'needs-review', labelIds: [] },
+    })
+
+    expect(model.listItems.map((item) => item.id)).toEqual(['review-task'])
+  })
+
+  test('Label facet 内为 OR，并与 scope/workflow 做 AND', () => {
+    const model = buildKanbanViewModel({
+      projects,
+      tasks: [
+        createTask({ taskId: 'match-a', taskSlug: 'match-a', workflow: 'todo', labelIds: ['label-a'] }),
+        createTask({ taskId: 'match-b', taskSlug: 'match-b', workflow: 'todo', labelIds: ['label-b', 'other'] }),
+        createTask({ taskId: 'wrong-workflow', taskSlug: 'wrong-workflow', workflow: 'done', labelIds: ['label-a'] }),
+        createTask({ taskId: 'wrong-scope', taskSlug: 'wrong-scope', scope: { kind: 'project', projectId: 'project-a' }, workflow: 'todo', labelIds: ['label-a'] }),
+      ],
+      sessions: [],
+      runs: [],
+      bindings: [],
+      filter: {
+        scope: { kind: 'workspace' },
+        workflow: 'todo',
+        labelIds: ['label-a', 'label-b'],
+        includeUnlabeled: false,
+      },
+    })
+
+    expect(model.listItems.map((item) => item.id)).toEqual(['match-a', 'match-b'])
+  })
+
+  test('无标签可单独筛选；默认不会混入无标签 Task', () => {
+    const tasks = [
+      createTask({ taskId: 'labeled', taskSlug: 'labeled', labelIds: ['label-a'] }),
+      createTask({ taskId: 'unlabeled', taskSlug: 'unlabeled', labelIds: [] }),
+    ]
+    const base = { projects, tasks, sessions: [], runs: [], bindings: [] }
+
+    expect(buildKanbanViewModel({
+      ...base,
+      filter: { scope: { kind: 'all' }, labelIds: [], includeUnlabeled: true },
+    }).listItems.map((item) => item.id)).toEqual(['unlabeled'])
+    expect(buildKanbanViewModel({
+      ...base,
+      filter: { scope: { kind: 'all' }, labelIds: ['label-a'] },
+    }).listItems.map((item) => item.id)).toEqual(['labeled'])
+  })
+
   test('未显式拖放的新会话默认落入待办列（不做收件箱 triage）', () => {
     const model = buildKanbanViewModel({
       projects,

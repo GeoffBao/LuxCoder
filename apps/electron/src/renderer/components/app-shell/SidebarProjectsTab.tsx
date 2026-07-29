@@ -17,6 +17,7 @@ import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import {
   Archive,
   ArchiveRestore,
+  BookOpen,
   ChevronRight,
   LayoutDashboard,
   MoreHorizontal,
@@ -25,7 +26,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import type { AgentSessionMeta, SessionGroup, SessionListSortBy, SessionListStatusFilter } from '@luxcoder/shared'
+import type { AgentSessionMeta, ProjectDeleteImpact, SessionGroup, SessionListSortBy, SessionListStatusFilter } from '@luxcoder/shared'
 import { cn } from '@/lib/utils'
 import {
   agentSessionsAtom,
@@ -37,9 +38,12 @@ import { activeSessionIdAtom } from '@/atoms/tab-atoms'
 import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
 import { getActiveAccelerator, getAcceleratorDisplay } from '@/lib/shortcut-registry'
 import {
+  activeProjectPageIdAtom,
   codeMainViewAtom,
   pendingTaskEditorTargetAtom,
+  projectPageTabAtom,
   selectedProjectIdAtom,
+  type ProjectPageTab,
   serverKanbanProjectsAtom,
 } from '@/atoms/project-atoms'
 import { activeViewAtom } from '@/atoms/active-view'
@@ -69,7 +73,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { ProjectSettingsDialog } from '@/components/work/ProjectSettingsDialog'
 import { AgentSessionItem } from './AgentSessionItem'
 import type { KanbanProject } from './kanban/types'
 import {
@@ -81,6 +84,7 @@ import {
   treeContainsSessionId,
   type AgentSessionTreeItem,
 } from './sidebar-session-tree'
+import { buildProjectPageNavigation } from './code-main-view-model'
 import {
   filterGroupableSessions,
   groupSessionTreesByProject,
@@ -136,6 +140,8 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sor
   const activeSessionId = useAtomValue(activeSessionIdAtom)
   const draftSessionIds = useAtomValue(draftSessionIdsAtom)
   const setSelectedProjectId = useSetAtom(selectedProjectIdAtom)
+  const setActiveProjectPageId = useSetAtom(activeProjectPageIdAtom)
+  const setProjectPageTab = useSetAtom(projectPageTabAtom)
   const setCodeMainView = useSetAtom(codeMainViewAtom)
   const setActiveView = useSetAtom(activeViewAtom)
   const setPendingTaskEditorTarget = useSetAtom(pendingTaskEditorTargetAtom)
@@ -149,8 +155,9 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sor
   const [expandedParentIds, setExpandedParentIds] = React.useState<Set<string>>(new Set())
   const [collapsedParentIds, setCollapsedParentIds] = React.useState<Set<string>>(new Set())
   const [deleteTarget, setDeleteTarget] = React.useState<KanbanProject | null>(null)
+  const [deleteImpact, setDeleteImpact] = React.useState<ProjectDeleteImpact | null>(null)
+  const [impactLoading, setImpactLoading] = React.useState(false)
   const [deleting, setDeleting] = React.useState(false)
-  const [settingsTarget, setSettingsTarget] = React.useState<KanbanProject | null>(null)
   const [relativeTimeNow, setRelativeTimeNow] = React.useState(() => Date.now())
 
   React.useEffect(() => {
@@ -204,7 +211,7 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sor
   }, [])
 
   const enterWork = React.useCallback(() => {
-    setCodeMainView('work')
+    setCodeMainView('tasks')
     setActiveView('conversations')
   }, [setActiveView, setCodeMainView])
 
@@ -218,6 +225,14 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sor
     setPendingTaskEditorTarget({ mode: 'create', initialProjectId: projectId })
     enterWork()
   }, [enterWork, setPendingTaskEditorTarget, setSelectedProjectId])
+
+  const openProjectPage = React.useCallback((projectId: string, tab: ProjectPageTab = 'overview') => {
+    const navigation = buildProjectPageNavigation(projectId, tab)
+    setActiveProjectPageId(navigation.activeProjectPageId)
+    setProjectPageTab(navigation.projectPageTab)
+    setCodeMainView(navigation.codeMainView)
+    setActiveView(navigation.activeView)
+  }, [setActiveProjectPageId, setActiveView, setCodeMainView, setProjectPageTab])
 
 
   const handleToggleArchive = React.useCallback(async (project: KanbanProject): Promise<void> => {
@@ -235,8 +250,25 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sor
     }
   }, [setProjects, workspaceRoot])
 
+  React.useEffect(() => {
+    if (!workspaceRoot || !deleteTarget?.slug) {
+      setDeleteImpact(null)
+      return
+    }
+    let cancelled = false
+    setImpactLoading(true)
+    setDeleteImpact(null)
+    void window.electronAPI.projects.analyzeDeleteImpact(workspaceRoot, deleteTarget.slug)
+      .then((impact) => { if (!cancelled) setDeleteImpact(impact) })
+      .catch((cause: unknown) => {
+        if (!cancelled) toast.error('无法分析删除影响', { description: cause instanceof Error ? cause.message : String(cause) })
+      })
+      .finally(() => { if (!cancelled) setImpactLoading(false) })
+    return () => { cancelled = true }
+  }, [deleteTarget, workspaceRoot])
+
   const handleDeleteProject = React.useCallback(async (): Promise<void> => {
-    if (!workspaceRoot || !deleteTarget?.slug) return
+    if (!workspaceRoot || !deleteTarget?.slug || !deleteTarget.archivedAt || !deleteImpact?.canPurge) return
     setDeleting(true)
     try {
       await window.electronAPI.projects.delete(workspaceRoot, deleteTarget.slug)
@@ -250,11 +282,7 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sor
       setDeleting(false)
       setDeleteTarget(null)
     }
-  }, [deleteTarget, setProjects, workspaceRoot])
-
-  const handleProjectChanged = React.useCallback((updated: KanbanProject): void => {
-    setProjects((prev) => prev.map((existing) => (existing.id === updated.id ? updated : existing)))
-  }, [setProjects])
+  }, [deleteImpact?.canPurge, deleteTarget, setProjects, workspaceRoot])
 
   if (!workspaceSlug || !workspaceRoot) {
     return (
@@ -360,13 +388,17 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sor
                 <>
                   <MenuItem className="text-xs py-1 [&>svg]:size-3.5" onSelect={() => openBoard(project.id)}>
                     <LayoutDashboard size={13} />
-                    看板
+                    查看任务
+                  </MenuItem>
+                  <MenuItem className="text-xs py-1 [&>svg]:size-3.5" onSelect={() => openProjectPage(project.id)}>
+                    <BookOpen size={13} />
+                    项目资料
                   </MenuItem>
                   <MenuItem className="text-xs py-1 [&>svg]:size-3.5" onSelect={() => openCreateTask(project.id)}>
                     <Plus size={13} />
                     新建任务
                   </MenuItem>
-                  <MenuItem className="text-xs py-1 [&>svg]:size-3.5" onSelect={() => setSettingsTarget(project)}>
+                  <MenuItem className="text-xs py-1 [&>svg]:size-3.5" onSelect={() => openProjectPage(project.id, 'settings')}>
                     <Pencil size={13} />
                     项目设置
                   </MenuItem>
@@ -376,11 +408,12 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sor
                     {archived ? '取消归档' : '归档'}
                   </MenuItem>
                   <MenuItem
+                    disabled={!archived}
                     className="text-xs py-1 [&>svg]:size-3.5 text-destructive focus:text-destructive"
                     onSelect={() => setDeleteTarget(project)}
                   >
                     <Trash2 size={13} />
-                    删除
+                    永久删除…
                   </MenuItem>
                 </>
               )
@@ -512,18 +545,6 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sor
         )}
       </div>
 
-
-      {/* 项目设置弹窗（⋯ 菜单入口；修复原「设置」项跳看板的问题） */}
-      {settingsTarget?.slug && (
-        <ProjectSettingsDialog
-          open={settingsTarget !== null}
-          workspaceRoot={workspaceRoot}
-          project={settingsTarget}
-          onOpenChange={(open) => { if (!open) setSettingsTarget(null) }}
-          onProjectChanged={handleProjectChanged}
-        />
-      )}
-
       {/* 删除确认 */}
       <AlertDialog
         open={deleteTarget !== null}
@@ -531,19 +552,29 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sor
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>删除项目</AlertDialogTitle>
-            <AlertDialogDescription>
-              确定要删除「{deleteTarget?.name ?? ''}」及其所有资产吗？此操作不可撤销。
+            <AlertDialogTitle>永久删除已归档项目</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>永久删除「{deleteTarget?.name ?? ''}」不可撤销。Task、Run、会话引用和工作目录不会被静默忽略。</p>
+                {impactLoading ? <p>正在分析影响…</p> : deleteImpact ? (
+                  <div className="rounded-lg bg-muted/50 p-3 text-xs leading-5 text-foreground/70">
+                    <p>{deleteImpact.taskCount} 个 Task · {deleteImpact.runCount} 个历史 Run · {deleteImpact.sessionCount} 个关联会话</p>
+                    <p>{deleteImpact.assetCount} 个资料文件 · {deleteImpact.hasKnowledge ? '包含 Project Knowledge' : '无 Project Knowledge'}</p>
+                    {deleteImpact.hasManagedWorkdir ? <p className="mt-1 font-medium text-destructive">将同时永久删除 Workspace 托管 workdir 内的全部文件</p> : null}
+                    {deleteImpact.blockers.map((blocker) => <p key={blocker} className="mt-1 text-destructive">{blocker}</p>)}
+                  </div>
+                ) : <p className="text-destructive">未能完成影响分析，禁止删除。</p>}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>取消</AlertDialogCancel>
             <AlertDialogAction
-              disabled={deleting}
+              disabled={deleting || impactLoading || !deleteImpact?.canPurge}
               onClick={(event) => { event.preventDefault(); void handleDeleteProject() }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleting ? '删除中...' : '删除'}
+              {deleting ? '删除中…' : '永久删除'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

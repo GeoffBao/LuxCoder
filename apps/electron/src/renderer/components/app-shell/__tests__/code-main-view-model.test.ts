@@ -1,8 +1,11 @@
 import { describe, expect, test } from 'bun:test'
 import {
+  buildProjectPageNavigation,
+  buildTaskBoardNavigation,
   isLegacyCoworkMode,
   isOverlayActiveView,
   normalizeAppModeForUi,
+  resolveCodeMainRoute,
   shouldShowWorkViewInCode,
 } from '../code-main-view-model'
 
@@ -20,8 +23,68 @@ describe('normalizeAppModeForUi / isLegacyCoworkMode', () => {
   })
 })
 
+describe('Task Board / Project Page navigation', () => {
+  test('Project Page 是独立主区路由，不会被 Task Board 分支吞掉', () => {
+    expect(resolveCodeMainRoute({
+      appMode: 'agent',
+      codeMainView: 'project',
+      activeView: 'conversations',
+    })).toBe('project-page')
+    expect(resolveCodeMainRoute({
+      appMode: 'agent',
+      codeMainView: 'tasks',
+      activeView: 'conversations',
+    })).toBe('task-board')
+  })
+
+  test('覆盖视图优先于 Project Page 路由', () => {
+    expect(resolveCodeMainRoute({
+      appMode: 'agent',
+      codeMainView: 'project',
+      activeView: 'automations',
+    })).toBe('overlay')
+  })
+
+  test('Project Page 默认打开概览，而不是直接进入 Knowledge 编辑器', () => {
+    expect(buildProjectPageNavigation('project-alpha')).toEqual(expect.objectContaining({
+      activeProjectPageId: 'project-alpha',
+      projectPageTab: 'overview',
+    }))
+  })
+
+  test('打开 Project Page 只设置页面身份，不复用 Task Board project facet', () => {
+    expect(buildProjectPageNavigation('project-alpha', 'assets')).toEqual({
+      codeMainView: 'project',
+      activeView: 'conversations',
+      activeProjectPageId: 'project-alpha',
+      projectPageTab: 'assets',
+    })
+  })
+
+  test('从 Project Page 返回 Task Board 时保留正确 project facet', () => {
+    expect(buildTaskBoardNavigation('project-alpha')).toEqual({
+      codeMainView: 'tasks',
+      activeView: 'conversations',
+      selectedProjectId: 'project-alpha',
+    })
+    expect(buildTaskBoardNavigation(null)).toEqual({
+      codeMainView: 'tasks',
+      activeView: 'conversations',
+      selectedProjectId: null,
+    })
+  })
+})
+
 describe('shouldShowWorkViewInCode', () => {
-  test('agent 模式 + work 视图 + conversations → 显示 Work 视图', () => {
+  test('agent 模式 + tasks 视图 + conversations → 显示正式 Task 看板', () => {
+    expect(shouldShowWorkViewInCode({
+      appMode: 'agent',
+      codeMainView: 'tasks',
+      activeView: 'conversations',
+    })).toBe(true)
+  })
+
+  test('遗留 work 仍作为 Task 看板兼容 alias', () => {
     expect(shouldShowWorkViewInCode({
       appMode: 'agent',
       codeMainView: 'work',
@@ -73,7 +136,7 @@ describe('shouldShowWorkViewInCode', () => {
 })
 
 describe('isOverlayActiveView', () => {
-  test('isOverlayActiveView 识别三类覆盖视图（projects Hub 已退役）', () => {
+  test('isOverlayActiveView 识别三类能力覆盖视图', () => {
     expect(isOverlayActiveView('conversations')).toBe(false)
     expect(isOverlayActiveView('automations')).toBe(true)
     expect(isOverlayActiveView('agent-skills')).toBe(true)

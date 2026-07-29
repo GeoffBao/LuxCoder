@@ -252,6 +252,17 @@ describe('Agent 会话 runtime 元数据', () => {
     expect(manager.getAgentSessionMeta(session.id)).toMatchObject({ starred: true, archived: true })
   })
 
+  test('Given a session When labelIds are updated Then it persists without changing freshness or archive state', () => {
+    const session = manager.createAgentSession('标签会话')
+    const archived = manager.updateAgentSessionMeta(session.id, { archived: true })
+
+    const updated = manager.updateAgentSessionMeta(session.id, { labelIds: ['label-a'] })
+
+    expect(updated).toMatchObject({ labelIds: ['label-a'], archived: true })
+    expect(updated.updatedAt).toBe(archived.updatedAt)
+    expect(manager.getAgentSessionMeta(session.id)).toMatchObject({ labelIds: ['label-a'], archived: true })
+  })
+
   test('Given 新建会话 When 多次 appendSDKMessages Then messageCount 按追加条数累加', () => {
     const session = manager.createAgentSession('消息计数会话')
     expect(manager.getAgentSessionMeta(session.id)?.messageCount).toBeUndefined()

@@ -7,6 +7,7 @@
  * 参照 OSS: packages/server-core/src/tasks/TaskRunner.ts
  * 适配: @craft-agent/ → @luxcoder/；CreateSessionOptions/SessionCompletionEvent 本地类型
  */
+import { randomUUID } from 'node:crypto'
 import {
   nodeTitle,
   DEFAULT_REPAIR_ATTEMPTS,
@@ -18,22 +19,33 @@ import { interpolateRefs, type NodeOutput } from '@luxcoder/shared/tasks/refs'
 import { materializeDeps } from '@luxcoder/shared/tasks/validate'
 import {
   appendRunLog,
+  initializeRun,
+  listResumableRuns,
+  loadTaskRecord,
+  saveTaskRecord,
   writeNodeOutput,
   readNodeOutput,
+  readRunContextSnapshot,
   readRunLog,
+  readRunLogIntegrity,
   readRunSpecSnapshot,
   loadTaskSpec,
-  writeRunSpecSnapshot,
   type RunLogEntry,
   type NodeRunState,
 } from '@luxcoder/shared/tasks/storage'
 import type { ExpertPackage } from '@luxcoder/shared/experts'
+import type { ExpertWorkspaceBinding } from '@luxcoder/shared/experts/workspace-binding'
 import {
   formatExpertPreamble,
   mergeMcpIds,
   mergeSkillSlugs,
   resolveExpertId,
 } from '@luxcoder/shared/experts'
+import {
+  describeTaskWorkingDirectoryBlock,
+  type TaskWorkingDirectoryResult,
+  type TaskWorkingDirectorySource,
+} from './task-working-directory'
 
 // ---------------------------------------------------------------------------
 // 本地类型（替代 OSS 的 protocol dto / SessionManager）
@@ -62,6 +74,8 @@ export interface CreateSessionOptions {
   taskSlug?: string;
   taskRunId?: string;
   taskNodeId?: string;
+  taskAttempt?: number;
+  taskCorrelationKey?: string;
   taskDraft?: boolean;
   applyTaskLabel?: boolean;
 }
@@ -87,6 +101,7 @@ export interface ConductorSessionHost {
   onSessionComplete(listener: (evt: SessionCompletionEvent) => void): () => void;
   getSessionFinalText(sessionId: string): string | undefined;
   getSessionWorkingDirectory(sessionId: string): string | undefined;
+  findSessionByTaskCorrelationKey?(workspaceId: string, correlationKey: string): { id: string } | undefined;
 }
 
 export interface TaskRunnerDeps {
@@ -102,8 +117,12 @@ export interface TaskRunnerDeps {
   isSessionActive?: (sessionId: string) => boolean;
   /** 按专家 id 读取包；缺失返回 null；未注入则跳过专家 preamble */
   getExpert?: (expertId: string) => ExpertPackage | null;
+  /** 读取工作区级 Expert binding（覆盖全局 skillSlugs/mcpIds） */
+  getWorkspaceExpertBinding?: (expertId: string) => ExpertWorkspaceBinding | null;
   /** 解析项目 defaultExpertId；失败返回 null */
   resolveProjectDefaultExpertId?: (projectId: string) => string | null;
+  /** 生产运行必须注入唯一 cwd resolver；测试/旧恢复路径可缺省。 */
+  resolveTaskWorkingDirectory?: (spec: TaskSpec) => TaskWorkingDirectoryResult;
 }
 
 export interface RunOptions {
@@ -128,8 +147,17 @@ export interface RunSnapshot {
   taskId: string;
   status: RunStatus;
   orchestratorSessionId?: string;
+  effectiveCwd?: string;
+  effectiveCwdSource?: TaskWorkingDirectorySource;
   nodes: NodeRunStatus[];
   tokensUsed: number;
+}
+
+interface ActiveRunOptions extends RunOptions {
+  verifyOnComplete: boolean;
+  taskId: string;
+  effectiveCwd?: string;
+  effectiveCwdSource?: TaskWorkingDirectorySource;
 }
 
 // ---------------------------------------------------------------------------
@@ -144,10 +172,31 @@ const FAILED_STATUS = 'needs-review';
 /** 中断/孤儿节点回退到 todo，避免 UI 永久显示「运行中」 */
 const IDLE_STATUS = 'todo';
 const MAX_UNPARSED_REASKS = 2;
+
+/** Run 只推进机器可控的 workflow；用户已设 done/cancelled 时绝不回写覆盖。 */
+function transitionTaskWorkflow(
+  workspaceRoot: string,
+  slug: string,
+  phase: 'started' | 'settled',
+): void {
+  const loaded = loadTaskRecord(workspaceRoot, slug)
+  if (loaded.kind !== 'valid') return
+  const current = loaded.record.workflow
+  const next = phase === 'started'
+    ? (current === 'todo' ? 'in-progress' : current)
+    : (current === 'done' || current === 'cancelled' ? current : 'needs-review')
+  if (next === current) return
+  saveTaskRecord(workspaceRoot, {
+    ...loaded.record,
+    workflow: next,
+    revision: loaded.record.revision + 1,
+    updatedAt: Date.now(),
+  })
+}
 const INPUTS_REF_RE = /\$\{\s*inputs\.([a-zA-Z_][a-zA-Z0-9_]*)\s*\}/g;
 
 type DistributiveOmit<T, K extends keyof T> = T extends unknown ? Omit<T, K> : never;
-type RunLogEntryInput = DistributiveOmit<RunLogEntry, 't'>;
+type RunLogEntryInput = DistributiveOmit<RunLogEntry, 't' | 'seq'>;
 type RunStartedLogEntry = Extract<RunLogEntry, { kind: 'run-started' }>;
 
 interface NodeStateEntry {
@@ -178,13 +227,14 @@ class ActiveRun {
   private readonly maxRepairs: number;
   private dependents?: Map<string, Set<string>>;
   private settled = false;
+  private nextLogSequence = 1;
   private settleResolvers: ((s: RunSnapshot) => void)[] = [];
 
   constructor(
     private readonly spec: TaskSpec,
     private readonly slug: string,
     private readonly runId: string,
-    private readonly opts: Required<Pick<RunOptions, 'verifyOnComplete'>> & RunOptions,
+    private readonly opts: ActiveRunOptions,
     private readonly deps: TaskRunnerDeps,
   ) {
     this.edges = materializeDeps(spec);
@@ -195,14 +245,14 @@ class ActiveRun {
 
   start(): void {
     this.unsubscribe = this.deps.host.onSessionComplete((evt) => this.onSessionComplete(evt));
-    try {
-      writeRunSpecSnapshot(this.deps.workspaceRoot, this.slug, this.runId, this.spec);
-    } catch { /* ignore */ }
     this.log({
       kind: 'run-started',
-      taskId: this.spec.id,
+      taskId: this.opts.taskId,
+      taskSlug: this.slug,
       runId: this.runId,
       orchestratorSessionId: this.opts.orchestratorSessionId,
+      effectiveCwd: this.opts.effectiveCwd,
+      effectiveCwdSource: this.opts.effectiveCwdSource,
       params: this.opts.params,
       verifyOnComplete: this.opts.verifyOnComplete,
     });
@@ -230,7 +280,10 @@ class ActiveRun {
   }
 
   hydrate(log: RunLogEntry[], loadOutput: (nodeId: string) => NodeOutput | null): void {
+    this.nextLogSequence = Math.max(0, ...log.map((entry) => entry.seq ?? 0)) + 1;
+    const lastNodeEvent = new Map<string, RunLogEntry['kind']>();
     for (const e of log) {
+      if ('nodeId' in e) lastNodeEvent.set(e.nodeId, e.kind);
       if (e.kind === 'node-spawned') {
         const st = this.state.get(e.nodeId);
         if (st) {
@@ -251,6 +304,11 @@ class ActiveRun {
       }
     }
     for (const [nodeId, st] of this.state) {
+      const lastEvent = lastNodeEvent.get(nodeId)
+      if (st.state === 'pending' && (lastEvent === 'node-scheduled' || lastEvent === 'node-dispatch-intent')) {
+        // 崩溃发生在 createSession 后、node-spawned 前时，恢复后复用同一 attempt/correlation key。
+        st.attempt = Math.max(0, st.attempt - 1)
+      }
       if (st.state === 'done') {
         const out = loadOutput(nodeId);
         if (out) this.outputs[nodeId] = out;
@@ -324,6 +382,7 @@ class ActiveRun {
     this.inFlight = 0;
     const orchestrator = this.opts.orchestratorSessionId;
     if (orchestrator) void this.deps.host.setSessionStatus(orchestrator, IDLE_STATUS);
+    transitionTaskWorkflow(this.deps.workspaceRoot, this.slug, 'settled')
     this.finalize();
   }
 
@@ -334,8 +393,10 @@ class ActiveRun {
 
   snapshot(): RunSnapshot {
     return {
-      slug: this.slug, runId: this.runId, taskId: this.spec.id,
+      slug: this.slug, runId: this.runId, taskId: this.opts.taskId,
       status: this.runStatus, orchestratorSessionId: this.opts.orchestratorSessionId,
+      effectiveCwd: this.opts.effectiveCwd,
+      effectiveCwdSource: this.opts.effectiveCwdSource,
       tokensUsed: this.tokensUsed,
       nodes: this.spec.nodes.map((n) => {
         const st = this.state.get(n.id)!;
@@ -391,15 +452,61 @@ class ActiveRun {
           console.warn(`[TaskRunner] 读取专家失败，跳过注入: ${expertId}`, cause);
           expert = null;
         }
+        // Resolve workspace binding: override skillSlugs/mcpIds from workspace if present
+        if (expert && this.deps.getWorkspaceExpertBinding) {
+          const wsBinding = this.deps.getWorkspaceExpertBinding(expertId);
+          if (wsBinding) {
+            expert = {
+              ...expert,
+              skillSlugs: wsBinding.skillSlugs,
+              mcpIds: wsBinding.mcpIds,
+            }
+          }
+        }
       }
       const mergedSkills = mergeSkillSlugs(this.spec.skills, expert?.skillSlugs);
       const mergedMcps = mergeMcpIds(undefined, expert?.mcpIds);
       const expertBlock = expert ? formatExpertPreamble(expert) : '';
       const prompt = skillsPreamble(mergedSkills) + expertBlock + (await this.buildPrompt(node));
-      const cwd = (this.opts.orchestratorSessionId ? this.deps.host.getSessionWorkingDirectory(this.opts.orchestratorSessionId) : undefined) ?? this.spec.cwd;
+      const cwd = this.opts.effectiveCwd;
+      const st = this.state.get(node.id)!;
+      const correlationKey = `${this.opts.taskId}/${this.runId}/${node.id}/${st.attempt}`;
+      this.log({
+        kind: 'node-dispatch-intent',
+        nodeId: node.id,
+        attempt: st.attempt,
+        correlationKey,
+      });
+
+      const recovered = this.deps.host.findSessionByTaskCorrelationKey?.(this.deps.workspaceId, correlationKey)
+      if (recovered) {
+        st.sessionId = recovered.id
+        this.sessionToNode.set(recovered.id, node.id)
+        this.log({ kind: 'node-spawned', nodeId: node.id, sessionId: recovered.id })
+        const finalText = this.deps.host.getSessionFinalText(recovered.id)
+        const active = this.deps.isSessionActive?.(recovered.id) ?? true
+        if (!active && finalText !== undefined) {
+          const output: NodeOutput = { text: finalText }
+          this.outputs[node.id] = output
+          writeNodeOutput(this.deps.workspaceRoot, this.slug, this.runId, node.id, output)
+          st.state = 'done'
+          this.inFlight = Math.max(0, this.inFlight - 1)
+          this.log({ kind: 'node-finished', nodeId: node.id, sessionId: recovered.id, state: 'done', reason: 'recovered-by-correlation' })
+          this.scheduleReady()
+        } else if (!active) {
+          st.state = 'failed'
+          this.inFlight = Math.max(0, this.inFlight - 1)
+          this.log({ kind: 'node-finished', nodeId: node.id, sessionId: recovered.id, state: 'failed', reason: 'recovery-required: inactive dispatch has no output' })
+          this.pause()
+        }
+        return
+      }
+
       const options: CreateSessionOptions = {
         parentSessionId: this.opts.orchestratorSessionId,
         taskSlug: this.slug, taskRunId: this.runId, taskNodeId: node.id,
+        taskAttempt: st.attempt,
+        taskCorrelationKey: correlationKey,
         name: nodeTitle(node),
         model: node.model ?? this.spec.defaults?.model,
         llmConnection: node.llmConnection ?? this.spec.defaults?.llmConnection,
@@ -412,7 +519,6 @@ class ActiveRun {
         sessionStatus: RUNNING_STATUS,
       };
       const child = await this.deps.host.createSession(this.deps.workspaceId, options);
-      const st = this.state.get(node.id)!;
       st.sessionId = child.id;
       this.sessionToNode.set(child.id, node.id);
       this.log({ kind: 'node-spawned', nodeId: node.id, sessionId: child.id });
@@ -536,6 +642,7 @@ class ActiveRun {
   private finish(status: RunStatus): void {
     this.runStatus = status;
     this.log({ kind: status === 'completed' ? 'run-completed' : 'run-failed' });
+    transitionTaskWorkflow(this.deps.workspaceRoot, this.slug, 'settled')
     const orchestrator = this.opts.orchestratorSessionId;
     if (orchestrator) {
       if (status === 'completed') {
@@ -680,7 +787,11 @@ class ActiveRun {
 
   private log(entry: RunLogEntryInput): void {
     const t = this.deps.now ? this.deps.now() : new Date().toISOString();
-    appendRunLog(this.deps.workspaceRoot, this.slug, this.runId, { ...entry, t } as RunLogEntry);
+    appendRunLog(this.deps.workspaceRoot, this.slug, this.runId, {
+      ...entry,
+      t,
+      seq: this.nextLogSequence++,
+    } as RunLogEntry);
   }
 }
 
@@ -731,27 +842,87 @@ export class TaskRunner {
 
   private key(slug: string, runId: string): string { return `${slug}:${runId}`; }
 
+  private resolveTaskId(slug: string): string {
+    const record = loadTaskRecord(this.deps.workspaceRoot, slug)
+    return record.kind === 'valid' ? record.record.taskId : slug
+  }
+
+  private resolveEffectiveCwd(spec: TaskSpec, orchestratorSessionId?: string): {
+    cwd?: string
+    source?: TaskWorkingDirectorySource
+  } {
+    if (this.deps.resolveTaskWorkingDirectory) {
+      const result = this.deps.resolveTaskWorkingDirectory(spec)
+      if (result.status === 'blocked') throw new Error(describeTaskWorkingDirectoryBlock(result))
+      return { cwd: result.cwd, source: result.source }
+    }
+
+    // 旧单元测试/历史兼容路径；生产 getRunnerFor 必须注入统一 resolver。
+    const orchestratorCwd = orchestratorSessionId
+      ? this.deps.host.getSessionWorkingDirectory(orchestratorSessionId)
+      : undefined
+    const cwd = orchestratorCwd ?? spec.cwd
+    if (!cwd) return {}
+    return {
+      cwd,
+      source: spec.cwd ? 'task' : spec.project ? 'project' : 'workspace',
+    }
+  }
+
   run(slug: string, opts: RunOptions = {}): RunSnapshot {
     const loaded = loadTaskSpec(this.deps.workspaceRoot, slug);
     if (!loaded?.spec) throw new Error(`任务 "${slug}" 不存在或没有有效的 task.yaml`);
     if (!loaded.valid) throw new Error(`拒绝运行无效任务 "${slug}": ${loaded.errors.map((e) => e.message).join('; ')}`);
-    const orchestrator = opts.orchestratorSessionId;
-    if (orchestrator) {
-      for (const existing of this.runs.values()) {
-        const snap = existing.snapshot();
-        if (snap.orchestratorSessionId === orchestrator && !isTerminalRunStatus(snap.status)) {
-          throw new Error(`任务 "${slug}" 在该 orchestrator 上已有活跃运行 (${snap.runId})`);
-        }
-      }
+
+    const activeRun = listResumableRuns(this.deps.workspaceRoot).find((candidate) => candidate.slug === slug)
+    if (activeRun) {
+      throw new Error(`任务 "${slug}" 已有活跃 Run (${activeRun.runId})，请恢复或停止后再运行`)
     }
-    const runId = opts.runId ?? (this.deps.genRunId ? this.deps.genRunId() : `run-${Date.now()}`);
+
+    const runId = opts.runId ?? (this.deps.genRunId ? this.deps.genRunId() : randomUUID());
+    const taskId = this.resolveTaskId(slug)
+    const effectiveCwd = this.resolveEffectiveCwd(loaded.spec, opts.orchestratorSessionId)
+    const verifyOnComplete = opts.verifyOnComplete ?? true
+    const createdAt = this.deps.now?.() ?? new Date().toISOString()
+
+    initializeRun(this.deps.workspaceRoot, slug, runId, loaded.spec, {
+      schemaVersion: 1,
+      taskId,
+      taskSlug: slug,
+      runId,
+      scope: loaded.spec.project
+        ? { kind: 'project', projectId: loaded.spec.project }
+        : { kind: 'workspace' },
+      ...(effectiveCwd.cwd && effectiveCwd.source
+        ? { effectiveCwd: effectiveCwd.cwd, effectiveCwdSource: effectiveCwd.source }
+        : {}),
+      ...(opts.orchestratorSessionId ? { orchestratorSessionId: opts.orchestratorSessionId } : {}),
+      createdAt,
+      verifyOnComplete,
+    })
+
+    transitionTaskWorkflow(this.deps.workspaceRoot, slug, 'started')
+
     const run = new ActiveRun(
       loaded.spec, slug, runId,
-      { ...opts, params: resolveParams(loaded.spec, opts.params), verifyOnComplete: opts.verifyOnComplete ?? true },
+      {
+        ...opts,
+        taskId,
+        effectiveCwd: effectiveCwd.cwd,
+        effectiveCwdSource: effectiveCwd.source,
+        params: resolveParams(loaded.spec, opts.params),
+        verifyOnComplete,
+      },
       this.deps,
     );
     this.runs.set(this.key(slug, runId), run);
-    run.start();
+    try {
+      run.start();
+    } catch (error) {
+      this.runs.delete(this.key(slug, runId))
+      transitionTaskWorkflow(this.deps.workspaceRoot, slug, 'settled')
+      throw error
+    }
     return run.snapshot();
   }
 
@@ -770,16 +941,27 @@ export class TaskRunner {
       if (!loaded?.spec || !loaded.valid) throw new Error(`无法恢复 "${slug}:${runId}"：task.yaml 无效或缺失`);
       return loaded.spec;
     })();
-    const log = readRunLog(this.deps.workspaceRoot, slug, runId);
+    const integrity = readRunLogIntegrity(this.deps.workspaceRoot, slug, runId);
+    if (integrity.recoveryRequired) {
+      throw new Error(`无法自动恢复 "${slug}:${runId}"：运行日志损坏，需要人工诊断`)
+    }
+    const log = integrity.entries;
     if (log.length === 0) throw new Error(`无法恢复 "${slug}:${runId}"：没有运行日志`);
     const started = log.find((entry): entry is RunStartedLogEntry => entry.kind === 'run-started');
-    const orchestratorSessionId = started?.orchestratorSessionId;
+    const context = readRunContextSnapshot(this.deps.workspaceRoot, slug, runId)
+    const orchestratorSessionId = context?.orchestratorSessionId ?? started?.orchestratorSessionId;
+    const legacyCwd = context?.effectiveCwd || started?.effectiveCwd
+      ? {}
+      : this.resolveEffectiveCwd(spec, orchestratorSessionId)
     const run = new ActiveRun(
       spec, slug, runId,
       {
         orchestratorSessionId,
+        taskId: context?.taskId ?? started?.taskId ?? this.resolveTaskId(slug),
+        effectiveCwd: context?.effectiveCwd ?? started?.effectiveCwd ?? legacyCwd.cwd,
+        effectiveCwdSource: context?.effectiveCwdSource ?? started?.effectiveCwdSource ?? legacyCwd.source,
         params: started?.params ?? resolveParams(spec),
-        verifyOnComplete: started?.verifyOnComplete ?? true,
+        verifyOnComplete: context?.verifyOnComplete ?? started?.verifyOnComplete ?? true,
       },
       this.deps,
     );

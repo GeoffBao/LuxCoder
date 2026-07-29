@@ -19,9 +19,12 @@
     "./tasks": "./src/tasks/index.ts",
     "./tasks/refs": "./src/tasks/refs.ts",
     "./tasks/schema": "./src/tasks/schema.ts",
+    "./tasks/task-record": "./src/tasks/task-record.ts",
     "./tasks/storage": "./src/tasks/storage.ts",
     "./tasks/validate": "./src/tasks/validate.ts",
-    "./experts": "./src/experts/index.ts"
+    "./labels": "./src/labels/index.ts",
+    "./experts": "./src/experts/index.ts",
+    "./experts/workspace-binding": "./src/experts/workspace-binding.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

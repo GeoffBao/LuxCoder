@@ -50,12 +50,12 @@ describe('resolveTaskEditorTarget', () => {
 })
 
 describe('TaskEditor draft and submission', () => {
-  test('create task 缺少 projectId 时校验失败', () => {
+  test('create task 缺少 projectId 时作为 Workspace Task 通过校验', () => {
     expect(validateTaskDraft({
       title: '发布',
       projectId: '',
       subtasks: [{ prompt: '做发布' }],
-    }).ok).toBe(false)
+    }).ok).toBe(true)
   })
 
   test('从 spec 预填项目、路由、权限和依赖关系', () => {
@@ -78,6 +78,21 @@ describe('TaskEditor draft and submission', () => {
     expect(draft.orchConnection).toBe('connection-a')
     expect(draft.permissionMode).toBe('ask')
     expect(draft.subtasks[1]?.dependsOn[0]).toBe(draft.subtasks[0]?.uid)
+  })
+
+  test('从渐进式 Composer 进入完整编辑器时保留标题、目标与 Project 归属', () => {
+    const createTarget: TaskEditorTarget = {
+      mode: 'create',
+      initialProjectId: 'project-a',
+      initialTitle: '发布准备',
+      initialGoal: '完成构建并验证产物',
+    }
+
+    const draft = createTaskEditorDraft(createTarget, 'model-a')
+
+    expect(draft.title).toBe('发布准备')
+    expect(draft.goal).toBe('完成构建并验证产物')
+    expect(draft.projectId).toBe('project-a')
   })
 
   test('创建时采用生成草稿，编辑时绑定原 session 并固定 slug', () => {

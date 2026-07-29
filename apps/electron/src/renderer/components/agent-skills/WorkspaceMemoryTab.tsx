@@ -218,7 +218,7 @@ export function WorkspaceMemoryTab({ workspaceSlug, search }: WorkspaceMemoryTab
       persistInFlightRef.current = p
       await p
     } catch (err) {
-      console.error('[工作区记忆] 自动保存失败:', err)
+      console.error('[Workspace Context] 自动保存失败:', err)
       toast.error(err instanceof Error ? err.message : '自动保存失败')
       setIsDirty(true)
     } finally {
@@ -249,7 +249,7 @@ export function WorkspaceMemoryTab({ workspaceSlug, search }: WorkspaceMemoryTab
       setEditText(file.content ?? '')
       setIsDirty(false)
     } catch (err) {
-      console.error('[工作区记忆] 读取 CLAUDE.md 失败:', err)
+      console.error('[Workspace Context] 读取 CLAUDE.md 失败:', err)
       toast.error(err instanceof Error ? err.message : '读取 CLAUDE.md 失败')
     } finally {
       setLoadingFile(false)
@@ -271,7 +271,7 @@ export function WorkspaceMemoryTab({ workspaceSlug, search }: WorkspaceMemoryTab
       setEditText(file.content ?? '')
       setIsDirty(false)
     } catch (err) {
-      console.error('[工作区记忆] 读取 auto memory 文件失败:', err)
+      console.error('[Workspace Context] 读取 auto memory 文件失败:', err)
       toast.error(err instanceof Error ? err.message : '读取 auto memory 文件失败')
     } finally {
       setLoadingFile(false)
@@ -289,8 +289,8 @@ export function WorkspaceMemoryTab({ workspaceSlug, search }: WorkspaceMemoryTab
         await openClaude(nextSummary)
       }
     } catch (err) {
-      console.error('[工作区记忆] 刷新失败:', err)
-      toast.error('刷新工作区记忆失败')
+      console.error('[Workspace Context] 刷新失败:', err)
+      toast.error('刷新Workspace Context失败')
     } finally {
       setLoading(false)
     }
@@ -322,8 +322,8 @@ export function WorkspaceMemoryTab({ workspaceSlug, search }: WorkspaceMemoryTab
         setEditText(claudeFile.content ?? '')
         setIsDirty(false)
       } catch (err) {
-        console.error('[工作区记忆] 加载失败:', err)
-        toast.error('加载工作区记忆失败')
+        console.error('[Workspace Context] 加载失败:', err)
+        toast.error('加载Workspace Context失败')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -346,7 +346,7 @@ export function WorkspaceMemoryTab({ workspaceSlug, search }: WorkspaceMemoryTab
     try {
       await window.electronAPI.setWorkspaceDefaultWorkingDirectory(workspaceSlug, path || undefined)
     } catch (err) {
-      console.error('[工作区记忆] 保存默认工作目录失败:', err)
+      console.error('[Workspace Context] 保存默认工作目录失败:', err)
       toast.error(err instanceof Error ? err.message : '保存默认工作目录失败')
     } finally {
       setSavingDefaultWorkingDirectory(false)
@@ -387,7 +387,7 @@ export function WorkspaceMemoryTab({ workspaceSlug, search }: WorkspaceMemoryTab
       await persistTarget(selected, editText)
       toast.success('记忆文件已保存')
     } catch (err) {
-      console.error('[工作区记忆] 保存失败:', err)
+      console.error('[Workspace Context] 保存失败:', err)
       toast.error(err instanceof Error ? err.message : '保存失败')
       setIsDirty(true)
     } finally {
@@ -408,9 +408,9 @@ export function WorkspaceMemoryTab({ workspaceSlug, search }: WorkspaceMemoryTab
         sessionId,
         message: buildWorkspaceMemoryInitPrompt(historyRange),
       })
-      toast.success('已创建工作区记忆初始化会话')
+      toast.success('已创建Workspace Context 初始化会话')
     } catch (err) {
-      console.error('[工作区记忆] 创建初始化会话失败:', err)
+      console.error('[Workspace Context] 创建初始化会话失败:', err)
       toast.error(err instanceof Error ? err.message : '创建初始化会话失败')
     } finally {
       setInitializing(false)
@@ -423,7 +423,7 @@ export function WorkspaceMemoryTab({ workspaceSlug, search }: WorkspaceMemoryTab
   )
 
   if (loading || !summary) {
-    return <div className="py-20 text-center text-sm text-muted-foreground">加载工作区记忆中...</div>
+    return <div className="py-20 text-center text-sm text-muted-foreground">加载 Workspace Context 中...</div>
   }
 
   return (
@@ -468,7 +468,7 @@ export function WorkspaceMemoryTab({ workspaceSlug, search }: WorkspaceMemoryTab
       <SettingsCard divided={false}>
         <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <div className="text-sm font-medium text-foreground">从历史会话生成工作区记忆</div>
+            <div className="text-sm font-medium text-foreground">从历史会话生成 Workspace Context</div>
             <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
               新建一个 Agent 会话，读取当前工作区{historyRangeLabel}的工作会话，沉淀并更新 CLAUDE.md 与 auto memory 文件。
             </div>
@@ -492,7 +492,7 @@ export function WorkspaceMemoryTab({ workspaceSlug, search }: WorkspaceMemoryTab
             </Select>
             <Button onClick={handleInitializeMemory} disabled={initializing}>
               <Sparkles size={14} className="mr-1.5" />
-              {initializing ? '创建中...' : '生成工作区记忆'}
+              {initializing ? '创建中...' : '生成 Workspace Context'}
             </Button>
           </div>
         </div>

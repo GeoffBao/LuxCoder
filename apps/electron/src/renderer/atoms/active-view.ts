@@ -16,7 +16,7 @@ export type ActiveView =
   | 'automations'
   | 'agent-skills'
   | 'agent-experts'
-export type AgentSkillsCapabilityTab = 'skills' | 'mcp' | 'memory'
+export type AgentSkillsCapabilityTab = 'skills' | 'mcp' | 'context'
 
 /** 当前活跃视图（不持久化，每次启动默认显示对话） */
 export const activeViewAtom = atom<ActiveView>('conversations')

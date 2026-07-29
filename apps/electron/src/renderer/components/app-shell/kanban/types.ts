@@ -1,4 +1,5 @@
 import type { AgentSessionMeta } from '@luxcoder/shared'
+import type { TaskAggregateSummary, TaskWorkflow } from '@luxcoder/shared/tasks'
 
 /** 历史遗留的收件箱列 ID；列已下线，存量值由 board fallback 归入待办。 */
 export const INBOX_COLUMN_ID = 'inbox'
@@ -19,7 +20,13 @@ export type SubtaskRunState = 'done' | 'running' | 'pending' | 'failed' | 'needs
  * 表单；保存即把这个普通会话「升级」成正式任务（生成新 slug 并绑定回同一会话）。
  */
 export type TaskEditorTarget =
-  | { mode: 'create'; initialProjectId?: string }
+  | {
+      mode: 'create'
+      initialProjectId?: string
+      /** 由渐进式 Composer 带入，避免进入完整编辑器时丢稿。 */
+      initialTitle?: string
+      initialGoal?: string
+    }
   | { mode: 'edit'; sessionId: string; taskSlug?: string; initialTitle?: string; initialModel?: string }
 
 export interface KanbanSubtask {
@@ -66,8 +73,22 @@ export interface TeambitionBinding {
   error?: string
 }
 
+export type TaskBoardScopeFilter =
+  | { kind: 'all' }
+  | { kind: 'workspace' }
+  | { kind: 'project'; projectId: string }
+
 export interface KanbanFilter {
-  projectId: string | null
+  /** 显式 Task scope facet；新调用优先使用它，而不是旧 projectId 表示。 */
+  scope?: TaskBoardScopeFilter
+  /** @deprecated null 表示全部，字符串表示 Project；仅保留用于会话看板兼容。 */
+  projectId?: string | null
+  /** 'all' 或省略表示不限制 workflow。 */
+  workflow?: 'all' | TaskWorkflow
+  /** 多个选中 Label 按 OR 匹配。 */
+  labelIds?: readonly string[]
+  /** true 时把无标签 Task 纳入结果；未选 Label 时表示仅看无标签。 */
+  includeUnlabeled?: boolean
 }
 
 export interface KanbanNodeProgress {
@@ -90,6 +111,10 @@ export interface KanbanItem {
   title: string
   columnId: string
   session: AgentSessionMeta
+  /** 是否有可打开/可继续执行的真实 orchestrator Session；false 时 session 仅为诊断卡片展示适配。 */
+  hasSession?: boolean
+  /** 正式 TaskRepository 投影；旧 Session 看板兼容项缺省。 */
+  task?: TaskAggregateSummary
   project: KanbanProject | null
   /** craft 对齐：卡片上展开的子任务行（spec nodes ∪ child sessions） */
   subtasks: KanbanSubtask[]

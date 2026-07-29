@@ -1,11 +1,25 @@
 import { atom } from 'jotai'
-import type { KanbanProject, TaskEditorTarget } from '@/components/app-shell/kanban/types'
+import type { KanbanProject, TaskBoardScopeFilter, TaskEditorTarget } from '@/components/app-shell/kanban/types'
 
 /** 服务端项目快照；渲染状态不写入项目配置。 */
 export const serverKanbanProjectsAtom = atom<KanbanProject[]>([])
 
-/** 当前项目筛选；null 表示所有项目与 Inbox。 */
-export const selectedProjectIdAtom = atom<string | null>(null)
+/** Task Board scope 是唯一正式筛选状态；Project 只是其中一种可选 scope。 */
+export const taskBoardScopeAtom = atom<TaskBoardScopeFilter>({ kind: 'all' })
+
+/**
+ * 旧调用方的 Project facet 投影。写入时同步到正式 scope；Workspace-only 需直接使用
+ * taskBoardScopeAtom，避免再用 magic project id。
+ */
+export const selectedProjectIdAtom = atom(
+  (get) => {
+    const scope = get(taskBoardScopeAtom)
+    return scope.kind === 'project' ? scope.projectId : null
+  },
+  (_get, set, projectId: string | null) => {
+    set(taskBoardScopeAtom, projectId ? { kind: 'project', projectId } : { kind: 'all' })
+  },
+)
 
 export const selectedKanbanProjectAtom = atom((get) => {
   const selectedProjectId = get(selectedProjectIdAtom)
@@ -13,11 +27,17 @@ export const selectedKanbanProjectAtom = atom((get) => {
   return get(serverKanbanProjectsAtom).find((project) => project.id === selectedProjectId) ?? null
 })
 
-/** Work 主区视图：看板或项目详情。提升为 atom 以支持 Code 侧边栏「项目详情」跨模式跳转。 */
-export const workViewAtom = atom<'board' | 'project'>('board')
+export type ProjectPageTab = 'overview' | 'sessions' | 'knowledge' | 'assets' | 'settings'
 
-/** Code（agent）模式主区视图：会话 | Work（看板 / 项目详情，子视图由 workViewAtom 决定） */
-export type CodeMainView = 'session' | 'work'
+/** Project Page 页面身份与当前子页；与 Task Board 的 Project facet 明确分离。 */
+export const activeProjectPageIdAtom = atom<string | null>(null)
+export const projectPageTabAtom = atom<ProjectPageTab>('overview')
+
+/**
+ * Code（agent）模式主区视图。
+ * `work` 仅保留为一轮兼容 alias；正式入口使用 `tasks`，Project 页面后续使用 `project`。
+ */
+export type CodeMainView = 'session' | 'tasks' | 'project' | 'work'
 
 /** Code 模式主区视图（不持久化，启动默认会话视图；仅 agent 模式读取） */
 export const codeMainViewAtom = atom<CodeMainView>('session')

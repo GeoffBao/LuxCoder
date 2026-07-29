@@ -1,12 +1,13 @@
 import { expect, test } from 'bun:test'
 import { createStore } from 'jotai/vanilla'
-import type { AgentSessionMeta } from '@luxcoder/shared'
+import type { AgentSessionMeta, TaskAggregateSummary } from '@luxcoder/shared'
 import {
   kanbanItemsAtom,
   kanbanNotificationsAtom,
   moveCardAtom,
   optimisticKanbanColumnsAtom,
   serverKanbanSessionsAtom,
+  serverTaskSummariesAtom,
 } from '@/atoms/kanban-atoms'
 
 function createSession(): AgentSessionMeta {
@@ -38,6 +39,58 @@ function createSessionDeferred(): {
   return { promise, resolve }
 }
 
+test('正式 Task 拖动按 stable taskId 更新 Workflow，而不是误用 Session API', async () => {
+  const originalWindow = globalThis.window
+  const calls: unknown[][] = []
+  const task: TaskAggregateSummary = {
+    taskId: '22222222-2222-4222-8222-222222222222',
+    taskSlug: 'stable-task',
+    title: 'Stable Task',
+    scope: { kind: 'workspace' },
+    workflow: 'todo',
+    revision: 1,
+    labelIds: [],
+    runCount: 0,
+    legacyIdentity: false,
+    health: 'ready',
+    diagnostics: [],
+  }
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: {
+      electronAPI: {
+        tasks: {
+          updateWorkflow: (...args: unknown[]): Promise<TaskAggregateSummary> => {
+            calls.push(args)
+            return Promise.resolve({ ...task, workflow: 'done', revision: 2 })
+          },
+        },
+        sessions: {
+          move: (): never => { throw new Error('不应调用 Session move') },
+        },
+      },
+    },
+  })
+
+  try {
+    const store = createStore()
+    store.set(serverTaskSummariesAtom, [task])
+    await store.set(moveCardAtom, {
+      itemId: task.taskId,
+      columnId: 'done',
+      workspaceRoot: '/workspace',
+      workspaceId: 'ws-1',
+    })
+
+    expect(calls).toEqual([['/workspace', 'ws-1', task.taskId, 'done', 1]])
+    expect(store.get(serverTaskSummariesAtom)?.[0]).toEqual(
+      expect.objectContaining({ workflow: 'done', revision: 2 }),
+    )
+  } finally {
+    Object.defineProperty(globalThis, 'window', { configurable: true, value: originalWindow })
+  }
+})
+
 test('移动失败后还原原列并只发出一条错误通知', async () => {
   const deferred = createDeferred()
   const originalWindow = globalThis.window
@@ -54,6 +107,7 @@ test('移动失败后还原原列并只发出一条错误通知', async () => {
 
   try {
     const store = createStore()
+    store.set(serverTaskSummariesAtom, undefined)
     store.set(serverKanbanSessionsAtom, [createSession()])
     store.set(optimisticKanbanColumnsAtom, new Map())
     store.set(kanbanNotificationsAtom, [])
@@ -94,6 +148,7 @@ test('同一卡片连续移动均失败时回到最后确认的服务端列', as
 
   try {
     const store = createStore()
+    store.set(serverTaskSummariesAtom, undefined)
     store.set(serverKanbanSessionsAtom, [createSession()])
     store.set(optimisticKanbanColumnsAtom, new Map())
     store.set(kanbanNotificationsAtom, [])
@@ -136,6 +191,7 @@ test('同一卡片成功响应乱序时保留最后请求的服务端列', async
 
   try {
     const store = createStore()
+    store.set(serverTaskSummariesAtom, undefined)
     store.set(serverKanbanSessionsAtom, [createSession()])
     store.set(optimisticKanbanColumnsAtom, new Map())
 

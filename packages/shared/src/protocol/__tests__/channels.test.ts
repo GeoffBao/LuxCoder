@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import * as protocolContracts from '@luxcoder/shared/protocol';
 import {
+  LABEL_IPC_CHANNELS,
   PROJECT_IPC_CHANNELS,
   SESSION_KANBAN_IPC_CHANNELS,
   TASK_IPC_CHANNELS,
@@ -49,6 +50,7 @@ function readSessionCommandKind(command: SessionKanbanCommand): string {
 describe('kanban protocol contracts', () => {
   test('package export 会暴露 protocol 合约入口', () => {
     expect(protocolContracts).toMatchObject({
+      LABEL_IPC_CHANNELS,
       PROJECT_IPC_CHANNELS,
       TASK_IPC_CHANNELS,
       SESSION_KANBAN_IPC_CHANNELS,
@@ -63,6 +65,7 @@ describe('kanban protocol contracts', () => {
       CREATE: 'projects:create',
       UPDATE: 'projects:update',
       DELETE: 'projects:delete',
+      ANALYZE_DELETE_IMPACT: 'projects:analyzeDeleteImpact',
       LIST_ASSETS: 'projects:listAssets',
       UPLOAD_ASSET: 'projects:uploadAsset',
       DELETE_ASSET: 'projects:deleteAsset',
@@ -72,6 +75,15 @@ describe('kanban protocol contracts', () => {
       RESOLVE_EFFECTIVE_CWD: 'projects:resolveEffectiveCwd',
       RELOCATE_WORKING_DIRECTORY: 'projects:relocateWorkingDirectory',
       CHANGED: 'projects:changed',
+    });
+
+    expect(LABEL_IPC_CHANNELS).toEqual({
+      LIST: 'labels:list',
+      CREATE: 'labels:create',
+      UPDATE: 'labels:update',
+      ARCHIVE: 'labels:archive',
+      SET_SESSION_LABELS: 'labels:setSessionLabels',
+      SET_TASK_LABELS: 'labels:setTaskLabels',
     });
 
     expect(TASK_IPC_CHANNELS).toEqual({
@@ -86,6 +98,11 @@ describe('kanban protocol contracts', () => {
       REHYDRATE: 'tasks:rehydrate',
       GET: 'tasks:get',
       LIST: 'tasks:list',
+      LIST_SUMMARIES: 'tasks:listSummaries',
+      UPDATE_WORKFLOW: 'tasks:updateWorkflow',
+      UPDATE_METADATA: 'tasks:updateMetadata',
+      DELETE: 'tasks:delete',
+      ANALYZE_DELETE_IMPACT: 'tasks:analyzeDeleteImpact',
       GET_RESULTS: 'tasks:getResults',
     });
 

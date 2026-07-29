@@ -270,13 +270,13 @@ export function AgentSkillsView(): React.ReactElement {
               'absolute bottom-0.5 top-0.5 w-[calc(33.333%-3px)] rounded-lg bg-background shadow-sm transition-transform duration-base ease-out',
               tab === 'skills' && 'translate-x-0',
               tab === 'mcp' && 'translate-x-full',
-              tab === 'memory' && 'translate-x-[200%]',
+              tab === 'context' && 'translate-x-[200%]',
             )}
           />
           {([
             { value: 'skills' as const, label: 'Skills', count: data.skills.length },
             { value: 'mcp' as const, label: 'MCP', count: mcpCount },
-            { value: 'memory' as const, label: '记忆', count: memoryCount },
+            { value: 'context' as const, label: 'Context', count: memoryCount },
           ]).map(({ value, label, count }) => (
             <button
               key={value}
@@ -298,7 +298,7 @@ export function AgentSkillsView(): React.ReactElement {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={tab === 'skills' ? '搜索 Skills...' : tab === 'mcp' ? '搜索 MCP 服务器...' : '搜索记忆文件...'}
+            placeholder={tab === 'skills' ? '搜索 Skills...' : tab === 'mcp' ? '搜索 MCP 服务器...' : '搜索 Workspace Context...'}
             className="w-full bg-transparent text-[13px] text-foreground placeholder:text-foreground/35 focus:outline-none"
           />
         </div>

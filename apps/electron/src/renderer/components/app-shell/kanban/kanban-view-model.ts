@@ -1,6 +1,9 @@
 import type { AgentSessionMeta } from '@luxcoder/shared'
+import type { TaskAggregateSummary } from '@luxcoder/shared/tasks'
 import { resolveExpertId } from '@luxcoder/shared/experts'
 import { mergeSubtaskRows, type SpecNodeSummary, type SubtaskChildRow } from './subtask-merge'
+import { deriveDefaultKanbanColumn } from './status-column'
+import { resolveTaskBoardScope, taskMatchesBoardFilter } from './task-board-filter-model'
 import {
   DEFAULT_KANBAN_COLUMN_ID,
   type KanbanFilter,
@@ -26,6 +29,8 @@ export interface BuildKanbanViewModelInput {
   sessions: AgentSessionMeta[]
   runs: KanbanTaskRun[]
   bindings: TeambitionBinding[]
+  /** 有值时启用 TaskRepository-first 投影；空数组也表示不把普通顶层 Session 当成 Task。 */
+  tasks?: TaskAggregateSummary[]
   filter: KanbanFilter
   /** taskSlug → DAG nodes；缺省时仅展示 child sessions */
   specNodesBySlug?: Map<string, SpecNodeSummary[]>
@@ -105,6 +110,7 @@ function buildItem(
     title: session.title,
     columnId: session.kanbanColumn ?? DEFAULT_KANBAN_COLUMN_ID,
     session,
+    hasSession: true,
     project,
     subtasks,
     ...(expertId ? { expertId } : {}),
@@ -151,9 +157,67 @@ export function buildKanbanViewModel(input: BuildKanbanViewModelInput): KanbanVi
   const topLevelSessions = input.sessions.filter((session) =>
     !session.archived && !session.taskDraft && !session.parentSessionId,
   )
-  const sessions = input.filter.projectId === null
+
+  const repositoryTasks = input.tasks
+  if (repositoryTasks !== undefined) {
+    const sessionsById = new Map(topLevelSessions.map((session) => [session.id, session]))
+    const sessionsByTaskSlug = new Map(
+      topLevelSessions
+        .filter((session): session is AgentSessionMeta & { taskSlug: string } => Boolean(session.taskSlug))
+        .map((session) => [session.taskSlug, session]),
+    )
+    const summaries = repositoryTasks.filter((summary) =>
+      summary.archivedAt === undefined && taskMatchesBoardFilter(summary, input.filter),
+    )
+    const items = summaries.map((summary) => {
+      const linkedSession = (summary.orchestratorSessionId
+        ? sessionsById.get(summary.orchestratorSessionId)
+        : undefined) ?? sessionsByTaskSlug.get(summary.taskSlug)
+      const projectId = summary.scope.kind === 'project' ? summary.scope.projectId : undefined
+      const session: AgentSessionMeta = {
+        ...(linkedSession ?? {
+          id: `task:${summary.taskId}`,
+          createdAt: summary.createdAt ?? 0,
+          updatedAt: summary.updatedAt ?? 0,
+        }),
+        title: summary.title,
+        taskSlug: summary.taskSlug,
+        ...(projectId ? { projectId } : { projectId: undefined }),
+        kanbanColumn: summary.legacyIdentity && linkedSession?.kanbanColumn
+          ? linkedSession.kanbanColumn
+          : deriveDefaultKanbanColumn(summary.workflow),
+      }
+      const item = buildItem(
+        session,
+        projectsById,
+        input.runs,
+        bindingsBySessionId,
+        linkedSession ? childrenByParent.get(linkedSession.id) ?? [] : [],
+        input.specNodesBySlug?.get(summary.taskSlug),
+        fallbackModel,
+        input.expertIdsBySlug?.get(summary.taskSlug),
+      )
+      return {
+        ...item,
+        id: summary.taskId,
+        title: summary.title,
+        task: summary,
+        hasSession: linkedSession !== undefined,
+      }
+    }).sort((left, right) => {
+      const leftUpdatedAt = left.task?.updatedAt ?? left.session.updatedAt
+      const rightUpdatedAt = right.task?.updatedAt ?? right.session.updatedAt
+      return rightUpdatedAt - leftUpdatedAt || left.id.localeCompare(right.id)
+    })
+    return { boardItems: items, listItems: items }
+  }
+
+  const scope = resolveTaskBoardScope(input.filter)
+  const sessions = scope.kind === 'all'
     ? topLevelSessions
-    : topLevelSessions.filter((session) => session.projectId === input.filter.projectId)
+    : scope.kind === 'workspace'
+      ? topLevelSessions.filter((session) => !session.projectId)
+      : topLevelSessions.filter((session) => session.projectId === scope.projectId)
   const items = sessions
     .map((session) => buildItem(
       session,

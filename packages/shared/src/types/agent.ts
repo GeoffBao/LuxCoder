@@ -799,10 +799,16 @@ export interface AgentSessionMeta {
   taskRunId?: string
   /** Tasks Conductor: DAG 节点 id */
   taskNodeId?: string
+  /** Tasks Conductor: 节点派发尝试序号，用于崩溃恢复去重 */
+  taskAttempt?: number
+  /** Tasks Conductor: 稳定派发关联键 taskId/runId/nodeId/attempt */
+  taskCorrelationKey?: string
   /** Tasks Conductor: orchestrator 上的 DAG 总节点数（看板进度分母） */
   taskNodeCount?: number
   /** Tasks Conductor: generate 时的草稿标记（adopt 前不在看板显示） */
   taskDraft?: boolean
+  /** Workspace-scoped label IDs。历史缺失视为空集合；label-only 更新不改变 updatedAt。 */
+  labelIds?: string[]
   /** 消息计数（看板卡片右下角徽标用，对齐 craft）；由 appendSDKMessages 增量维护，历史会话可能缺失 */
   messageCount?: number
   /** 创建时间戳 */
@@ -835,6 +841,10 @@ export interface SessionListPreference {
   status: SessionListStatusFilter
   groupBy: SessionListGroupBy
   sortBy: SessionListSortBy
+  /** workspaceId → 选中的 label ID 列表（多选 OR） */
+  labelIdsByWorkspace?: Record<string, string[]>
+  /** 是否显示不带任何 label 的会话 */
+  includeUnlabeledByWorkspace?: Record<string, boolean>
 }
 
 /** Agent 委派子会话的任务角色 */
@@ -1019,6 +1029,16 @@ export interface SkillImportSource {
   sourceWorkspaceName: string
   importedAt: string        // ISO 8601
   sourceVersion: string     // 导入时源 Skill 的 version，无则 '0.0.0'
+  /** 导入时源 Skill 目录的内容哈希（用于本地修改检测） */
+  sourceContentHash?: string
+  /** 最近一次与源 Skill 同步的时间（ISO 8601）；为空则从未同步 */
+  syncedAt?: string
+  /** 本地快照是否已被修改（用于 diff/覆盖/保留/Detach 决策） */
+  localModified?: boolean
+  /** 是否已与源 Skill 显式 Detach（不再显示更新提示） */
+  detached?: boolean
+  /** 源 Skill 已被删除（快照仍可用，但不再接收更新） */
+  sourceRemoved?: boolean
 }
 
 /** 工作区 Skill 元数据 */

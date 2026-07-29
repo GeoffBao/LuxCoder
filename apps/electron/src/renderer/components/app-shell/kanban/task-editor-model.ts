@@ -45,8 +45,8 @@ export function createTaskEditorDraft(
   // 直接用卡片当前标题/模型起草——即"升级"这个普通会话的起点。
   const promoting = target.mode === 'edit' && !target.taskSlug
   return {
-    title: promoting ? target.initialTitle ?? '' : '',
-    goal: '',
+    title: target.mode === 'create' ? target.initialTitle ?? '' : promoting ? target.initialTitle ?? '' : '',
+    goal: target.mode === 'create' ? target.initialGoal ?? '' : '',
     projectId: target.mode === 'create' ? target.initialProjectId ?? '' : '',
     orchModel: (promoting && target.initialModel) ? target.initialModel : defaultModel,
     permissionMode: 'allow-all',
@@ -102,11 +102,10 @@ export function buildTaskEditorSubmission(
   }
 }
 
-/** Task 创建前校验：必须绑定 Project */
+/** Task 创建前校验：Project 可选；空值表示 Workspace Task。 */
 export function validateTaskDraft(draft: Pick<TaskEditorDraft, 'projectId' | 'title'> & {
   subtasks?: Array<{ prompt: string }>
 }): { ok: true } | { ok: false; error: string } {
-  if (!draft.projectId?.trim()) return { ok: false, error: '请选择项目' }
   if (!draft.title?.trim()) return { ok: false, error: '请输入任务标题' }
   if (draft.subtasks && draft.subtasks.length === 0) return { ok: false, error: '至少需要一个子任务' }
   if (draft.subtasks?.some((subtask) => !subtask.prompt.trim())) {

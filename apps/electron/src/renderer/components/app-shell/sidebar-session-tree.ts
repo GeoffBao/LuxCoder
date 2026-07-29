@@ -58,7 +58,15 @@ export function hasTaskDraftAncestor(
   return false
 }
 
-export function buildAgentSessionTrees(sessions: readonly AgentSessionMeta[]): AgentSessionTreeItem[] {
+export interface SessionTreeLabelFilter {
+  labelIds: string[]
+  includeUnlabeled: boolean | undefined
+}
+
+export function buildAgentSessionTrees(
+  sessions: readonly AgentSessionMeta[],
+  labelFilter?: SessionTreeLabelFilter,
+): AgentSessionTreeItem[] {
   const allById = new Map(sessions.map((session) => [session.id, session]))
   const visibleSessions = sessions.filter((session) => !hasTaskDraftAncestor(session, allById))
   const byId = new Map(visibleSessions.map((session) => [session.id, session]))
@@ -74,12 +82,27 @@ export function buildAgentSessionTrees(sessions: readonly AgentSessionMeta[]): A
     childrenByRootId.set(rootId, children)
   }
 
-  return visibleSessions
+  let trees = visibleSessions
     .filter((session) => rootIdBySessionId.get(session.id) === session.id)
     .map((session) => ({
       session,
       childSessions: childrenByRootId.get(session.id) ?? [],
     }))
+
+  if (labelFilter && labelFilter.labelIds.length > 0) {
+    trees = trees.filter((item) => {
+      const matched = item.session.labelIds?.some((id) => labelFilter.labelIds.includes(id)) === true
+      const childMatched = item.childSessions.some((child) =>
+        child.labelIds?.some((id) => labelFilter.labelIds.includes(id)) === true,
+      )
+      if (matched || childMatched) return true
+      return labelFilter.includeUnlabeled === true
+        && (item.session.labelIds?.length ?? 0) === 0
+        && !item.childSessions.some((child) => (child.labelIds?.length ?? 0) > 0)
+    })
+  }
+
+  return trees
 }
 
 /** Task 子会话与 collaboration 子会话都使用同一个轻量分支标识。 */

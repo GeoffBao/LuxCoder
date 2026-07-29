@@ -11,7 +11,7 @@
 import * as React from 'react'
 import { useAtom, useSetAtom } from 'jotai'
 import { LayoutDashboard, MessageSquare } from 'lucide-react'
-import { codeMainViewAtom, workViewAtom } from '@/atoms/project-atoms'
+import { codeMainViewAtom } from '@/atoms/project-atoms'
 import type { CodeMainView } from '@/atoms/project-atoms'
 import { activeViewAtom } from '@/atoms/active-view'
 import { cn } from '@/lib/utils'
@@ -24,7 +24,7 @@ interface SwitcherOption {
 
 const OPTIONS: SwitcherOption[] = [
   { id: 'session', label: '会话', icon: <MessageSquare size={12} /> },
-  { id: 'work', label: '看板', icon: <LayoutDashboard size={12} /> },
+  { id: 'tasks', label: '任务看板', icon: <LayoutDashboard size={12} /> },
 ]
 
 export interface CodeMainViewSwitchControlProps {
@@ -35,12 +35,9 @@ export interface CodeMainViewSwitchControlProps {
 
 export function CodeMainViewSwitchControl({ compact, className }: CodeMainViewSwitchControlProps): React.ReactElement {
   const [mainView, setMainView] = useAtom(codeMainViewAtom)
-  const setWorkView = useSetAtom(workViewAtom)
   const setActiveView = useSetAtom(activeViewAtom)
 
   const handleSelect = (id: CodeMainView): void => {
-    // 切到 Work 时固定先看板，避免停留在上次「项目详情」造成的认知错位
-    if (id === 'work') setWorkView('board')
     setMainView(id)
     // 切换主区视图时回到会话主区，避免覆盖视图（技能/专家/自动任务）下点击无可见效果
     setActiveView('conversations')

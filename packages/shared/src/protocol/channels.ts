@@ -11,6 +11,7 @@ export const PROJECT_IPC_CHANNELS = {
   CREATE:      'projects:create',
   UPDATE:      'projects:update',
   DELETE:      'projects:delete',
+  ANALYZE_DELETE_IMPACT: 'projects:analyzeDeleteImpact',
   LIST_ASSETS: 'projects:listAssets',
   UPLOAD_ASSET: 'projects:uploadAsset',
   DELETE_ASSET: 'projects:deleteAsset',
@@ -34,7 +35,21 @@ export const TASK_IPC_CHANNELS = {
   REHYDRATE:    'tasks:rehydrate',
   GET:          'tasks:get',
   LIST:         'tasks:list',
+  LIST_SUMMARIES: 'tasks:listSummaries',
+  UPDATE_WORKFLOW: 'tasks:updateWorkflow',
+  UPDATE_METADATA: 'tasks:updateMetadata',
+  DELETE:       'tasks:delete',
+  ANALYZE_DELETE_IMPACT: 'tasks:analyzeDeleteImpact',
   GET_RESULTS:  'tasks:getResults',
+} as const;
+
+export const LABEL_IPC_CHANNELS = {
+  LIST:         'labels:list',
+  CREATE:       'labels:create',
+  UPDATE:       'labels:update',
+  ARCHIVE:      'labels:archive',
+  SET_SESSION_LABELS: 'labels:setSessionLabels',
+  SET_TASK_LABELS:    'labels:setTaskLabels',
 } as const;
 
 export const SESSION_KANBAN_IPC_CHANNELS = {
