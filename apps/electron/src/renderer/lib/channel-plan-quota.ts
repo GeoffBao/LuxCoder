@@ -1,3 +1,4 @@
+import { atom } from 'jotai'
 import type { Channel, ChannelPlanQuotaResult, ProviderType } from '@luxcoder/shared'
 
 const PLAN_QUOTA_PROVIDERS = new Set<ProviderType>([
@@ -75,4 +76,16 @@ export async function fetchChannelPlanQuota(
 
   inflightRequests.set(requestKey, request)
   return request
+}
+
+/**
+ * 全局刷新版本号 —— 流式响应结束时递增，驱动 ChannelPlanQuotaBadge 重新查询余额。
+ */
+export const channelPlanQuotaRefreshVersionAtom = atom<number>(0)
+
+/**
+ * 主动失效指定渠道的额度缓存，使下一次 fetchChannelPlanQuota 绕过缓存。
+ */
+export function invalidateChannelPlanQuota(channelId: string): void {
+  quotaCache.delete(channelId)
 }

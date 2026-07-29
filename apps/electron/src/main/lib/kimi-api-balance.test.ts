@@ -17,17 +17,33 @@ describe('Kimi API balance parser', () => {
     expect(result.provider).toBe('kimi-api')
     expect(result.windows).toEqual([{
       type: 'custom',
-      label: '可用余额',
+      label: '账户余额',
       remainingPercent: 0,
       usedPercent: 0,
-      remainingLabel: '$12.50',
+      remainingLabel: '¥12.50',
       showProgress: false,
     }])
-    expect(result.planName).toBe('Kimi API')
+    expect(result.planName).toBe('Kimi API 账户余额')
   })
 
   test('兼容字符串余额并拒绝缺少可用余额的响应', () => {
-    expect(parseKimiApiBalanceResponse({ available_balance: '3.2' }).windows[0]?.remainingLabel).toBe('$3.20')
+    expect(parseKimiApiBalanceResponse({ available_balance: '3.2' }).windows[0]?.remainingLabel).toBe('¥3.20')
     expect(parseKimiApiBalanceResponse({ cash_balance: 3 }).supported).toBe(false)
+  })
+
+  test('兼容 data 包裹格式（Kimi API v2）', () => {
+    const result = parseKimiApiBalanceResponse({
+      code: 0,
+      data: {
+        available_balance: 49.58,
+        voucher_balance: 46.58,
+        cash_balance: 3.0,
+      },
+      scode: '0x0',
+      status: true,
+    })
+    expect(result.supported).toBe(true)
+    expect(result.windows[0]?.remainingLabel).toBe('¥49.58')
+    expect(result.message).toBe('代金券 ¥46.58 · 现金 ¥3.00')
   })
 })

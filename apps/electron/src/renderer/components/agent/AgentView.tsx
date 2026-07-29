@@ -58,7 +58,7 @@ import {
 import { cn } from '@/lib/utils'
 import { getActiveAccelerator, getAcceleratorDisplay } from '@/lib/shortcut-registry'
 import { registerShortcut } from '@/lib/shortcut-registry'
-import { supportsChannelPlanQuota } from '@/lib/channel-plan-quota'
+import { supportsChannelPlanQuota, channelPlanQuotaRefreshVersionAtom } from '@/lib/channel-plan-quota'
 import { previewPanelOpenMapAtom, quotedSelectionMapAtom, currentQuotedSelectionAtom } from '@/atoms/preview-atoms'
 import type { QuotedSelection } from '@/atoms/preview-atoms'
 import {
@@ -411,6 +411,15 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
   // 软空闲态：本轮主体已结束、UI 可输入，但 SDK 通道仍开着等后台任务唤醒。
   // 此时服务端 activeSessions 仍保留，新消息须走注入通道而非新建 run。
   const backgroundWaiting = streamState?.backgroundWaiting ?? false
+  // 流式结束时触发渠道余额刷新
+  const setQuotaRefreshVersion = useSetAtom(channelPlanQuotaRefreshVersionAtom)
+  const prevStreamingRef = React.useRef(streaming)
+  React.useEffect(() => {
+    if (prevStreamingRef.current && !streaming) {
+      setQuotaRefreshVersion((v) => v + 1)
+    }
+    prevStreamingRef.current = streaming
+  }, [streaming, setQuotaRefreshVersion])
   const stoppedByUserSessions = useAtomValue(stoppedByUserSessionsAtom)
   const sendWithCmdEnter = useAtomValue(sendWithCmdEnterAtom)
   const longTextPasteAsAttachmentEnabled = useAtomValue(longTextPasteAsAttachmentEnabledAtom)
