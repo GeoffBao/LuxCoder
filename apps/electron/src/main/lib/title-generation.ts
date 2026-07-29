@@ -122,6 +122,17 @@ function sliceAtWord(text: string, max: number): string {
 }
 
 /** 用于中途重新生成标题的 Prompt：给模型看首/中/尾用户消息 + 最新一次回复，而非只看第一条。 */
+/**
+ * 自动重命名触发点。
+ * - 1：首轮完成后已有助手回复，单问答会话也能从"截图/如图/帮我看看"纠偏成真实主题。
+ * - 4/8/15/26：随着会话推进逐步放宽间隔，纠正中长会话主题漂移。
+ */
+export const TITLE_REGENERATION_USER_MESSAGE_COUNTS = new Set([1, 4, 8, 15, 26])
+
+export function shouldRegenerateTitleAtUserMessageCount(count: number): boolean {
+  return TITLE_REGENERATION_USER_MESSAGE_COUNTS.has(count)
+}
+
 export function buildRegenerateTitlePrompt(recentUserMessages: string[], lastAssistantResponse: string): string {
   const userContext = recentUserMessages.map((message) => sliceAtWord(message, 500)).join('\n\n')
   const assistantSnippet = sliceAtWord(lastAssistantResponse, 500)

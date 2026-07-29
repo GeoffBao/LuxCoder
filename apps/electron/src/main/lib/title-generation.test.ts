@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { buildRegenerateTitlePrompt, createFallbackTitle, extractAssistantMessageText, extractGenuineUserMessageText, isLowSignalMessage, sanitizeGeneratedTitle, selectSpreadMessages, stripContextWrappersForTitle } from './title-generation'
+import { buildRegenerateTitlePrompt, createFallbackTitle, extractAssistantMessageText, extractGenuineUserMessageText, isLowSignalMessage, sanitizeGeneratedTitle, selectSpreadMessages, shouldRegenerateTitleAtUserMessageCount, stripContextWrappersForTitle } from './title-generation'
 
 describe('标题生成辅助逻辑', () => {
   test('Given ChatGPT OAuth 无标题适配器 When 本地兜底 Then 使用首个有效行并限制长度', () => {
@@ -160,6 +160,26 @@ describe('extractAssistantMessageText', () => {
 
   test('Given 用户消息 When 提取 Then 返回 null', () => {
     expect(extractAssistantMessageText({ type: 'user', message: { content: [{ type: 'text', text: 'hi' }] } })).toBeNull()
+  })
+})
+
+describe('shouldRegenerateTitleAtUserMessageCount', () => {
+  test('Given first user message When checking trigger Then allows single-question title correction', () => {
+    expect(shouldRegenerateTitleAtUserMessageCount(1)).toBe(true)
+  })
+
+  test('Given longer sessions When checking trigger Then uses progressive drift-correction points', () => {
+    expect(shouldRegenerateTitleAtUserMessageCount(4)).toBe(true)
+    expect(shouldRegenerateTitleAtUserMessageCount(8)).toBe(true)
+    expect(shouldRegenerateTitleAtUserMessageCount(15)).toBe(true)
+    expect(shouldRegenerateTitleAtUserMessageCount(26)).toBe(true)
+  })
+
+  test('Given non-trigger counts When checking trigger Then skips regeneration', () => {
+    expect(shouldRegenerateTitleAtUserMessageCount(2)).toBe(false)
+    expect(shouldRegenerateTitleAtUserMessageCount(6)).toBe(false)
+    expect(shouldRegenerateTitleAtUserMessageCount(14)).toBe(false)
+    expect(shouldRegenerateTitleAtUserMessageCount(27)).toBe(false)
   })
 })
 

@@ -75,7 +75,7 @@ import { getAgentSdkMaxOutputTokens } from './agent-sdk-output-limits'
 import { resolvePiThinkingLevel } from './agent-thinking-level'
 import { resolvePiReasoningCapability } from './adapters/pi-model-registry'
 import { generateCodexTitle } from './adapters/pi-codex-title-generator'
-import { buildRegenerateTitlePrompt, createFallbackTitle, extractAssistantMessageText, extractGenuineUserMessageText, sanitizeGeneratedTitle, selectSpreadMessages, stripContextWrappersForTitle, TITLE_PROMPT } from './title-generation'
+import { buildRegenerateTitlePrompt, createFallbackTitle, extractAssistantMessageText, extractGenuineUserMessageText, sanitizeGeneratedTitle, selectSpreadMessages, shouldRegenerateTitleAtUserMessageCount, stripContextWrappersForTitle, TITLE_PROMPT } from './title-generation'
 
 // ===== 类型定义 =====
 
@@ -251,8 +251,6 @@ function getRetryDelayMs(attempt: number, elapsedRetryDelayMs: number): number {
 /** 默认会话标题（用于判断是否需要自动生成） */
 const DEFAULT_SESSION_TITLE = '新 Agent 会话'
 
-/** 触发"中段重新生成标题"的用户消息数节点，命中即重新生成一次（详见 maybeRegenerateTitle） */
-const TITLE_REGENERATION_USER_MESSAGE_COUNTS = new Set([6, 14, 26])
 
 /** 默认模型 ID */
 const DEFAULT_MODEL_ID = 'claude-sonnet-5'
@@ -645,7 +643,7 @@ export class AgentOrchestrator {
       const userMessageTexts = messages
         .map((m) => extractGenuineUserMessageText(m))
         .filter((text): text is string => text !== null)
-      if (!TITLE_REGENERATION_USER_MESSAGE_COUNTS.has(userMessageTexts.length)) return
+      if (!shouldRegenerateTitleAtUserMessageCount(userMessageTexts.length)) return
 
       let lastAssistantText: string | null = null
       for (let i = messages.length - 1; i >= 0; i--) {
