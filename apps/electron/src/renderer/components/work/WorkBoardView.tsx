@@ -21,7 +21,9 @@ import {
   selectedKanbanProjectAtom,
   selectedProjectIdAtom,
   serverKanbanProjectsAtom,
+  workViewAtom,
 } from '@/atoms/project-atoms'
+import { ProjectPage } from '@/components/project/ProjectPage'
 import { Button } from '@/components/ui/button'
 import { KanbanBoardContainer } from '@/components/app-shell/kanban/KanbanBoardContainer'
 import type { SpecNodeSummary } from '@/components/app-shell/kanban/subtask-merge'
@@ -48,6 +50,7 @@ export function WorkBoardView(): React.ReactElement {
   const [projects, setProjects] = useAtom(serverKanbanProjectsAtom)
   const [selectedProjectId, setSelectedProjectId] = useAtom(selectedProjectIdAtom)
   const selectedProject = useAtomValue(selectedKanbanProjectAtom)
+  const [workView, setWorkView] = useAtom(workViewAtom)
   const setSessions = useSetAtom(serverKanbanSessionsAtom)
   const [taskSummaries, setTaskSummaries] = useAtom(serverTaskSummariesAtom)
   const setRuns = useSetAtom(serverKanbanRunsAtom)
@@ -312,6 +315,15 @@ export function WorkBoardView(): React.ReactElement {
     )
   }
 
+  if (workView === 'project' && selectedProject && workspaceRoot) {
+    return (
+      <ProjectPage
+        workspaceRoot={workspaceRoot}
+        project={selectedProject}
+      />
+    )
+  }
+
   return (
     <div className="flex h-full min-h-0 flex-col gap-2 bg-background p-3">
       {/* Header: 项目名称 + 设置 + 刷新
@@ -326,7 +338,14 @@ export function WorkBoardView(): React.ReactElement {
                 className="size-2.5 shrink-0 rounded-full"
                 style={{ backgroundColor: selectedProject.color ?? 'hsl(var(--muted-foreground))' }}
               />
-              <span className="truncate text-[13px] font-medium">{selectedProject.name}</span>
+              <button
+                type="button"
+                onClick={() => setWorkView('project')}
+                className="titlebar-no-drag truncate rounded px-1 py-0.5 text-[13px] font-medium hover:bg-foreground/[0.06] hover:text-primary transition-colors"
+                title="打开项目详情"
+              >
+                {selectedProject.name}
+              </button>
             </>
           ) : (
             <span className="text-[13px] text-foreground/50">全部 Task</span>
