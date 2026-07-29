@@ -42,7 +42,8 @@ import { TaskBoardFilters } from './TaskBoardFilters'
 import { NewTaskComposer } from './NewTaskComposer'
 import { TaskEditor } from './TaskEditor'
 import { resolveTaskEditorTarget } from './task-editor-model'
-import type { KanbanItem, TaskEditorTarget } from './types'
+import { CreateProjectDialog } from '@/components/work/CreateProjectDialog'
+import type { KanbanItem, KanbanProject, TaskEditorTarget } from './types'
 
 /** 任务创建/运行后回调；`ran` 为 true 时打开编排会话。 */
 export interface TaskCreatedEvent {
@@ -68,7 +69,9 @@ export function KanbanBoardContainer({
 }: KanbanBoardContainerProps): React.ReactElement {
   const items = useAtomValue(kanbanItemsAtom)
   const projects = useAtomValue(serverKanbanProjectsAtom)
+  const setProjects = useSetAtom(serverKanbanProjectsAtom)
   const [selectedProjectId, setSelectedProjectId] = useAtom(selectedProjectIdAtom)
+  const [createProjectOpen, setCreateProjectOpen] = React.useState(false)
   const [mode, setMode] = useAtom(boardModeAtom)
   const [notifications, setNotifications] = useAtom(kanbanNotificationsAtom)
   const moveCard = useSetAtom(moveCardAtom)
@@ -254,11 +257,18 @@ export function KanbanBoardContainer({
     <div className="flex h-full min-h-0 flex-col bg-background p-4">
       <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-semibold">Task 看板</h1>
+          <h1 className="text-lg font-semibold">项目看板</h1>
           <p className="text-xs text-muted-foreground">{items.length} 个正式 Task</p>
         </div>
         <div className="flex items-center gap-2">
           <KanbanProjectFilter projects={projects} value={selectedProjectId} onChange={setSelectedProjectId} />
+          <button
+            type="button"
+            onClick={() => setCreateProjectOpen(true)}
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground/80 transition-colors"
+          >
+            + 新建项目
+          </button>
           <TaskBoardFilters />
           <BoardListToggle value={mode} onChange={setMode} />
         </div>
@@ -319,6 +329,22 @@ export function KanbanBoardContainer({
             })
         }}
         composer={composer}
+      />
+      <CreateProjectDialog
+        open={createProjectOpen}
+        busy={false}
+        onOpenChange={setCreateProjectOpen}
+        onSubmit={(input) => {
+          if (!workspaceRoot) return
+          void window.electronAPI.projects.create(workspaceRoot, input).then((project) => {
+            setProjects((prev) => [...prev, project])
+            setSelectedProjectId(project.id)
+            setCreateProjectOpen(false)
+            toast.success('项目已创建')
+          }).catch((cause: unknown) => {
+            toast.error('创建项目失败', { description: cause instanceof Error ? cause.message : String(cause) })
+          })
+        }}
       />
       <AlertDialog
         open={pendingDeleteItem !== null}

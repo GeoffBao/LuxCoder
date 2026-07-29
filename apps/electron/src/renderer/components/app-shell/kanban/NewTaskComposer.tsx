@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useAtomValue } from 'jotai'
-import { Settings2, X } from 'lucide-react'
+import { ListPlus, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -90,6 +90,7 @@ export function NewTaskComposer({ workspaceRoot, workspaceId, onCreated }: NewTa
             <X className="h-3.5 w-3.5" />
           </Button>
         </div>
+        <label className="text-xs font-medium text-muted-foreground">选择项目</label>
         <select
           value={draft.projectId}
           onChange={(event) => setDraft((current) => ({ ...current, projectId: event.target.value }))}
@@ -123,7 +124,7 @@ export function NewTaskComposer({ workspaceRoot, workspaceId, onCreated }: NewTa
       <Input
         value={quickTitle}
         onChange={(event) => setQuickTitle(event.target.value)}
-        placeholder="任务标题…"
+        placeholder="新建任务…"
         disabled={quickCreating}
         onKeyDown={(event) => {
           if (event.key === 'Enter') {
@@ -140,7 +141,7 @@ export function NewTaskComposer({ workspaceRoot, workspaceId, onCreated }: NewTa
         aria-label="详细设置"
         onClick={() => setDetailed(true)}
       >
-        <Settings2 className="h-4 w-4" />
+        <ListPlus className="h-4 w-4" />
       </Button>
     </div>
   )
