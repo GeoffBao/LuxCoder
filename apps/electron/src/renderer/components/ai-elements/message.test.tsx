@@ -1,10 +1,22 @@
 import { describe, expect, test } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { MessageResponse } from './message'
+import { Message, MessageContent, MessageResponse } from './message'
 
 function renderMessage(markdown: string): string {
   return renderToStaticMarkup(<MessageResponse>{markdown}</MessageResponse>)
 }
+
+describe('Message layout density', () => {
+  test('assistant message content does not reserve a persistent avatar gutter', () => {
+    const html = renderToStaticMarkup(
+      <Message from="assistant">
+        <MessageContent>hello</MessageContent>
+      </Message>
+    )
+
+    expect(html).not.toContain('pl-[40px]')
+  })
+})
 
 describe('MessageResponse local file Markdown links', () => {
   test('renders the reported absolute path with a line suffix as a file chip', () => {

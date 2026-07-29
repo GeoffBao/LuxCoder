@@ -344,7 +344,9 @@ export interface ElectronAPI {
   windowClose: () => Promise<void>
   /** 窗口是否处于最大化状态 */
   windowIsMaximized: () => Promise<boolean>
-  /** 订阅窗口最大化/还原事件 */
+  /** 窗口是否处于原生全屏状态 */
+  windowIsFullScreen: () => Promise<boolean>
+  /** 订阅窗口尺寸变化事件 */
   onWindowResize: (callback: () => void) => () => void
 
   // ===== 渠道管理相关 =====
@@ -1425,6 +1427,10 @@ const electronAPI: ElectronAPI = {
 
   windowIsMaximized: () => {
     return ipcRenderer.invoke(IPC_CHANNELS.WINDOW_IS_MAXIMIZED)
+  },
+
+  windowIsFullScreen: () => {
+    return ipcRenderer.invoke(IPC_CHANNELS.WINDOW_IS_FULLSCREEN)
   },
 
   onWindowResize: (callback: () => void) => {

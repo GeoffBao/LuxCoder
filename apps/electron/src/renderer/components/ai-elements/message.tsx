@@ -114,7 +114,7 @@ type MessageContentProps = HTMLAttributes<HTMLDivElement>
 /**
  * 消息内容区域
  * - user 消息：右对齐，无左 padding
- * - assistant 消息：pl-[40px] 与头像对齐
+ * - assistant 消息：不再为头像长期保留左侧 gutter，避免长回答出现整列空白
  */
 export function MessageContent({
   children,
@@ -126,7 +126,7 @@ export function MessageContent({
       className={cn(
         'message-body flex max-w-full min-w-0 flex-col gap-2 overflow-hidden',
         'group-[.is-user]:text-foreground group-[.is-user]:items-end',
-        'group-[.is-assistant]:w-full group-[.is-assistant]:text-foreground group-[.is-assistant]:pl-[40px]',
+        'group-[.is-assistant]:w-full group-[.is-assistant]:text-foreground',
         className
       )}
       {...props}

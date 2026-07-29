@@ -608,7 +608,7 @@ export function AssistantTurnRenderer({ turn, allMessages, basePath, onFork, onR
         const hasDuration = durationMs != null
         if (!hasDuration && !hasActions && !showStoppedBadge) return null
         return (
-          <MessageActions className="mt-0.5 min-h-[28px] justify-start pl-[40px]">
+          <MessageActions className="mt-0.5 min-h-[28px] justify-start">
             {hasDuration && <DurationBadge durationMs={durationMs!} usage={usage} />}
             {textContent && <CopyButton content={textContent} />}
             {onFork && lastUuid && (
@@ -1320,7 +1320,7 @@ function ErrorMessage({ message, onRetry, onRetryInNewSession, onCompact }: Erro
           standalone
         />
       </MessageContent>
-      <MessageActions className="mt-0.5 pl-[40px]">
+      <MessageActions className="mt-0.5">
         <CopyButton content={copyText} />
       </MessageActions>
     </Message>

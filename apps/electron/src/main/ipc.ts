@@ -4517,6 +4517,14 @@ export function registerIpcHandlers(): void {
     }
   )
 
+  ipcMain.handle(
+    IPC_CHANNELS.WINDOW_IS_FULLSCREEN,
+    async (event) => {
+      const win = BrowserWindow.fromWebContents(event.sender)
+      return win && !win.isDestroyed() ? win.isFullScreen() : false
+    }
+  )
+
   // ===== 定时任务（Automation）=====
 
   // 渲染进程可能被注入内容污染（XSS via markdown / MCP tool output），主进程必须自己校验入参，

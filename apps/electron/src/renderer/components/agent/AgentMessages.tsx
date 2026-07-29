@@ -752,7 +752,7 @@ export function AgentMessages({ sessionId, sessionModelId, messagesLoaded, persi
               {/* 不使用 mt：ConversationContent 的 gap-1(4px) 已提供间距，
                   匹配内部 MessageActions 的 gap-0.5(2px)+mt-0.5(2px)=4px 间距 */}
               {hasLiveAssistantContent && !suppressAgentRunning && (
-                <div className="min-h-[28px] pl-[50px]">
+                <div className="min-h-[28px] px-2.5">
                   {retrying && <RetryingNotice retrying={retrying} />}
                   {streaming && <AgentRunningIndicator startedAt={startedAt} />}
                 </div>

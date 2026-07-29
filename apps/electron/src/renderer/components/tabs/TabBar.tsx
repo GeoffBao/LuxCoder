@@ -47,18 +47,38 @@ import { cn } from '@/lib/utils'
 /**
  * macOS 原生全屏检测（非 HTML fullscreen，而是 Electron 原生全屏）。
  * 全屏时红绿灯自动隐藏（仅 hover 顶部时滑出），无需为其留 padding；
- * 用 window.outerHeight >= screen.height 判断（全屏窗口覆盖整个屏幕包括菜单栏区域）。
+ * 优先询问主进程 BrowserWindow.isFullScreen()，避免 renderer 尺寸启发式在
+ * Retina / 多屏 / 隐藏菜单栏场景下误判，导致折叠侧栏后左上角出现整块空白。
  */
 function useIsMacFullscreen(): boolean {
   const [isFullscreen, setIsFullscreen] = React.useState(false)
 
   React.useEffect(() => {
+    let cancelled = false
     const check = (): void => {
+      const api = window.electronAPI as typeof window.electronAPI & {
+        windowIsFullScreen?: () => Promise<boolean>
+      }
+      if (typeof api.windowIsFullScreen === 'function') {
+        api.windowIsFullScreen()
+          .then((next) => {
+            if (!cancelled) setIsFullscreen(next)
+          })
+          .catch(() => {
+            if (!cancelled) setIsFullscreen(window.outerHeight >= screen.height - 1)
+          })
+        return
+      }
       setIsFullscreen(window.outerHeight >= screen.height - 1)
     }
     check()
+    const unsub = window.electronAPI?.onWindowResize?.(check)
     window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
+    return () => {
+      cancelled = true
+      unsub?.()
+      window.removeEventListener('resize', check)
+    }
   }, [])
 
   return isFullscreen
