@@ -81,7 +81,7 @@ export const PROVIDER_DEFAULT_URLS: Record<ProviderType, string> = {
 export const PROVIDER_LABELS: Record<ProviderType, string> = {
   anthropic: 'Anthropic',
   'anthropic-compatible': 'Anthropic 兼容格式',
-  'anthropic-oauth': 'Claude Pro/Max（订阅登录）',
+  'anthropic-oauth': 'Claude Pro/Max（OAuth）',
   openai: 'OpenAI',
   'openai-responses': 'OpenAI Responses 格式',
   deepseek: 'DeepSeek',
@@ -275,6 +275,10 @@ export interface ClaudeOAuthCredentials {
   expiresAt?: number
   /** 可选：账号标识，用于展示登录身份 */
   accountId?: string
+  /** 可选：账号邮箱，用于 UI 展示 */
+  emailAddress?: string
+  /** 可选：组织名称，用于 UI 展示 */
+  organizationName?: string
 }
 
 /** 将 OAuth 凭据序列化为存入 apiKey 字段的 JSON 字符串。 */
@@ -296,6 +300,8 @@ export function parseClaudeOAuthCredentials(secret: string): ClaudeOAuthCredenti
         ...(typeof parsed.refreshToken === 'string' && parsed.refreshToken ? { refreshToken: parsed.refreshToken } : {}),
         ...(typeof parsed.expiresAt === 'number' ? { expiresAt: parsed.expiresAt } : {}),
         ...(typeof parsed.accountId === 'string' && parsed.accountId ? { accountId: parsed.accountId } : {}),
+        ...(typeof parsed.emailAddress === 'string' && parsed.emailAddress ? { emailAddress: parsed.emailAddress } : {}),
+        ...(typeof parsed.organizationName === 'string' && parsed.organizationName ? { organizationName: parsed.organizationName } : {}),
       }
     }
   } catch {
@@ -309,7 +315,7 @@ export function parseClaudeOAuthCredentials(secret: string): ClaudeOAuthCredenti
  * 没有 expiresAt 的旧版长效凭据视为"不判定过期"——它们本来就没有 refreshToken，
  * 调用方应先检查 refreshToken 是否存在，再决定要不要走这个判断。
  */
-export function isClaudeOAuthCredentialExpired(credentials: ClaudeOAuthCredentials, skewMs = 60_000): boolean {
+export function isClaudeOAuthCredentialExpired(credentials: ClaudeOAuthCredentials, skewMs = 300_000): boolean {
   if (typeof credentials.expiresAt !== 'number') return false
   return Date.now() >= credentials.expiresAt - skewMs
 }

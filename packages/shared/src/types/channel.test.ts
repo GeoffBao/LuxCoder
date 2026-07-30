@@ -25,7 +25,7 @@ describe('Agent 渠道协议兼容性', () => {
 describe('anthropic-oauth provider 注册', () => {
   test('Given anthropic-oauth When 查 defaultUrls/labels Then 都有条目', () => {
     expect(PROVIDER_DEFAULT_URLS['anthropic-oauth']).toBe('')
-    expect(PROVIDER_LABELS['anthropic-oauth']).toBe('Claude Pro/Max（订阅登录）')
+    expect(PROVIDER_LABELS['anthropic-oauth']).toBe('Claude Pro/Max（OAuth）')
   })
 
   test('Given anthropic-oauth When 判定 Agent 兼容性 Then true', () => {

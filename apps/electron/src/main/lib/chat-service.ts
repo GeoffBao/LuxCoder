@@ -230,7 +230,7 @@ export async function sendMessage(
   if (channel.provider === 'anthropic-oauth') {
     webContents.send(CHAT_IPC_CHANNELS.STREAM_ERROR, {
       conversationId,
-      error: 'Chat 模式暂不支持 Claude 订阅登录，请切换到 Code 模式使用。',
+      error: 'Chat 模式暂不支持 Claude OAuth 登录，请切换到 Code 模式使用。',
     })
     return
   }

@@ -23,6 +23,8 @@
 import { randomBytes, createHash } from 'node:crypto'
 import { shell } from 'electron'
 import type { ClaudeOAuthCredentials } from '@luxcoder/shared'
+import { getAppUserAgent } from '@luxcoder/core'
+import pkg from '../../../package.json' with { type: 'json' }
 
 /** 官方 claude 二进制自己使用的 public client id（实测从其 setup-token 生成的授权 URL 抓取）。 */
 const CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e'
@@ -30,7 +32,7 @@ const AUTH_URL = 'https://claude.ai/oauth/authorize'
 const TOKEN_URL = 'https://platform.claude.com/v1/oauth/token'
 /** 必须与官方二进制生成的授权 URL 完全一致，否则服务端会拒绝该 redirect_uri。 */
 const REDIRECT_URI = 'https://platform.claude.com/oauth/code/callback'
-const SCOPES = 'user:inference'
+const SCOPES = 'org:create_api_key user:profile user:inference'
 /** 授权码时效：留够用户"切到浏览器完成授权→切回来粘贴"的时间，同时避免陈旧 state 无限堆积。 */
 const STATE_EXPIRY_MS = 10 * 60_000
 
@@ -53,6 +55,8 @@ interface TokenResponseBody {
   access_token?: string
   refresh_token?: string
   expires_in?: number
+  account?: { uuid?: string; email_address?: string; email?: string }
+  organization?: { uuid?: string; name?: string }
 }
 
 async function parseTokenResponse(
@@ -77,6 +81,15 @@ async function parseTokenResponse(
     throw new Error(`Claude ${action}未返回有效 token`)
   }
 
+  const identity: Partial<Pick<ClaudeOAuthCredentials, 'accountId' | 'emailAddress' | 'organizationName'>> = {}
+  if (data.account) {
+    identity.accountId = data.account.uuid
+    identity.emailAddress = data.account.email_address ?? data.account.email
+  }
+  if (data.organization) {
+    identity.organizationName = data.organization.name
+  }
+
   return {
     token: data.access_token,
     obtainedAt: Date.now(),
@@ -84,6 +97,7 @@ async function parseTokenResponse(
       ? { refreshToken: data.refresh_token ?? fallbackRefreshToken }
       : {}),
     ...(typeof data.expires_in === 'number' ? { expiresAt: Date.now() + data.expires_in * 1000 } : {}),
+    ...identity,
   }
 }
 
@@ -137,7 +151,10 @@ export async function exchangeClaudeOAuthCode(rawCode: string): Promise<ClaudeOA
 
   const response = await fetch(TOKEN_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'User-Agent': getAppUserAgent(pkg.version),
+    },
     body: JSON.stringify({
       grant_type: 'authorization_code',
       client_id: CLIENT_ID,
@@ -160,7 +177,10 @@ export async function exchangeClaudeOAuthCode(rawCode: string): Promise<ClaudeOA
 export async function refreshClaudeOAuthToken(refreshToken: string): Promise<ClaudeOAuthCredentials> {
   const response = await fetch(TOKEN_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'User-Agent': getAppUserAgent(pkg.version),
+    },
     body: JSON.stringify({
       grant_type: 'refresh_token',
       client_id: CLIENT_ID,

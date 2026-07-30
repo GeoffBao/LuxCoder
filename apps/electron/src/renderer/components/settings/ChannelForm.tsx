@@ -1081,6 +1081,12 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
                       <CheckCircle2 size={12} className="shrink-0" />
                       <span>已登录 Claude Pro/Max 订阅</span>
                     </div>
+                    {claudeOAuthCredentials?.emailAddress && (
+                      <div className="text-xs text-muted-foreground">
+                        {claudeOAuthCredentials.emailAddress}
+                        {claudeOAuthCredentials.organizationName && ` · ${claudeOAuthCredentials.organizationName}`}
+                      </div>
+                    )}
                     {claudeOAuthCredentials && isClaudeOAuthCredentialStale(claudeOAuthCredentials) && (
                       <div className="text-xs text-amber-600">
                         订阅登录已使用较久，建议重新登录以避免过期中断。

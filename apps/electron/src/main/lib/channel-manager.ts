@@ -518,6 +518,8 @@ export function persistClaudeOAuthCredentials(channelId: string, credentials: Cl
   const merged: ClaudeOAuthCredentials = {
     ...credentials,
     accountId: credentials.accountId ?? existing?.accountId,
+    emailAddress: credentials.emailAddress ?? existing?.emailAddress,
+    organizationName: credentials.organizationName ?? existing?.organizationName,
   }
   updateChannel(channelId, { apiKey: serializeClaudeOAuthCredentials(merged) })
 }
