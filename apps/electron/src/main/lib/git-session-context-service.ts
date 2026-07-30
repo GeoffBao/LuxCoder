@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { basename, join, resolve, sep } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import type {
@@ -117,6 +117,69 @@ function slugify(input: string): string {
   return slug || 'session-worktree'
 }
 
+/**
+ * 确保仓库内的 `.worktrees/` 不会被 `git status --porcelain` 当作未跟踪改动。
+ *
+ * 写入 `.git/info/exclude`（仓库本地忽略规则，不进入用户提交历史），而不是
+ * 追加到受版本控制的 `.gitignore`——避免代产品行为污染用户的提交/PR diff。
+ * 若已被任意规则忽略，或写入失败（如只读文件系统），静默跳过，不阻塞 worktree 创建。
+ */
+function ensureWorktreesIgnored(repoRoot: string): void {
+  try {
+    if (runGitOrNull(repoRoot, ['check-ignore', '.worktrees']) !== null) return
+    const excludePath = join(repoRoot, '.git', 'info', 'exclude')
+    const marker = '/.worktrees/'
+    const existing = existsSync(excludePath) ? readFileSync(excludePath, 'utf-8') : ''
+    if (existing.split('\n').some((line) => line.trim() === marker)) return
+    const prefix = existing.length > 0 && !existing.endsWith('\n') ? '\n' : ''
+    writeFileSync(excludePath, `${existing}${prefix}${marker}\n`, { flag: 'a' })
+  } catch {
+    // best effort：忽略规则写入失败不应阻塞 worktree 创建本身
+  }
+}
+
+/** 根据绝对路径在 `git worktree list` 中查找对应条目的分支绑定情况 */
+function getWorktreeInfoByPath(repoRoot: string, worktreePath: string): { branch: string | null; detached: boolean } | null {
+  const output = runGitOrNull(repoRoot, ['worktree', 'list', '--porcelain']) ?? ''
+  const target = resolve(worktreePath)
+  let current = ''
+  let found = false
+  let branch: string | null = null
+  let detached = false
+  for (const line of output.split('\n')) {
+    if (line.startsWith('worktree ')) {
+      if (found) break
+      current = resolve(line.slice('worktree '.length))
+      found = current === target
+      continue
+    }
+    if (!found) continue
+    if (line.startsWith('branch refs/heads/')) branch = line.slice('branch refs/heads/'.length)
+    if (line.trim() === 'detached') detached = true
+  }
+  return found ? { branch, detached } : null
+}
+
+/**
+ * 移除会话对应的 Git Worktree（供正常清理和失败回滚共用）。
+ * `git worktree remove` 失败时退化为物理删除 + `git worktree prune`，
+ * 避免在 `.git/worktrees/` 留下"已注册但目录缺失"的孤儿元数据。
+ */
+export function removeSessionWorktree(repoRoot: string, worktreePath: string): void {
+  try {
+    runGit(repoRoot, ['worktree', 'remove', '--force', worktreePath])
+    return
+  } catch {
+    // fallthrough
+  }
+  try {
+    rmSync(worktreePath, { recursive: true, force: true })
+  } catch {
+    // best effort
+  }
+  runGitOrNull(repoRoot, ['worktree', 'prune'])
+}
+
 function worktreePathFor(repoRoot: string, input: PrepareSessionGitContextInput): string {
   const slug = slugify(input.slug ?? input.newBranchName ?? `${input.sessionId}-${input.branch}`)
   const root = resolve(repoRoot)
@@ -186,6 +249,7 @@ function prepareWorktreeContext(
 
   if (!existsSync(worktreePath)) {
     mkdirSync(join(repoRoot, '.worktrees'), { recursive: true })
+    ensureWorktreesIgnored(repoRoot)
     if (input.newBranchName) {
       ensureValidBranchName(repoRoot, input.newBranchName)
       runGit(repoRoot, ['worktree', 'add', '-b', input.newBranchName, worktreePath, input.branch])
@@ -193,6 +257,24 @@ function prepareWorktreeContext(
       runGit(repoRoot, ['worktree', 'add', '--detach', worktreePath, input.branch])
     }
     createdWorktree = true
+  } else {
+    // 复用已存在的 worktree 目录前，校验其真实绑定分支与本次请求一致，
+    // 避免不同会话因目录名（由 slug/newBranchName 推导）巧合相同而被悄悄合并到同一工作目录。
+    const existingInfo = getWorktreeInfoByPath(repoRoot, worktreePath)
+    if (input.newBranchName) {
+      if (!existingInfo || existingInfo.detached || existingInfo.branch !== input.newBranchName) {
+        throw new Error(
+          `Worktree 目录 "${basename(worktreePath)}" 已存在但绑定分支不一致` +
+          `（当前: ${existingInfo ? (existingInfo.detached ? 'detached' : existingInfo.branch) : '未知'}，期望: ${input.newBranchName}），` +
+          '请更换分支名，或先清理该 worktree 后重试',
+        )
+      }
+    } else if (!existingInfo || !existingInfo.detached) {
+      throw new Error(
+        `Worktree 目录 "${basename(worktreePath)}" 已被分支 ${existingInfo?.branch ?? '未知'} 占用，` +
+        '与本次请求的模式不一致，请更换名称或先清理该 worktree 后重试',
+      )
+    }
   }
 
   const context: SessionGitContext = {
@@ -208,11 +290,7 @@ function prepareWorktreeContext(
     persistContext(input, context, options)
   } catch (error) {
     if (createdWorktree) {
-      try {
-        runGit(repoRoot, ['worktree', 'remove', '--force', worktreePath])
-      } catch {
-        rmSync(worktreePath, { recursive: true, force: true })
-      }
+      removeSessionWorktree(repoRoot, worktreePath)
     }
     throw error
   }

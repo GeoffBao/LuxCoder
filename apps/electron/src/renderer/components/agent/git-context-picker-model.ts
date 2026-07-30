@@ -33,3 +33,18 @@ export function canCheckoutBranchInLocal(branch: GitBranchInfo): boolean {
 export function getProjectGitModeStorageKey(projectId: string): string {
   return `luxcoder:project:${projectId}:gitExecutionMode`
 }
+
+/** 会话头部 Git 上下文常驻小徽标文案；无 gitBranch 时返回 null（会话未绑定 Git 上下文） */
+export function formatSessionGitBadge(meta: {
+  gitBranch?: string
+  gitExecutionMode?: GitExecutionMode
+  gitWorktreePath?: string
+}): string | null {
+  if (!meta.gitBranch) return null
+  if (meta.gitExecutionMode === 'worktree') {
+    const segments = (meta.gitWorktreePath ?? '').split(/[\\/]/).filter(Boolean)
+    const name = segments[segments.length - 1]
+    return `Worktree${name ? ` ${name}` : ''} · ${meta.gitBranch}`
+  }
+  return `Local · ${meta.gitBranch}`
+}

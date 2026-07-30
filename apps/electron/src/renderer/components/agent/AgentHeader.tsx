@@ -7,7 +7,7 @@
 
 import * as React from 'react'
 import { useAtomValue, useSetAtom } from 'jotai'
-import { Pencil } from 'lucide-react'
+import { GitBranch, Layers, Pencil } from 'lucide-react'
 import { agentSessionsAtom } from '@/atoms/agent-atoms'
 import { tabsAtom, updateTabTitle } from '@/atoms/tab-atoms'
 import { serverKanbanProjectsAtom, codeMainViewAtom, pendingTaskEditorTargetAtom } from '@/atoms/project-atoms'
@@ -16,6 +16,7 @@ import { replaceAgentSessionInFreshnessOrder } from '@/lib/agent-session-list'
 import { SessionHeader } from '@/components/tabs/SessionHeader'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { formatSessionGitBadge } from '@/components/agent/git-context-picker-model'
 
 interface AgentHeaderProps {
   sessionId: string
@@ -36,6 +37,7 @@ export function AgentHeader({ sessionId }: AgentHeaderProps): React.ReactElement
   const project = session.projectId
     ? projects.find((p) => p.id === session.projectId) ?? null
     : null
+  const gitBadgeText = formatSessionGitBadge(session)
 
   const handleRename = async (title: string): Promise<void> => {
     const updated = await window.electronAPI.updateAgentSessionTitle(session.id, title)
@@ -58,7 +60,14 @@ export function AgentHeader({ sessionId }: AgentHeaderProps): React.ReactElement
     <SessionHeader
       title={session.title}
       onRename={handleRename}
-      badge={project ? <ProjectBadge name={project.name} color={project.color} /> : undefined}
+      badge={(project || gitBadgeText)
+        ? (
+          <>
+            {project && <ProjectBadge name={project.name} color={project.color} />}
+            {gitBadgeText && <GitContextBadge text={gitBadgeText} worktree={session.gitExecutionMode === 'worktree'} />}
+          </>
+        )
+        : undefined}
       actions={isTaskOrchestrator
         ? (
           <Tooltip>
@@ -92,6 +101,20 @@ function ProjectBadge({ name, color }: { name: string; color?: string }): React.
         />
       )}
       {name}
+    </span>
+  )
+}
+
+/** 标题旁的 Git 执行上下文标签（Local/Worktree · 分支名），会话开始对话后仍持续可见 */
+function GitContextBadge({ text, worktree }: { text: string; worktree: boolean }): React.ReactElement {
+  const Icon = worktree ? Layers : GitBranch
+  return (
+    <span
+      className="titlebar-no-drag shrink-0 inline-flex items-center gap-1 px-1.5 py-0 rounded-full bg-muted/60 text-muted-foreground text-[10px] leading-4 font-medium truncate max-w-[160px]"
+      title={text}
+    >
+      <Icon className="size-2.5 shrink-0" />
+      {text}
     </span>
   )
 }

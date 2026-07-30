@@ -23,6 +23,7 @@ import {
   getSdkConfigDir,
 } from './config-paths'
 import { getAgentWorkspace, getWorkspaceAutoMemoryDir } from './agent-workspace-manager'
+import { removeSessionWorktree } from './git-session-context-service'
 
 // 在模块加载时一次性设置 SDK 配置目录，避免在 forkSession 等异步调用中临时修改/恢复
 // process.env 导致的并发安全问题（异步操作的 await 间隙其他代码可能读到错误值）
@@ -657,6 +658,20 @@ export function deleteAgentSession(id: string): void {
         }
       } catch (error) {
         console.warn(`[Agent 会话] 清理 session 工作目录失败 (${id}):`, error)
+      }
+    }
+  }
+
+  // 清理 Git Worktree（若会话使用 Worktree 执行模式）；其他会话仍指向同一 worktree 时跳过，
+  // 避免误删还在被使用的工作目录（例如历史遗留的同名 worktree 复用场景）。
+  if (removed.gitWorktreePath && removed.gitRepoPath) {
+    const stillReferenced = index.sessions.some((s) => s.gitWorktreePath === removed.gitWorktreePath)
+    if (!stillReferenced) {
+      try {
+        removeSessionWorktree(removed.gitRepoPath, removed.gitWorktreePath)
+        console.log(`[Agent 会话] 已清理 Git Worktree: ${removed.gitWorktreePath}`)
+      } catch (error) {
+        console.warn(`[Agent 会话] 清理 Git Worktree 失败 (${id}):`, error)
       }
     }
   }

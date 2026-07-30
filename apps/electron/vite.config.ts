@@ -28,11 +28,15 @@ export default defineConfig({
     strictPort: true, // 确保使用指定端口，如被占用则报错
     open: false,
     fs: {
-      // Allow serving files from node_modules (needed by @excalidraw/excalidraw CSS)
+      // Allow serving files from node_modules (needed by @excalidraw/excalidraw CSS/fonts).
+      // Scoped to node_modules only (both local and monorepo-hoisted root) rather than the
+      // whole monorepo root — dev server's /@fs/ path serves any file under an allowed dir,
+      // so widening this exposes other packages' source/config to any local process that can
+      // reach 127.0.0.1:5173.
       allow: [
         resolve(__dirname, 'src/renderer'),
         resolve(__dirname, 'node_modules'),
-        resolve(__dirname, '../..'), // workspace root for monorepo hoisted deps
+        resolve(__dirname, '../../node_modules'), // workspace root node_modules for hoisted deps
       ],
     },
   },

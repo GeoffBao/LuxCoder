@@ -34,6 +34,7 @@ import {
   agentDiffRefreshVersionAtom,
   fileBrowserAutoRevealAtom,
   agentSelectedWorktreeAtom,
+  agentSessionsAtom,
 } from '@/atoms/agent-atoms'
 import type { AgentSidePanelTab } from '@/atoms/agent-atoms'
 import { agentSideChatMapAtom } from '@/atoms/chat-atoms'
@@ -92,14 +93,28 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
   const selectedWorktreeMap = useAtomValue(agentSelectedWorktreeAtom)
   const selectedWorktreePath = selectedWorktreeMap.get(sessionId) ?? null
 
+  // 会话自身的 Git Worktree 执行上下文（Draft Composer 里选的 Worktree 模式）：
+  // 有这个上下文时，Diff 面板应该默认对比"相对 gitBaseRef 的全部改动"而不是
+  // "相对磁盘 HEAD 的未提交改动"，否则用户在 worktree 里提交过的内容看不到。
+  const agentSessions = useAtomValue(agentSessionsAtom)
+  const currentSession = agentSessions.find((s) => s.id === sessionId)
+  const sessionWorktreeContext = React.useMemo(() => {
+    if (currentSession?.gitExecutionMode !== 'worktree' || !currentSession.gitWorktreePath) return undefined
+    return { path: currentSession.gitWorktreePath, baseBranch: currentSession.gitBaseRef || 'origin/main' }
+  }, [currentSession?.gitExecutionMode, currentSession?.gitWorktreePath, currentSession?.gitBaseRef])
+
+  const activeWorktreeBaseBranch = selectedWorktreePath
+    ? 'origin/main'
+    : sessionWorktreeContext?.baseBranch
+
   const handleDiffFileClick = React.useCallback((filePath: string, _isUntracked: boolean, gitRoot?: string) => {
     openPreview(sessionId, {
       filePath,
       dirPath: sessionPath || undefined,
       gitRoot,
-      baseRef: selectedWorktreePath ? 'origin/main' : undefined,
+      baseRef: activeWorktreeBaseBranch,
     })
-  }, [openPreview, sessionId, sessionPath, selectedWorktreePath])
+  }, [openPreview, sessionId, sessionPath, activeWorktreeBaseBranch])
 
   // 动画标志：isOpen 变化时启用过渡动画，切换会话时即时显示
   const prevIsOpenRef = React.useRef(isOpen)
@@ -363,8 +378,10 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
   }, [workspaceSlug])
 
   const worktreeRepoPathsMemo = React.useMemo(
-    () => [sessionPath, workspaceFilesPath, ...extraPathsMemo].filter(Boolean) as string[],
-    [sessionPath, workspaceFilesPath, extraPathsMemo]
+    // gitRepoPath（主仓库根）优先：WorktreeSelector 靠它枚举出的 worktree 列表才包含
+    // 会话自己这个 worktree，否则 selector 里只会显示泛泛的"会话改动"而不是真实分支名。
+    () => [currentSession?.gitRepoPath, sessionPath, workspaceFilesPath, ...extraPathsMemo].filter(Boolean) as string[],
+    [currentSession?.gitRepoPath, sessionPath, workspaceFilesPath, extraPathsMemo]
   )
 
   // Agent 写文件触发自动定位时，把 Tab 切到该文件所在的面板（session / workspace），
@@ -468,6 +485,7 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
                 onFileClick={handleDiffFileClick}
                 workspaceSlug={workspaceSlug || undefined}
                 worktreeRepoPaths={worktreeRepoPathsMemo}
+                sessionWorktreeContext={sessionWorktreeContext}
               />
             ) : (
               <div className="flex-1 flex items-center justify-center text-muted-foreground text-xs">等待会话初始化...</div>

@@ -6,7 +6,7 @@
  */
 
 import * as React from 'react'
-import { PenTool, Plus, AlertCircle, Pencil, Trash2 } from 'lucide-react'
+import { PenTool, Plus, AlertCircle, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { useAtomValue, useSetAtom } from 'jotai'
 import { toast } from 'sonner'
 import { activeViewAtom } from '@/atoms/active-view'
@@ -18,6 +18,13 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
 } from '@/components/ui/context-menu'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,6 +43,19 @@ interface ExcalidrawFileMeta {
   background: string
   mtime: number
   error?: boolean
+  /** 缩略图用的精简元素快照（来自 LIST 阶段，已服务端截断到前 200 个） */
+  elements?: unknown[]
+}
+
+/**
+ * .excalidraw 文件是普通磁盘文件，颜色字段可能被外部同步/损坏/被诱导写入而带上恶意内容。
+ * 缩略图会把这些值直接拼进 SVG 属性字符串并用 dangerouslySetInnerHTML 渲染，
+ * 因此在拼接前做严格白名单校验，非法值一律回退默认色，防止属性逃逸注入。
+ */
+const SAFE_SVG_COLOR = /^(#[0-9a-fA-F]{3,8}|transparent|none|[a-zA-Z]+)$/
+
+function sanitizeSvgColor(value: unknown, fallback: string): string {
+  return typeof value === 'string' && SAFE_SVG_COLOR.test(value) ? value : fallback
 }
 
 function relativeTime(ms: number): string {
@@ -63,9 +83,10 @@ function buildThumbnailSvg(
   const W = 260
   const H = 160
   const PAD = 12
+  const safeBackground = sanitizeSvgColor(background, '#ffffff')
 
   if (!elements || elements.length === 0) {
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><rect width="${W}" height="${H}" fill="${background || '#fff'}"/><text x="${W / 2}" y="${H / 2 + 5}" text-anchor="middle" font-size="12" fill="#ccc" font-family="sans-serif">empty</text></svg>`
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><rect width="${W}" height="${H}" fill="${safeBackground}"/><text x="${W / 2}" y="${H / 2 + 5}" text-anchor="middle" font-size="12" fill="#ccc" font-family="sans-serif">empty</text></svg>`
   }
 
   // 只取前 200 个元素计算包围盒，避免性能问题
@@ -94,7 +115,7 @@ function buildThumbnailSvg(
   }
 
   if (!isFinite(minX)) {
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><rect width="${W}" height="${H}" fill="${background || '#fff'}"/></svg>`
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><rect width="${W}" height="${H}" fill="${safeBackground}"/></svg>`
   }
 
   const bw = maxX - minX || 1
@@ -112,9 +133,9 @@ function buildThumbnailSvg(
     const h = ((e.height as number) || 40) * scale
     const fill =
       e.backgroundColor && e.backgroundColor !== 'transparent'
-        ? (e.backgroundColor as string)
+        ? sanitizeSvgColor(e.backgroundColor, 'none')
         : 'none'
-    const stroke = (e.strokeColor as string) || '#1c1c1c'
+    const stroke = sanitizeSvgColor(e.strokeColor, '#1c1c1c')
     const sw = Math.max(0.5, ((e.strokeWidth as number) || 1) * scale * 0.5).toFixed(1)
 
     switch (e.type) {
@@ -163,10 +184,19 @@ function buildThumbnailSvg(
         }
         break
       }
+      case 'image':
+        // 不渲染真实图片（避免解码内嵌 base64 的开销），画一个占位框 + 斜线示意，
+        // 避免以贴图为主的画布缩略图变成一大片空白。
+        shapes.push(
+          `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="#f0f0f0" stroke="#d4d4d4" stroke-width="1" rx="1"/>` +
+          `<line x1="${x.toFixed(1)}" y1="${y.toFixed(1)}" x2="${(x + w).toFixed(1)}" y2="${(y + h).toFixed(1)}" stroke="#d4d4d4" stroke-width="1"/>` +
+          `<line x1="${(x + w).toFixed(1)}" y1="${y.toFixed(1)}" x2="${x.toFixed(1)}" y2="${(y + h).toFixed(1)}" stroke="#d4d4d4" stroke-width="1"/>`,
+        )
+        break
     }
   }
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><rect width="${W}" height="${H}" fill="${background || '#fff'}"/>${shapes.join('')}</svg>`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><rect width="${W}" height="${H}" fill="${safeBackground}"/>${shapes.join('')}</svg>`
 }
 
 export function ExcalidrawGallery(): React.ReactElement {
@@ -175,9 +205,12 @@ export function ExcalidrawGallery(): React.ReactElement {
   const workspaces = useAtomValue(agentWorkspacesAtom)
   const [files, setFiles] = React.useState<ExcalidrawFileMeta[]>([])
   const [loading, setLoading] = React.useState(true)
-  const [svgCache, setSvgCache] = React.useState<Map<string, string>>(new Map())
-  const [renameTarget, setRenameTarget] = React.useState<ExcalidrawFileMeta | null>(null)
-  const [renameValue, setRenameValue] = React.useState('')
+  // 重命名：卡片标题原地变输入框（对齐 TaskTile.tsx / AgentSessionItem.tsx 的既有约定），
+  // 而不是弹一个居中模态框——两者都是从右键菜单「重命名」触发。
+  const [renamingSlug, setRenamingSlug] = React.useState<string | null>(null)
+  const [renameDraft, setRenameDraft] = React.useState('')
+  const renameInputRef = React.useRef<HTMLInputElement>(null)
+  const justStartedRenamingRef = React.useRef(false)
   const [deleteTarget, setDeleteTarget] = React.useState<ExcalidrawFileMeta | null>(null)
 
   const workspaceSlug = React.useMemo(() => {
@@ -201,32 +234,15 @@ export function ExcalidrawGallery(): React.ReactElement {
       .finally(() => setLoading(false))
   }, [workspaceSlug])
 
-  // 生成缩略图（懒加载：避免一次性渲染大量 SVG 卡住）
-  React.useEffect(() => {
-    if (files.length === 0 || !workspaceSlug) return
-
-    const cache = new Map(svgCache)
-    let cancelled = false
-
-    async function loadThumbnails(): Promise<void> {
-      for (const file of files) {
-        if (cancelled || cache.has(file.slug)) continue
-        try {
-          const data = await window.electronAPI.readExcalidrawFile(workspaceSlug!, file.slug)
-          const svg = buildThumbnailSvg(data?.elements || [], file.background)
-          cache.set(file.slug, svg)
-        } catch {
-          cache.set(file.slug, '')
-        }
-        if (!cancelled) setSvgCache(new Map(cache))
-      }
+  // 生成缩略图：直接复用 LIST 阶段已返回的精简 elements 快照，纯同步计算，
+  // 不再对每个文件重复发起一次 READ + JSON.parse（此前的性能隐患，见 buildThumbnailSvg 调用点历史）。
+  const thumbnails = React.useMemo(() => {
+    const map = new Map<string, string>()
+    for (const file of files) {
+      map.set(file.slug, buildThumbnailSvg(file.elements ?? [], file.background))
     }
-
-    void loadThumbnails()
-    return () => {
-      cancelled = true
-    }
-  }, [files, workspaceSlug]) // eslint-disable-line react-hooks/exhaustive-deps
+    return map
+  }, [files])
 
   // 新建画布
   const handleCreate = React.useCallback(async () => {
@@ -270,42 +286,45 @@ export function ExcalidrawGallery(): React.ReactElement {
     [setActiveView],
   )
 
-  // 重命名
-  const handleRenameStart = React.useCallback((file: ExcalidrawFileMeta) => {
-    setRenameTarget(file)
-    setRenameValue(file.title)
+  // 重命名：右键「重命名」触发，卡片标题原地变输入框
+  const startRename = React.useCallback((file: ExcalidrawFileMeta) => {
+    setRenameDraft(file.title)
+    setRenamingSlug(file.slug)
+    justStartedRenamingRef.current = true
+    setTimeout(() => {
+      justStartedRenamingRef.current = false
+      renameInputRef.current?.focus()
+      renameInputRef.current?.select()
+    }, 0)
   }, [])
 
-  const handleRenameConfirm = React.useCallback(async () => {
-    if (!workspaceSlug || !renameTarget || !renameValue.trim()) return
+  const saveRename = React.useCallback(async () => {
+    if (justStartedRenamingRef.current || !renamingSlug) return
+    const slug = renamingSlug
+    const current = files.find((f) => f.slug === slug)
+    const trimmed = renameDraft.trim()
+    setRenamingSlug(null)
+    if (!workspaceSlug || !trimmed || !current || trimmed === current.title) return
     try {
-      const result = await window.electronAPI.renameExcalidrawFile(
-        workspaceSlug,
-        renameTarget.slug,
-        renameValue.trim(),
-      )
+      const result = await window.electronAPI.renameExcalidrawFile(workspaceSlug, slug, trimmed)
       setFiles((prev) =>
-        prev.map((f) =>
-          f.slug === renameTarget.slug
-            ? { ...f, title: result.title, slug: result.slug }
-            : f,
-        ),
+        prev.map((f) => (f.slug === slug ? { ...f, title: result.title, slug: result.slug } : f)),
       )
-      setSvgCache((prev) => {
-        const next = new Map(prev)
-        if (prev.has(renameTarget.slug)) {
-          next.set(result.slug, prev.get(renameTarget.slug)!)
-          next.delete(renameTarget.slug)
-        }
-        return next
-      })
       toast.success('已重命名')
     } catch (err) {
       toast.error(`重命名失败: ${err instanceof Error ? err.message : '未知错误'}`)
-    } finally {
-      setRenameTarget(null)
     }
-  }, [workspaceSlug, renameTarget, renameValue])
+  }, [workspaceSlug, renamingSlug, renameDraft, files])
+
+  const handleRenameKeyDown = React.useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      void saveRename()
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      setRenamingSlug(null)
+    }
+  }, [saveRename])
 
   // 删除
   const handleDeleteConfirm = React.useCallback(async () => {
@@ -313,11 +332,6 @@ export function ExcalidrawGallery(): React.ReactElement {
     try {
       await window.electronAPI.deleteExcalidrawFile(workspaceSlug, deleteTarget.slug)
       setFiles((prev) => prev.filter((f) => f.slug !== deleteTarget.slug))
-      setSvgCache((prev) => {
-        const next = new Map(prev)
-        next.delete(deleteTarget.slug)
-        return next
-      })
       toast.success('已删除')
     } catch (err) {
       toast.error(`删除失败: ${err instanceof Error ? err.message : '未知错误'}`)
@@ -369,17 +383,26 @@ export function ExcalidrawGallery(): React.ReactElement {
             {files.map((file) => (
               <ContextMenu key={file.slug}>
                 <ContextMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className="group flex flex-col rounded-lg border border-border/50 bg-card hover:border-primary/40 hover:shadow-sm transition-all text-left overflow-hidden"
-                    onClick={() => handleOpen(file.slug)}
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`打开画布：${file.title || '未命名'}`}
+                    className="group flex flex-col rounded-lg border border-border/50 bg-card hover:border-primary/40 hover:shadow-sm transition-all text-left overflow-hidden cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onClick={() => {
+                      if (renamingSlug !== file.slug) handleOpen(file.slug)
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return
+                      event.preventDefault()
+                      handleOpen(file.slug)
+                    }}
                   >
                     {/* 缩略图 */}
                     <div className="relative w-full aspect-[13/8] bg-[#f8f8f8] dark:bg-[#1a1a1a] overflow-hidden">
-                      {svgCache.has(file.slug) ? (
+                      {thumbnails.has(file.slug) ? (
                         <div
                           className="w-full h-full"
-                          dangerouslySetInnerHTML={{ __html: svgCache.get(file.slug)! }}
+                          dangerouslySetInnerHTML={{ __html: thumbnails.get(file.slug)! }}
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
@@ -387,33 +410,81 @@ export function ExcalidrawGallery(): React.ReactElement {
                         </div>
                       )}
                       {file.error && (
-                        <div className="absolute top-2 right-2 text-amber-500" title="文件可能损坏">
+                        <div className="absolute top-2 left-2 text-amber-500" title="文件可能损坏">
                           <AlertCircle size={14} />
                         </div>
                       )}
+                      {/* 悬浮操作按钮：与右键菜单共享同一份「打开/重命名/删除」，
+                          避免删除/重命名只能靠右键发现（对齐 TaskTile.tsx 的双入口约定）。*/}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            title="画布操作"
+                            aria-label="画布操作"
+                            onPointerDown={(event) => event.stopPropagation()}
+                            onClick={(event) => event.stopPropagation()}
+                            className="absolute top-2 right-2 grid size-7 place-items-center rounded-md border border-border/60 bg-background/90 text-foreground/60 opacity-0 shadow-sm backdrop-blur-sm transition-opacity hover:bg-background hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100"
+                          >
+                            <MoreHorizontal size={14} />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40 z-[9999]" onClick={(event) => event.stopPropagation()}>
+                          <DropdownMenuItem onSelect={() => handleOpen(file.slug)}>
+                            <PenTool size={13} className="mr-2" />
+                            打开
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => startRename(file)}>
+                            <Pencil size={13} className="mr-2" />
+                            重命名
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onSelect={() => setDeleteTarget(file)}
+                          >
+                            <Trash2 size={13} className="mr-2" />
+                            删除
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                     {/* 信息 */}
                     <div className="px-3 py-2.5 flex flex-col gap-0.5">
-                      <span className="text-[13px] font-medium text-foreground truncate group-hover:text-primary transition-colors">
-                        {file.title || '未命名'}
-                      </span>
+                      {renamingSlug === file.slug ? (
+                        <input
+                          ref={renameInputRef}
+                          value={renameDraft}
+                          onPointerDown={(event) => event.stopPropagation()}
+                          onClick={(event) => event.stopPropagation()}
+                          onChange={(event) => setRenameDraft(event.target.value)}
+                          onBlur={() => void saveRename()}
+                          onKeyDown={handleRenameKeyDown}
+                          className="w-full rounded border border-border bg-background px-1 py-0.5 text-[13px] font-medium leading-5 outline-none ring-1 ring-ring"
+                        />
+                      ) : (
+                        <span className="text-[13px] font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                          {file.title || '未命名'}
+                        </span>
+                      )}
                       <span className="text-[11px] text-foreground/40">
                         {file.elementCount} 个元素 · {relativeTime(file.mtime)}
                       </span>
                     </div>
-                  </button>
+                  </div>
                 </ContextMenuTrigger>
-                <ContextMenuContent className="w-40">
+                <ContextMenuContent className="w-40 z-[9999]">
                   <ContextMenuItem onClick={() => handleOpen(file.slug)}>
+                    <PenTool size={13} className="mr-2" />
                     打开
                   </ContextMenuItem>
-                  <ContextMenuItem onClick={() => handleRenameStart(file)}>
+                  <ContextMenuItem onClick={() => startRename(file)}>
                     <Pencil size={13} className="mr-2" />
                     重命名
                   </ContextMenuItem>
                   <ContextMenuSeparator />
                   <ContextMenuItem
-                    className="text-red-500 focus:text-red-500"
+                    className="text-destructive focus:text-destructive"
                     onClick={() => setDeleteTarget(file)}
                   >
                     <Trash2 size={13} className="mr-2" />
@@ -426,32 +497,6 @@ export function ExcalidrawGallery(): React.ReactElement {
         </div>
       )}
 
-      {/* 重命名对话框 */}
-      <AlertDialog open={!!renameTarget} onOpenChange={(o) => { if (!o) setRenameTarget(null) }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>重命名画布</AlertDialogTitle>
-            <AlertDialogDescription>
-              输入新的画布名称
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <input
-            type="text"
-            value={renameValue}
-            onChange={(e) => setRenameValue(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleRenameConfirm() }}
-            className="w-full rounded-md border border-border px-3 py-2 text-[14px] outline-none focus:border-primary"
-            autoFocus
-          />
-          <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRenameConfirm} disabled={!renameValue.trim()}>
-              确定
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       {/* 删除确认对话框 */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null) }}>
         <AlertDialogContent>
@@ -463,7 +508,7 @@ export function ExcalidrawGallery(): React.ReactElement {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-red-500 hover:bg-red-600">
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               删除
             </AlertDialogAction>
           </AlertDialogFooter>

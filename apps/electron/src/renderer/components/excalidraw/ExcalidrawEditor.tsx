@@ -50,10 +50,27 @@ export function ExcalidrawEditor(): React.ReactElement {
   const [isNew, setIsNew] = React.useState(true)
 
   const excalidrawRef = React.useRef<ExcalidrawImperativeAPI | null>(null)
+  // onChange 每次都把最新场景快照缓存在这里，作为"取当前画布数据"的唯一来源，
+  // 不再临时调用 excalidrawRef.current.getXXX()——组件卸载时 React 通常会先卸载
+  // 子组件（<Excalidraw> 本身）再跑父组件的 cleanup，届时它的命令式 API 是否还能正确
+  // 返回数据没有保证；退出时的兜底保存如果读到空/过期数据，等于"保存了个寂寞"，
+  // 表现出来就是"编辑后不保存退出，数据丢失"。
+  const latestSceneRef = React.useRef<{
+    elements: unknown[]
+    appState: Record<string, unknown>
+    files: Record<string, unknown>
+  } | null>(null)
   const autoSaveTimerRef = React.useRef<ReturnType<typeof setInterval> | null>(null)
   const statusTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   // Store handler ref to avoid stale closures
   const handleSaveRef = React.useRef<(auto: boolean) => Promise<void>>(async () => {})
+  const flushSaveSyncRef = React.useRef<() => void>(() => {})
+  // 距上次成功保存以来是否有未保存的编辑；驱动"是否需要在离开/自动保存时 flush"
+  const dirtyRef = React.useRef(false)
+  // Excalidraw 应用 initialData 时也会触发一次 onChange，跳过这一次避免"刚打开就被标记为已编辑"
+  const skippedInitialChangeRef = React.useRef(false)
+  // 已有画布加载时的真实标题（来自文件名，未经 slug 归一化），用于判断标题输入框是否需要落盘重命名
+  const loadedTitleRef = React.useRef<string | null>(null)
 
   // 加载数据
   React.useEffect(() => {
@@ -74,11 +91,9 @@ export function ExcalidrawEditor(): React.ReactElement {
       .then((data) => {
         if (data) {
           setIsNew(false)
-          setTitle(
-            editingSlug
-              .replace(/-/g, ' ')
-              .replace(/\b\w/g, (c) => c.toUpperCase()),
-          )
+          const realTitle = data.title || editingSlug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+          setTitle(realTitle)
+          loadedTitleRef.current = realTitle
           setInitialData({
             elements: (data.elements || []) as Record<string, unknown>[],
             appState: (data.appState as Record<string, unknown>) || { viewBackgroundColor: '#ffffff' },
@@ -98,33 +113,63 @@ export function ExcalidrawEditor(): React.ReactElement {
     }
   }
 
-  async function handleSave(auto: boolean): Promise<void> {
-    if (!excalidrawRef.current || !workspaceSlug) return
+  /**
+   * 取当前画布数据：优先用 onChange 缓存的最新快照（任何时候都可靠，包括组件正在卸载时）；
+   * 只有连一次 onChange 都还没发生过（比如打开已有文件后完全没编辑就点保存）才回退到
+   * 命令式 API 现查，此时组件必然还是挂载状态，调用是安全的。
+   */
+  function getCurrentScene(): { elements: unknown[]; appState: Record<string, unknown>; files: Record<string, unknown> } | null {
+    if (latestSceneRef.current) return latestSceneRef.current
+    if (excalidrawRef.current) {
+      return {
+        elements: excalidrawRef.current.getSceneElements() as unknown[],
+        appState: excalidrawRef.current.getAppState(),
+        files: excalidrawRef.current.getFiles() as unknown as Record<string, unknown>,
+      }
+    }
+    return null
+  }
 
-    const elements = excalidrawRef.current.getSceneElements()
-    const appState = excalidrawRef.current.getAppState()
-    const files = excalidrawRef.current.getFiles()
+  async function handleSave(auto: boolean): Promise<void> {
+    if (!workspaceSlug) return
+    const scene = getCurrentScene()
+    if (!scene) return
+    const { elements, appState, files } = scene
 
     setSaving(true)
 
     try {
       let currentSlug = slug
+      const trimmedTitle = title.trim() || '未命名画布'
 
       if (isNew || !currentSlug) {
-        const result = await window.electronAPI.createExcalidrawFile(
-          workspaceSlug,
-          title.trim() || '未命名画布',
-        )
+        const result = await window.electronAPI.createExcalidrawFile(workspaceSlug, trimmedTitle)
         currentSlug = result.slug
         setSlug(result.slug)
         setIsNew(false)
+        loadedTitleRef.current = result.title
+        // CREATE 可能因重名自动加了 " (n)" 后缀，实际落盘标题会和输入框里的原始文字不同。
+        // 必须把这个真实标题同步回 UI，否则下一次保存会拿"输入框里的旧标题"跟
+        // loadedTitleRef 比对，永远判定为"标题变了"，进而尝试 rename 到一个已被占用的
+        // 文件名而报错——保存直接失败，且此后每次保存都会重复触发（真实复现过的 bug）。
+        setTitle(result.title)
+      } else if (trimmedTitle !== loadedTitleRef.current) {
+        // 标题输入框相对已加载的真实标题有改动：落盘重命名，而不是让它只是个从不生效的摆设
+        const result = await window.electronAPI.renameExcalidrawFile(workspaceSlug, currentSlug, trimmedTitle)
+        currentSlug = result.slug
+        setSlug(result.slug)
+        loadedTitleRef.current = result.title
+        // 同理：RENAME 会清洗非法字符（如 "A/B" → "A-B"），落盘标题可能和输入框原文不同，
+        // 不同步会导致下次保存又把这次已经生效的改动误判成"还需要 rename"。
+        setTitle(result.title)
       }
 
       await window.electronAPI.writeExcalidrawFile(workspaceSlug, currentSlug, {
-        elements: elements as unknown[],
+        elements,
         appState: { viewBackgroundColor: appState.viewBackgroundColor },
-        files: files as unknown as Record<string, unknown>,
+        files,
       })
+      dirtyRef.current = false
 
       showStatus(auto ? '已自动保存' : '已保存 ✓')
     } catch (err) {
@@ -138,18 +183,65 @@ export function ExcalidrawEditor(): React.ReactElement {
   // Keep handleSaveRef in sync
   handleSaveRef.current = handleSave
 
-  // 自动保存（每 60 秒）
+  // 同步 flush（供 beforeunload 用）：应用退出/窗口关闭时，异步 IPC 不保证能在进程
+  // 终止前跑完，必须走 sendSync 阻塞等待落盘——对齐 main.tsx 里 ScratchPad/TabState
+  // 已有的 beforeunload + *Sync IPC 约定。只在真的有未保存改动时才触发。
+  function flushSaveSync(): void {
+    if (!dirtyRef.current || !workspaceSlug) return
+    const scene = getCurrentScene()
+    if (!scene) return
+    try {
+      const result = window.electronAPI.saveExcalidrawFileSync(
+        workspaceSlug,
+        isNew ? null : slug,
+        title.trim() || '未命名画布',
+        {
+          elements: scene.elements,
+          appState: { viewBackgroundColor: scene.appState.viewBackgroundColor },
+          files: scene.files,
+        },
+      )
+      if (result) dirtyRef.current = false
+    } catch (err) {
+      console.error('[ExcalidrawEditor] 同步保存失败:', err)
+    }
+  }
+  flushSaveSyncRef.current = flushSaveSync
+
+  // 自动保存（每 60 秒，仅在有未保存改动时触发）
+  // 不要求 !isNew：全新画布若一直不手动保存，此前完全没有自动保存兜底，
+  // 长时间创作后崩溃/强退会整份丢失；这里放宽为只要 workspaceSlug 就绪即可计时，
+  // handleSave 内部本就会在 isNew 时自动走 CREATE 分支。
   React.useEffect(() => {
-    if (!workspaceSlug || !slug || isNew) return
+    if (!workspaceSlug) return
 
     autoSaveTimerRef.current = setInterval(() => {
-      void handleSaveRef.current(true)
+      if (dirtyRef.current) void handleSaveRef.current(true)
     }, 60_000)
 
     return () => {
       if (autoSaveTimerRef.current) clearInterval(autoSaveTimerRef.current)
     }
-  }, [workspaceSlug, slug, isNew])
+  }, [workspaceSlug])
+
+  // 离开编辑器时兜底 flush 一次未保存的改动（返回按钮/切侧栏视图/workspace 切换导致的卸载均适用，
+  // 因为这些路径最终都会卸载本组件）。handleSaveRef 始终指向最新一次渲染的 handleSave 闭包，
+  // 因此即便本 effect 只在挂载时注册一次，卸载时读到的仍是最新 slug/title/isNew。
+  React.useEffect(() => {
+    return () => {
+      if (dirtyRef.current) void handleSaveRef.current(true)
+      if (statusTimerRef.current) clearTimeout(statusTimerRef.current)
+    }
+  }, [])
+
+  // 整个应用退出/窗口关闭时的兜底：上面的卸载 flush 只覆盖"应用内切换视图"场景
+  // （JS 事件循环还在跑，异步保存能跑完）；真正关窗口/退出应用时进程随时可能终止，
+  // 必须在 beforeunload 里同步 flush，而不是指望上面那个 async 调用能跑完。
+  React.useEffect(() => {
+    const handler = (): void => flushSaveSyncRef.current()
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [])
 
   // 键盘快捷键
   React.useEffect(() => {
@@ -167,14 +259,12 @@ export function ExcalidrawEditor(): React.ReactElement {
     if (!workspaceSlug || !slug) return
 
     try {
-      if (excalidrawRef.current) {
-        const elements = excalidrawRef.current.getSceneElements()
-        const appState = excalidrawRef.current.getAppState()
-        const files = excalidrawRef.current.getFiles()
+      const scene = getCurrentScene()
+      if (scene) {
         await window.electronAPI.writeExcalidrawFile(workspaceSlug, slug, {
-          elements: elements as unknown[],
-          appState: { viewBackgroundColor: appState.viewBackgroundColor },
-          files: files as unknown as Record<string, unknown>,
+          elements: scene.elements,
+          appState: { viewBackgroundColor: scene.appState.viewBackgroundColor },
+          files: scene.files,
         })
       }
 
@@ -233,7 +323,7 @@ export function ExcalidrawEditor(): React.ReactElement {
           {saveStatus && (
             <span
               className={`text-[12px] ${
-                saveStatus.includes('失败') ? 'text-red-500' : 'text-emerald-600'
+                saveStatus.includes('失败') ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'
               }`}
             >
               {saveStatus}
@@ -273,6 +363,20 @@ export function ExcalidrawEditor(): React.ReactElement {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             excalidrawAPI={(api: any) => {
               excalidrawRef.current = api as ExcalidrawImperativeAPI
+            }}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            onChange={(elements: any, appState: any, files: any) => {
+              // 持续缓存最新快照——见 latestSceneRef 声明处注释，这是保存路径读数据的唯一来源。
+              latestSceneRef.current = {
+                elements: elements as unknown[],
+                appState: appState as Record<string, unknown>,
+                files: files as Record<string, unknown>,
+              }
+              if (!skippedInitialChangeRef.current) {
+                skippedInitialChangeRef.current = true
+                return
+              }
+              dirtyRef.current = true
             }}
             initialData={
               initialData

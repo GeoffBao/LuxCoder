@@ -343,6 +343,8 @@ export const EXCALIDRAW_IPC_CHANNELS = {
   DELETE: 'excalidraw:delete',
   /** 重命名画板文件 */
   RENAME: 'excalidraw:rename',
+  /** 同步保存（beforeunload/应用退出场景，新画布走同步 CREATE，已有画布走同步 WRITE） */
+  SAVE_SYNC: 'excalidraw:save-sync',
 } as const
 
 /** Dock/Launcher 角标 IPC 通道 */

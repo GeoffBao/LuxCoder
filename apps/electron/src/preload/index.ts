@@ -544,11 +544,11 @@ export interface ElectronAPI {
 
   // ===== Excalidraw 画板 =====
 
-  /** 列出 Workspace 下所有画板文件 */
-  listExcalidrawFiles: (workspaceSlug: string) => Promise<Array<{ slug: string; title: string; elementCount: number; background: string; mtime: number; error?: boolean }>>
+  /** 列出 Workspace 下所有画板文件（elements 为缩略图用的精简元素快照，不含内嵌图片） */
+  listExcalidrawFiles: (workspaceSlug: string) => Promise<Array<{ slug: string; title: string; elementCount: number; background: string; mtime: number; error?: boolean; elements?: unknown[] }>>
 
-  /** 读取单个画板文件的完整数据 */
-  readExcalidrawFile: (workspaceSlug: string, slug: string) => Promise<{ elements: unknown[]; appState: Record<string, unknown>; files: Record<string, unknown> } | null>
+  /** 读取单个画板文件的完整数据（title 为文件名派生的真实标题，未经 slug 归一化） */
+  readExcalidrawFile: (workspaceSlug: string, slug: string) => Promise<{ elements: unknown[]; appState: Record<string, unknown>; files: Record<string, unknown>; title: string } | null>
 
   /** 新建空白画板文件 */
   createExcalidrawFile: (workspaceSlug: string, title: string) => Promise<{ slug: string; title: string }>
@@ -564,6 +564,17 @@ export interface ElectronAPI {
 
   /** 重命名画板文件 */
   renameExcalidrawFile: (workspaceSlug: string, slug: string, newTitle: string) => Promise<{ ok: boolean; slug: string; title: string }>
+
+  /**
+   * 同步保存画板（beforeunload / 应用退出场景兜底）；slug 为 null 表示尚未落盘的新画布，
+   * 会同步走 CREATE。返回 null 表示失败或参数无效，不抛异常（beforeunload 里不适合抛错）。
+   */
+  saveExcalidrawFileSync: (
+    workspaceSlug: string,
+    slug: string | null,
+    title: string,
+    payload: { elements?: unknown[]; appState?: Record<string, unknown>; files?: Record<string, unknown> },
+  ) => { ok: boolean; slug: string; title: string } | null
 
   /** 设置 Dock/Launcher 角标数量（0 表示清除） */
   setDockBadgeCount: (count: number) => Promise<boolean>
@@ -1760,6 +1771,10 @@ const electronAPI: ElectronAPI = {
 
   renameExcalidrawFile: (workspaceSlug: string, slug: string, newTitle: string) => {
     return ipcRenderer.invoke(EXCALIDRAW_IPC_CHANNELS.RENAME, workspaceSlug, slug, newTitle)
+  },
+
+  saveExcalidrawFileSync: (workspaceSlug: string, slug: string | null, title: string, payload: object) => {
+    return ipcRenderer.sendSync(EXCALIDRAW_IPC_CHANNELS.SAVE_SYNC, workspaceSlug, slug, title, payload)
   },
 
   // Dock/Launcher 角标

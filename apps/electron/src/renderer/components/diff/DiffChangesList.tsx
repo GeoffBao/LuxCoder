@@ -14,6 +14,9 @@ import { agentDiffUnseenFilesAtom, agentDiffDataAtom, agentSelectedWorktreeAtom 
 import type { ChangedFileEntry, ChangeSource, UntrackedFileEntry, WorktreeInfo } from '@luxcoder/shared'
 import { WorktreeSelector } from './WorktreeSelector'
 
+/** agentSelectedWorktreeAtom 里的哨兵值：显式选了"会话改动"退出 sessionWorktreeContext 自动默认 */
+const SESSION_DIFF_SENTINEL = '__session_diff__'
+
 /** 按目录分组后的数据结构 */
 interface FileGroup {
   /** 完整 Git 仓库路径（用作 React key，避免同名目录冲突） */
@@ -47,6 +50,12 @@ interface DiffChangesListProps {
   workspaceSlug?: string
   /** 用于自动发现 worktree 的仓库候选路径 */
   worktreeRepoPaths?: string[]
+  /**
+   * 当前会话自身的 Git Worktree 执行上下文（Draft Composer 选 Worktree 模式时落盘的
+   * gitWorktreePath / gitBaseRef）。未手动通过 WorktreeSelector 选择其他 worktree 时，
+   * 默认对比这个——否则 worktree 会话里已提交的改动，在"未提交改动"视角下完全不可见。
+   */
+  sessionWorktreeContext?: { path: string; baseBranch: string }
 }
 
 /** 文件来源 badge 的颜色和文案 */
@@ -68,23 +77,39 @@ export const DiffChangesList = React.memo(function DiffChangesList({
   extraPaths,
   workspaceSlug,
   worktreeRepoPaths,
+  sessionWorktreeContext,
 }: DiffChangesListProps): React.ReactElement {
-  // Worktree 选择状态（内联 WorktreeSelector）
+  // Worktree 选择状态（内联 WorktreeSelector）——手动选择优先；用户没有手动选过时，
+  // 若会话本身就绑定了 Worktree 执行上下文，默认用它（见 sessionWorktreeContext 注释）。
+  // SESSION_DIFF_SENTINEL 用来区分"从没手动选过"（undefined，跟随自动默认）和
+  // "手动点了『会话改动』要退回纯磁盘 diff"（显式选择，不应该被自动默认盖回去）。
   const selectedWorktreeMap = useAtomValue(agentSelectedWorktreeAtom)
   const setSelectedWorktreeMap = useSetAtom(agentSelectedWorktreeAtom)
-  const selectedWorktreePath = selectedWorktreeMap.get(sessionId) ?? null
+  const rawSelectedWorktree = selectedWorktreeMap.get(sessionId)
+  const selectedWorktreePath = rawSelectedWorktree === SESSION_DIFF_SENTINEL
+    ? null
+    : rawSelectedWorktree ?? sessionWorktreeContext?.path ?? null
   const diffCacheKey = selectedWorktreePath ? `${sessionId}:worktree:${selectedWorktreePath}` : `${sessionId}:session`
-  const worktreeMode = React.useMemo(
-    () => selectedWorktreePath ? { path: selectedWorktreePath, baseBranch: 'origin/main' } : undefined,
-    [selectedWorktreePath],
-  )
+  const worktreeMode = React.useMemo(() => {
+    if (!selectedWorktreePath) return undefined
+    const baseBranch = selectedWorktreePath === sessionWorktreeContext?.path
+      ? sessionWorktreeContext.baseBranch
+      : 'origin/main'
+    return { path: selectedWorktreePath, baseBranch }
+  }, [selectedWorktreePath, sessionWorktreeContext])
   const handleWorktreeSelect = React.useCallback((worktree: WorktreeInfo | null) => {
     setSelectedWorktreeMap((prev) => {
       const m = new Map(prev)
+      if (!worktree && sessionWorktreeContext) {
+        // 存在自动默认时，"会话改动"是一次显式退出选择，要用哨兵值记下来，
+        // 不能直接删 key（删了下次渲染又会被 sessionWorktreeContext 兜底盖回去）。
+        m.set(sessionId, SESSION_DIFF_SENTINEL)
+        return m
+      }
       m.set(sessionId, worktree?.path ?? null)
       return m
     })
-  }, [sessionId, setSelectedWorktreeMap])
+  }, [sessionId, setSelectedWorktreeMap, sessionWorktreeContext])
 
   // Diff 数据缓存：mount 时若已有上次结果，立即用作初值，避免空数组闪 1s "没有代码改动"
   const diffDataMap = useAtomValue(agentDiffDataAtom)

@@ -8,7 +8,6 @@ import { useSetAtom } from 'jotai'
 import { toast } from 'sonner'
 import { agentSessionsAtom } from '@/atoms/agent-atoms'
 import { ProjectContextPicker } from '@/components/app-shell/ProjectContextPicker'
-import { cn } from '@/lib/utils'
 import { canBindProjectBeforeSend } from './draft-session-lifecycle'
 
 export interface DraftProjectPickerProps {
@@ -42,12 +41,11 @@ export function DraftProjectPicker({
   }
 
   return (
-    <div className={cn('px-1 pb-1.5', className)}>
-      <ProjectContextPicker
-        mode="session"
-        selectedProjectId={projectId}
-        onSelect={bindProject}
-      />
-    </div>
+    <ProjectContextPicker
+      mode="session"
+      selectedProjectId={projectId}
+      onSelect={bindProject}
+      className={className}
+    />
   )
 }

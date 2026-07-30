@@ -3204,7 +3204,6 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             icon={LayoutDashboard}
             title="任务看板"
             count={activeTaskCount}
-            badgeTone="accent"
             active={codeMainView === 'tasks' && activeView === 'conversations'}
             onClick={handleOpenTaskBoard}
             ariaLabel={`Task 看板，${activeTaskCount} 个未完成`}

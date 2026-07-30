@@ -2843,7 +2843,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         <div className="px-2.5 pb-2.5 md:px-3 md:pb-3" data-input-mode="agent">
           <div
             className={cn(
-              'agent-composer-polished rounded-[17px] border-[0.5px] border-border bg-background/70 transition-[border-color,box-shadow,background-color] duration-base ease-out',
+              'agent-composer-polished rounded-[20px] border-[0.5px] border-border bg-background/70 transition-[border-color,box-shadow,background-color] duration-base ease-out',
               (isPlanMode || isPermissionPlanMode) && !isDragOver && 'plan-mode-border',
               isDragOver && 'border-[2px] border-dashed border-[#2ecc71] bg-[#2ecc71]/[0.03]'
             )}
@@ -2852,18 +2852,21 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
             onDrop={handleDrop}
           >
             {(isPlanMode || isPermissionPlanMode) && !isDragOver && <PlanModeDashedBorder />}
-            <DraftProjectPicker
-              sessionId={sessionId}
-              projectId={sessionMeta?.projectId}
-              isDraft={isDraftSession || isEmptySession}
-              className="px-3 pt-2.5"
-            />
-            <DraftGitContextPicker
-              sessionId={sessionId}
-              projectId={sessionMeta?.projectId}
-              isDraft={isDraftSession || isEmptySession}
-              onSelectionChange={handleDraftGitContextChange}
-            />
+            {/* 项目选择器 + Git 分支/Worktree 上下文合并成一行（对齐 Codex 的
+                「项目 | Local/Worktree | 分支」一行式布局），而不是各占一整行。 */}
+            <div className="px-3 pt-2.5 pb-2 flex flex-wrap items-center gap-2 text-xs">
+              <DraftProjectPicker
+                sessionId={sessionId}
+                projectId={sessionMeta?.projectId}
+                isDraft={isDraftSession || isEmptySession}
+              />
+              <DraftGitContextPicker
+                sessionId={sessionId}
+                projectId={sessionMeta?.projectId}
+                isDraft={isDraftSession || isEmptySession}
+                onSelectionChange={handleDraftGitContextChange}
+              />
+            </div>
             {/* 无 Agent 渠道或无可用模型提示 */}
             {(!agentChannelId || !hasAvailableModel) && (
               <div className="flex items-center gap-2 px-4 py-2 text-sm text-amber-600 dark:text-amber-400">
@@ -2945,7 +2948,8 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
               value={inputContent}
               onChange={setInputContent}
               onSubmit={handleSend}
-              minHeight={48}
+              minHeight={64}
+              fontSize={16}
               onPasteFiles={handlePasteFiles}
               onPasteLongText={handlePasteLongText}
               longTextPasteThreshold={longTextPasteAsAttachmentEnabled ? LONG_TEXT_ATTACHMENT_THRESHOLD : undefined}
