@@ -54,6 +54,8 @@ export * from './wechat'
 
 // 定时任务（Automation）相关类型
 export * from './automation'
+// 本地任务与日程（Planning）相关类型
+export * from './planning'
 
 // Agent 专家包 IPC 通道
 export { EXPERT_IPC_CHANNELS } from '../experts/channels'

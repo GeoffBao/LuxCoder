@@ -11,10 +11,7 @@
 
 import { atom } from 'jotai'
 
-export type ActiveView =
-  | 'conversations'
-  | 'automations'
-  | 'agent-skills'
+export type ActiveView = 'conversations' | 'planning' | 'agent-skills'
   | 'agent-experts'
   | 'excalidraw-gallery'
   | 'excalidraw-editor'
