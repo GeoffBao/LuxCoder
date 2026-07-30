@@ -211,6 +211,7 @@ export function ExcalidrawGallery(): React.ReactElement {
   const [renameDraft, setRenameDraft] = React.useState('')
   const renameInputRef = React.useRef<HTMLInputElement>(null)
   const justStartedRenamingRef = React.useRef(false)
+  const renameFocusTimestampRef = React.useRef(0)
   const [deleteTarget, setDeleteTarget] = React.useState<ExcalidrawFileMeta | null>(null)
 
   const workspaceSlug = React.useMemo(() => {
@@ -287,19 +288,30 @@ export function ExcalidrawGallery(): React.ReactElement {
   )
 
   // 重命名：右键「重命名」触发，卡片标题原地变输入框
+  // ContextMenuItem 使用 Radix onSelect，回调触发时菜单已关闭。
+  // 但 Radix 内部焦点恢复可能用 rAF 延迟执行，与我们的 focus 形成竞态。
+  // 双 rAF 保证：无论 Radix 在 onSelect 前还是后注册自己的 rAF，
+  // 我们的 focus 永远在最后一帧执行，不会被覆盖。
   const startRename = React.useCallback((file: ExcalidrawFileMeta) => {
     setRenameDraft(file.title)
     setRenamingSlug(file.slug)
     justStartedRenamingRef.current = true
-    setTimeout(() => {
-      justStartedRenamingRef.current = false
-      renameInputRef.current?.focus()
-      renameInputRef.current?.select()
-    }, 0)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        justStartedRenamingRef.current = false
+        renameFocusTimestampRef.current = Date.now()
+        renameInputRef.current?.focus()
+        renameInputRef.current?.select()
+      })
+    })
   }, [])
 
   const saveRename = React.useCallback(async () => {
+    // 防护 1：startRename 刚触发，justStartedRenamingRef 还是 true
     if (justStartedRenamingRef.current || !renamingSlug) return
+    // 防护 2：程序化 focus 后 200ms 内忽略 blur，
+    // 防止 Radix 残余焦点事件在双 rAF 之后仍然触发 onBlur
+    if (Date.now() - renameFocusTimestampRef.current < 200) return
     const slug = renamingSlug
     const current = files.find((f) => f.slug === slug)
     const trimmed = renameDraft.trim()
@@ -474,18 +486,18 @@ export function ExcalidrawGallery(): React.ReactElement {
                   </div>
                 </ContextMenuTrigger>
                 <ContextMenuContent className="w-40 z-[9999]">
-                  <ContextMenuItem onClick={() => handleOpen(file.slug)}>
+                  <ContextMenuItem onSelect={() => handleOpen(file.slug)}>
                     <PenTool size={13} className="mr-2" />
                     打开
                   </ContextMenuItem>
-                  <ContextMenuItem onClick={() => startRename(file)}>
+                  <ContextMenuItem onSelect={() => startRename(file)}>
                     <Pencil size={13} className="mr-2" />
                     重命名
                   </ContextMenuItem>
                   <ContextMenuSeparator />
                   <ContextMenuItem
                     className="text-destructive focus:text-destructive"
-                    onClick={() => setDeleteTarget(file)}
+                    onSelect={() => setDeleteTarget(file)}
                   >
                     <Trash2 size={13} className="mr-2" />
                     删除

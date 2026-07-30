@@ -278,7 +278,20 @@ export function ExcalidrawEditor(): React.ReactElement {
     }
   }
 
-  const handleBack = React.useCallback(() => {
+  const handleBack = React.useCallback(async () => {
+    // 返回画廊前如果还有未保存的编辑，先落盘再切视图。
+    // 否则画廊 listExcalidrawFiles 可能在异步保存完成前就读盘，
+    // 导致缩略图和内容都还是旧的——用户看到的是「编辑丢了」。
+    if (dirtyRef.current) {
+      setSaving(true)
+      try {
+        await handleSaveRef.current(true)
+      } catch {
+        // handleSave 内部已有错误提示，这里只需确保视图切换
+      } finally {
+        setSaving(false)
+      }
+    }
     sessionStorage.removeItem('excalidraw:editingSlug')
     setActiveView('excalidraw-gallery')
   }, [setActiveView])
@@ -298,11 +311,12 @@ export function ExcalidrawEditor(): React.ReactElement {
         <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
-            className="text-foreground/50 hover:text-foreground transition-colors shrink-0"
+            className="text-foreground/50 hover:text-foreground transition-colors shrink-0 disabled:opacity-40"
             onClick={handleBack}
+            disabled={saving}
             aria-label="返回画廊"
           >
-            <ArrowLeft size={18} />
+            {saving ? <Loader2 size={18} className="animate-spin" /> : <ArrowLeft size={18} />}
           </button>
           <PenTool size={16} className="text-foreground/60 shrink-0" />
           <input
