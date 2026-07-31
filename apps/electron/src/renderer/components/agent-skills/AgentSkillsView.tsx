@@ -215,19 +215,8 @@ export function AgentSkillsView(): React.ReactElement {
     }
   }, [classifyingSkills, createAgent, data.skills, data.skillsDir, data.workspaceName, setPendingPrompt])
 
-  if (!data.hasWorkspace) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-        <div className="flex size-16 items-center justify-center rounded-2xl bg-foreground/[0.04]">
-          <Blocks className="size-8 text-foreground/30" />
-        </div>
-        <div className="text-[15px] font-medium text-foreground/80">未选择工作区</div>
-        <div className="max-w-sm text-[13px] text-foreground/50">
-          请先在 Agent 模式下选择或创建一个工作区，再来管理它的 Skills 与 MCP。
-        </div>
-      </div>
-    )
-  }
+  // 注意：不在这里整体拦截 —— 专家 / 专家团 / API 数据不依赖工作区，应始终可用；
+  // 仅 Skills / MCP / Context 需要工作区，在内容区按 Tab 单独拦截。
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -316,16 +305,18 @@ export function AgentSkillsView(): React.ReactElement {
           ))}
         </div>
 
-        {/* 搜索框 */}
-        <div className="flex h-8 flex-1 items-center gap-2 rounded-lg border border-border/60 bg-content-area px-3 transition-colors focus-within:border-primary/40">
-          <Search size={14} className="shrink-0 text-foreground/40" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={tab === 'experts' ? '搜索专家名称或 slug...' : tab === 'teams' ? '搜索专家团名称或角色...' : tab === 'skills' ? '搜索 Skills...' : tab === 'mcp' ? '搜索 MCP 服务器...' : tab === 'api' ? '搜索 API...' : '搜索 Workspace Context...'}
-            className="w-full bg-transparent text-[13px] text-foreground placeholder:text-foreground/35 focus:outline-none"
-          />
-        </div>
+        {/* 搜索框（API 占位 Tab 无搜索逻辑，隐藏） */}
+        {tab !== 'api' && (
+          <div className="flex h-8 flex-1 items-center gap-2 rounded-lg border border-border/60 bg-content-area px-3 transition-colors focus-within:border-primary/40">
+            <Search size={14} className="shrink-0 text-foreground/40" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={tab === 'experts' ? '搜索专家名称或 slug...' : tab === 'teams' ? '搜索专家团名称或角色...' : tab === 'skills' ? '搜索 Skills...' : tab === 'mcp' ? '搜索 MCP 服务器...' : '搜索 Workspace Context...'}
+              className="w-full bg-transparent text-[13px] text-foreground placeholder:text-foreground/35 focus:outline-none"
+            />
+          </div>
+        )}
 
         {/* 新建专家：仅在专家 Tab 显示，通过 token 触发嵌入视图的弹窗 */}
         {tab === 'experts' && (
@@ -414,7 +405,14 @@ export function AgentSkillsView(): React.ReactElement {
               embedded
               kind="team"
               externalSearch={search}
-              createRequestToken={createExpertRequest}
+            />
+          ) : tab === 'api' ? (
+            <ApiPlaceholderTab />
+          ) : !data.hasWorkspace ? (
+            <EmptyState
+              icon={<Blocks className="size-8 text-foreground/30" />}
+              title="未选择工作区"
+              hint="请先在 Agent 模式下选择或创建一个工作区，再来管理它的 Skills、MCP 与 Context。"
             />
           ) : tab === 'skills' ? (
             <SkillsTab
@@ -440,8 +438,6 @@ export function AgentSkillsView(): React.ReactElement {
               onRequestDelete={setPendingDeleteMcpName}
               onAdd={() => { setEditingMcp(null); setMcpSheetOpen(true) }}
             />
-          ) : tab === 'api' ? (
-            <ApiPlaceholderTab />
           ) : (
             <WorkspaceMemoryTab workspaceSlug={data.workspaceSlug} search={search} />
           )}
