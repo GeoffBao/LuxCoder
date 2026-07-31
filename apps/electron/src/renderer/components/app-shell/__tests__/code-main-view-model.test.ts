@@ -113,11 +113,11 @@ describe('shouldShowWorkViewInCode', () => {
     })).toBe(false)
   })
 
-  test('agent-experts 作为覆盖视图', () => {
+  test('agent-skills（Agent 插件）作为覆盖视图', () => {
     expect(shouldShowWorkViewInCode({
       appMode: 'agent',
       codeMainView: 'work',
-      activeView: 'agent-experts',
+      activeView: 'agent-skills',
     })).toBe(false)
   })
 
@@ -136,10 +136,9 @@ describe('shouldShowWorkViewInCode', () => {
 })
 
 describe('isOverlayActiveView', () => {
-  test('isOverlayActiveView 识别三类能力覆盖视图', () => {
+  test('isOverlayActiveView 识别覆盖视图（planning / agent-skills）', () => {
     expect(isOverlayActiveView('conversations')).toBe(false)
     expect(isOverlayActiveView('planning')).toBe(true)
     expect(isOverlayActiveView('agent-skills')).toBe(true)
-    expect(isOverlayActiveView('agent-experts')).toBe(true)
   })
 })

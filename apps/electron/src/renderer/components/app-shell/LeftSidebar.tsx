@@ -11,7 +11,7 @@
 import * as React from 'react'
 import { useAtom, useSetAtom, useAtomValue, useStore } from 'jotai'
 import { toast } from 'sonner'
-import { Pin, PinOff, Settings, Plus, Trash2, Pencil, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MessageSquare, MoreHorizontal, FolderOpen, GripVertical, Clock, CalendarDays, ChevronRight, Blocks, GitBranch, Download, Loader2, RotateCw, Layers, UserRound, LayoutDashboard, PenTool } from 'lucide-react'
+import { Pin, PinOff, Settings, Plus, Trash2, Pencil, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MessageSquare, MoreHorizontal, FolderOpen, GripVertical, Clock, CalendarDays, ChevronRight, Blocks, GitBranch, Download, Loader2, RotateCw, Layers, LayoutDashboard, PenTool } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { MarqueeText } from '@/components/ui/marquee-text'
@@ -1022,7 +1022,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     setActiveView('planning')
   }, [activeView, setAutomationForm, setActiveView, store])
 
-  /** 打开/关闭 Agent 技能视图 */
+  /** 打开/关闭 Agent 插件视图 */
   const handleOpenSkills = React.useCallback((): void => {
     if (activeView === 'agent-skills') {
       setActiveView('conversations')
@@ -1030,11 +1030,6 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     }
     setActiveView('agent-skills')
   }, [activeView, setActiveView])
-
-  /** 打开 Agent 专家视图 */
-  const handleOpenAgentExperts = React.useCallback((): void => {
-    setActiveView('agent-experts')
-  }, [setActiveView])
 
   /** 打开唯一正式任务看板；重复点击保持当前页面，不隐式退回会话。 */
   const handleOpenTaskBoard = React.useCallback((): void => {
@@ -2788,7 +2783,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  aria-label="Agent 技能"
+                  aria-label="Agent 插件"
                   onClick={handleOpenSkills}
                   className={cn(
                     'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag border',
@@ -2801,44 +2796,21 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                   {skillsUpdateCount > 0 && (
                     <span className="absolute -top-1 -right-1 size-2.5 rounded-full bg-blue-500" />
                   )}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right">Agent 技能</TooltipContent>
-            </Tooltip>
-          )}
-
-          {mode === 'agent' && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  aria-label={`Agent 专家，${expertsCount} 个角色`}
-                  onClick={handleOpenAgentExperts}
-                  className={cn(
-                    'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag border',
-                    activeView === 'agent-experts'
-                      ? 'border-primary/80 bg-primary text-primary-foreground shadow-sm'
-                      : 'border-border/45 bg-foreground/[0.025] text-foreground/45 hover:border-border/70 hover:bg-foreground/[0.045] hover:text-primary',
-                  )}
-                >
-                  <UserRound size={16} />
-                  {expertsCount > 0 && (
+                  {(skillsCount + expertsCount) > 0 && (
                     <span
                       className={cn(
-                        'absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-medium tabular-nums',
-                        activeView === 'agent-experts'
+                        'absolute -bottom-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-medium tabular-nums',
+                        activeView === 'agent-skills'
                           ? 'bg-primary-foreground text-primary'
                           : 'bg-primary text-primary-foreground',
                       )}
                     >
-                      {formatSidebarModuleCount(expertsCount)}
+                      {formatSidebarModuleCount(skillsCount + expertsCount)}
                     </span>
                   )}
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="right">
-                Agent 专家（{expertsCount} 个角色）
-              </TooltipContent>
+              <TooltipContent side="right">Agent 插件</TooltipContent>
             </Tooltip>
           )}
 
@@ -3182,31 +3154,17 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         />
       </div>
 
-      {/* Agent 技能入口：Skills / MCP 能力中心，仅 Agent 模式可见 */}
+      {/* Agent 插件入口：专家 / Skills / MCP / Context 能力中心，仅 Agent 模式可见 */}
       {mode === 'agent' && (
         <div className="sidebar-module-zone px-3 pb-0.5">
           <SidebarModule
             icon={Blocks}
-            title="Agent 技能"
-            count={skillsCount}
+            title="Agent 插件"
+            count={skillsCount + expertsCount}
             badgeTone={skillsUpdateCount > 0 ? 'accent' : 'neutral'}
             active={activeView === 'agent-skills'}
             onClick={handleOpenSkills}
-            ariaLabel={`Agent 技能，${skillsCount} 个能力${skillsUpdateCount > 0 ? `，${skillsUpdateCount} 个可更新` : ''}`}
-          />
-        </div>
-      )}
-
-      {/* Agent 专家入口：领域角色壳，仅 Agent 模式可见 */}
-      {mode === 'agent' && (
-        <div className="sidebar-module-zone px-3 pb-0.5">
-          <SidebarModule
-            icon={Bot}
-            title="Agent 专家"
-            count={expertsCount}
-            active={activeView === 'agent-experts'}
-            onClick={handleOpenAgentExperts}
-            ariaLabel={`Agent 专家，${expertsCount} 个角色`}
+            ariaLabel={`Agent 插件，${skillsCount + expertsCount} 个能力${skillsUpdateCount > 0 ? `，${skillsUpdateCount} 个可更新` : ''}`}
           />
         </div>
       )}

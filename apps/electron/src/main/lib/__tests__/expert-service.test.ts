@@ -22,11 +22,12 @@ describe('expert-service', () => {
     rmSync(root, { recursive: true, force: true })
   })
 
-  test('seed 后 list 含 10 个专家', () => {
+  test('seed 后 list 含 5 个专家 + 2 个专家团', () => {
     seedBuiltinExperts(root)
     const list = listExperts(root)
-    expect(list).toHaveLength(10)
+    expect(list).toHaveLength(7)
     expect(list.map((expert) => expert.id).sort()).toContain('architect')
+    expect(list.some((expert) => expert.kind === 'team')).toBe(true)
   })
 
   test('updateExpertManifest 可写 skillSlugs', () => {
@@ -52,7 +53,7 @@ describe('expert-service', () => {
     })
     expect(created.id).toBe('media-expert')
     expect(created.label).toBe('多媒体专家')
-    expect(listExperts(root)).toHaveLength(11)
+    expect(listExperts(root)).toHaveLength(8)
   })
 
   test('createExpert 拒绝非法 id 与重复', () => {
@@ -79,7 +80,7 @@ describe('expert-service', () => {
     seedBuiltinExperts(root)
     rmSync(join(root, 'general', 'expert.json'))
     const list = listExperts(root)
-    expect(list).toHaveLength(9)
+    expect(list).toHaveLength(6)
     expect(list.some((expert) => expert.id === 'general')).toBe(false)
   })
 })

@@ -44,6 +44,8 @@ export function parseExpertJson(raw: string): ExpertManifest {
   return {
     id: parsed.id,
     label: parsed.label,
+    kind: parsed.kind === 'team' ? 'team' : 'expert',
+    roleLabels: readStringArray(parsed.roleLabels),
     skillSlugs: readStringArray(parsed.skillSlugs),
     mcpIds: readStringArray(parsed.mcpIds),
     channelBindings: readChannelBindings(parsed.channelBindings),

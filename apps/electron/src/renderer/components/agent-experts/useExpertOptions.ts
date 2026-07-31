@@ -11,18 +11,15 @@ export interface ExpertOption {
   label: string
 }
 
-/** 内置专家选项 */
+/** 内置专家选项（5 个专家 + 2 个专家团，与 BUILTIN_EXPERT_DEFINITIONS / BUILTIN_EXPERT_TEAM_DEFINITIONS 对齐） */
 export const BUILTIN_EXPERT_OPTIONS: readonly ExpertOption[] = [
   { id: 'general', label: '通用软件专家' },
-  { id: 'driver', label: '驱动软件专家' },
-  { id: 'application', label: '应用软件专家' },
-  { id: 'system', label: '系统软件专家' },
-  { id: 'communication', label: '通信软件专家' },
-  { id: 'delivery-manager', label: '软件交付经理' },
-  { id: 'se', label: '软件 SE' },
   { id: 'architect', label: '软件架构师' },
   { id: 'qa', label: '软件测试' },
   { id: 'reviewer', label: '代码审查' },
+  { id: 'delivery-manager', label: '软件交付经理' },
+  { id: 'dev-team', label: '软件研发全流程团' },
+  { id: 'quality-team', label: '代码质量攻坚团' },
 ]
 
 /** 根据 expertId 解析显示标签 */

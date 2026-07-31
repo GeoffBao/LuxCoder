@@ -12,7 +12,7 @@
 import * as React from 'react'
 import { useAtom, useSetAtom } from 'jotai'
 import { toast } from 'sonner'
-import { Blocks, ChevronDown, ChevronRight, Search, Plus, Store, FolderOpen, Check, Sparkles, Loader2 } from 'lucide-react'
+import { Blocks, ChevronDown, ChevronRight, Search, Plus, Store, FolderOpen, Check, Sparkles, Loader2, Plug } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
@@ -35,6 +35,7 @@ import { McpDetailSheet } from './McpDetailSheet'
 import { BuiltinMcpDetailSheet } from './BuiltinMcpDetailSheet'
 import { ImportSkillDialog } from './ImportSkillDialog'
 import { WorkspaceMemoryTab } from './WorkspaceMemoryTab'
+import { AgentExpertsView } from '@/components/agent-experts/AgentExpertsView'
 import { groupSkills } from './skillGrouping'
 
 function buildSkillClassificationPrompt(input: {
@@ -97,6 +98,23 @@ export function AgentSkillsView(): React.ReactElement {
 
   const [tab, setTab] = useAtom(agentSkillsTabAtom)
   const [search, setSearch] = React.useState('')
+  // 专家 / 专家团 Tab：数量与“新建专家”触发 token（由工具条按钮递增，AgentExpertsView 收到后打开弹窗）
+  const [expertsCount, setExpertsCount] = React.useState(0)
+  const [teamsCount, setTeamsCount] = React.useState(0)
+  const [createExpertRequest, setCreateExpertRequest] = React.useState(0)
+
+  // 加载专家/专家团数量（侧栏入口移除后，插件视图自身维护角标数据）
+  React.useEffect(() => {
+    let cancelled = false
+    window.electronAPI.experts.list()
+      .then((list) => {
+        if (cancelled) return
+        setExpertsCount(list.filter((e) => (e.kind ?? 'expert') === 'expert').length)
+        setTeamsCount(list.filter((e) => e.kind === 'team').length)
+      })
+      .catch((cause) => console.error('[AgentSkills] 加载专家数量失败:', cause))
+    return () => { cancelled = true }
+  }, [])
   const [selectedSkillSlug, setSelectedSkillSlug] = React.useState<string | null>(null)
   const [mcpSheetOpen, setMcpSheetOpen] = React.useState(false)
   const [editingMcp, setEditingMcp] = React.useState<{ name: string; entry: McpServerEntry } | null>(null)
@@ -220,7 +238,7 @@ export function AgentSkillsView(): React.ReactElement {
       <div className="titlebar-no-drag mx-auto flex w-full max-w-6xl shrink-0 items-center justify-between px-8 pt-14 pb-4">
         <div className="flex items-center gap-2.5">
           <Blocks className="size-6 text-foreground/70" />
-          <h1 className="text-2xl font-semibold text-foreground">Agent 技能</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Agent 插件</h1>
         </div>
 
         <Popover open={wsPopoverOpen} onOpenChange={setWsPopoverOpen}>
@@ -263,19 +281,25 @@ export function AgentSkillsView(): React.ReactElement {
 
       {/* 工具条 */}
       <div className="titlebar-no-drag mx-auto flex w-full max-w-6xl shrink-0 items-center gap-3 px-8 pb-4">
-        {/* Skills / MCP / 记忆切换 */}
+        {/* 专家 / 专家团 / Skills / MCP / API / Context 切换 */}
         <div className="relative flex h-8 items-stretch rounded-xl bg-muted p-0.5">
           <div
             className={cn(
-              'absolute bottom-0.5 top-0.5 w-[calc(33.333%-3px)] rounded-lg bg-background shadow-sm transition-transform duration-base ease-out',
-              tab === 'skills' && 'translate-x-0',
-              tab === 'mcp' && 'translate-x-full',
-              tab === 'context' && 'translate-x-[200%]',
+              'absolute bottom-0.5 top-0.5 w-[calc(16.666%-2px)] rounded-lg bg-background shadow-sm transition-transform duration-base ease-out',
+              tab === 'experts' && 'translate-x-0',
+              tab === 'teams' && 'translate-x-full',
+              tab === 'skills' && 'translate-x-[200%]',
+              tab === 'mcp' && 'translate-x-[300%]',
+              tab === 'api' && 'translate-x-[400%]',
+              tab === 'context' && 'translate-x-[500%]',
             )}
           />
           {([
+            { value: 'experts' as const, label: '专家', count: expertsCount },
+            { value: 'teams' as const, label: '专家团', count: teamsCount },
             { value: 'skills' as const, label: 'Skills', count: data.skills.length },
             { value: 'mcp' as const, label: 'MCP', count: mcpCount },
+            { value: 'api' as const, label: 'API', count: 0 },
             { value: 'context' as const, label: 'Context', count: memoryCount },
           ]).map(({ value, label, count }) => (
             <button
@@ -298,10 +322,22 @@ export function AgentSkillsView(): React.ReactElement {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={tab === 'skills' ? '搜索 Skills...' : tab === 'mcp' ? '搜索 MCP 服务器...' : '搜索 Workspace Context...'}
+            placeholder={tab === 'experts' ? '搜索专家名称或 slug...' : tab === 'teams' ? '搜索专家团名称或角色...' : tab === 'skills' ? '搜索 Skills...' : tab === 'mcp' ? '搜索 MCP 服务器...' : tab === 'api' ? '搜索 API...' : '搜索 Workspace Context...'}
             className="w-full bg-transparent text-[13px] text-foreground placeholder:text-foreground/35 focus:outline-none"
           />
         </div>
+
+        {/* 新建专家：仅在专家 Tab 显示，通过 token 触发嵌入视图的弹窗 */}
+        {tab === 'experts' && (
+          <button
+            type="button"
+            onClick={() => setCreateExpertRequest((n) => n + 1)}
+            className="flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3 text-[13px] font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+          >
+            <Plus size={14} />
+            <span>新建专家</span>
+          </button>
+        )}
 
         {/* 社区市场（占位） */}
         {tab === 'skills' && (
@@ -366,6 +402,20 @@ export function AgentSkillsView(): React.ReactElement {
         <div className="mx-auto w-full max-w-6xl px-8 pb-10">
           {data.loading ? (
             <div className="py-20 text-center text-sm text-muted-foreground">加载中...</div>
+          ) : tab === 'experts' ? (
+            <AgentExpertsView
+              embedded
+              kind="expert"
+              externalSearch={search}
+              createRequestToken={createExpertRequest}
+            />
+          ) : tab === 'teams' ? (
+            <AgentExpertsView
+              embedded
+              kind="team"
+              externalSearch={search}
+              createRequestToken={createExpertRequest}
+            />
           ) : tab === 'skills' ? (
             <SkillsTab
               customSkills={customSkills}
@@ -390,6 +440,8 @@ export function AgentSkillsView(): React.ReactElement {
               onRequestDelete={setPendingDeleteMcpName}
               onAdd={() => { setEditingMcp(null); setMcpSheetOpen(true) }}
             />
+          ) : tab === 'api' ? (
+            <ApiPlaceholderTab />
           ) : (
             <WorkspaceMemoryTab workspaceSlug={data.workspaceSlug} search={search} />
           )}
@@ -702,6 +754,23 @@ function EmptyState({ icon, title, hint, action }: { icon: React.ReactNode; titl
         <div className="text-[13px] leading-relaxed text-foreground/50">{hint}</div>
       </div>
       {action}
+    </div>
+  )
+}
+
+/** API Tab 占位：后续版本开发 API 密钥管理与自定义 API 接入。 */
+function ApiPlaceholderTab(): React.ReactElement {
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
+      <div className="flex size-16 items-center justify-center rounded-2xl bg-foreground/[0.04]">
+        <Plug className="size-8 text-foreground/30" />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <div className="text-[15px] font-medium text-foreground/85">API 能力即将上线</div>
+        <div className="max-w-sm text-[13px] leading-relaxed text-foreground/50">
+          这里将用于管理自定义 API 密钥与第三方服务接入。当前为占位入口，后续版本开发。
+        </div>
+      </div>
     </div>
   )
 }
