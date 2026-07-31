@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { join } from 'node:path'
 import {
   BUILTIN_EXPERT_DEFINITIONS,
+  BUILTIN_EXPERT_TEAM_DEFINITIONS,
   parseExpertJson,
 } from '@luxcoder/shared/experts'
 import type { ExpertDefinition, ExpertManifest, ExpertPackage } from '@luxcoder/shared/experts'
@@ -15,6 +16,8 @@ function buildDefaultManifest(definition: ExpertDefinition): ExpertManifest {
   return {
     id: definition.id,
     label: definition.label,
+    kind: definition.kind ?? 'expert',
+    roleLabels: definition.roleLabels ?? [],
     skillSlugs: [],
     mcpIds: [],
     channelBindings: [],
@@ -58,7 +61,7 @@ export function seedBuiltinExperts(root: string): void {
     mkdirSync(root, { recursive: true })
   }
 
-  for (const definition of BUILTIN_EXPERT_DEFINITIONS) {
+  for (const definition of [...BUILTIN_EXPERT_DEFINITIONS, ...BUILTIN_EXPERT_TEAM_DEFINITIONS]) {
     const expertDir = join(root, definition.id)
     if (existsSync(expertDir)) continue
 
@@ -68,12 +71,12 @@ export function seedBuiltinExperts(root: string): void {
     writeFileSync(join(expertDir, EXPERT_JSON), `${JSON.stringify(manifest, null, 2)}\n`, 'utf-8')
     writeFileSync(
       join(expertDir, IDENTITY_MD),
-      `# ${definition.label}\n\n${definition.identitySummary}\n`,
+      definition.identityMd ?? `# ${definition.label}\n\n${definition.identitySummary}\n`,
       'utf-8',
     )
-    writeFileSync(join(expertDir, SOUL_MD), buildSeedSoulMd(definition.label), 'utf-8')
-    writeFileSync(join(expertDir, RULES_MD), buildSeedRulesMd(), 'utf-8')
-    console.log(`[专家] 已种子内置专家: ${definition.id}`)
+    writeFileSync(join(expertDir, SOUL_MD), definition.soulMd ?? buildSeedSoulMd(definition.label), 'utf-8')
+    writeFileSync(join(expertDir, RULES_MD), definition.rulesMd ?? buildSeedRulesMd(), 'utf-8')
+    console.log(`[专家] 已种子内置${definition.kind === 'team' ? '专家团' : '专家'}: ${definition.id}`)
   }
 
   // 文案升级：已存在的「通用专家」→「通用软件专家」（不覆盖用户其它改名）
@@ -162,6 +165,8 @@ export function updateExpertManifest(
   const updated: ExpertManifest = {
     id: existing.id,
     label: patch.label ?? existing.label,
+    kind: existing.kind ?? 'expert',
+    roleLabels: existing.roleLabels ?? [],
     skillSlugs: patch.skillSlugs ?? existing.skillSlugs,
     mcpIds: patch.mcpIds ?? existing.mcpIds,
     channelBindings: existing.channelBindings,

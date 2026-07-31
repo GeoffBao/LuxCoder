@@ -6,8 +6,9 @@
 
 import * as React from 'react'
 import { useAtomValue } from 'jotai'
-import { Bot, Save } from 'lucide-react'
+import { Bot, Save, Users } from 'lucide-react'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 import {
   agentWorkspacesAtom,
   currentAgentWorkspaceIdAtom,
@@ -55,6 +56,7 @@ interface ExpertDetailBodyProps {
 }
 
 function ExpertDetailBody({ expert, onOpenChange, onSaved }: ExpertDetailBodyProps): React.ReactElement {
+  const isTeam = expert.kind === 'team'
   const workspaces = useAtomValue(agentWorkspacesAtom)
   const currentWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
   const workspaceSlug = workspaces.find((workspace) => workspace.id === currentWorkspaceId)?.slug ?? ''
@@ -166,8 +168,15 @@ function ExpertDetailBody({ expert, onOpenChange, onSaved }: ExpertDetailBodyPro
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex shrink-0 items-center justify-between border-b border-border/60 px-6 py-4">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="rounded-xl bg-emerald-500/12 p-2 text-emerald-600 dark:text-emerald-400">
-            <Bot size={20} />
+          <div
+            className={cn(
+              'rounded-xl p-2',
+              isTeam
+                ? 'bg-indigo-500/12 text-indigo-600 dark:text-indigo-400'
+                : 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400',
+            )}
+          >
+            {isTeam ? <Users size={20} /> : <Bot size={20} />}
           </div>
           <div className="min-w-0">
             <div className="truncate text-lg font-semibold text-foreground">{expert.label}</div>

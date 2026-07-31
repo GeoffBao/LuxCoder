@@ -27,7 +27,6 @@ import { TabContent } from './TabContent'
 import { AutomationFormView } from '@/components/automation/AutomationFormView'
 import { PlanningView } from '@/components/planning/PlanningView'
 import { AgentSkillsView } from '@/components/agent-skills/AgentSkillsView'
-import { AgentExpertsView } from '@/components/agent-experts/AgentExpertsView'
 import { ExcalidrawView } from '@/components/excalidraw/ExcalidrawView'
 import { automationFormAtom } from '@/atoms/automation-atoms'
 import { activeViewAtom } from '@/atoms/active-view'
@@ -250,10 +249,8 @@ export function MainArea(): React.ReactElement {
                 <PlanningView />
               )
             ) : activeView === 'agent-skills' ? (
-              // Agent 技能视图：全屏取代 TabBar + TabContent
+              // Agent 插件视图：专家 / Skills / MCP / Context 合一，全屏取代 TabBar + TabContent
               <AgentSkillsView />
-            ) : activeView === 'agent-experts' ? (
-              <AgentExpertsView />
             ) : activeView === 'excalidraw-gallery' || activeView === 'excalidraw-editor' ? (
               <ExcalidrawView />
             ) : (

@@ -1,9 +1,9 @@
 /**
- * ExpertCard — Agent 专家视图中的专家卡片
+ * ExpertCard — Agent 专家视图中的专家 / 专家团卡片
  */
 
 import * as React from 'react'
-import { Bot } from 'lucide-react'
+import { Bot, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ExpertPackage } from '@luxcoder/shared/experts'
 
@@ -13,6 +13,8 @@ interface ExpertCardProps {
 }
 
 export function ExpertCard({ expert, onOpen }: ExpertCardProps): React.ReactElement {
+  const isTeam = expert.kind === 'team'
+  const roleLabels = expert.roleLabels ?? []
   const skillCount = expert.skillSlugs.length
   const mcpCount = expert.mcpIds.length
 
@@ -33,8 +35,15 @@ export function ExpertCard({ expert, onOpen }: ExpertCardProps): React.ReactElem
       )}
     >
       <div className="flex items-start gap-3">
-        <div className="rounded-xl bg-emerald-500/12 p-2 text-emerald-600 dark:text-emerald-400 shadow-sm shrink-0">
-          <Bot size={18} />
+        <div
+          className={cn(
+            'rounded-xl p-2 shadow-sm shrink-0',
+            isTeam
+              ? 'bg-indigo-500/12 text-indigo-600 dark:text-indigo-400'
+              : 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400',
+          )}
+        >
+          {isTeam ? <Users size={18} /> : <Bot size={18} />}
         </div>
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium text-foreground">{expert.label}</div>
@@ -47,12 +56,25 @@ export function ExpertCard({ expert, onOpen }: ExpertCardProps): React.ReactElem
       </p>
 
       <div className="mt-auto flex flex-wrap items-center gap-2">
-        <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
-          {skillCount} 个 Skill
-        </span>
-        <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
-          {mcpCount} 个 MCP
-        </span>
+        {roleLabels.length > 0 ? (
+          roleLabels.slice(0, 3).map((role) => (
+            <span
+              key={role}
+              className="rounded-md bg-indigo-500/10 px-1.5 py-0.5 text-[11px] font-medium text-indigo-600 dark:text-indigo-400"
+            >
+              {role}
+            </span>
+          ))
+        ) : (
+          <>
+            <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+              {skillCount} 个 Skill
+            </span>
+            <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+              {mcpCount} 个 MCP
+            </span>
+          </>
+        )}
       </div>
     </div>
   )
