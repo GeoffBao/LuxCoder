@@ -41,7 +41,7 @@ describe('Task Board / Project Page navigation', () => {
     expect(resolveCodeMainRoute({
       appMode: 'agent',
       codeMainView: 'project',
-      activeView: 'automations',
+      activeView: 'planning',
     })).toBe('overlay')
   })
 
@@ -100,11 +100,11 @@ describe('shouldShowWorkViewInCode', () => {
     })).toBe(false)
   })
 
-  test('automations / agent-skills 覆盖视图优先，让位', () => {
+  test('planning / agent-skills 覆盖视图优先，让位', () => {
     expect(shouldShowWorkViewInCode({
       appMode: 'agent',
       codeMainView: 'work',
-      activeView: 'automations',
+      activeView: 'planning',
     })).toBe(false)
     expect(shouldShowWorkViewInCode({
       appMode: 'agent',
@@ -138,7 +138,7 @@ describe('shouldShowWorkViewInCode', () => {
 describe('isOverlayActiveView', () => {
   test('isOverlayActiveView 识别三类能力覆盖视图', () => {
     expect(isOverlayActiveView('conversations')).toBe(false)
-    expect(isOverlayActiveView('automations')).toBe(true)
+    expect(isOverlayActiveView('planning')).toBe(true)
     expect(isOverlayActiveView('agent-skills')).toBe(true)
     expect(isOverlayActiveView('agent-experts')).toBe(true)
   })

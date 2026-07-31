@@ -35,6 +35,7 @@ import {
   type AutomationDraft,
 } from '@/atoms/automation-atoms'
 import { agentWorkspacesAtom, agentSessionsAtom, agentChannelIdsAtom, agentRuntimeAtom, currentAgentWorkspaceIdAtom } from '@/atoms/agent-atoms'
+import { planningWorkspaceScopeAtom } from '@/atoms/planning-atoms'
 import { activeSessionIdAtom } from '@/atoms/tab-atoms'
 import { activeViewAtom, agentSkillsTabAtom } from '@/atoms/active-view'
 import { settingsOpenAtom, settingsTabAtom } from '@/atoms/settings-tab'
@@ -356,6 +357,7 @@ export function AutomationFormView(): React.ReactElement | null {
   const [agentSessions, setAgentSessions] = useAtom(agentSessionsAtom)
   const activeSessionId = useAtomValue(activeSessionIdAtom)
   const currentAgentWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
+  const workspaceScope = useAtomValue(planningWorkspaceScopeAtom)
   const setActiveView = useSetAtom(activeViewAtom)
   const setAgentSkillsTab = useSetAtom(agentSkillsTabAtom)
   const setSettingsOpen = useSetAtom(settingsOpenAtom)
@@ -432,10 +434,10 @@ export function AutomationFormView(): React.ReactElement | null {
   }, [])
 
   const refreshAutomations = React.useCallback(async () => {
-    const list = await window.electronAPI.listAutomations()
+    const list = await window.electronAPI.listAutomations(workspaceScope, currentAgentWorkspaceId ?? undefined)
     setAutomations(list)
     return list
-  }, [setAutomations])
+  }, [setAutomations, workspaceScope, currentAgentWorkspaceId])
 
   const persistDraft = React.useCallback((draft: AutomationDraft): Promise<string | null> => {
     if (!canPersistDraft(draft)) return Promise.resolve(draft.id ?? null)

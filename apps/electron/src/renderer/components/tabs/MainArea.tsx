@@ -25,7 +25,7 @@ import { useTrackSessionView } from '@/hooks/useTrackSessionView'
 import { TabBar } from './TabBar'
 import { TabContent } from './TabContent'
 import { AutomationFormView } from '@/components/automation/AutomationFormView'
-import { AutomationsListView } from '@/components/automation/AutomationsListView'
+import { PlanningView } from '@/components/planning/PlanningView'
 import { AgentSkillsView } from '@/components/agent-skills/AgentSkillsView'
 import { AgentExpertsView } from '@/components/agent-experts/AgentExpertsView'
 import { ExcalidrawView } from '@/components/excalidraw/ExcalidrawView'
@@ -241,13 +241,13 @@ export function MainArea(): React.ReactElement {
               <WorkBoardView />
             ) : codeMainRoute === 'project-page' ? (
               <ProjectPageRoute />
-            ) : activeView === 'automations' ? (
+            ) : activeView === 'planning' ? (
               automationFormOpen ? (
                 // 定时任务设置页：与列表同层级替换中间区，不经过 TabBar，避免切换时闪出会话 Tab。
                 <AutomationFormView />
               ) : (
-                // Automations 列表视图：全屏取代 TabBar + TabContent
-                <AutomationsListView />
+                // Task 日历：Todo / 日历 / 定时任务合一，全屏取代 TabBar + TabContent
+                <PlanningView />
               )
             ) : activeView === 'agent-skills' ? (
               // Agent 技能视图：全屏取代 TabBar + TabContent

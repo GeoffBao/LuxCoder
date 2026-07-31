@@ -907,7 +907,7 @@ function ScheduledRunBadge(): React.ReactElement {
 
   const handleClick = (): void => {
     if (!automation) return
-    setActiveView('automations')
+    setActiveView('planning')
     setForm({
       open: true,
       draft: automationToDraft(automation),

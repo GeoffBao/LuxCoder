@@ -7,7 +7,7 @@
 import type { AgentRuntime, AgentThinkingLevel, EnvironmentCheckResult, ThinkingConfig, AgentEffort, FeishuSessionMirrorSettings, SessionListPreference, WindowsShellPreference, ProviderType } from '@luxcoder/shared'
 
 /** 通知音场景类型 */
-export type NotificationSoundType = 'taskComplete' | 'permissionRequest' | 'exitPlanMode'
+export type NotificationSoundType = 'taskComplete' | 'permissionRequest' | 'exitPlanMode' | 'planningReminder'
 
 /** 可选通知音 ID */
 export type NotificationSoundId = 'ding' | 'ding-dong' | 'discord' | 'done' | 'down-power' | 'food' | 'lite' | 'quiet' | 'none'
@@ -20,6 +20,8 @@ export interface NotificationSoundSettings {
   permissionRequest?: NotificationSoundId
   /** 计划审批 */
   exitPlanMode?: NotificationSoundId
+  /** 规划提醒 */
+  planningReminder?: NotificationSoundId
 }
 
 /** 语音输入供应商 */
@@ -227,6 +229,10 @@ export interface AppSettings {
   notificationSounds?: NotificationSoundSettings
   /** 标签页持久化状态（重启恢复） */
   tabState?: PersistedTabSettings
+  /** 规划窗口位置/尺寸持久化 */
+  planningWindowState?: MainWindowState
+  /** 快捷任务窗口位置/尺寸持久化 */
+  quickTaskWindowState?: MainWindowState
   /** Agent 思考模式（遗留 Claude 路径；Pi 以 defaultThinkingLevel / session.thinkingLevel 为准） */
   agentThinking?: ThinkingConfig
   /** Agent 推理深度（遗留全局 fallback） */

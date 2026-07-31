@@ -27,8 +27,17 @@ import {
   currentAgentWorkspaceIdAtom,
   unviewedCompletedSessionIdsAtom,
 } from '@/atoms/agent-atoms'
+import {
+  channelFormDirtyAtom,
+  settingsOpenAtom,
+  settingsPendingSessionNavigationAtom,
+} from '@/atoms/settings-tab'
 
-type OpenSessionFn = (type: TabType, sessionId: string, title: string) => void
+interface OpenSessionOptions {
+  bypassSettingsGuard?: boolean
+}
+
+type OpenSessionFn = (type: TabType, sessionId: string, title: string, options?: OpenSessionOptions) => void
 
 export function useOpenSession(): OpenSessionFn {
   const store = useStore()

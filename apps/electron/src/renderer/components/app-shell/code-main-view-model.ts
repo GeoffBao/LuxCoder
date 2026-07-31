@@ -82,7 +82,7 @@ export function isLegacyCoworkMode(mode: AppMode): boolean {
 /** activeView 是否为全屏覆盖视图（非 conversations 主内容） */
 export function isOverlayActiveView(activeView: ActiveView): boolean {
   return (
-    activeView === 'automations' ||
+    activeView === 'planning' ||
     activeView === 'agent-skills' ||
     activeView === 'agent-experts'
   )
