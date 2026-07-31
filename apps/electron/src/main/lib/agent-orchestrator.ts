@@ -1470,7 +1470,7 @@ export class AgentOrchestrator {
         'mcp__planning__delete_tag',
         'mcp__planning__delete_reminder',
       ])
-      const runTriggeredBy = (input as Record<string, unknown>).triggeredBy as string | undefined
+      const runTriggeredBy = (input as unknown as Record<string, unknown>).triggeredBy as string | undefined
 
       /** Plan 模式是否已被 Agent 进入（初始 plan 模式时天然为 true，其他模式需 EnterPlanMode 触发） */
       let planModeEntered = initialPermissionMode === 'plan'

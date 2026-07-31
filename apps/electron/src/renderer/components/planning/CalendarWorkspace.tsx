@@ -2,11 +2,12 @@ import * as React from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { CalendarDays, ChevronLeft, ChevronRight, Folder, ListTodo, Plus, Repeat2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { PLANNING_CONFLICT_ERROR, AUTOMATION_OCCURRENCE_SAMPLES_PER_DAY, getAutomationOccurrencesByDay } from '@proma/shared'
-import type { Automation, CalendarEvent, PlanningGroup, PlanningTag, Todo } from '@proma/shared'
+import { PLANNING_CONFLICT_ERROR, AUTOMATION_OCCURRENCE_SAMPLES_PER_DAY, getAutomationOccurrencesByDay } from '@luxcoder/shared'
+import type { Automation, CalendarEvent, PlanningGroup, PlanningTag, Todo } from '@luxcoder/shared'
 import { cn } from '@/lib/utils'
 import { automationsAtom } from '@/atoms/automation-atoms'
 import { calendarEventsAtom, calendarPlanningGroupsAtom, planningCalendarCreateRequestAtom, planningTagsAtom, todosAtom } from '@/atoms/planning-atoms'
+import { currentAgentWorkspaceIdAtom } from '@/atoms/agent-atoms'
 import { Button } from '@/components/ui/button'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
@@ -14,7 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { TodoDatePicker, isTodoDateOnly } from '@/components/ui/todo-date-picker'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
+import { Popover, PopoverContent } from '@/components/ui/popover'
+import { Anchor as PopoverAnchor } from '@radix-ui/react-popover'
 import { PlanningFloatingInspector } from '@/components/planning/PlanningFloatingInspector'
 import { PlanningGroupManager } from '@/components/planning/PlanningGroupManager'
 
@@ -166,6 +168,7 @@ export function CalendarWorkspace(): React.ReactElement {
   const [events, setEvents] = useAtom(calendarEventsAtom)
   const todos = useAtomValue(todosAtom)
   const automations = useAtomValue(automationsAtom)
+  const currentWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
   const groups = useAtomValue(calendarPlanningGroupsAtom)
   const setGroups = useSetAtom(calendarPlanningGroupsAtom)
   const tags = useAtomValue(planningTagsAtom)
@@ -276,6 +279,8 @@ export function CalendarWorkspace(): React.ReactElement {
         groupId: draft.groupId === '__none__' ? undefined : draft.groupId,
         tagIds: draft.tagIds,
         todoId: draft.todoId === '__none__' ? undefined : draft.todoId,
+        // 归属当前 Workspace（与列表过滤一致，避免主进程 settings 异步更新导致的错位）。
+        workspaceId: currentWorkspaceId ?? undefined,
       })
       setEvents((current) => [...current, event].sort((a, b) => a.startAt - b.startAt))
       setSelectedTodoId(null)

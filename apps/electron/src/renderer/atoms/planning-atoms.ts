@@ -1,5 +1,5 @@
 import { atom } from 'jotai'
-import type { ActivePlanningReminder, CalendarEvent, PlanningGroup, PlanningTag, Todo } from '@proma/shared'
+import type { ActivePlanningReminder, CalendarEvent, PlanningGroup, PlanningTag, PlanningWorkspaceScope, Todo } from '@luxcoder/shared'
 
 export type PlanningTab = 'todos' | 'calendar' | 'automations'
 
@@ -17,3 +17,5 @@ export const planningSelectedTodoIdAtom = atom<string | null>(null)
 export const planningTodoCreateRequestAtom = atom(0)
 /** 页头和快捷键递增该值，日程工作区收到后打开创建表单。 */
 export const planningCalendarCreateRequestAtom = atom(0)
+/** Todo/日程/定时任务三个 Tab 共享同一个工作区范围开关，默认只看当前 Workspace。 */
+export const planningWorkspaceScopeAtom = atom<PlanningWorkspaceScope>('current')

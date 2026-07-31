@@ -199,9 +199,10 @@ export function computeNextRunAt(
   return result
 }
 
-/** 获取全部定时任务（按 createdAt 升序，保持列表稳定） */
-export function listAutomations(): Automation[] {
-  return readIndex().automations.sort((a, b) => a.createdAt - b.createdAt)
+/** 获取全部定时任务（按 createdAt 升序，保持列表稳定）；传 workspaceId 时按归属 Workspace 过滤，不传表示不过滤（全部工作区）。 */
+export function listAutomations(workspaceId?: string): Automation[] {
+  const all = readIndex().automations.sort((a, b) => a.createdAt - b.createdAt)
+  return workspaceId === undefined ? all : all.filter((automation) => automation.workspaceId === workspaceId)
 }
 
 /** 按 ID 获取单个定时任务 */

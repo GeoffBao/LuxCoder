@@ -140,14 +140,19 @@ export function ShortcutGuideDialog(): React.ReactElement {
 
     let disposed = false
     setGlobalShortcutStatus(null)
-    window.electronAPI.getGlobalShortcutRegistrationStatus()
-      .then((status) => {
-        if (!disposed) setGlobalShortcutStatus(status)
-      })
-      .catch((error) => {
-        console.error('[快捷键地图] 查询全局快捷键状态失败:', error)
-        if (!disposed) setGlobalShortcutStatus({})
-      })
+    // LuxCoder: getGlobalShortcutRegistrationStatus not yet implemented; skip gracefully
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = window.electronAPI as unknown as Record<string, unknown>
+    if (typeof api.getGlobalShortcutRegistrationStatus === 'function') {
+      ;(api.getGlobalShortcutRegistrationStatus as () => Promise<unknown>)()
+        .then((status: unknown) => {
+          if (!disposed) setGlobalShortcutStatus(status as Record<string, boolean> | null)
+        })
+        .catch((error: unknown) => {
+          console.error('[快捷键地图] 查询全局快捷键状态失败:', error)
+          if (!disposed) setGlobalShortcutStatus({})
+        })
+    }
 
     return () => {
       disposed = true

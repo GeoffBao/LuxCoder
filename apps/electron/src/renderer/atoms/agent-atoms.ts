@@ -221,6 +221,7 @@ export interface AgentPendingPrompt {
   sessionId: string
   message: string
   additionalDirectories?: string[]
+  mentionedTodoIds?: string[]
 }
 
 // ===== Atoms =====

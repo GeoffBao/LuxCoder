@@ -49,6 +49,7 @@ import {
 import { updateStatusAtom, initializeUpdater } from './atoms/updater'
 import { automationsAtom } from './atoms/automation-atoms'
 import { draftSessionIdsAtom } from './atoms/draft-session-atoms'
+import { todosAtom, calendarEventsAtom, planningWorkspaceScopeAtom } from './atoms/planning-atoms'
 import {
   notificationsEnabledAtom,
   notificationSoundEnabledAtom,
@@ -373,10 +374,12 @@ function AutomationInitializer(): null {
   const setAutomations = useSetAtom(automationsAtom)
   const setAgentSessions = useSetAtom(agentSessionsAtom)
   const setDraftSessionIds = useSetAtom(draftSessionIdsAtom)
+  const workspaceScope = useAtomValue(planningWorkspaceScopeAtom)
+  const currentWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
 
   useEffect(() => {
     const load = (): void => {
-      window.electronAPI.listAutomations().then(setAutomations).catch(console.error)
+      window.electronAPI.listAutomations(workspaceScope, currentWorkspaceId ?? undefined).then(setAutomations).catch(console.error)
       window.electronAPI.listAgentSessions().then((sessions) => {
         setAgentSessions(sessions)
         // 一次性迁移：将未发送过消息的空 draft 会话补入持久化 draft 集合
@@ -397,7 +400,33 @@ function AutomationInitializer(): null {
     load()
     const unsub = window.electronAPI.onAutomationChanged(load)
     return unsub
-  }, [setAutomations, setAgentSessions, setDraftSessionIds])
+  }, [setAutomations, setAgentSessions, setDraftSessionIds, workspaceScope, currentWorkspaceId])
+
+  return null
+}
+
+/**
+ * 任务/日程（Planning：Todo + 日程）初始化组件
+ *
+ * 加载当前工作区范围内的 Todo 与日程列表，并订阅主进程的变更事件刷新。
+ */
+function PlanningInitializer(): null {
+  const setTodos = useSetAtom(todosAtom)
+  const setCalendarEvents = useSetAtom(calendarEventsAtom)
+  const workspaceScope = useAtomValue(planningWorkspaceScopeAtom)
+  const currentWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
+
+  useEffect(() => {
+    const load = (): void => {
+      window.electronAPI.listTodos(workspaceScope, currentWorkspaceId ?? undefined).then(setTodos).catch(console.error)
+      window.electronAPI.listCalendarEvents(workspaceScope, currentWorkspaceId ?? undefined).then(setCalendarEvents).catch(console.error)
+    }
+    load()
+    const unsub = window.electronAPI.onPlanningChanged((change) => {
+      if (change.resources.includes('todos') || change.resources.includes('calendar_events')) load()
+    })
+    return unsub
+  }, [setTodos, setCalendarEvents, workspaceScope, currentWorkspaceId])
 
   return null
 }
@@ -991,6 +1020,7 @@ if (isQuickTaskWindow) {
       <ChatToolInitializer />
       <UpdaterInitializer />
       <AutomationInitializer />
+      <PlanningInitializer />
       <ProjectsInitializer />
       <FeishuInitializer />
       <DingTalkInitializer />

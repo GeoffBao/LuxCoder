@@ -5,7 +5,7 @@
  */
 
 import { randomUUID } from 'node:crypto'
-import { PLANNING_CONFLICT_ERROR } from '@proma/shared'
+import { PLANNING_CONFLICT_ERROR } from '@luxcoder/shared'
 import type {
   ActivePlanningReminder,
   CalendarEvent,
@@ -28,8 +28,14 @@ import type {
   UpdatePlanningGroupInput,
   UpdatePlanningTagInput,
   UpdateTodoInput,
-} from '@proma/shared'
+} from '@luxcoder/shared'
 import { getPlanningDatabasePath } from './config-paths'
+import { getSettings } from './settings-service'
+
+/** 当前 Workspace 兜底值；未显式指定 workspaceId 时用于隔离归属，复用与 bridge-command-handler 一致的取值方式。 */
+function getCurrentWorkspaceId(): string {
+  return getSettings().agentWorkspaceId ?? ''
+}
 
 interface SqliteStatement {
   all(params?: Record<string, unknown>): unknown[]
@@ -41,7 +47,7 @@ interface SqliteModule { DatabaseSync: new (path: string) => SqliteDatabase }
 
 type TodoRow = {
   id: string; title: string; notes: string | null; status: 'open' | 'completed'; priority: 'low' | 'medium' | 'high'
-  due_at: number | null; group_id: string | null; workspace_id: string | null
+  due_at: number | null; group_id: string | null; workspace_id: string | null; project_id: string | null
   created_at: number; updated_at: number; completed_at: number | null
 }
 type CalendarEventRow = {
@@ -94,7 +100,7 @@ function getDatabase(): SqliteDatabase {
     CREATE TABLE IF NOT EXISTS todos (
       id TEXT PRIMARY KEY, title TEXT NOT NULL CHECK(length(title) BETWEEN 1 AND 500), notes TEXT,
       status TEXT NOT NULL CHECK(status IN ('open', 'completed')), priority TEXT NOT NULL CHECK(priority IN ('low', 'medium', 'high')),
-      due_at INTEGER, group_id TEXT REFERENCES planning_groups(id) ON DELETE SET NULL, workspace_id TEXT,
+      due_at INTEGER, group_id TEXT REFERENCES planning_groups(id) ON DELETE SET NULL, workspace_id TEXT, project_id TEXT,
       created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, completed_at INTEGER
     );
     CREATE TABLE IF NOT EXISTS calendar_events (
@@ -125,6 +131,11 @@ function getDatabase(): SqliteDatabase {
       PRIMARY KEY(todo_id, session_id)
     );
   `)
+  // todos.project_id 是后续新增列；已存在的旧库（CREATE TABLE IF NOT EXISTS 不会补列）需要显式迁移。
+  const todoColumns = db.prepare(`PRAGMA table_info(todos)`).all() as Array<{ name: string }>
+  if (!todoColumns.some((column) => column.name === 'project_id')) {
+    db.exec('ALTER TABLE todos ADD COLUMN project_id TEXT')
+  }
   db.exec(`
     CREATE INDEX IF NOT EXISTS todos_status_due_at_idx ON todos(status, due_at);
     CREATE INDEX IF NOT EXISTS todos_group_id_idx ON todos(group_id);
@@ -254,7 +265,7 @@ function hydrateTodos(rows: TodoRow[]): Todo[] {
     id: row.id, title: row.title, notes: row.notes ?? undefined, status: row.status, priority: row.priority,
     dueAt: row.due_at ?? undefined, groupId: row.group_id ?? undefined, group: row.group_id ? groups.get(row.group_id) : undefined,
     tags: tags.get(row.id) ?? [], reminders: reminders.get(row.id) ?? [], sessionLinks: links.get(row.id) ?? [],
-    workspaceId: row.workspace_id ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at, completedAt: row.completed_at ?? undefined,
+    workspaceId: row.workspace_id ?? undefined, projectId: row.project_id ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at, completedAt: row.completed_at ?? undefined,
   }))
 }
 
@@ -271,7 +282,7 @@ function hydrateCalendarEvents(rows: CalendarEventRow[]): CalendarEvent[] {
   }))
 }
 function todoFromRow(row: TodoRow): Todo {
-  return { id: row.id, title: row.title, notes: row.notes ?? undefined, status: row.status, priority: row.priority, dueAt: row.due_at ?? undefined, groupId: row.group_id ?? undefined, group: getPlanningGroup(row.group_id, 'todo'), tags: getTags('todo', row.id), reminders: getReminders('todo', row.id), sessionLinks: getTodoSessionLinks(row.id), workspaceId: row.workspace_id ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at, completedAt: row.completed_at ?? undefined }
+  return { id: row.id, title: row.title, notes: row.notes ?? undefined, status: row.status, priority: row.priority, dueAt: row.due_at ?? undefined, groupId: row.group_id ?? undefined, group: getPlanningGroup(row.group_id, 'todo'), tags: getTags('todo', row.id), reminders: getReminders('todo', row.id), sessionLinks: getTodoSessionLinks(row.id), workspaceId: row.workspace_id ?? undefined, projectId: row.project_id ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at, completedAt: row.completed_at ?? undefined }
 }
 function calendarEventFromRow(row: CalendarEventRow): CalendarEvent {
   return { id: row.id, title: row.title, notes: row.notes ?? undefined, startAt: row.start_at, endAt: row.end_at ?? undefined, allDay: row.all_day === 1, groupId: row.calendar_group_id ?? undefined, group: getPlanningGroup(row.calendar_group_id, 'calendar'), tags: getTags('calendar_event', row.id), reminders: getReminders('calendar_event', row.id), workspaceId: row.workspace_id ?? undefined, todoId: row.todo_id ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at }
@@ -362,6 +373,7 @@ export function listTodos(query: TodoListQuery = {}): Todo[] {
   const where: string[] = []; const params: Record<string, unknown> = {}; const limit = normalizeLimit(query.limit)
   if (query.status) { where.push('status = :status'); params.status = query.status }
   if (query.dueBefore !== undefined) { where.push('due_at IS NOT NULL AND due_at <= :dueBefore'); params.dueBefore = query.dueBefore }
+  if (query.workspaceId !== undefined) { where.push('workspace_id = :workspaceId'); params.workspaceId = query.workspaceId }
   if (limit) params.limit = limit
   const sql = `SELECT * FROM todos ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY CASE status WHEN 'open' THEN 0 ELSE 1 END, due_at IS NULL, due_at, updated_at DESC ${limit ? 'LIMIT :limit' : ''}`
   return hydrateTodos(getDatabase().prepare(sql).all(params) as TodoRow[])
@@ -388,11 +400,12 @@ export function createTodo(input: CreateTodoInput): Todo {
   const todo = {
     id: randomUUID(), title: assertTitle(input.title, 'Todo'), notes: input.notes?.trim() || undefined,
     status: 'open' as const, priority: input.priority ?? 'medium', dueAt: input.dueAt, groupId: input.groupId,
-    workspaceId: input.workspaceId || undefined, createdAt: now, updatedAt: now,
+    workspaceId: input.workspaceId || getCurrentWorkspaceId() || undefined, projectId: input.projectId || undefined,
+    createdAt: now, updatedAt: now,
   }
   if (todo.groupId && !getPlanningGroup(todo.groupId, 'todo')) throw new Error('Todo 分组不存在')
   withPlanningTransaction(() => {
-    getDatabase().prepare(`INSERT INTO todos (id,title,notes,status,priority,due_at,group_id,workspace_id,created_at,updated_at,completed_at) VALUES (:id,:title,:notes,:status,:priority,:dueAt,:groupId,:workspaceId,:createdAt,:updatedAt,NULL)`).run({ id: todo.id, title: todo.title, notes: todo.notes ?? null, status: todo.status, priority: todo.priority, dueAt: todo.dueAt ?? null, groupId: todo.groupId ?? null, workspaceId: todo.workspaceId ?? null, createdAt: todo.createdAt, updatedAt: todo.updatedAt })
+    getDatabase().prepare(`INSERT INTO todos (id,title,notes,status,priority,due_at,group_id,workspace_id,project_id,created_at,updated_at,completed_at) VALUES (:id,:title,:notes,:status,:priority,:dueAt,:groupId,:workspaceId,:projectId,:createdAt,:updatedAt,NULL)`).run({ id: todo.id, title: todo.title, notes: todo.notes ?? null, status: todo.status, priority: todo.priority, dueAt: todo.dueAt ?? null, groupId: todo.groupId ?? null, workspaceId: todo.workspaceId ?? null, projectId: todo.projectId ?? null, createdAt: todo.createdAt, updatedAt: todo.updatedAt })
     if (input.tagIds !== undefined) replaceTags('todo', todo.id, input.tagIds)
     // 未显式传入提醒时，完成时间即默认提醒时间；保持各入口行为一致。
     if (input.reminders) createReminders('todo', todo.id, input.reminders, 'manual')
@@ -417,15 +430,16 @@ export function updateTodo(input: UpdateTodoInput): Todo | undefined {
     dueAt: input.dueAt === undefined ? old.dueAt : input.dueAt ?? undefined,
     groupId: input.groupId === undefined ? old.groupId : input.groupId ?? undefined,
     workspaceId: input.workspaceId === undefined ? old.workspaceId : input.workspaceId ?? undefined,
+    projectId: input.projectId === undefined ? old.projectId : input.projectId ?? undefined,
     status,
     completedAt: status === 'completed' ? (old.completedAt ?? Date.now()) : undefined,
     updatedAt: Math.max(Date.now(), old.updatedAt + 1),
   }
   if (updated.groupId && !getPlanningGroup(updated.groupId, 'todo')) throw new Error('Todo 分组不存在')
   withPlanningTransaction(() => {
-    const params: Record<string, unknown> = { id: updated.id, title: updated.title, notes: updated.notes ?? null, status: updated.status, priority: updated.priority, dueAt: updated.dueAt ?? null, groupId: updated.groupId ?? null, workspaceId: updated.workspaceId ?? null, updatedAt: updated.updatedAt, completedAt: updated.completedAt ?? null }
+    const params: Record<string, unknown> = { id: updated.id, title: updated.title, notes: updated.notes ?? null, status: updated.status, priority: updated.priority, dueAt: updated.dueAt ?? null, groupId: updated.groupId ?? null, workspaceId: updated.workspaceId ?? null, projectId: updated.projectId ?? null, updatedAt: updated.updatedAt, completedAt: updated.completedAt ?? null }
     if (input.expectedUpdatedAt !== undefined) params.expectedUpdatedAt = input.expectedUpdatedAt
-    const result = getDatabase().prepare(`UPDATE todos SET title=:title,notes=:notes,status=:status,priority=:priority,due_at=:dueAt,group_id=:groupId,workspace_id=:workspaceId,updated_at=:updatedAt,completed_at=:completedAt WHERE id=:id${input.expectedUpdatedAt === undefined ? '' : ' AND updated_at=:expectedUpdatedAt'}`).run(params) as { changes?: number }
+    const result = getDatabase().prepare(`UPDATE todos SET title=:title,notes=:notes,status=:status,priority=:priority,due_at=:dueAt,group_id=:groupId,workspace_id=:workspaceId,project_id=:projectId,updated_at=:updatedAt,completed_at=:completedAt WHERE id=:id${input.expectedUpdatedAt === undefined ? '' : ' AND updated_at=:expectedUpdatedAt'}`).run(params) as { changes?: number }
     if ((result.changes ?? 0) === 0) throw new Error(PLANNING_CONFLICT_ERROR)
     if (input.tagIds !== undefined) replaceTags('todo', old.id, input.tagIds)
     if (input.dueAt !== undefined && old.dueAt !== updated.dueAt) syncTodoDueAtReminder(old.id, updated.dueAt, updated.updatedAt)
@@ -446,6 +460,7 @@ export function listCalendarEvents(query: CalendarEventListQuery = {}): Calendar
   const where: string[] = []; const params: Record<string, unknown> = {}; const limit = normalizeLimit(query.limit)
   if (query.from !== undefined) { where.push('COALESCE(end_at,start_at)>=:from'); params.from = query.from }
   if (query.to !== undefined) { where.push('start_at<=:to'); params.to = query.to }
+  if (query.workspaceId !== undefined) { where.push('workspace_id = :workspaceId'); params.workspaceId = query.workspaceId }
   if (limit) params.limit = limit
   return hydrateCalendarEvents(getDatabase().prepare(`SELECT * FROM calendar_events ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY start_at ${limit ? 'LIMIT :limit' : ''}`).all(params) as CalendarEventRow[])
 }
@@ -460,7 +475,7 @@ export function createCalendarEvent(input: CreateCalendarEventInput): CalendarEv
   const event = {
     id: randomUUID(), title: assertTitle(input.title, '日程'), notes: input.notes?.trim() || undefined,
     startAt: input.startAt, endAt: input.endAt, allDay: input.allDay ?? false, groupId: input.groupId,
-    workspaceId: input.workspaceId || undefined, todoId: input.todoId || undefined, createdAt: now, updatedAt: now,
+    workspaceId: input.workspaceId || getCurrentWorkspaceId() || undefined, todoId: input.todoId || undefined, createdAt: now, updatedAt: now,
   }
   if (event.groupId && !getPlanningGroup(event.groupId, 'calendar')) throw new Error('日程分组不存在')
   withPlanningTransaction(() => {

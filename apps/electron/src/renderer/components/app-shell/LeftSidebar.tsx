@@ -11,7 +11,7 @@
 import * as React from 'react'
 import { useAtom, useSetAtom, useAtomValue, useStore } from 'jotai'
 import { toast } from 'sonner'
-import { Pin, PinOff, Settings, Plus, Trash2, Pencil, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MessageSquare, MoreHorizontal, FolderOpen, GripVertical, Clock, AlarmClock, ChevronRight, Blocks, GitBranch, Download, Loader2, RotateCw, Layers, UserRound, LayoutDashboard, PenTool } from 'lucide-react'
+import { Pin, PinOff, Settings, Plus, Trash2, Pencil, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MessageSquare, MoreHorizontal, FolderOpen, GripVertical, Clock, CalendarDays, ChevronRight, Blocks, GitBranch, Download, Loader2, RotateCw, Layers, UserRound, LayoutDashboard, PenTool } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { MarqueeText } from '@/components/ui/marquee-text'
@@ -1007,9 +1007,9 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     return () => window.removeEventListener('focus', handleFocus)
   }, [setConversations, setAgentSessions])
 
-  /** 打开/关闭自动任务列表 */
-  const handleOpenAutomations = React.useCallback((): void => {
-    if (activeView === 'automations') {
+  /** 打开/关闭 Task 日历（Todo / 日历 / 定时任务） */
+  const handleOpenPlanning = React.useCallback((): void => {
+    if (activeView === 'planning') {
       // 编辑页 → 关表单回列表；列表页 → 退出到对话
       if (store.get(automationFormAtom).open) {
         setAutomationForm({ open: false, draft: null })
@@ -1019,7 +1019,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       return
     }
     setAutomationForm({ open: false, draft: null })
-    setActiveView('automations')
+    setActiveView('planning')
   }, [activeView, setAutomationForm, setActiveView, store])
 
   /** 打开/关闭 Agent 技能视图 */
@@ -2717,25 +2717,58 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             </Tooltip>
           ) : null}
 
+          {mode === 'agent' && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={`Task 看板，${activeTaskCount} 个未完成`}
+                  onClick={handleOpenTaskBoard}
+                  className={cn(
+                    'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag border',
+                    codeMainView === 'tasks' && activeView === 'conversations'
+                      ? 'border-primary/80 bg-primary text-primary-foreground shadow-sm'
+                      : 'border-border/45 bg-foreground/[0.025] text-foreground/45 hover:border-border/70 hover:bg-foreground/[0.045] hover:text-primary',
+                  )}
+                >
+                  <LayoutDashboard size={16} />
+                  {activeTaskCount > 0 && (
+                    <span
+                      className={cn(
+                        'absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-medium tabular-nums',
+                        codeMainView === 'tasks' && activeView === 'conversations'
+                          ? 'bg-primary-foreground text-primary'
+                          : 'bg-primary text-primary-foreground',
+                      )}
+                    >
+                      {formatSidebarModuleCount(activeTaskCount)}
+                    </span>
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Task 看板（{activeTaskCount} 个未完成）</TooltipContent>
+            </Tooltip>
+          )}
+
           <Tooltip>
             <TooltipTrigger asChild>
               <button
                 type="button"
-                aria-label={`Agent 自动化，${automationCount} 个任务已创建`}
-                onClick={handleOpenAutomations}
+                aria-label={`Task 日历，${automationCount} 个任务已创建`}
+                onClick={handleOpenPlanning}
                 className={cn(
                   'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag border',
-                  activeView === 'automations'
+                  activeView === 'planning'
                     ? 'border-primary/80 bg-primary text-primary-foreground shadow-sm'
                     : 'border-border/45 bg-foreground/[0.025] text-foreground/45 hover:border-border/70 hover:bg-foreground/[0.045] hover:text-primary',
                 )}
               >
-                <AlarmClock size={16} />
+                <CalendarDays size={16} />
                 {automationCount > 0 && (
                   <span
                     className={cn(
                       'absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-medium tabular-nums',
-                      activeView === 'automations'
+                      activeView === 'planning'
                         ? 'bg-primary-foreground text-primary'
                         : 'bg-primary text-primary-foreground',
                     )}
@@ -2746,7 +2779,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               </button>
             </TooltipTrigger>
             <TooltipContent side="right">
-              Agent 自动化（{automationCount} 个任务已创建）
+              Task 日历（{automationCount} 个任务已创建）
             </TooltipContent>
           </Tooltip>
 
@@ -2806,39 +2839,6 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               <TooltipContent side="right">
                 Agent 专家（{expertsCount} 个角色）
               </TooltipContent>
-            </Tooltip>
-          )}
-
-          {mode === 'agent' && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  aria-label={`任务看板，${activeTaskCount} 个未完成`}
-                  onClick={handleOpenTaskBoard}
-                  className={cn(
-                    'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag border',
-                    codeMainView === 'tasks' && activeView === 'conversations'
-                      ? 'border-primary/80 bg-primary text-primary-foreground shadow-sm'
-                      : 'border-border/45 bg-foreground/[0.025] text-foreground/45 hover:border-border/70 hover:bg-foreground/[0.045] hover:text-primary',
-                  )}
-                >
-                  <LayoutDashboard size={16} />
-                  {activeTaskCount > 0 && (
-                    <span
-                      className={cn(
-                        'absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-medium tabular-nums',
-                        codeMainView === 'tasks' && activeView === 'conversations'
-                          ? 'bg-primary-foreground text-primary'
-                          : 'bg-primary text-primary-foreground',
-                      )}
-                    >
-                      {formatSidebarModuleCount(activeTaskCount)}
-                    </span>
-                  )}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right">任务看板（{activeTaskCount} 个未完成）</TooltipContent>
             </Tooltip>
           )}
 
@@ -3151,17 +3151,31 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         )}
       </div>
 
-      {/* Agent 自动化入口：作为任务中心入口放在置顶区上方，不参与置顶列表层级。 */}
-      <div className="sidebar-module-zone px-3 pt-2 pb-0.5">
+      {/* 任务看板：Workspace 级正式工作项入口，与 Task 日历相邻放在侧栏最上方。 */}
+      {mode === 'agent' && (
+        <div className="sidebar-module-zone px-3 pt-2 pb-0.5">
+          <SidebarModule
+            icon={LayoutDashboard}
+            title="Task 看板"
+            count={activeTaskCount}
+            active={codeMainView === 'tasks' && activeView === 'conversations'}
+            onClick={handleOpenTaskBoard}
+            ariaLabel={`Task 看板，${activeTaskCount} 个未完成`}
+          />
+        </div>
+      )}
+
+      {/* Task 日历入口：Todo / 日历 / 定时任务合一，作为任务中心入口放在置顶区上方，不参与置顶列表层级。 */}
+      <div className={cn('sidebar-module-zone px-3 pb-0.5', mode !== 'agent' && 'pt-2')}>
         <SidebarModule
-          icon={AlarmClock}
-          title="Agent 自动化"
+          icon={CalendarDays}
+          title="Task 日历"
           count={automationCount}
-          active={activeView === 'automations'}
-          onClick={handleOpenAutomations}
-          ariaLabel={`Agent 自动化，${automationCount} 个任务已创建`}
+          active={activeView === 'planning'}
+          onClick={handleOpenPlanning}
+          ariaLabel={`Task 日历，${automationCount} 个任务已创建`}
           classNames={{
-            row: cn('automation-entry', activeView === 'automations' && 'automation-entry-selected'),
+            row: cn('automation-entry', activeView === 'planning' && 'automation-entry-selected'),
             icon: 'automation-entry-icon',
             badge: 'automation-entry-badge',
           }}
@@ -3193,20 +3207,6 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             active={activeView === 'agent-experts'}
             onClick={handleOpenAgentExperts}
             ariaLabel={`Agent 专家，${expertsCount} 个角色`}
-          />
-        </div>
-      )}
-
-      {/* 任务看板：Workspace 级正式工作项入口，位于 Agent 专家下方。 */}
-      {mode === 'agent' && (
-        <div className="sidebar-module-zone px-3 pb-0.5">
-          <SidebarModule
-            icon={LayoutDashboard}
-            title="任务看板"
-            count={activeTaskCount}
-            active={codeMainView === 'tasks' && activeView === 'conversations'}
-            onClick={handleOpenTaskBoard}
-            ariaLabel={`Task 看板，${activeTaskCount} 个未完成`}
           />
         </div>
       )}

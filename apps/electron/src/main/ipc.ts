@@ -9,7 +9,7 @@ import { join, resolve, sep, dirname } from 'node:path'
 import { existsSync, realpathSync, rmSync, readFileSync, writeFileSync, mkdirSync, statSync, readdirSync, copyFileSync, renameSync } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS, EXPERT_IPC_CHANNELS, AGENT_THINKING_LEVELS, isLuxCoderPermissionMode, normalizePathForCompare, PLANNING_IPC_CHANNELS } from '@luxcoder/shared'
+import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS, EXPERT_IPC_CHANNELS, AGENT_THINKING_LEVELS, isLuxCoderPermissionMode, normalizePathForCompare, PLANNING_IPC_CHANNELS, type PlanningWorkspaceScope } from '@luxcoder/shared'
 import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, SCRATCH_PAD_IPC_CHANNELS, EXCALIDRAW_IPC_CHANNELS, QUICK_TASK_IPC_CHANNELS, VOICE_DICTATION_IPC_CHANNELS, DOCK_BADGE_IPC_CHANNELS, STORAGE_IPC_CHANNELS } from '../types'
 import type {
   QuickTaskSubmitInput,
@@ -127,6 +127,8 @@ import type {
   ActivePlanningReminder,
   CreateTodoInput,
   UpdateTodoInput,
+  StartTodoAgentInput,
+  StartTodoAgentResult,
   CreateCalendarEventInput,
   UpdateCalendarEventInput,
   CreatePlanningGroupInput,
@@ -202,9 +204,11 @@ import {
 import { runAutomationNow, broadcastChanged as broadcastAutomationsChanged } from './lib/automation-scheduler'
 import {
   listTodos,
+  getTodo,
   createTodo,
   updateTodo,
   deleteTodo,
+  touchTodoSession,
   listCalendarEvents,
   createCalendarEvent,
   updateCalendarEvent,
@@ -4975,7 +4979,8 @@ export function registerIpcHandlers(): void {
     showPlanningWindow()
   })
 
-  ipcMain.handle(PLANNING_IPC_CHANNELS.LIST_TODOS, async (): Promise<Todo[]> => listTodos())
+  ipcMain.handle(PLANNING_IPC_CHANNELS.LIST_TODOS, async (_, scope?: PlanningWorkspaceScope, workspaceId?: string): Promise<Todo[]> =>
+    listTodos(scope === 'all' ? {} : { workspaceId: workspaceId ?? getSettings().agentWorkspaceId ?? '' }))
   ipcMain.handle(PLANNING_IPC_CHANNELS.CREATE_TODO, async (_, input: CreateTodoInput): Promise<Todo> => {
     if (!input || !isPlanningTitle(input.title)) throw new Error('Todo 标题不能为空且不能超过 500 字')
     if (input.priority !== undefined && !isTodoPriority(input.priority)) throw new Error('Todo priority 非法')
@@ -4984,6 +4989,19 @@ export function registerIpcHandlers(): void {
     const todo = createTodo(input)
     broadcastPlanningChanged(['todos', 'reminders'])
     return todo
+  })
+  ipcMain.handle(PLANNING_IPC_CHANNELS.START_TODO_AGENT, async (_, input: StartTodoAgentInput): Promise<StartTodoAgentResult> => {
+    if (!input || typeof input.todoId !== 'string' || !input.todoId) throw new Error('Todo id 必填')
+    if (typeof input.workspaceId !== 'string' || !input.workspaceId) throw new Error('workspaceId 必填')
+    if (typeof input.channelId !== 'string' || !input.channelId) throw new Error('channelId 必填')
+    if (!isPlanningTimestamp(input.expectedUpdatedAt)) throw new Error('Todo expectedUpdatedAt 非法')
+    const todo = getTodo(input.todoId)
+    if (!todo) throw new Error('Todo 不存在')
+    if (todo.updatedAt !== input.expectedUpdatedAt) throw new Error('Todo 已被修改，请刷新后重试')
+    const session = createAgentSession(todo.title, input.channelId, input.workspaceId, input.modelId, getSettings().agentRuntime ?? 'pi')
+    touchTodoSession(todo.id, session.id)
+    broadcastPlanningChanged(['todos'])
+    return { todo: getTodo(todo.id) ?? todo, session }
   })
   ipcMain.handle(PLANNING_IPC_CHANNELS.UPDATE_TODO, async (_, input: UpdateTodoInput): Promise<Todo | undefined> => {
     if (!input || typeof input.id !== 'string' || !input.id) throw new Error('Todo id 必填')
@@ -5003,7 +5021,8 @@ export function registerIpcHandlers(): void {
     return deleted
   })
 
-  ipcMain.handle(PLANNING_IPC_CHANNELS.LIST_CALENDAR_EVENTS, async (): Promise<CalendarEvent[]> => listCalendarEvents())
+  ipcMain.handle(PLANNING_IPC_CHANNELS.LIST_CALENDAR_EVENTS, async (_, scope?: PlanningWorkspaceScope, workspaceId?: string): Promise<CalendarEvent[]> =>
+    listCalendarEvents(scope === 'all' ? {} : { workspaceId: workspaceId ?? getSettings().agentWorkspaceId ?? '' }))
   ipcMain.handle(PLANNING_IPC_CHANNELS.CREATE_CALENDAR_EVENT, async (_, input: CreateCalendarEventInput): Promise<CalendarEvent> => {
     if (!input || !isPlanningTitle(input.title) || !isPlanningTimestamp(input.startAt)) throw new Error('日程标题和 startAt 必填')
     if (input.endAt !== undefined && (!isPlanningTimestamp(input.endAt) || input.endAt < input.startAt)) throw new Error('日程 endAt 非法')
@@ -5175,7 +5194,8 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(
     AUTOMATION_IPC_CHANNELS.LIST,
-    async (): Promise<Automation[]> => listAutomations()
+    async (_, scope?: PlanningWorkspaceScope, workspaceId?: string): Promise<Automation[]> =>
+      listAutomations(scope === 'all' ? undefined : (workspaceId ?? getSettings().agentWorkspaceId ?? ''))
   )
 
   ipcMain.handle(

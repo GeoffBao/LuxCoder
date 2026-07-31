@@ -9,6 +9,7 @@ import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { PROJECT_IPC_CHANNELS, TASK_IPC_CHANNELS, SESSION_COMMAND_CHANNEL, SESSION_GROUP_IPC_CHANNELS, TEAMBITION_IPC_CHANNELS, EXPERT_IPC_CHANNELS } from '@luxcoder/shared/channels'
 import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS, PLANNING_IPC_CHANNELS } from '@luxcoder/shared'
 import type { TaskAggregateSummary, TaskMetadataPatch, TaskWorkflow } from '@luxcoder/shared/tasks'
+import type { StartTodoAgentInput, StartTodoAgentResult, PlanningWorkspaceScope } from '@luxcoder/shared'
 import { LABEL_IPC_CHANNELS } from '@luxcoder/shared/channels'
 import type { WorkspaceLabel } from '@luxcoder/shared/labels'
 import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, SCRATCH_PAD_IPC_CHANNELS, EXCALIDRAW_IPC_CHANNELS, DOCK_BADGE_IPC_CHANNELS, STORAGE_IPC_CHANNELS } from '../types'
@@ -172,6 +173,12 @@ import type {
   TrayCreateSessionData,
   TrayOpenAgentSessionData,
 } from '../types'
+
+/** 快速任务窗口事件 */
+export type QuickTaskWindowEvent =
+  | { type: 'submit'; input: QuickTaskSubmitInput }
+  | { type: 'hide' }
+  | { type: 'open-session'; data: QuickTaskOpenSessionData }
 
 interface TaskCreateRequest {
   yaml: string
@@ -1294,8 +1301,8 @@ export interface ElectronAPI {
   migrationCancelImport: (tempDir: string) => Promise<void>
 
   // ===== 定时任务（Automation）=====
-  /** 获取全部定时任务 */
-  listAutomations: () => Promise<Automation[]>
+  /** 获取定时任务；scope 默认 'current' 按当前 Workspace 过滤，'all' 不过滤；workspaceId 显式指定时优先使用 */
+  listAutomations: (scope?: PlanningWorkspaceScope, workspaceId?: string) => Promise<Automation[]>
   /** 创建定时任务 */
   createAutomation: (input: CreateAutomationInput) => Promise<Automation>
   /** 更新定时任务 */
@@ -1431,11 +1438,13 @@ export interface ElectronAPI {
   // ===== 任务 / 日程（Planning）=====
   /** 打开或聚焦单例独立任务/日程窗口。 */
   openPlanningWindow: () => Promise<void>
-  listTodos: () => Promise<Todo[]>
+  /** 为 Todo 启动 Agent 会话（Planning → Agent 桥接） */
+  startTodoAgent: (input: StartTodoAgentInput) => Promise<StartTodoAgentResult>
+  listTodos: (scope?: PlanningWorkspaceScope, workspaceId?: string) => Promise<Todo[]>
   createTodo: (input: CreateTodoInput) => Promise<Todo>
   updateTodo: (input: UpdateTodoInput) => Promise<Todo | undefined>
   deleteTodo: (id: string) => Promise<boolean>
-  listCalendarEvents: () => Promise<CalendarEvent[]>
+  listCalendarEvents: (scope?: PlanningWorkspaceScope, workspaceId?: string) => Promise<CalendarEvent[]>
   createCalendarEvent: (input: CreateCalendarEventInput) => Promise<CalendarEvent>
   updateCalendarEvent: (input: UpdateCalendarEventInput) => Promise<CalendarEvent | undefined>
   deleteCalendarEvent: (id: string) => Promise<boolean>
@@ -2732,6 +2741,12 @@ const electronAPI: ElectronAPI = {
     ipcRenderer.on('quick-task:open-session', listener)
     return () => { ipcRenderer.removeListener('quick-task:open-session', listener) }
   },
+  onQuickTaskEvent: (callback: (event: QuickTaskWindowEvent) => void) => {
+    // LuxCoder: planning quick-task IPC stub, to be completed with quick-task window
+    const listener = (_: unknown, event: QuickTaskWindowEvent): void => callback(event)
+    ipcRenderer.on('quick-task:event', listener)
+    return () => { ipcRenderer.removeListener('quick-task:event', listener) }
+  },
 
   // ===== 语音输入 =====
 
@@ -2886,7 +2901,7 @@ const electronAPI: ElectronAPI = {
   },
 
   // ===== 定时任务（Automation）=====
-  listAutomations: () => ipcRenderer.invoke(AUTOMATION_IPC_CHANNELS.LIST),
+  listAutomations: (scope?: PlanningWorkspaceScope, workspaceId?: string) => ipcRenderer.invoke(AUTOMATION_IPC_CHANNELS.LIST, scope, workspaceId),
   createAutomation: (input: CreateAutomationInput) =>
     ipcRenderer.invoke(AUTOMATION_IPC_CHANNELS.CREATE, input),
   updateAutomation: (input: UpdateAutomationInput) =>
@@ -3132,11 +3147,12 @@ const electronAPI: ElectronAPI = {
 
   // ===== 任务 / 日程（Planning）=====
   openPlanningWindow: () => ipcRenderer.invoke(PLANNING_IPC_CHANNELS.OPEN_WINDOW),
-  listTodos: () => ipcRenderer.invoke(PLANNING_IPC_CHANNELS.LIST_TODOS),
+  startTodoAgent: (input: StartTodoAgentInput) => ipcRenderer.invoke(PLANNING_IPC_CHANNELS.START_TODO_AGENT, input),
+  listTodos: (scope?: PlanningWorkspaceScope, workspaceId?: string) => ipcRenderer.invoke(PLANNING_IPC_CHANNELS.LIST_TODOS, scope, workspaceId),
   createTodo: (input: CreateTodoInput) => ipcRenderer.invoke(PLANNING_IPC_CHANNELS.CREATE_TODO, input),
   updateTodo: (input: UpdateTodoInput) => ipcRenderer.invoke(PLANNING_IPC_CHANNELS.UPDATE_TODO, input),
   deleteTodo: (id: string) => ipcRenderer.invoke(PLANNING_IPC_CHANNELS.DELETE_TODO, id),
-  listCalendarEvents: () => ipcRenderer.invoke(PLANNING_IPC_CHANNELS.LIST_CALENDAR_EVENTS),
+  listCalendarEvents: (scope?: PlanningWorkspaceScope, workspaceId?: string) => ipcRenderer.invoke(PLANNING_IPC_CHANNELS.LIST_CALENDAR_EVENTS, scope, workspaceId),
   createCalendarEvent: (input: CreateCalendarEventInput) => ipcRenderer.invoke(PLANNING_IPC_CHANNELS.CREATE_CALENDAR_EVENT, input),
   updateCalendarEvent: (input: UpdateCalendarEventInput) => ipcRenderer.invoke(PLANNING_IPC_CHANNELS.UPDATE_CALENDAR_EVENT, input),
   deleteCalendarEvent: (id: string) => ipcRenderer.invoke(PLANNING_IPC_CHANNELS.DELETE_CALENDAR_EVENT, id),

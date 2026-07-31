@@ -24,6 +24,8 @@ import {
   automationToDraft,
   createEmptyDraft,
 } from '@/atoms/automation-atoms'
+import { currentAgentWorkspaceIdAtom } from '@/atoms/agent-atoms'
+import { planningWorkspaceScopeAtom } from '@/atoms/planning-atoms'
 import type { Automation } from '@luxcoder/shared'
 
 /** 把调度配置格式化为可读文案 */
@@ -58,11 +60,13 @@ export function AutomationsListView(): React.ReactElement {
   const automations = useAtomValue(automationsAtom)
   const setAutomations = useSetAtom(automationsAtom)
   const setForm = useSetAtom(automationFormAtom)
+  const workspaceScope = useAtomValue(planningWorkspaceScopeAtom)
+  const currentWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
 
   const refreshList = React.useCallback(async () => {
-    const list = await window.electronAPI.listAutomations()
+    const list = await window.electronAPI.listAutomations(workspaceScope, currentWorkspaceId ?? undefined)
     setAutomations(list)
-  }, [setAutomations])
+  }, [setAutomations, workspaceScope, currentWorkspaceId])
 
   const current = automations.filter((a) => a.active)
   // 已完成（once 跑完 / 跑满 maxRuns 自动停用，带 completedAt）单独成组，区别于用户手动暂停 / 草稿

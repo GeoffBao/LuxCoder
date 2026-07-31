@@ -1,6 +1,7 @@
 import type * as React from 'react'
-import type { LocalProjectRootStatus } from '@proma/shared'
 import { cn } from '@/lib/utils'
+
+type LocalProjectRootStatus = 'available' | 'missing' | 'not_directory' | 'unavailable'
 
 interface LocalProjectBadgeProps {
   projectRootPath?: string | null

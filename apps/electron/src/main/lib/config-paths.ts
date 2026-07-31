@@ -770,6 +770,11 @@ export function getAutomationsPath(): string {
   return join(getConfigDir(), 'automations.json')
 }
 
+/** 规划模块本地 SQLite 数据库路径 */
+export function getPlanningDatabasePath(): string {
+  return join(getConfigDir(), 'planning.db')
+}
+
 /**
  * 获取 Excalidraw 画板文件目录路径（按 Workspace）
  *

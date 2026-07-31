@@ -531,16 +531,9 @@ function FileTreeItem({
     if (isTarget) {
       // 仅在不会通过展开分支异步滚动时立即滚动（即：目标是文件，或已展开的目录）
       if (!willExpand) scrollToTarget()
-      // 用户搜索点击场景（revealSelect=true）会同步把目标置为选中态，
-      // flash 动画末关键帧的 transparent 背景会盖掉 bg-accent，造成"先闪一下再变选中"的视觉断层，
-      // 因此该路径跳过 flash，仅保留滚动 + 选中态。Agent 自动定位（无 select）仍走 flash。
-      // 注意：不要改 globals.css 里 .file-browser-row-flash 末关键帧的 transparent，那是 Agent
-      // 路径下"动画结束行恢复无背景"的预期行为；选中态冲突应由本分支跳过 class 解决。
-      if (!revealSelect) {
-        setFlash(true)
-        const t = setTimeout(() => setFlash(false), 1200)
-        cleanups.push(() => clearTimeout(t))
-      }
+      setFlash(true)
+      const t = setTimeout(() => setFlash(false), 1200)
+      cleanups.push(() => clearTimeout(t))
     }
 
     if (cleanups.length > 0) return () => { for (const c of cleanups) c() }

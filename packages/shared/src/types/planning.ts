@@ -8,6 +8,8 @@ export type PlanningReminderTargetType = 'todo' | 'calendar_event'
 export type PlanningReminderStatus = 'pending' | 'acknowledged' | 'completed'
 /** 标识提醒是否由目标计划时间自动生成，供改期时安全同步。 */
 export type PlanningReminderOrigin = 'manual' | 'todo_due_at'
+/** Planning 列表的工作区范围：current 按当前 Workspace 过滤（默认，由主进程解析 settings.agentWorkspaceId），all 不过滤。 */
+export type PlanningWorkspaceScope = 'current' | 'all'
 
 /** 日程编辑基于此错误文案识别并提示跨窗口并发冲突。 */
 export const PLANNING_CONFLICT_ERROR = '日程已被其他窗口修改，请重新加载后再试'
@@ -80,7 +82,10 @@ export interface Todo {
   reminders: PlanningReminder[]
   /** 仅由 Agent 成功创建或更新 Todo 时写入，按 Session 去重。 */
   sessionLinks: TodoSessionLink[]
+  /** 归属的顶层 Workspace；创建时自动写入，不支持事后手动改派。 */
   workspaceId?: string
+  /** 可选关联的 Project（当前 Workspace 下的子分组），仅用于分类/筛选，不参与 Agent 启动路由。 */
+  projectId?: string
   createdAt: number
   updatedAt: number
   completedAt?: number
@@ -108,6 +113,8 @@ export interface TodoListQuery {
   status?: TodoStatus
   dueBefore?: number
   limit?: number
+  /** 按归属 Workspace 过滤；不传表示不过滤（全部工作区）。 */
+  workspaceId?: string
 }
 
 /** 日程列表的可选时间范围；未传入时保持完整列表的既有行为。 */
@@ -115,6 +122,8 @@ export interface CalendarEventListQuery {
   from?: number
   to?: number
   limit?: number
+  /** 按归属 Workspace 过滤；不传表示不过滤（全部工作区）。 */
+  workspaceId?: string
 }
 
 export interface CreatePlanningReminderInput {
@@ -131,12 +140,15 @@ export interface CreateTodoInput {
   reminders?: CreatePlanningReminderInput[]
   /** 创建来源的 Agent Session；仅应用内部创建时使用，并自动写入关联。 */
   sessionId?: string
+  /** 不传时由后端自动填入当前 Workspace，不需要调用方显式指定。 */
   workspaceId?: string
+  /** 可选关联的 Project。 */
+  projectId?: string
 }
 
 export interface StartTodoAgentInput {
   todoId: string
-  /** 用户在项目选择器中确认的执行项目。 */
+  /** Todo 归属的 Workspace（创建时已锁定，此处仅用于主进程校验，不再支持切换）。 */
   workspaceId: string
   /** 用于主进程原子校验，避免跨窗口修改后以旧项目启动。 */
   expectedUpdatedAt: number
@@ -164,6 +176,8 @@ export interface UpdateTodoInput {
   groupId?: string | null
   tagIds?: string[]
   workspaceId?: string | null
+  /** 可选关联的 Project；传 null 清空。 */
+  projectId?: string | null
   /** 可选版本号，用于拒绝跨窗口的旧草稿覆盖。 */
   expectedUpdatedAt?: number
   status?: TodoStatus

@@ -1,8 +1,8 @@
-import { AGENT_IPC_CHANNELS } from '@proma/shared'
+import { AGENT_IPC_CHANNELS } from '@luxcoder/shared'
 import type {
   AgentSendInput,
   AgentStreamCompletePayload,
-} from '@proma/shared'
+} from '@luxcoder/shared'
 
 export type AgentStreamCompletionDetails = Omit<
   AgentStreamCompletePayload,
