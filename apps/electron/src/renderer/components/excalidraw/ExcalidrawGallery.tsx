@@ -363,11 +363,13 @@ export function ExcalidrawGallery(): React.ReactElement {
 
   return (
     <div className="flex flex-col h-full bg-background">
-      {/* 顶部栏 */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-border/50 titlebar-no-drag">
+      {/* 顶部栏：pt-14 让内容整体让到 AppShell 全局 drag 层（0–50px, z-50）下方，
+          同时避免与 Windows 自定义 WindowControls（fixed 右上角）视觉重叠，
+          四个模块页面统一此规范。 */}
+      <div className="titlebar-no-drag flex items-center justify-between px-5 pb-3 pt-14 border-b border-border/50">
         <div className="flex items-center gap-2.5">
-          <PenTool size={18} className="text-foreground/60" />
-          <h1 className="text-[15px] font-semibold text-foreground">Excalidraw 画板</h1>
+          <PenTool className="size-6 text-foreground/70" />
+          <h1 className="text-2xl font-semibold text-foreground">Excalidraw 画板</h1>
         </div>
         <button
           type="button"

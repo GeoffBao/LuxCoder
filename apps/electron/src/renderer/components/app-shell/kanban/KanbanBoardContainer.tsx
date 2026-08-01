@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
-import { Plus, RefreshCw } from 'lucide-react'
+import { LayoutDashboard, Plus, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import type { AgentSessionMeta, TaskDeleteImpact } from '@luxcoder/shared'
 import {
@@ -334,16 +334,21 @@ export function KanbanBoardContainer({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-background p-4">
+    <div className="flex h-full min-h-0 flex-col bg-background px-4 pb-4">
       <header className="mb-4 space-y-3">
-        <div className="titlebar-drag-region flex flex-wrap items-center justify-between gap-3">
-          <div className="titlebar-no-drag">
-            <h1 className="text-lg font-semibold">任务看板</h1>
-            <p className="text-xs text-muted-foreground">
-              {taskSummaries.length === visibleItems.length
-                ? `${visibleItems.length} 个正式 Task`
-                : `${taskSummaries.length} 个 Task · 当前显示 ${visibleItems.length} 个`}
-            </p>
+        {/* pt-14：内容整体让到 AppShell 全局 drag 层（0–50px, z-50）下方，同时避免
+            与 Windows 自定义 WindowControls（fixed 右上角）视觉重叠，四个模块页面统一此规范。 */}
+        <div className="titlebar-drag-region flex flex-wrap items-center justify-between gap-3 pt-14">
+          <div className="titlebar-no-drag flex items-center gap-2.5">
+            <LayoutDashboard className="size-6 text-foreground/70" />
+            <div>
+              <h1 className="text-2xl font-semibold text-foreground">任务看板</h1>
+              <p className="text-xs text-muted-foreground">
+                {taskSummaries.length === visibleItems.length
+                  ? `${visibleItems.length} 个正式 Task`
+                  : `${taskSummaries.length} 个 Task · 当前显示 ${visibleItems.length} 个`}
+              </p>
+            </div>
           </div>
           <Button size="sm" onClick={() => setComposerOpen(true)} className="titlebar-no-drag">
             <Plus className="mr-1 h-4 w-4" />

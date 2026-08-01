@@ -36,6 +36,7 @@ const CATEGORY_ORDER: ShortcutCategory[] = ['app', 'navigation', 'edit', 'global
 const SHORTCUT_DISPLAY_ORDER: Record<ShortcutCategory, readonly string[]> = {
   app: [
     'new-session',
+    'new-todo',
     'toggle-sidebar',
     'zoom-in',
     'zoom-out',

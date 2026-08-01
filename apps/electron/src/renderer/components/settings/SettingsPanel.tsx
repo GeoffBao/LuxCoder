@@ -276,9 +276,9 @@ export function SettingsPanel({
 
       {/* 主体：左导航 + 右内容 */}
       <div className="flex flex-1 min-h-0">
-        {/* 左侧 Tab 导航：分组 + 弱化组标题，选中态走墨水填充 */}
-        <div className="w-[168px] pt-3 px-2.5 flex-shrink-0 overflow-y-auto scrollbar-thin" style={{ boxShadow: 'inset -1px 0 0 hsl(var(--foreground) / 0.06)' }}>
-          <nav className="flex flex-col">
+        {/* 左侧 Tab 导航：分组 + 弱化组标题，选中态走墨水填充；返回按钮 sticky 固定在底部 */}
+        <div className="w-[168px] flex-shrink-0 flex flex-col" style={{ boxShadow: 'inset -1px 0 0 hsl(var(--foreground) / 0.06)' }}>
+          <nav className="flex-1 min-h-0 overflow-y-auto scrollbar-thin pt-3 px-2.5 flex flex-col">
             {navGroups.map((group, groupIndex) => (
               <React.Fragment key={group.label ?? groupIndex}>
                 {group.label && (

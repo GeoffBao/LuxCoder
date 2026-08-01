@@ -151,32 +151,16 @@ export function DraftGitContextPicker({
       : null
 
   // 不再自带外层 flex 容器/内边距——由调用方（AgentView）和 DraftProjectPicker
-  // 放进同一个 flex-wrap 行，对齐 Codex 那种「项目 | 模式 | 分支」一行式布局。
+  // 放进同一个 flex-wrap 行，对齐 Claude/Codex 那种「项目 | 分支 | worktree」轻量上下文栏。
   // 分支搜索框 + 原生 select 合并成一个 Popover+Command 组合下拉；占用提示、模式警告
   // 原本各占一整行常驻文字，现在收进 hover 才展开的 Tooltip，减少输入框上方的视觉拥挤。
   return (
     <>
-      <div className="inline-flex overflow-hidden rounded-md border border-border/70 bg-background/80">
-        {(['local', 'worktree'] as const).map((candidate) => (
-          <button
-            key={candidate}
-            type="button"
-            className={cn(
-              'px-2.5 py-1 transition-colors',
-              mode === candidate ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted/70',
-            )}
-            onClick={() => updateMode(candidate)}
-          >
-            {candidate === 'local' ? 'Local' : 'Worktree'}
-          </button>
-        ))}
-      </div>
-
       <Popover open={branchPopoverOpen} onOpenChange={setBranchPopoverOpen}>
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="inline-flex h-7 max-w-[220px] items-center gap-1.5 rounded-md border border-border/70 bg-background/80 px-2 text-muted-foreground outline-none hover:bg-muted/60 hover:text-foreground transition-colors"
+            className="inline-flex h-7 max-w-[240px] items-center gap-1.5 rounded-md border border-border/70 bg-background/80 px-2 text-muted-foreground outline-none hover:bg-muted/60 hover:text-foreground transition-colors"
           >
             <GitBranch className="size-3.5 shrink-0" />
             <span className="truncate text-foreground">{branch || (loading ? '加载分支…' : '选择分支')}</span>
@@ -186,7 +170,7 @@ export function DraftGitContextPicker({
             <ChevronDown className="size-3 shrink-0 opacity-50" />
           </button>
         </PopoverTrigger>
-        <PopoverContent align="start" sideOffset={6} className="w-64 p-0">
+        <PopoverContent align="start" sideOffset={6} className="w-72 p-0">
           <Command shouldFilter={false}>
             <CommandInput placeholder="搜索分支" value={query} onValueChange={setQuery} />
             <CommandList>
@@ -218,6 +202,24 @@ export function DraftGitContextPicker({
           </Command>
         </PopoverContent>
       </Popover>
+
+      <button
+        type="button"
+        aria-pressed={mode === 'worktree'}
+        className={cn(
+          'inline-flex h-7 items-center gap-1.5 rounded-md border border-border/70 bg-background/80 px-2 text-muted-foreground outline-none transition-colors hover:bg-muted/60 hover:text-foreground',
+          mode === 'worktree' && 'border-primary/35 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary',
+        )}
+        onClick={() => updateMode(mode === 'worktree' ? 'local' : 'worktree')}
+      >
+        <span className={cn(
+          'flex size-3.5 items-center justify-center rounded-[3px] border text-[10px] leading-none',
+          mode === 'worktree' ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/40',
+        )}>
+          {mode === 'worktree' ? '✓' : ''}
+        </span>
+        worktree
+      </button>
 
       {/* 新建分支：确认前是一个语义清晰的"+ 新建分支"按钮 + 小弹层表单（说明基于哪个分支创建、
           创建后会发生什么），而不是一个没有标签、含义不明、看起来会永远停留在可编辑状态的裸输入框。

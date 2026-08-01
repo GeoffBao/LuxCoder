@@ -12,7 +12,7 @@ export interface PickerProject {
   archivedAt?: number | string
 }
 
-export type PickerActionId = 'browse' | 'create' | 'skip' | 'workspace-task'
+export type PickerActionId = 'browse' | 'create' | 'skip'
 
 export interface PickerAction {
   id: PickerActionId
@@ -80,10 +80,7 @@ export function buildPickerSections(input: {
     { id: 'create', label: '新建项目…' },
     { id: 'browse', label: '使用现有文件夹…' },
   ]
-  // Task 可正式属于 Workspace 而不绑定 Project；这是明确 scope，不是隐式跳过。
-  if (input.mode === 'task') {
-    actions.unshift({ id: 'workspace-task', label: 'Workspace Task（无项目）' })
-  }
+  // Task 首屏不再暴露“无项目”入口：新建任务优先绑定/创建 Project；底层仍允许 Task 编辑器保存为工作区级任务作为 fallback。
   // Session 已绑定项目时才需要“清除”；未绑定时它和直接关闭面板效果一样。
   if (allowsSkipProject(input.mode) && input.selectedProjectId) {
     actions.push({ id: 'skip', label: '清除项目' })

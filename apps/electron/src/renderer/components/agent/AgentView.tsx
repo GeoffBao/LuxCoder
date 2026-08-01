@@ -2872,11 +2872,13 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
           showChannelInTrigger
           useSharedOpenState
         />
-        <AgentRuntimeSelector
-          runtime={sessionAgentRuntime}
-          disabled={streaming || backgroundWaiting}
-          onChange={handleAgentRuntimeChange}
-        />
+        {AGENT_RUNTIME_OPTIONS.length > 1 && (
+          <AgentRuntimeSelector
+            runtime={sessionAgentRuntime}
+            disabled={streaming || backgroundWaiting}
+            onChange={handleAgentRuntimeChange}
+          />
+        )}
       </div>
       {sendControl}
     </>

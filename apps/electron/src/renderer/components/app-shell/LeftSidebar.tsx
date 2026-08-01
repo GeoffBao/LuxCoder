@@ -15,7 +15,6 @@ import { Pin, PinOff, Settings, Plus, Trash2, Pencil, ArrowRightLeft, Search, Ar
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { MarqueeText } from '@/components/ui/marquee-text'
-import { ModeSwitcher } from './ModeSwitcher'
 import { SearchDialog } from './SearchDialog'
 import { SidebarToggleButton } from './SidebarToggleButton'
 import { TabNavigationControls } from '@/components/tabs/TabNavigationControls'
@@ -261,6 +260,8 @@ interface AgentProjectGroup {
 
 /** 合成「自动任务」虚拟工作区组的 ID（不对应真实 workspace，仅用于聚合自动任务会话） */
 const AUTOMATION_GROUP_ID = '__automations__'
+/** 置顶（Agent 模式）分组在 collapsedFlatGroupIds 中的 key，与日期分组的 groupId/label 隔离 */
+const PINNED_AGENT_GROUP_KEY = '__pinned-agent__'
 /** 供合成组复用 AgentProjectGroupItem 时填充无意义的 workspace 专属回调 */
 const noopVoid = (): void => {}
 const noopAsync = async (): Promise<void> => {}
@@ -2997,6 +2998,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   }
 
   // ===== 展开状态：完整侧边栏 =====
+  const isPinnedAgentGroupCollapsed = collapsedFlatGroupIds.has(PINNED_AGENT_GROUP_KEY)
   return (
     <div
       ref={sidebarRootRef}
@@ -3015,19 +3017,12 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         height={isMac ? SIDEBAR_DRAG_STRIP_HEIGHT.expandedMac : SIDEBAR_DRAG_STRIP_HEIGHT.expanded}
       />
 
-      {/* 展开态顶部工具栏：全部留在左侧栏上方（折叠、后退、前进）。
+      {/* 展开态顶部工具栏：全部留在左侧栏上方（折叠、搜索、后退、前进）。
           SidebarWindowDragStrip 是 z-1 的原生窗口拖拽层；工具栏必须 z-10 + no-drag，
-          否则 Electron 会将点击吞为窗口拖拽，Tooltip 也不会触发。 */}
+          否则 Electron 会将点击吞为窗口拖拽，Tooltip 也不会触发。
+          Chat 模式下线后 ModeSwitcher 整行不再需要，搜索按钮并入此行收敛垂直空间。 */}
       <div className={cn('relative z-10 w-full flex-shrink-0 flex items-center justify-end gap-1 titlebar-no-drag', isMac ? 'h-[30px] pr-2' : 'h-7 pr-1.5')}>
         <SidebarToggleButton className="size-6" />
-        <TabNavigationControls className="h-7 gap-0" />
-      </div>
-
-      {/* 模式切换器 + 搜索：并列一行 */}
-      <div className="px-3 flex items-center gap-1.5">
-        <div className="flex-1 min-w-0 titlebar-drag-region">
-          <ModeSwitcher />
-        </div>
         <Tooltip>
           <TooltipTrigger asChild>
             <button
@@ -3035,17 +3030,18 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               aria-label="搜索"
               onClick={() => setSearchDialogOpen(true)}
               className={cn(
-                'mt-2 size-8 flex items-center justify-center rounded-lg text-foreground/50 transition-colors duration-150 titlebar-no-drag',
+                'size-6 flex items-center justify-center rounded-md text-foreground/50 transition-colors duration-150',
                 isClassic
                   ? 'sidebar-control-surface hover:text-foreground/70'
                   : 'hover:bg-foreground/[0.08] hover:text-foreground/85'
               )}
             >
-              <Search size={15} />
+              <Search size={14} />
             </button>
           </TooltipTrigger>
           <TooltipContent side="bottom">搜索 ({getAcceleratorDisplay(getActiveAccelerator('global-search'))})</TooltipContent>
         </Tooltip>
+        <TabNavigationControls className="h-7 gap-0" />
       </div>
 
       {mode === 'agent' && (
@@ -3118,22 +3114,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         )}
       </div>
 
-      {/* 任务看板：Workspace 级正式工作项入口，与 Task 日历相邻放在侧栏最上方。 */}
-      {mode === 'agent' && (
-        <div className="sidebar-module-zone px-3 pt-2 pb-0.5">
-          <SidebarModule
-            icon={LayoutDashboard}
-            title="Task 看板"
-            count={activeTaskCount}
-            active={codeMainView === 'tasks' && activeView === 'conversations'}
-            onClick={handleOpenTaskBoard}
-            ariaLabel={`Task 看板，${activeTaskCount} 个未完成`}
-          />
-        </div>
-      )}
-
-      {/* Task 日历入口：Todo / 日历 / 定时任务合一，作为任务中心入口放在置顶区上方，不参与置顶列表层级。 */}
-      <div className={cn('sidebar-module-zone px-3 pb-0.5', mode !== 'agent' && 'pt-2')}>
+      {/* Task 日历入口：Todo / 日历 / 定时任务合一，作为任务中心入口排在侧栏最上方。 */}
+      <div className="sidebar-module-zone px-3 pt-2 pb-0.5">
         <SidebarModule
           icon={CalendarDays}
           title="Task 日历"
@@ -3149,6 +3131,20 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
           }}
         />
       </div>
+
+      {/* 任务看板：Workspace 级正式工作项入口，与 Task 日历相邻。 */}
+      {mode === 'agent' && (
+        <div className="sidebar-module-zone px-3 pb-0.5">
+          <SidebarModule
+            icon={LayoutDashboard}
+            title="Task 看板"
+            count={activeTaskCount}
+            active={codeMainView === 'tasks' && activeView === 'conversations'}
+            onClick={handleOpenTaskBoard}
+            ariaLabel={`Task 看板，${activeTaskCount} 个未完成`}
+          />
+        </div>
+      )}
 
       {/* Agent 插件入口：专家 / Skills / MCP / Context 能力中心，仅 Agent 模式可见 */}
       {mode === 'agent' && (
@@ -3215,12 +3211,26 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
       {mode === 'agent' && agentStatusFilter !== 'archived' && pinnedAgentSessions.length > 0 && (
         <div className="pt-2 pb-1 flex-shrink-0 titlebar-no-drag">
-          <div className="px-3.5 pb-1 text-[11px] font-medium text-foreground/40 select-none">
-            置顶
+          <div className="group/date-header flex items-center justify-between px-3.5 pb-1">
+            <span className="text-[11px] font-medium text-foreground/40 select-none">置顶</span>
+            <button
+              type="button"
+              aria-label={isPinnedAgentGroupCollapsed ? '展开置顶' : '折叠置顶'}
+              onClick={() => setCollapsedFlatGroupIds((prev) => {
+                const next = new Set(prev)
+                if (next.has(PINNED_AGENT_GROUP_KEY)) next.delete(PINNED_AGENT_GROUP_KEY)
+                else next.add(PINNED_AGENT_GROUP_KEY)
+                return next
+              })}
+              className="grid size-5 place-items-center rounded text-foreground/35 opacity-0 transition-opacity titlebar-no-drag hover:bg-foreground/[0.08] hover:text-foreground/70 group-hover/date-header:opacity-100"
+            >
+              <ChevronRight
+                size={12}
+                className={cn('transition-transform duration-150', isPinnedAgentGroupCollapsed ? '' : 'rotate-90')}
+              />
+            </button>
           </div>
-          <div
-            className=""
-          >
+          {!isPinnedAgentGroupCollapsed && (
             <div className="px-2">
               <div className="ml-4 flex flex-col gap-0.5">
                 {pinnedAgentSessionTrees.map((item) => {
@@ -3312,7 +3322,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                 })}
               </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 

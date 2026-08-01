@@ -4,7 +4,7 @@
  * 由侧边栏「Agent 技能」入口触发，全屏占据中间内容区（隐藏 TabBar 与右侧文件面板）。
  *
  * 结构：
- * - 顶部：标题 + 工作区切换下拉
+ * - 顶部：标题
  * - 工具条：Skills / MCP 切换 + 搜索 + 社区市场（占位）+ 新增入口
  * - 内容：能力卡片网格（商店风），点击卡片打开右侧详情抽屉
  */
@@ -12,19 +12,13 @@
 import * as React from 'react'
 import { useAtom, useSetAtom } from 'jotai'
 import { toast } from 'sonner'
-import { Blocks, ChevronDown, ChevronRight, Search, Plus, Store, FolderOpen, Check, Sparkles, Loader2, Plug } from 'lucide-react'
+import { Blocks, ChevronRight, Search, Plus, Store, Sparkles, Loader2, Plug } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { agentPendingPromptAtom, workspaceCapabilitiesVersionAtom } from '@/atoms/agent-atoms'
 import { agentSkillsTabAtom } from '@/atoms/active-view'
 import { settingsOpenAtom, settingsTabAtom, toolSettingsFocusAtom, type ToolSettingsFocus } from '@/atoms/settings-tab'
-import { useProjectActions } from '@/hooks/useProjectActions'
 import { useCreateSession } from '@/hooks/useCreateSession'
 import type { BuiltinMcpServerSummary, McpServerEntry, SkillMeta } from '@luxcoder/shared'
 import { useAgentSkillsData } from './useAgentSkillsData'
@@ -93,7 +87,6 @@ export function AgentSkillsView(): React.ReactElement {
   const setSettingsOpen = useSetAtom(settingsOpenAtom)
   const setSettingsTab = useSetAtom(settingsTabAtom)
   const setToolSettingsFocus = useSetAtom(toolSettingsFocusAtom)
-  const { workspaces, currentWorkspaceId, selectProject } = useProjectActions()
   const { createAgent } = useCreateSession()
 
   const [tab, setTab] = useAtom(agentSkillsTabAtom)
@@ -120,7 +113,6 @@ export function AgentSkillsView(): React.ReactElement {
   const [editingMcp, setEditingMcp] = React.useState<{ name: string; entry: McpServerEntry } | null>(null)
   const [selectedBuiltinMcp, setSelectedBuiltinMcp] = React.useState<BuiltinMcpServerSummary | null>(null)
   const [showImport, setShowImport] = React.useState(false)
-  const [wsPopoverOpen, setWsPopoverOpen] = React.useState(false)
   const [pendingDeleteSkill, setPendingDeleteSkill] = React.useState<SkillMeta | null>(null)
   const [pendingDeleteMcpName, setPendingDeleteMcpName] = React.useState<string | null>(null)
   const [isDeletingSkill, setIsDeletingSkill] = React.useState(false)
@@ -220,52 +212,12 @@ export function AgentSkillsView(): React.ReactElement {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* 标题栏 + 工作区切换 */}
-      {/* 不加 titlebar-drag-region：与 DropdownMenu 嵌套时 drag/no-drag 会让 Radix 拿不到
-          pointerdown，下拉打不开。窗口拖拽由 AppShell 顶部 0–50px 的全局 drag 层兜底。
-          pt-14 让按钮整体位于全局 drag 层（0–50px, z-50）下方，避免被吃掉点击。 */}
-      <div className="titlebar-no-drag mx-auto flex w-full max-w-6xl shrink-0 items-center justify-between px-8 pt-14 pb-4">
+      {/* 标题栏：右侧不再放工作区切换器，避免与左侧栏当前工作区入口重复。 */}
+      <div className="titlebar-no-drag mx-auto flex w-full max-w-6xl shrink-0 items-center px-8 pt-14 pb-4">
         <div className="flex items-center gap-2.5">
           <Blocks className="size-6 text-foreground/70" />
           <h1 className="text-2xl font-semibold text-foreground">Agent 插件</h1>
         </div>
-
-        <Popover open={wsPopoverOpen} onOpenChange={setWsPopoverOpen}>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              className="titlebar-no-drag flex items-center gap-2 rounded-lg border border-border/60 bg-content-area px-3 py-1.5 text-[13px] font-medium text-foreground/80 transition-colors hover:bg-foreground/[0.04]"
-            >
-              <FolderOpen size={14} className="text-foreground/45" />
-              <span className="max-w-[180px] truncate">{data.workspaceName}</span>
-              <ChevronDown size={14} className="text-foreground/45" />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="max-h-[320px] w-56 overflow-y-auto scrollbar-thin p-1">
-            {workspaces.map((w) => (
-              <button
-                key={w.id}
-                type="button"
-                onClick={() => {
-                  if (w.id !== currentWorkspaceId) {
-                    selectProject(w.id, { resetView: false })
-                    toast.success(`已切换到工作区「${w.name}」`)
-                  }
-                  setWsPopoverOpen(false)
-                }}
-                className={cn(
-                  'flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-[13px] transition-colors',
-                  w.id === currentWorkspaceId
-                    ? 'bg-accent text-accent-foreground'
-                    : 'text-foreground/80 hover:bg-accent/50',
-                )}
-              >
-                <span className="truncate">{w.name}</span>
-                {w.id === currentWorkspaceId && <Check size={14} className="shrink-0 text-primary" />}
-              </button>
-            ))}
-          </PopoverContent>
-        </Popover>
       </div>
 
       {/* 工具条 */}
@@ -307,7 +259,7 @@ export function AgentSkillsView(): React.ReactElement {
 
         {/* 搜索框（API 占位 Tab 无搜索逻辑，隐藏） */}
         {tab !== 'api' && (
-          <div className="flex h-8 flex-1 items-center gap-2 rounded-lg border border-border/60 bg-content-area px-3 transition-colors focus-within:border-primary/40">
+          <div className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-lg border border-border/60 bg-content-area px-3 transition-colors focus-within:border-primary/40">
             <Search size={14} className="shrink-0 text-foreground/40" />
             <input
               value={search}
@@ -323,7 +275,7 @@ export function AgentSkillsView(): React.ReactElement {
           <button
             type="button"
             onClick={() => setCreateExpertRequest((n) => n + 1)}
-            className="flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3 text-[13px] font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+            className="flex h-8 flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-primary px-3 text-[13px] font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
           >
             <Plus size={14} />
             <span>新建专家</span>
@@ -337,7 +289,7 @@ export function AgentSkillsView(): React.ReactElement {
               <button
                 type="button"
                 disabled
-                className="flex h-8 cursor-not-allowed items-center gap-1.5 rounded-lg border border-dashed border-border/60 px-3 text-[13px] font-medium text-foreground/35"
+                className="flex h-8 flex-shrink-0 cursor-not-allowed items-center gap-1.5 whitespace-nowrap rounded-lg border border-dashed border-border/60 px-3 text-[13px] font-medium text-foreground/35"
               >
                 <Store size={14} />
                 <span>社区市场</span>
@@ -356,7 +308,7 @@ export function AgentSkillsView(): React.ReactElement {
                   type="button"
                   onClick={() => void handleClassifySkills()}
                   disabled={classifyingSkills || data.skills.length === 0}
-                  className="flex h-8 items-center gap-1.5 rounded-lg border border-border/60 bg-content-area px-3 text-[13px] font-medium text-foreground/80 shadow-sm transition-colors hover:bg-foreground/[0.04] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex h-8 flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-border/60 bg-content-area px-3 text-[13px] font-medium text-foreground/80 shadow-sm transition-colors hover:bg-foreground/[0.04] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {classifyingSkills ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
                   <span>AI 分类</span>
@@ -367,7 +319,7 @@ export function AgentSkillsView(): React.ReactElement {
             <button
               type="button"
               onClick={() => setShowImport(true)}
-              className="flex h-8 items-center gap-1.5 rounded-lg border border-border/60 bg-content-area px-3 text-[13px] font-medium text-foreground/80 shadow-sm transition-colors hover:bg-foreground/[0.04]"
+              className="flex h-8 flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-border/60 bg-content-area px-3 text-[13px] font-medium text-foreground/80 shadow-sm transition-colors hover:bg-foreground/[0.04]"
             >
               <Plus size={14} />
               <span>导入</span>

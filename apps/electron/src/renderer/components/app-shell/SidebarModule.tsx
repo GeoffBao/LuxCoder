@@ -15,7 +15,8 @@ import { ChevronRight } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatSidebarModuleCount } from './sidebar-module-model'
-import { ShortcutKeycaps } from '@/components/shortcuts/ShortcutKeycaps'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { getActiveAccelerator, getAcceleratorDisplay } from '@/lib/shortcut-registry'
 
 /** 各部位追加 className（用于特殊主题的既有钩子类，如 automation-entry-*） */
 export interface SidebarModuleClassNames {
@@ -117,13 +118,6 @@ export function SidebarModule({
           <Icon size={16} className="block" />
         </span>
         <span className="truncate">{title}</span>
-        {keycapShortcutId && (
-          <ShortcutKeycaps
-            shortcutId={keycapShortcutId}
-            keycapClassName="h-5 min-w-5 px-1 text-[11px]"
-            separatorClassName="text-[10px]"
-          />
-        )}
       </span>
       <span className="ml-2 flex flex-shrink-0 items-center gap-1">
         {badge}
@@ -151,9 +145,15 @@ export function SidebarModule({
     classNames?.row,
   )
 
+  // 标题旁的快捷键提示：与「新会话 / 新任务」一致，hover 时以文字形式出现在 Tooltip 里，
+  // 不在行内常驻占位（避免窄侧栏下挤压标题）。
+  const shortcutHint = keycapShortcutId
+    ? `${title} (${getAcceleratorDisplay(getActiveAccelerator(keycapShortcutId))})`
+    : null
+
   // 纯入口行：整行点击导航
   if (!collapsible) {
-    return (
+    const button = (
       <button
         type="button"
         aria-label={resolvedAriaLabel}
@@ -163,21 +163,37 @@ export function SidebarModule({
         {headerContent}
       </button>
     )
+    if (!shortcutHint) return button
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{button}</TooltipTrigger>
+        <TooltipContent side="bottom">{shortcutHint}</TooltipContent>
+      </Tooltip>
+    )
   }
+
+  const toggleButton = (
+    <button
+      type="button"
+      aria-label={resolvedAriaLabel}
+      aria-expanded={!isCollapsed}
+      aria-controls={bodyId}
+      onClick={handleToggle}
+      className={rowClass}
+    >
+      {headerContent}
+    </button>
+  )
 
   // 可折叠内容模块：头部切换 + hover 浮现操作 + 展开体
   return (
     <div className="group/module relative titlebar-no-drag">
-      <button
-        type="button"
-        aria-label={resolvedAriaLabel}
-        aria-expanded={!isCollapsed}
-        aria-controls={bodyId}
-        onClick={handleToggle}
-        className={rowClass}
-      >
-        {headerContent}
-      </button>
+      {shortcutHint ? (
+        <Tooltip>
+          <TooltipTrigger asChild>{toggleButton}</TooltipTrigger>
+          <TooltipContent side="bottom">{shortcutHint}</TooltipContent>
+        </Tooltip>
+      ) : toggleButton}
       {headerActions && (
         <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center opacity-0 transition-opacity focus-within:opacity-100 group-hover/module:opacity-100">
           {headerActions}

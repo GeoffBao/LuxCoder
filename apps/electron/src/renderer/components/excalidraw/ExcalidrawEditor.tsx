@@ -5,12 +5,11 @@
  * - 从 IPC 加载/保存 .excalidraw 文件
  * - 60 秒自动保存
  * - Cmd/Ctrl+S 手动保存
- * - 导出到任意路径
  * - 标题编辑
  */
 
 import * as React from 'react'
-import { ArrowLeft, PenTool, Save, Download, Loader2 } from 'lucide-react'
+import { ArrowLeft, PenTool, Loader2 } from 'lucide-react'
 import { useAtomValue, useSetAtom } from 'jotai'
 import { activeViewAtom } from '@/atoms/active-view'
 import { currentAgentWorkspaceIdAtom, agentWorkspacesAtom } from '@/atoms/agent-atoms'
@@ -255,28 +254,10 @@ export function ExcalidrawEditor(): React.ReactElement {
     return () => window.removeEventListener('keydown', handler)
   }, [])
 
-  async function handleExport(): Promise<void> {
-    if (!workspaceSlug || !slug) return
-
-    try {
-      const scene = getCurrentScene()
-      if (scene) {
-        await window.electronAPI.writeExcalidrawFile(workspaceSlug, slug, {
-          elements: scene.elements,
-          appState: { viewBackgroundColor: scene.appState.viewBackgroundColor },
-          files: scene.files,
-        })
-      }
-
-      const exportPath = await window.electronAPI.exportExcalidrawFile(workspaceSlug, slug)
-      if (exportPath) {
-        showStatus(`已导出到 ${exportPath}`)
-      }
-    } catch (err) {
-      console.error('[ExcalidrawEditor] 导出失败:', err)
-      showStatus('导出失败', false)
-    }
-  }
+  const handleTitleChange = React.useCallback((event: React.ChangeEvent<HTMLInputElement>): void => {
+    setTitle(event.target.value)
+    dirtyRef.current = true
+  }, [])
 
   const handleBack = React.useCallback(async () => {
     // 返回画廊前如果还有未保存的编辑，先落盘再切视图。
@@ -322,7 +303,7 @@ export function ExcalidrawEditor(): React.ReactElement {
           <input
             type="text"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={handleTitleChange}
             className="bg-transparent border-b border-transparent focus:border-primary outline-none text-[14px] font-medium text-foreground px-1 py-0.5 min-w-[120px] max-w-[300px] placeholder:text-foreground/30"
             placeholder="未命名画布…"
             spellCheck={false}
@@ -333,35 +314,15 @@ export function ExcalidrawEditor(): React.ReactElement {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {saveStatus && (
-            <span
-              className={`text-[12px] ${
-                saveStatus.includes('失败') ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'
-              }`}
-            >
-              {saveStatus}
-            </span>
-          )}
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-medium bg-foreground/[0.06] text-foreground/60 hover:bg-foreground/[0.1] hover:text-foreground transition-colors disabled:opacity-40"
-            onClick={handleExport}
-            disabled={isNew || !slug}
+        {saveStatus && (
+          <span
+            className={`shrink-0 text-[12px] ${
+              saveStatus.includes('失败') ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'
+            }`}
           >
-            <Download size={14} />
-            导出…
-          </button>
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
-            onClick={() => handleSave(false)}
-            disabled={saving}
-          >
-            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            保存
-          </button>
-        </div>
+            {saveStatus}
+          </span>
+        )}
       </div>
 
       {/* Excalidraw 编辑器 */}

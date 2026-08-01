@@ -8,9 +8,7 @@ import {
   Check,
   ChevronDown,
   FolderKanban,
-  FolderOpen,
   FolderPlus,
-  LayoutDashboard,
   Search,
   type LucideIcon,
 } from 'lucide-react'
@@ -286,25 +284,11 @@ export function ProjectContextPicker({
 
       {/* 动作钉底：新建项目始终可见，不被长列表挤出视口 */}
       <div className="shrink-0 space-y-0.5 border-t border-border/40 bg-background/90 p-1.5">
-        {sections.actions.some((action) => action.id === 'workspace-task') ? (
-          <ActionRow
-            icon={LayoutDashboard}
-            label="Workspace Task（无项目）"
-            disabled={busy}
-            onClick={() => { void handlePick(null) }}
-          />
-        ) : null}
         <ActionRow
           icon={FolderPlus}
           label="新建项目…"
           disabled={busy}
           onClick={() => setCreateOpen(true)}
-        />
-        <ActionRow
-          icon={FolderOpen}
-          label="使用现有文件夹…"
-          disabled={busy}
-          onClick={() => { void handleBrowse() }}
         />
         {sections.actions.some((action) => action.id === 'skip') ? (
           <ActionRow

@@ -77,6 +77,12 @@ export function AppShell({ contextValue }: AppShellProps): React.ReactElement {
     setCodeMainView('tasks')
     setActiveView('conversations')
   }, [appMode, setAppMode, setCodeMainView, setActiveView])
+  // Chat 模式已下线（入口从 UI 移除，仅保留底层数据模型）：
+  // 一次性迁移到 Code，做法对齐上面的 cowork 迁移。
+  React.useEffect(() => {
+    if (appMode !== 'chat') return
+    setAppMode('agent')
+  }, [appMode, setAppMode])
   // 左侧边栏可拖拽宽度
   const [leftSidebarWidth, setLeftSidebarWidth] = useAtom(leftSidebarWidthAtom)
   const sidebarCollapsed = useAtomValue(sidebarCollapsedAtom)

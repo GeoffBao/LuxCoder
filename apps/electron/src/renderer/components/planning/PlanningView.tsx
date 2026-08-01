@@ -34,7 +34,7 @@ const TABS: Array<{ id: PlanningTab; label: string }> = [
 function CreateShortcutHint(): React.ReactElement | null {
   return (
     <ShortcutKeycaps
-      shortcutId="new-session"
+      shortcutId="new-todo"
       className="ml-1.5"
       keycapClassName="border-primary-foreground/30 bg-primary-foreground/10 text-primary-foreground shadow-none"
       separatorClassName="text-primary-foreground/70"
@@ -72,17 +72,26 @@ export function PlanningView({ standalone = false }: { standalone?: boolean } = 
       toast.error('打开独立窗口失败')
     })
   }, [])
-  useShortcut('new-session', React.useCallback(() => {
+  // 独立于「新会话」的快捷键 ID：避免共享 new-session 时 Task 日历页面必须靠
+  // exclusive 抢占才能正确响应，也避免用户在设置里改「新会话」快捷键时意外
+  // 影响这里的新建 Todo/日程/定时任务行为。
+  useShortcut('new-todo', React.useCallback(() => {
     if (tab === 'todos') triggerTodoCreate()
     else if (tab === 'calendar') triggerCalendarCreate()
     else createAutomation()
-  }, [createAutomation, tab, triggerCalendarCreate, triggerTodoCreate]), true, { exclusive: true })
+  }, [createAutomation, tab, triggerCalendarCreate, triggerTodoCreate]))
   return (
     <div className="flex h-full flex-col overflow-hidden bg-content-area">
-      <header className={cn('titlebar-drag-region flex w-full items-center justify-between', standalone ? 'px-5 pb-4 pt-8' : 'px-6 pb-5 pt-8 sm:px-8 xl:px-10')}>
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-wrap-balance">任务/日程</h1>
-          <p className="mt-1 text-sm text-muted-foreground">安排待办、日程与定时任务</p>
+      {/* 非 standalone（内嵌主窗口）时用 pt-14 让内容让到 AppShell 全局 drag 层
+          （0–50px, z-50）下方，避免与 Windows 自定义 WindowControls 视觉重叠；
+          standalone 独立窗口没有该全局拖拽层，维持原有 pt-8。 */}
+      <header className={cn('titlebar-drag-region flex w-full items-center justify-between', standalone ? 'px-5 pb-4 pt-8' : 'px-6 pb-5 pt-14 sm:px-8 xl:px-10')}>
+        <div className="flex items-center gap-2.5">
+          <CalendarDays className="size-6 text-foreground/70" />
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-wrap-balance">任务/日程</h1>
+            <p className="mt-1 text-sm text-muted-foreground">安排待办、日程与定时任务</p>
+          </div>
         </div>
         <div className="titlebar-no-drag flex items-center gap-2">
           {!standalone && (
@@ -98,7 +107,7 @@ export function PlanningView({ standalone = false }: { standalone?: boolean } = 
             <button
               type="button"
               onClick={triggerTodoCreate}
-              aria-keyshortcuts="Meta+N Control+N"
+              aria-keyshortcuts="Meta+T Control+T"
               className="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 active:scale-[0.96]"
             >
               <Plus size={16} /> 新建 Todo<CreateShortcutHint />
@@ -108,7 +117,7 @@ export function PlanningView({ standalone = false }: { standalone?: boolean } = 
             <button
               type="button"
               onClick={triggerCalendarCreate}
-              aria-keyshortcuts="Meta+N Control+N"
+              aria-keyshortcuts="Meta+T Control+T"
               className="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 active:scale-[0.96]"
             >
               <Plus size={16} /> 新建日程<CreateShortcutHint />
@@ -118,7 +127,7 @@ export function PlanningView({ standalone = false }: { standalone?: boolean } = 
             <button
               type="button"
               onClick={createAutomation}
-              aria-keyshortcuts="Meta+N Control+N"
+              aria-keyshortcuts="Meta+T Control+T"
               className="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 active:scale-[0.96]"
             >
               <Plus size={16} /> 新建定时任务<CreateShortcutHint />
@@ -510,7 +519,7 @@ function TodoWorkspace({ standalone = false }: { standalone?: boolean } = {}): R
           <div className="border-b border-border/60 px-5 py-4">
             <div className="flex items-center justify-between"><h2 className="text-base font-semibold">{viewTitle}</h2>{view !== 'completed' && <span className="text-xs tabular-nums text-muted-foreground">{visibleTodos.length} 项</span>}</div>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto">{visibleTodos.length ? visibleTodos.map((todo) => <TodoListItem key={todo.id} todo={todo} selected={selectedId === todo.id} todayEnd={todayEnd} onSelect={() => setSelectedId(todo.id)} onToggle={() => void completeTodo(todo)} onDelete={() => setTodoPendingDeletion(todo)} />) : <div className="flex h-full min-h-56 items-center justify-center px-8 text-center text-sm text-muted-foreground">这里还没有任务。点击右上角“新建 Todo”或按 ⌘N 即可添加。</div>}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto">{visibleTodos.length ? visibleTodos.map((todo) => <TodoListItem key={todo.id} todo={todo} selected={selectedId === todo.id} todayEnd={todayEnd} onSelect={() => setSelectedId(todo.id)} onToggle={() => void completeTodo(todo)} onDelete={() => setTodoPendingDeletion(todo)} />) : <div className="flex h-full min-h-56 items-center justify-center px-8 text-center text-sm text-muted-foreground">这里还没有任务。点击右上角“新建 Todo”或按 ⌘T 即可添加。</div>}</div>
         </div>
 
         {selected && <PlanningFloatingInspector label="Todo 详情" onClose={() => setSelectedId(null)}><div className="space-y-7 p-5">
