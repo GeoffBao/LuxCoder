@@ -50,8 +50,8 @@ import { cn } from '@/lib/utils'
 import { BUILTIN_AVATARS } from '@/lib/builtin-avatars'
 import { Button } from '../ui/button'
 import type { NotificationSoundId, NotificationSoundType, NotificationSoundSettings } from '@/types/settings'
-import type { AgentThinkingLevel } from '@luxcoder/shared'
-import { DEFAULT_AGENT_THINKING_LEVEL } from '@luxcoder/shared'
+import type { AgentThinkingLevel, CodeClawThemeId } from '@luxcoder/shared'
+import { CODECLAW_THEMES, DEFAULT_AGENT_THINKING_LEVEL, DEFAULT_CODECLAW_THEME_ID, isCodeClawThemeId } from '@luxcoder/shared'
 import { ThinkingLevelSlider, normalizeToUiIndex, uiIndexToLevel } from '@/components/ui/thinking-level-slider'
 
 export function GeneralSettings(): React.ReactElement {
@@ -71,7 +71,8 @@ export function GeneralSettings(): React.ReactElement {
   const [archiveAfterDays, setArchiveAfterDays] = React.useState<number>(7)
   /** Git/PR 推广标识：默认开启 */
   const [gitAttributionEnabled, setGitAttributionEnabled] = React.useState(true)
-  const [agentIslandEnabled, setAgentIslandEnabled] = React.useState(true)
+  const [codeClawEnabled, setCodeClawEnabled] = React.useState(true)
+  const [codeClawThemeId, setCodeClawThemeId] = React.useState<CodeClawThemeId>(DEFAULT_CODECLAW_THEME_ID)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   // 加载归档天数 / 默认思考深度 / Git/PR 标识
@@ -80,7 +81,8 @@ export function GeneralSettings(): React.ReactElement {
       setArchiveAfterDays(settings.archiveAfterDays ?? 7)
       setDefaultThinkingLevel(settings.defaultThinkingLevel ?? DEFAULT_AGENT_THINKING_LEVEL)
       setGitAttributionEnabled(settings.gitAttributionEnabled ?? true)
-      setAgentIslandEnabled(settings.agentIsland?.enabled ?? true)
+      setCodeClawEnabled(settings.codeClaw?.enabled ?? true)
+      setCodeClawThemeId(isCodeClawThemeId(settings.codeClaw?.themeId) ? settings.codeClaw.themeId : DEFAULT_CODECLAW_THEME_ID)
     }).catch(console.error)
   }, [])
 
@@ -95,14 +97,30 @@ export function GeneralSettings(): React.ReactElement {
     }
   }
 
-  /** 更新灵动岛开关 */
-  const handleAgentIslandChange = async (checked: boolean): Promise<void> => {
-    setAgentIslandEnabled(checked)
+  /** 更新 CodeClaw 开关 */
+  const handleCodeClawChange = async (checked: boolean): Promise<void> => {
+    setCodeClawEnabled(checked)
     try {
-      await window.electronAPI.updateSettings({ agentIsland: { enabled: checked } })
+      const settings = await window.electronAPI.getSettings()
+      await window.electronAPI.updateSettings({ codeClaw: { ...(settings.codeClaw ?? {}), enabled: checked } })
     } catch (error) {
-      console.error('[通用设置] 更新 Agent 灵动岛失败:', error)
-      setAgentIslandEnabled(!checked)
+      console.error('[通用设置] 更新 CodeClaw 失败:', error)
+      setCodeClawEnabled(!checked)
+    }
+  }
+
+  /** 更新 CodeClaw 宠物主题 */
+  const handleCodeClawThemeChange = async (value: string): Promise<void> => {
+    if (!isCodeClawThemeId(value)) return
+    const previous = codeClawThemeId
+    setCodeClawThemeId(value)
+    try {
+      const settings = await window.electronAPI.getSettings()
+      await window.electronAPI.updateSettings({ codeClaw: { ...(settings.codeClaw ?? {}), themeId: value } })
+      await window.electronAPI.codeClaw.setTheme(value)
+    } catch (error) {
+      console.error('[通用设置] 更新 CodeClaw 主题失败:', error)
+      setCodeClawThemeId(previous)
     }
   }
 
@@ -400,13 +418,32 @@ export function GeneralSettings(): React.ReactElement {
             }}
           />
           <SettingsToggle
-            label="Agent 灵动岛"
-            description="在 Mac 刘海屏显示需要接手的 Agent 与 1 小时内的待办/日程；外接无刘海屏默认不覆盖菜单栏"
-            checked={agentIslandEnabled}
+            label="CodeClaw"
+            description="在桌面显示 LuxCoder Agent 助手：执行中、完成、错误或需要你接手时用动画提醒"
+            checked={codeClawEnabled}
             onCheckedChange={(checked) => {
-              void handleAgentIslandChange(checked)
+              void handleCodeClawChange(checked)
             }}
           />
+          <SettingsRow
+            label="CodeClaw 宠物"
+            description="内置 CodeClaw 原创外观；Clawd / Calico / Cloudling 使用 clawd-on-desk 的 AGPL 主题素材并保留许可证说明"
+          >
+            <Select
+              value={codeClawThemeId}
+              onValueChange={(value) => { void handleCodeClawThemeChange(value) }}
+              disabled={!codeClawEnabled}
+            >
+              <SelectTrigger className="w-[180px] h-8 text-[13px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CODECLAW_THEMES.map((theme) => (
+                  <SelectItem key={theme.id} value={theme.id}>{theme.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </SettingsRow>
           <SettingsToggle
             label="Git/PR 标识"
             description="Agent 代你提交 commit 或创建 PR 时，附加 Made-with: LuxCoder 与仓库链接，便于推广；可随时关闭"

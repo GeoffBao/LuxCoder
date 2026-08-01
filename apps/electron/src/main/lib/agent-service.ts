@@ -116,7 +116,7 @@ function isMainRendererWindow(win: BrowserWindow): boolean {
   return !url.includes('window=quick-task')
     && !url.includes('window=voice-dictation')
     && !url.includes('window=detached-preview')
-    && !url.includes('window=agent-island')
+    && !url.includes('window=codeclaw')
 }
 
 function getMainRendererWebContents(): WebContents | null {

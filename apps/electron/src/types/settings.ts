@@ -4,7 +4,7 @@
  * 主题模式、IPC 通道等设置相关定义。
  */
 
-import type { AgentRuntime, AgentThinkingLevel, EnvironmentCheckResult, ThinkingConfig, AgentEffort, FeishuSessionMirrorSettings, SessionListPreference, WindowsShellPreference, ProviderType } from '@luxcoder/shared'
+import type { AgentRuntime, AgentThinkingLevel, EnvironmentCheckResult, ThinkingConfig, AgentEffort, FeishuSessionMirrorSettings, SessionListPreference, WindowsShellPreference, ProviderType, CodeClawThemeId } from '@luxcoder/shared'
 
 /** 通知音场景类型 */
 export type NotificationSoundType = 'taskComplete' | 'permissionRequest' | 'exitPlanMode' | 'planningReminder'
@@ -216,10 +216,16 @@ export type MarkdownFontSize = 'small' | 'medium' | 'large'
 /** 默认 Markdown 字号档位 */
 export const DEFAULT_MARKDOWN_FONT_SIZE: MarkdownFontSize = 'small'
 
-/** Agent 灵动岛偏好。外接/无刘海屏默认不绘制顶部覆盖层。 */
-export interface AgentIslandSettings {
-  /** 是否启用 Agent / 近期 Todo 日程的灵动岛提醒，默认 true。 */
+/** CodeClaw 桌面助手偏好。 */
+export interface CodeClawSettings {
+  /** 是否启用 CodeClaw 桌面助手，默认 true。 */
   enabled?: boolean
+  /** 记忆的桌宠窗口左上角 X 坐标。 */
+  x?: number
+  /** 记忆的桌宠窗口左上角 Y 坐标。 */
+  y?: number
+  /** 桌宠主题 ID；CodeClaw 为 LuxCoder 原创，Clawd/Calico/Cloudling 来自 clawd-on-desk AGPL 主题。 */
+  themeId?: CodeClawThemeId
 }
 
 /** 应用设置 */
@@ -314,8 +320,8 @@ export interface AppSettings {
    * 关闭后不注入任何 LuxCoder 归因，并覆盖 Claude SDK 默认 Co-Authored-By。
    */
   gitAttributionEnabled?: boolean
-  /** Agent 灵动岛偏好（macOS 刘海屏优先，其他平台使用 Electron 降级体验）。 */
-  agentIsland?: AgentIslandSettings
+  /** CodeClaw 桌面助手偏好。 */
+  codeClaw?: CodeClawSettings
   /** 主窗口状态（大小、位置、是否最大化） */
   mainWindowState?: MainWindowState
   /** 左栏模块折叠态（key = `${mode}:${moduleId}`，如 `agent:projects`） */

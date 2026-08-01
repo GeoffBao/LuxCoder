@@ -106,8 +106,8 @@ const isQuickTaskWindow = new URLSearchParams(window.location.search).get('windo
 const isVoiceDictationIndicatorWindow = new URLSearchParams(window.location.search).get('window') === 'voice-dictation-indicator'
 const isDetachedPreviewWindow = new URLSearchParams(window.location.search).get('window') === 'detached-preview'
 const isPlanningWindow = new URLSearchParams(window.location.search).get('window') === 'planning'
-const isAgentIslandWindow = new URLSearchParams(window.location.search).get('window') === 'agent-island'
-const isMainWindow = !isQuickTaskWindow && !isVoiceDictationIndicatorWindow && !isDetachedPreviewWindow && !isPlanningWindow && !isAgentIslandWindow
+const isCodeClawWindow = new URLSearchParams(window.location.search).get('window') === 'codeclaw'
+const isMainWindow = !isQuickTaskWindow && !isVoiceDictationIndicatorWindow && !isDetachedPreviewWindow && !isPlanningWindow && !isCodeClawWindow
 
 // 仅主窗口禁用页面级滚动；独立浮窗各自管理自己的内容高度和滚动。
 if (isMainWindow) {
@@ -580,7 +580,7 @@ function DockBadgeInitializer(): null {
       if (!document.hasFocus() || !activeAgentSessionId) return
       // 以实际激活的 Agent/预览 Tab 为准。Scratch Pad 会保留 currentAgentSessionId，
       // 不能仅据此把后台会话误判为已查看。
-      void window.electronAPI.agentIsland.markSessionViewed(activeAgentSessionId).catch(console.error)
+      void window.electronAPI.codeClaw.markSessionViewed(activeAgentSessionId).catch(console.error)
       setUnviewedCompleted((prev) => {
         if (!prev.has(activeAgentSessionId)) return prev
         const next = new Set(prev)
@@ -1098,12 +1098,12 @@ if (isQuickTaskWindow) {
       </React.StrictMode>
     )
   })
-} else if (isAgentIslandWindow) {
-  import('./components/agent-island/AgentIslandApp').then(({ AgentIslandApp }) => {
+} else if (isCodeClawWindow) {
+  import('./components/codeclaw/CodeClawApp').then(({ CodeClawApp }) => {
     ReactDOM.createRoot(document.getElementById('root')!).render(
       <React.StrictMode>
         <ThemeInitializer />
-        <AgentIslandApp />
+        <CodeClawApp />
       </React.StrictMode>
     )
   })

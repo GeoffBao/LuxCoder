@@ -4,8 +4,7 @@ import { PLANNING_IPC_CHANNELS, type ActivePlanningReminder, type PlanningAgentO
 const ALL_PLANNING_CHANGE_RESOURCES: PlanningChangeResource[] = ['todos', 'calendar_events', 'todo_groups', 'calendar_groups', 'tags', 'reminders']
 
 /**
- * 进程内订阅与 Renderer IPC 共用同一个失效出口。
- * 原生灵动岛没有 preload IPC，需要借此刷新主进程投影；用 Set 避免重复注册。
+ * 进程内订阅与 Renderer IPC 共用同一个失效出口；用 Set 避免重复注册。
  */
 const planningChangeListeners = new Set<(change: PlanningChange) => void>()
 

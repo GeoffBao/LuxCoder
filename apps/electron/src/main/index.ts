@@ -114,11 +114,9 @@ import { getDingTalkMultiBotConfig } from './lib/dingtalk-config'
 import { wechatBridge } from './lib/wechat-bridge'
 import { getWeChatConfig } from './lib/wechat-config'
 import { createQuickTaskWindow, toggleQuickTaskWindow, destroyQuickTaskWindow } from './lib/quick-task-window'
-import { destroyPlanningWindow, showPlanningWindow } from './lib/planning-window'
-import { createAgentIslandWindow, destroyAgentIslandWindow, showAgentIslandWindow } from './lib/agent-island-window'
-import { handleNativeAgentIslandEvent, initAgentIslandService, disposeAgentIslandService, publishAgentIslandNow } from './lib/agent-island-service'
-import { disposeMacAgentIslandNativeHost, startMacAgentIslandNativeHost } from './lib/mac-agent-island-native-host'
-import { isMacOS26OrLater } from './lib/macos-version'
+import { destroyPlanningWindow } from './lib/planning-window'
+import { createCodeClawWindow, destroyCodeClawWindow } from './lib/codeclaw-window'
+import { initCodeClawService, disposeCodeClawService, publishCodeClawNow } from './lib/codeclaw-service'
 import {
   createVoiceDictationWindow,
   toggleVoiceDictationWindow,
@@ -131,40 +129,9 @@ import { TRAY_IPC_CHANNELS } from '../types'
 
 const MIGRATION_IPC_OPEN = 'migration:open-import-file'
 
-/**
- * 灵动岛（Agent Island）已暂停启用：等待 CodeClaw 桌宠功能替换。
- * 启动代码、IPC、原生 Swift helper 与设置项全部保留，恢复时只需改回 false。
- */
-const AGENT_ISLAND_PAUSED = true
-
-let agentIslandElectronFallbackActive = false
-
-/** 非 macOS 或 Swift helper 不可用时的无损降级。 */
-function activateAgentIslandElectronFallback(reason?: string): void {
-  if (agentIslandElectronFallbackActive) return
-  agentIslandElectronFallbackActive = true
-  if (reason) console.warn(`[agent-island] 使用 Electron 降级窗口：${reason}`)
-  createAgentIslandWindow()
-  showAgentIslandWindow()
-  publishAgentIslandNow()
-}
-
-/** macOS 26+ 优先使用真刘海 NSPanel；旧版 macOS 默认不显示灵动岛。 */
-function startAgentIslandSurface(): void {
-  if (process.platform === 'darwin' && !isMacOS26OrLater()) {
-    console.info('[agent-island] 已在 macOS 26 以下禁用')
-    return
-  }
-
-  const startedNative = startMacAgentIslandNativeHost({
-    onReady: () => {
-      console.info('[agent-island] macOS 原生 NSPanel helper 已就绪')
-      publishAgentIslandNow()
-    },
-    onEvent: handleNativeAgentIslandEvent,
-    onUnavailable: (reason) => activateAgentIslandElectronFallback(reason),
-  })
-  if (!startedNative) activateAgentIslandElectronFallback(process.platform === 'darwin' ? 'native helper unavailable' : 'non-macOS platform')
+function startCodeClawSurface(): void {
+  createCodeClawWindow()
+  publishCodeClawNow()
 }
 
 /** 检查文件路径是否为迁移文件，如果是则通知渲染进程打开导入流程 */
@@ -611,21 +578,18 @@ async function bootstrap(): Promise<void> {
     safeRun('createVoiceDictationWindow', createVoiceDictationWindow)
   }
 
-  // Agent 灵动岛：已暂停启用（等待 CodeClaw 替代），保留启动代码便于后续恢复。
-  if (!AGENT_ISLAND_PAUSED) {
-    // macOS 优先 Swift/AppKit NSPanel（真刘海），其他平台回退 BrowserWindow。
-    safeRun('initAgentIslandService', () => {
-      initAgentIslandService({
-        showAndFocusMainWindow,
-        openAgentSession: (sessionId, title) => {
-          sendToMainWindow(TRAY_IPC_CHANNELS.OPEN_AGENT_SESSION, { sessionId, title })
-        },
-        openPlanning: showPlanningWindow,
-        enabled: () => getSettings().agentIsland?.enabled !== false,
-      })
+  // CodeClaw：LuxCoder 内置桌面助手，替代旧 Agent 灵动岛。
+  safeRun('initCodeClawService', () => {
+    initCodeClawService({
+      showAndFocusMainWindow,
+      openAgentSession: (sessionId, title) => {
+        sendToMainWindow(TRAY_IPC_CHANNELS.OPEN_AGENT_SESSION, { sessionId, title })
+      },
+      enabled: () => getSettings().codeClaw?.enabled !== false,
     })
-    safeRun('startAgentIslandSurface', startAgentIslandSurface)
-  }
+  })
+  safeRun('startCodeClawSurface', startCodeClawSurface)
+
 
   // 飞书实时同步开启时，默认阻止系统自动休眠，保证远程群内继续可用。
   safeRun('syncFeishuSyncSleepBlocker', () => syncFeishuSyncSleepBlocker(getSettings()))
@@ -752,10 +716,9 @@ app.on('before-quit', () => {
   destroyQuickTaskWindow()
   destroyPlanningWindow()
   destroyVoiceDictationWindow()
-  // 销毁灵动岛服务与窗口（先关闭 NSPanel helper，避免开发热重载遗留原生面板）
-  disposeMacAgentIslandNativeHost()
-  disposeAgentIslandService()
-  destroyAgentIslandWindow()
+  // 销毁 CodeClaw 服务与窗口
+  disposeCodeClawService()
+  destroyCodeClawWindow()
   // 关闭 Pi MCP 桥接连接（释放 stdio 子进程）
   disposePiMcpConnections().catch(() => {})
   // Clean up system tray before quitting

@@ -72,5 +72,5 @@ export type * from '../tasks/storage'
 // Protocol 通道常量
 export * from '../protocol/channels'
 
-// Agent 灵动岛相关类型
-export * from './agent-island'
+// CodeClaw 桌面助手相关类型
+export * from './codeclaw'

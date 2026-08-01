@@ -7,7 +7,7 @@
 
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { PROJECT_IPC_CHANNELS, TASK_IPC_CHANNELS, SESSION_COMMAND_CHANNEL, SESSION_GROUP_IPC_CHANNELS, TEAMBITION_IPC_CHANNELS, EXPERT_IPC_CHANNELS } from '@luxcoder/shared/channels'
-import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS, PLANNING_IPC_CHANNELS, AGENT_ISLAND_IPC_CHANNELS } from '@luxcoder/shared'
+import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS, PLANNING_IPC_CHANNELS, CODECLAW_IPC_CHANNELS } from '@luxcoder/shared'
 import type { TaskAggregateSummary, TaskMetadataPatch, TaskWorkflow } from '@luxcoder/shared/tasks'
 import type { StartTodoAgentInput, StartTodoAgentResult, TodoAgentSessionActivation, PlanningWorkspaceScope } from '@luxcoder/shared'
 import { LABEL_IPC_CHANNELS } from '@luxcoder/shared/channels'
@@ -154,8 +154,8 @@ import type {
   RunLogEntry,
   ProjectsChangedEventPayload,
   TaskGeneratedEventPayload,
-  AgentIslandState,
-  AgentIslandWindowSnapshot,
+  CodeClawState,
+  CodeClawThemeId,
 } from '@luxcoder/shared'
 import type { ProjectConfig } from '@luxcoder/shared/projects'
 import type { ExpertManifest, ExpertPackage } from '@luxcoder/shared/experts'
@@ -1507,28 +1507,20 @@ export interface ElectronAPI {
   /** 独立规划窗口启动的 Todo Agent 会话转交到主窗口（自动打开并注入提示） */
   onTodoAgentSessionReady: (callback: (activation: TodoAgentSessionActivation) => void) => () => void
 
-  /** Agent 灵动岛桥接（主进程状态机 → 灵动岛窗口） */
-  agentIsland: {
-    /** 订阅灵动岛全量状态 */
-    onState: (callback: (snapshot: AgentIslandWindowSnapshot) => void) => () => void
-    /** 外部触发展开/收起切换 */
-    onToggleExpanded: (callback: () => void) => () => void
-    /** 同步展开/收起状态到主进程（避免下一条 Agent 事件覆盖本地状态） */
-    setExpanded: (expanded: boolean) => Promise<void>
-    /** 发送鼠标进入/离开 island surface 的意图；主进程负责展开防抖。 */
-    setHovered: (hovered: boolean) => Promise<void>
-    /** 按内容调整窗口尺寸（pill ↔ 展开卡） */
-    resize: (width: number, height: number) => Promise<void>
+  /** CodeClaw 桌面助手桥接（主进程状态机 → 桌宠窗口） */
+  codeClaw: {
+    /** 订阅 CodeClaw 全量状态 */
+    onState: (callback: (state: CodeClawState) => void) => () => void
     /** 拖拽移动窗口位置 */
     move: (x: number, y: number) => Promise<void>
     /** 打开/聚焦主窗口 */
     openMainWindow: () => Promise<void>
-    /** 打开独立 Planning 窗口。 */
-    openPlanning: () => Promise<void>
-    /** 打开指定 Agent 会话（聚焦主窗口） */
-    openSession: (sessionId: string) => Promise<void>
-    /** 用户已在主应用中主动查看完成会话，清除灵动岛未读状态 */
+    /** 打开指定 Agent 会话；不传则打开当前优先会话 */
+    openSession: (sessionId?: string) => Promise<void>
+    /** 用户已在主应用中主动查看完成会话，清除 CodeClaw 未读状态 */
     markSessionViewed: (sessionId: string) => Promise<void>
+    /** 切换 CodeClaw clean-room 宠物主题 */
+    setTheme: (themeId: CodeClawThemeId) => Promise<void>
   }
 }
 
@@ -3324,34 +3316,23 @@ const electronAPI: ElectronAPI = {
     return () => { ipcRenderer.removeListener(PLANNING_IPC_CHANNELS.TODO_AGENT_SESSION_READY, listener) }
   },
 
-  // ===== Agent 灵动岛 =====
-  agentIsland: {
-    onState: (callback: (snapshot: AgentIslandWindowSnapshot) => void) => {
-      const listener = (_: Electron.IpcRendererEvent, snapshot: AgentIslandWindowSnapshot): void => callback(snapshot)
-      ipcRenderer.on(AGENT_ISLAND_IPC_CHANNELS.STATE, listener)
-      return () => { ipcRenderer.removeListener(AGENT_ISLAND_IPC_CHANNELS.STATE, listener) }
+  // ===== CodeClaw 桌面助手 =====
+  codeClaw: {
+    onState: (callback: (state: CodeClawState) => void) => {
+      const listener = (_: Electron.IpcRendererEvent, state: CodeClawState): void => callback(state)
+      ipcRenderer.on(CODECLAW_IPC_CHANNELS.STATE, listener)
+      return () => { ipcRenderer.removeListener(CODECLAW_IPC_CHANNELS.STATE, listener) }
     },
-    onToggleExpanded: (callback: () => void) => {
-      const listener = (): void => callback()
-      ipcRenderer.on(AGENT_ISLAND_IPC_CHANNELS.TOGGLE_EXPANDED, listener)
-      return () => { ipcRenderer.removeListener(AGENT_ISLAND_IPC_CHANNELS.TOGGLE_EXPANDED, listener) }
-    },
-    setExpanded: (expanded: boolean) =>
-      ipcRenderer.invoke(AGENT_ISLAND_IPC_CHANNELS.SET_EXPANDED, expanded),
-    setHovered: (hovered: boolean) =>
-      ipcRenderer.invoke(AGENT_ISLAND_IPC_CHANNELS.SET_HOVERED, hovered),
-    resize: (width: number, height: number) =>
-      ipcRenderer.invoke(AGENT_ISLAND_IPC_CHANNELS.RESIZE, { width, height }),
     move: (x: number, y: number) =>
-      ipcRenderer.invoke(AGENT_ISLAND_IPC_CHANNELS.MOVE, { x, y }),
+      ipcRenderer.invoke(CODECLAW_IPC_CHANNELS.MOVE, { x, y }),
     openMainWindow: () =>
-      ipcRenderer.invoke(AGENT_ISLAND_IPC_CHANNELS.OPEN_MAIN_WINDOW),
-    openPlanning: () =>
-      ipcRenderer.invoke(AGENT_ISLAND_IPC_CHANNELS.OPEN_PLANNING),
-    openSession: (sessionId: string) =>
-      ipcRenderer.invoke(AGENT_ISLAND_IPC_CHANNELS.OPEN_SESSION, sessionId),
+      ipcRenderer.invoke(CODECLAW_IPC_CHANNELS.OPEN_MAIN_WINDOW),
+    openSession: (sessionId?: string) =>
+      ipcRenderer.invoke(CODECLAW_IPC_CHANNELS.OPEN_SESSION, sessionId),
     markSessionViewed: (sessionId: string) =>
-      ipcRenderer.invoke(AGENT_ISLAND_IPC_CHANNELS.MARK_SESSION_VIEWED, sessionId),
+      ipcRenderer.invoke(CODECLAW_IPC_CHANNELS.MARK_SESSION_VIEWED, sessionId),
+    setTheme: (themeId: CodeClawThemeId) =>
+      ipcRenderer.invoke(CODECLAW_IPC_CHANNELS.SET_THEME, themeId),
   },
 }
 
