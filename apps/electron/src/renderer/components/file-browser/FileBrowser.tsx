@@ -55,6 +55,7 @@ import {
   STICKY_ROW_BASE_CLASS,
   canBeSticky,
 } from './tree-row-layout'
+import { setFilePanelDragData, dispatchInsertFileMention } from '@/lib/file-panel-drag'
 
 /** 计算目标路径相对 rootPath 的祖先目录集合（不含 rootPath 自身、含目标的所有上级） */
 export function computeRevealAncestors(rootPath: string, targetPath: string): Set<string> {
@@ -588,6 +589,17 @@ function FileTreeItem({
     }
   }
 
+  /** 拖拽到 Agent 输入框：写入面板文件引用载荷 */
+  const handleRowDragStart = React.useCallback((e: React.DragEvent): void => {
+    e.stopPropagation()
+    setFilePanelDragData(e.dataTransfer, [{
+      path: entry.path,
+      name: entry.name,
+      isDirectory: entry.isDirectory,
+      scope: 'session',
+    }])
+  }, [entry.path, entry.name, entry.isDirectory, 'session'])
+
   /** 删除后刷新子目录 */
   const handleRefreshAfterDelete = async (): Promise<void> => {
     if (childrenLoaded) {
@@ -689,6 +701,8 @@ function FileTreeItem({
           zIndex: isSticky ? stickyZIndex : undefined,
         }}
         onClick={handleClick}
+        draggable={!isRenaming}
+        onDragStart={handleRowDragStart}
       >
         <span
           aria-hidden="true"
@@ -761,6 +775,7 @@ function FileTreeItem({
         {/* 右侧操作按钮占位（始终占位，避免行宽跳动） */}
         <div
           className="relative z-10 flex-shrink-0 mr-1"
+          draggable={false}
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
         >
@@ -784,6 +799,20 @@ function FileTreeItem({
               </button>
             </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-40 z-[9999] min-w-0 p-0.5">
+                {menuSelectedCount === 1 && (
+                  <DropdownMenuItem
+                    className="text-xs py-1 [&>svg]:size-3.5"
+                    onSelect={() => dispatchInsertFileMention([{
+                      path: entry.path,
+                      name: entry.name,
+                      isDirectory: entry.isDirectory,
+                      scope: 'session',
+                    }])}
+                  >
+                    <MessageSquarePlus />
+                    引用到 Agent
+                  </DropdownMenuItem>
+                )}
                 {onAddToChat && !entry.isDirectory && menuSelectedCount === 1 && (
                   <DropdownMenuItem
                     className="text-xs py-1 [&>svg]:size-3.5"
