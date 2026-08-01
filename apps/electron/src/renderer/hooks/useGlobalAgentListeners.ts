@@ -43,6 +43,7 @@ import {
   workspaceAttachedDirectoriesMapAtom,
   workspaceAttachedFilesMapAtom,
   unviewedCompletedSessionIdsAtom,
+  agentPendingPromptAtom,
   agentSessionPathMapAtom,
   agentDiffRefreshVersionAtom,
   askUserDraftsAtom,
@@ -65,6 +66,7 @@ import type { AgentStreamEvent, AgentStreamCompletePayload, AgentEvent, AgentStr
 import { inferAgentSdkContextWindow, inferContextWindow } from '@luxcoder/shared'
 import { buildExternalAgentRunActivation, shouldActivateExternalAgentRun } from '@/lib/external-agent-run'
 import { upsertAgentSession, mergeFetchedAgentSessions } from '@/lib/agent-session-list'
+import { buildTodoAgentPrompt } from '@/lib/todo-agent-prompt'
 import { getAgentCompletionMarkers, notifyAgentCompletion } from '@/lib/agent-completion-presence'
 import { getPlanModeChangeFromToolName, updatePlanModeSessionSet } from '@/lib/agent-plan-mode'
 
@@ -1291,6 +1293,27 @@ export function useGlobalAgentListeners(): void {
         .catch(console.error)
     })
 
+    // ===== 独立规划窗口 → 主窗口 Todo Agent 接力 =====
+    const cleanupTodoAgentSessionReady = window.electronAPI.onTodoAgentSessionReady(({ todo, session }) => {
+      unstable_batchedUpdates(() => {
+        store.set(agentSessionsAtom, (prev) => upsertAgentSession(prev, session))
+        const result = openTab(store.get(tabsAtom), { type: 'agent', sessionId: session.id, title: session.title })
+        store.set(tabsAtom, result.tabs)
+        store.set(activeTabIdAtom, result.activeTabId)
+        store.set(appModeAtom, 'agent')
+        store.set(currentAgentSessionIdAtom, session.id)
+        if (session.workspaceId) {
+          store.set(currentAgentWorkspaceIdAtom, session.workspaceId)
+          void window.electronAPI.updateSettings({ agentWorkspaceId: session.workspaceId }).catch(console.error)
+        }
+        store.set(agentPendingPromptAtom, {
+          sessionId: session.id,
+          message: buildTodoAgentPrompt(todo.id, session.agentRuntime === 'pi'),
+          mentionedTodoIds: [todo.id],
+        })
+      })
+    })
+
     // 定期清理 60s 前的「最近修改」标记，避免 atom 无限增长
     const pruneTimer = setInterval(() => {
       const cutoff = Date.now() - RECENTLY_MODIFIED_TTL_MS
@@ -1381,6 +1404,7 @@ export function useGlobalAgentListeners(): void {
       cleanupComplete()
       cleanupError()
       cleanupTitleUpdated()
+      cleanupTodoAgentSessionReady()
       clearInterval(pruneTimer)
       window.removeEventListener('focus', onWindowFocus)
     }

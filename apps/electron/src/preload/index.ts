@@ -9,7 +9,7 @@ import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { PROJECT_IPC_CHANNELS, TASK_IPC_CHANNELS, SESSION_COMMAND_CHANNEL, SESSION_GROUP_IPC_CHANNELS, TEAMBITION_IPC_CHANNELS, EXPERT_IPC_CHANNELS } from '@luxcoder/shared/channels'
 import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS, PLANNING_IPC_CHANNELS } from '@luxcoder/shared'
 import type { TaskAggregateSummary, TaskMetadataPatch, TaskWorkflow } from '@luxcoder/shared/tasks'
-import type { StartTodoAgentInput, StartTodoAgentResult, PlanningWorkspaceScope } from '@luxcoder/shared'
+import type { StartTodoAgentInput, StartTodoAgentResult, TodoAgentSessionActivation, PlanningWorkspaceScope } from '@luxcoder/shared'
 import { LABEL_IPC_CHANNELS } from '@luxcoder/shared/channels'
 import type { WorkspaceLabel } from '@luxcoder/shared/labels'
 import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, SCRATCH_PAD_IPC_CHANNELS, EXCALIDRAW_IPC_CHANNELS, DOCK_BADGE_IPC_CHANNELS, STORAGE_IPC_CHANNELS } from '../types'
@@ -1461,6 +1461,8 @@ export interface ElectronAPI {
   onPlanningRemindersDue: (callback: (reminders: ActivePlanningReminder[]) => void) => () => void
   onPlanningChanged: (callback: (change: PlanningChange) => void) => () => void
   onPlanningAgentOperation: (callback: (operation: PlanningAgentOperation) => void) => () => void
+  /** 独立规划窗口启动的 Todo Agent 会话转交到主窗口（自动打开并注入提示） */
+  onTodoAgentSessionReady: (callback: (activation: TodoAgentSessionActivation) => void) => () => void
 }
 
 interface MigrationExportResult {
@@ -3184,6 +3186,11 @@ const electronAPI: ElectronAPI = {
     const listener = (_: Electron.IpcRendererEvent, operation: PlanningAgentOperation): void => callback(operation)
     ipcRenderer.on(PLANNING_IPC_CHANNELS.AGENT_OPERATION, listener)
     return () => { ipcRenderer.removeListener(PLANNING_IPC_CHANNELS.AGENT_OPERATION, listener) }
+  },
+  onTodoAgentSessionReady: (callback: (activation: TodoAgentSessionActivation) => void) => {
+    const listener = (_: Electron.IpcRendererEvent, activation: TodoAgentSessionActivation): void => callback(activation)
+    ipcRenderer.on(PLANNING_IPC_CHANNELS.TODO_AGENT_SESSION_READY, listener)
+    return () => { ipcRenderer.removeListener(PLANNING_IPC_CHANNELS.TODO_AGENT_SESSION_READY, listener) }
   },
 }
 
