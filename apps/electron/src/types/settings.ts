@@ -218,7 +218,7 @@ export const DEFAULT_MARKDOWN_FONT_SIZE: MarkdownFontSize = 'small'
 
 /** CodeClaw 桌面助手偏好。 */
 export interface CodeClawSettings {
-  /** 是否启用 CodeClaw 桌面助手，默认 true。 */
+  /** 是否启用 CodeClaw 桌面助手，默认 false，避免首次启动时打扰主界面。 */
   enabled?: boolean
   /** 记忆的桌宠窗口左上角 X 坐标。 */
   x?: number

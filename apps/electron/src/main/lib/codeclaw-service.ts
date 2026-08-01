@@ -250,7 +250,7 @@ function buildState(): CodeClawState {
   const activeSessionCount = visibleSessions.filter((session) => session.phase === 'running' || session.phase === 'needs-interaction').length
   const pendingInteractionCount = visibleSessions.filter((session) => session.phase === 'needs-interaction').length
   const unreadCompletedCount = visibleSessions.filter((session) => session.phase === 'completed').length
-  const enabled = serviceDeps?.enabled?.() !== false
+  const enabled = serviceDeps?.enabled?.() === true
   return {
     visible: enabled,
     themeId: getThemeId(),
@@ -284,11 +284,11 @@ function pushState(): void {
   const json = JSON.stringify(state)
   if (json === lastStateJson) return
   lastStateJson = json
+  if (state.visible) showCodeClawWindow()
+  else hideCodeClawWindow()
   const win = getCodeClawWindow()
   if (!win || win.isDestroyed()) return
   if (!win.webContents.isDestroyed()) win.webContents.send(CODECLAW_IPC_CHANNELS.STATE, state)
-  if (state.visible) showCodeClawWindow()
-  else hideCodeClawWindow()
 }
 
 function schedulePush(delay = PUSH_THROTTLE_MS): void {

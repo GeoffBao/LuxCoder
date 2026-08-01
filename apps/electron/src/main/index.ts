@@ -130,7 +130,8 @@ import { TRAY_IPC_CHANNELS } from '../types'
 const MIGRATION_IPC_OPEN = 'migration:open-import-file'
 
 function startCodeClawSurface(): void {
-  createCodeClawWindow()
+  // 不再启动时预创建桌宠窗口：CodeClaw 是可选企业桌面助手，默认关闭。
+  // 开启后由 codeclaw-service 在推送可见状态时按需创建窗口。
   publishCodeClawNow()
 }
 
@@ -585,7 +586,7 @@ async function bootstrap(): Promise<void> {
       openAgentSession: (sessionId, title) => {
         sendToMainWindow(TRAY_IPC_CHANNELS.OPEN_AGENT_SESSION, { sessionId, title })
       },
-      enabled: () => getSettings().codeClaw?.enabled !== false,
+      enabled: () => getSettings().codeClaw?.enabled === true,
     })
   })
   safeRun('startCodeClawSurface', startCodeClawSurface)

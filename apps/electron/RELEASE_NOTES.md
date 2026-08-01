@@ -4,7 +4,7 @@
 
 - **全新应用图标**：应用 Dock / 安装包 / Windows 图标统一升级为更适合企业级 Agent 工作台的品牌视觉。
 - **企业版新会话空态**：Code / Agent 新会话页接入 LuxshareICT Mascot，替换原默认农夫插图，强化企业研发场景识别。
-- **CodeClaw 桌宠 MVP**：以桌面宠物替代原灵动岛入口，可跟随 Agent idle / running / needs-interaction / completed / error 状态变化；设置中可切换 CodeClaw / Clawd / Calico / Cloudling 主题。
+- **CodeClaw 桌宠 MVP**：以桌面宠物替代原灵动岛入口，可跟随 Agent idle / running / needs-interaction / completed / error 状态变化；设置中可切换 CodeClaw / Clawd / Calico / Cloudling 主题。该能力默认关闭，可在设置中按需开启。
 
 ## 文件与项目体验
 

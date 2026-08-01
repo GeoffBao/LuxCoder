@@ -71,7 +71,7 @@ export function GeneralSettings(): React.ReactElement {
   const [archiveAfterDays, setArchiveAfterDays] = React.useState<number>(7)
   /** Git/PR 推广标识：默认开启 */
   const [gitAttributionEnabled, setGitAttributionEnabled] = React.useState(true)
-  const [codeClawEnabled, setCodeClawEnabled] = React.useState(true)
+  const [codeClawEnabled, setCodeClawEnabled] = React.useState(false)
   const [codeClawThemeId, setCodeClawThemeId] = React.useState<CodeClawThemeId>(DEFAULT_CODECLAW_THEME_ID)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
@@ -81,7 +81,7 @@ export function GeneralSettings(): React.ReactElement {
       setArchiveAfterDays(settings.archiveAfterDays ?? 7)
       setDefaultThinkingLevel(settings.defaultThinkingLevel ?? DEFAULT_AGENT_THINKING_LEVEL)
       setGitAttributionEnabled(settings.gitAttributionEnabled ?? true)
-      setCodeClawEnabled(settings.codeClaw?.enabled ?? true)
+      setCodeClawEnabled(settings.codeClaw?.enabled ?? false)
       setCodeClawThemeId(isCodeClawThemeId(settings.codeClaw?.themeId) ? settings.codeClaw.themeId : DEFAULT_CODECLAW_THEME_ID)
     }).catch(console.error)
   }, [])
