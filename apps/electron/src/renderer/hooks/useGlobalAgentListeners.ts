@@ -63,7 +63,7 @@ import type { NotificationSoundType } from '@/types/settings'
 import { toast } from 'sonner'
 import type { AgentStreamEvent, AgentStreamCompletePayload, AgentEvent, AgentStreamPayload, SDKAssistantMessage, SDKUserMessage, SDKSystemMessage, SDKContentBlock, SDKUserContentBlock, LuxCoderEvent, AgentSessionMeta, ProviderType } from '@luxcoder/shared'
 import { inferAgentSdkContextWindow, inferContextWindow } from '@luxcoder/shared'
-import { buildExternalAgentRunActivation } from '@/lib/external-agent-run'
+import { buildExternalAgentRunActivation, shouldActivateExternalAgentRun } from '@/lib/external-agent-run'
 import { upsertAgentSession, mergeFetchedAgentSessions } from '@/lib/agent-session-list'
 import { getAgentCompletionMarkers, notifyAgentCompletion } from '@/lib/agent-completion-presence'
 import { getPlanModeChangeFromToolName, updatePlanModeSessionSet } from '@/lib/agent-plan-mode'
@@ -476,6 +476,11 @@ export function useGlobalAgentListeners(): void {
     }
 
     const activateExternalAgentRun = (event: Extract<LuxCoderEvent, { type: 'external_run_started' }>): void => {
+      const currentStreamState = store.get(agentStreamingStatesAtom).get(event.sessionId)
+      if (!shouldActivateExternalAgentRun(currentStreamState, event.startedAt)) {
+        return
+      }
+
       const applyActivation = (sessions: AgentSessionMeta[]): void => {
         const activation = buildExternalAgentRunActivation({
           tabs: store.get(tabsAtom),
@@ -485,7 +490,7 @@ export function useGlobalAgentListeners(): void {
           workspaceId: event.workspaceId,
           modelId: event.modelId,
           startedAt: event.startedAt,
-          currentStreamState: store.get(agentStreamingStatesAtom).get(event.sessionId),
+          currentStreamState,
         })
 
         // 外部来源（飞书/钉钉/微信/bridge）唤起的 run 不抢占前台：
@@ -501,7 +506,7 @@ export function useGlobalAgentListeners(): void {
         // turn 的父会话的快照，把父会话冲掉——父会话从列表消失后，其子会话
         // 因找不到父而从树形子节点变成根节点直接显示（用户观察到的现象）。
         // 改为单条 upsert 后，每个回调只负责自己那一个会话，互不干扰。
-        const sessionMeta = sessions.find((item) => item.id === event.sessionId)
+        const sessionMeta = event.session ?? sessions.find((item) => item.id === event.sessionId)
         const upserted: AgentSessionMeta = sessionMeta ?? {
           id: event.sessionId,
           title: activation.title,
@@ -530,6 +535,11 @@ export function useGlobalAgentListeners(): void {
           map.set(event.sessionId, activation.streamState)
           return map
         })
+      }
+
+      if (event.session) {
+        applyActivation([event.session])
+        return
       }
 
       const knownSessions = store.get(agentSessionsAtom)

@@ -36,6 +36,7 @@ import { AgentOrchestrator } from './agent-orchestrator'
 import { getAgentSessionWorkspacePath, getWorkspaceFilesDir } from './config-paths'
 import { getAgentSessionMeta, updateAgentSessionMeta } from './agent-session-manager'
 import { setAgentStopper, setHeadlessAgentRunner } from './agent-headless-runner-registry'
+import { getHeadlessAgentRunTarget } from './agent-headless-run-target'
 
 // ===== 实例创建 =====
 
@@ -260,10 +261,15 @@ export async function runAgentHeadless(
     onComplete: (messages?: AgentMessage[], options?: RunAgentHeadlessCompleteOptions) => void
     onTitleUpdated: (title: string) => void
     source?: AgentExternalRunSource
+    originSessionId?: string
   },
 ): Promise<void> {
-  // 尝试注册主窗口 webContents，让流式事件同步推送到桌面端
-  const wc = getMainRendererWebContents()
+  // 委派子会话优先回到父会话所在 renderer，外部无界面运行才回退任意主窗口。
+  const wc = getHeadlessAgentRunTarget(
+    sessionWebContents,
+    callbacks.originSessionId,
+    getMainRendererWebContents,
+  )
   const runInput: AgentSendInput = input.startedAt != null ? input : { ...input, startedAt: Date.now() }
   const startedAt = runInput.startedAt!
   if (wc) {

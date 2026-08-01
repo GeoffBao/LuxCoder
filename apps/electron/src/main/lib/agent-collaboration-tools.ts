@@ -714,6 +714,7 @@ function startDelegation(
     },
     {
       source: 'delegation',
+      originSessionId: ctx.sessionId,
       onError: (error) => {
         markDelegationFinished(record, 'failed', { error })
       },
@@ -1040,6 +1041,7 @@ export async function injectAgentCollaborationMcpServer(
             },
             {
               source: 'delegation',
+              originSessionId: ctx.sessionId,
               onError: (error) => {
                 markDelegationFinished(record, 'failed', { error })
               },
@@ -1394,6 +1396,7 @@ export function buildPiCollaborationTools(
           },
           {
             source: 'delegation',
+            originSessionId: ctx.sessionId,
             onError: (error) => {
               markDelegationFinished(record, 'failed', { error })
             },

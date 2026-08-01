@@ -16,6 +16,7 @@ export interface HeadlessAgentRunCallbacks {
   onComplete: (messages?: AgentMessage[]) => void
   onTitleUpdated: (title: string) => void
   source?: AgentExternalRunSource
+  originSessionId?: string
 }
 
 export type HeadlessAgentRunner = (

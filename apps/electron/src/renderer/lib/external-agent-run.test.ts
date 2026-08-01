@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import type { AgentSessionMeta } from '@luxcoder/shared'
-import { buildExternalAgentRunActivation } from './external-agent-run'
+import { buildExternalAgentRunActivation, shouldActivateExternalAgentRun } from './external-agent-run'
 import type { ExternalAgentRunTab } from './external-agent-run'
 
 const session: AgentSessionMeta = {
@@ -92,5 +92,32 @@ describe('外部 Agent 运行激活', () => {
     expect(result.streamState.toolActivities).toEqual([])
     expect(result.streamState.model).toBeUndefined()
     expect(result.streamState.startedAt).toBe(400)
+  })
+})
+
+describe('shouldActivateExternalAgentRun', () => {
+  test('Given 无当前流状态 When 判断 Then 允许激活', () => {
+    expect(shouldActivateExternalAgentRun(undefined, 100)).toBe(true)
+  })
+
+  test('Given 当前流已结束 When 收到更早启动事件 Then 拒绝激活', () => {
+    expect(shouldActivateExternalAgentRun(
+      { startedAt: 200, running: false, backgroundWaiting: false } as never,
+      100,
+    )).toBe(false)
+  })
+
+  test('Given 相同启动时间且正在运行 When 判断 Then 允许激活', () => {
+    expect(shouldActivateExternalAgentRun(
+      { startedAt: 200, running: true, backgroundWaiting: false } as never,
+      200,
+    )).toBe(true)
+  })
+
+  test('Given 相同启动时间但处于后台等待 When 判断 Then 拒绝激活', () => {
+    expect(shouldActivateExternalAgentRun(
+      { startedAt: 200, running: true, backgroundWaiting: true } as never,
+      200,
+    )).toBe(false)
   })
 })
