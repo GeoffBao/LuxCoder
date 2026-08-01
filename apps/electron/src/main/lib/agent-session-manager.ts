@@ -1752,18 +1752,11 @@ export function rewindFilesFromSnapshot(
     const fileHistoryDir = join(sdkConfigDir, 'file-history', effectiveSdkSessionId)
     const filesChanged: string[] = []
 
-    const resolvedCwd = resolve(cwd)
-    // 预计算允许写入的目录列表（cwd + attachedDirectories）
-    const allowedDirs = [resolvedCwd, ...(attachedDirectories || []).map((d) => resolve(d))]
-
     for (const [filePath, backupFileName] of fileState) {
-      // SDK 对 cwd 内文件使用相对路径，对 additionalDirectories 内文件使用绝对路径
-      const isAbsolute = filePath.startsWith('/')
-      const fullPath = isAbsolute ? resolve(filePath) : resolve(cwd, filePath)
-
-      // 路径安全检查：文件必须位于 cwd 或 attachedDirectories 之内
-      const isInAllowedDir = allowedDirs.some((dir) => fullPath.startsWith(dir + '/') || fullPath === dir)
-      if (!isInAllowedDir) {
+      // SDK 对 cwd 内文件使用相对路径，对 additionalDirectories 内文件使用绝对路径。
+      // 路径安全检查：文件必须位于 cwd 或 attachedDirectories 之内，否则拒绝写入。
+      const fullPath = resolveSafeRewindPath(filePath, cwd, attachedDirectories)
+      if (!fullPath) {
         console.warn(`[Agent 会话] rewindFiles: 拒绝路径越界 ${filePath}`)
         continue
       }

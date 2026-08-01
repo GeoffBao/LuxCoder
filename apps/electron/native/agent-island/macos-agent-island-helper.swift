@@ -6,7 +6,7 @@ import SwiftUI
 private let expandedBottomCornerRadius: CGFloat = 32
 private let expandedBottomCornerClearance: CGFloat = 32
 
-// Proma macOS Agent Island native host.
+// LuxCoder macOS Agent Island native host.
 // JSON Lines stdin/stdout protocol: TypeScript owns product state; this process only
 // owns AppKit geometry, rendering and constrained pointer intents.
 
@@ -438,9 +438,9 @@ struct ExpandedIslandView: View {
 
   private var headerEyebrow: String {
     switch primaryPhase {
-    case "needs-interaction": return "PROMA · HANDOFF"
-    case .some: return "PROMA · AGENT"
-    case .none: return "PROMA · REMINDER"
+    case "needs-interaction": return "LUXCODER · HANDOFF"
+    case .some: return "LUXCODER · AGENT"
+    case .none: return "LUXCODER · REMINDER"
     }
   }
 
@@ -475,7 +475,7 @@ struct ExpandedIslandView: View {
             Spacer()
             Button(action: { action("open-main", [:]) }) {
               HStack(spacing: 5) {
-                Text("打开 Proma")
+                Text("打开 LuxCoder")
                 Image(systemName: "arrow.up.right")
               }
               .font(.system(size: 10, weight: .semibold))
@@ -489,8 +489,10 @@ struct ExpandedIslandView: View {
       } else {
         // The compact notch is a real physical exclusion zone. Keep planning
         // content below it and use that otherwise-empty band for Plan usage.
+        // Top-align: PlanQuotaCarousel already reserves the notch-safe band via
+        // its own top padding, so centering here would double that empty space.
         PlanQuotaCarousel(quotas: snapshot.planQuotas)
-          .frame(height: snapshot.planQuotas.isEmpty ? 56 : 108)
+          .frame(height: snapshot.planQuotas.isEmpty ? 56 : 108, alignment: .top)
       }
 
       if !displayedSessions.isEmpty {
@@ -811,7 +813,7 @@ func emitIntent(_ name: String, _ values: [String: Any]) {
 
 @main
 @MainActor
-struct PromaAgentIslandHost {
+struct LuxCoderAgentIslandHost {
   static func main() {
     let app = NSApplication.shared
     app.setActivationPolicy(.accessory)

@@ -1,7 +1,7 @@
 /**
- * AgentIslandApp —— Proma 工作脉冲（Work Pulse）
+ * AgentIslandApp —— LuxCoder 工作脉冲（Work Pulse）
  *
- * 将原本偏“独立玩具窗”的灵动岛收敛为 Proma 的可扫读工作状态条：
+ * 将原本偏“独立玩具窗”的灵动岛收敛为 LuxCoder 的可扫读工作状态条：
  * 收起态给出 Agent / Todo / 日程的即时脉冲；展开态是短 briefing，按
  * “需要你处理 → 正在进行 → 今天”组织信息。
  */
@@ -24,7 +24,7 @@ import type {
   AgentIslandState,
   CalendarEvent,
   Todo,
-} from '@proma/shared'
+} from '@luxcoder/shared'
 import './agent-island.css'
 
 function useAgentIslandState(): AgentIslandState | null {
@@ -232,7 +232,7 @@ export function AgentIslandApp(): React.ReactElement {
   const visibleEvents = events.slice(0, 3)
   const todayLabel = getTodayLabel()
 
-  const compactTitle = priority?.title ?? 'Proma Agent'
+  const compactTitle = priority?.title ?? 'LuxCoder Agent'
   const compactDetail = priority
     ? priority.detail || PHASE_LABEL[priority.phase]
     : todos.length || events.length
@@ -248,7 +248,7 @@ export function AgentIslandApp(): React.ReactElement {
           <div className="pulse-compact" onMouseDown={handlePointerDown} title="点击展开；拖动移动">
             <PulseGlyph phase={phase} compact />
             <div className="pulse-compact-copy">
-              <span className="pulse-kicker">PROMA · AGENT</span>
+              <span className="pulse-kicker">LUXCODER · AGENT</span>
               <span className="pulse-compact-title">{compactTitle}</span>
               <span className="pulse-compact-detail">{compactDetail}</span>
             </div>
@@ -272,13 +272,13 @@ export function AgentIslandApp(): React.ReactElement {
           <div className="pulse-header-identity">
             <PulseGlyph phase={phase} />
             <div>
-              <p className="pulse-kicker">PROMA · WORK PULSE</p>
+              <p className="pulse-kicker">LUXCODER · WORK PULSE</p>
               <h1>工作脉冲</h1>
             </div>
           </div>
           <div className="pulse-header-actions">
             <span className="pulse-date">{todayLabel}</span>
-            <button type="button" className="pulse-icon-button" onClick={openMain} title="打开 Proma">
+            <button type="button" className="pulse-icon-button" onClick={openMain} title="打开 LuxCoder">
               <ArrowUpRight size={15} strokeWidth={1.9} />
             </button>
             <button type="button" className="pulse-icon-button" onClick={toggleExpanded} title="收起">

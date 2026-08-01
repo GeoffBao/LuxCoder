@@ -25,8 +25,8 @@ import {
   type AgentIslandPlanQuotaSnapshot,
   type NativeAgentIslandEvent,
   type NativeAgentIslandSnapshot,
-} from '@proma/shared'
-import type { AgentStreamPayload } from '@proma/shared'
+} from '@luxcoder/shared'
+import type { AgentStreamPayload } from '@luxcoder/shared'
 import { agentEventBus } from './agent-service'
 import { getAgentSessionMeta, listAgentSessions } from './agent-session-manager'
 import { getAgentIslandWindow, hideAgentIslandWindow, moveAgentIslandWindow, onAgentIslandWindowReady, resizeAgentIslandWindow, showAgentIslandWindow } from './agent-island-window'
@@ -242,10 +242,10 @@ function handleLuxCoderEvent(sessionId: string, event: import('@luxcoder/shared'
   }
 }
 
-function handleSdkMessage(sessionId: string, message: import('@proma/shared').SDKMessage): void {
+function handleSdkMessage(sessionId: string, message: import('@luxcoder/shared').SDKMessage): void {
   switch (message.type) {
     case 'assistant': {
-      const aMsg = message as import('@proma/shared').SDKAssistantMessage
+      const aMsg = message as import('@luxcoder/shared').SDKAssistantMessage
       if (aMsg.isReplay) return
       if (aMsg.error) {
         const session = ensureSession(sessionId)
@@ -275,7 +275,7 @@ function handleSdkMessage(sessionId: string, message: import('@proma/shared').SD
       break
     }
     case 'user': {
-      const uMsg = message as import('@proma/shared').SDKUserMessage
+      const uMsg = message as import('@luxcoder/shared').SDKUserMessage
       const session = sessions.get(sessionId)
       if (!session) break
       const content = uMsg.message?.content
@@ -294,7 +294,7 @@ function handleSdkMessage(sessionId: string, message: import('@proma/shared').SD
       break
     }
     case 'result': {
-      const rMsg = message as import('@proma/shared').SDKResultMessage
+      const rMsg = message as import('@luxcoder/shared').SDKResultMessage
       const session = ensureSession(sessionId)
       if (rMsg.subtype === 'success') {
         session.phase = 'completed'
@@ -315,7 +315,7 @@ function handleSdkMessage(sessionId: string, message: import('@proma/shared').SD
       break
     }
     case 'system': {
-      const sMsg = message as import('@proma/shared').SDKSystemMessage
+      const sMsg = message as import('@luxcoder/shared').SDKSystemMessage
       const session = ensureSession(sessionId)
       switch (sMsg.subtype) {
         case 'task_started': {
@@ -712,7 +712,7 @@ function requiresImmediateAgentIslandPush(payload: AgentStreamPayload): boolean 
     return ['permission_request', 'ask_user_request', 'exit_plan_mode_request'].includes(payload.event.type)
   }
   const message = payload.message
-  return message.type === 'result' || (message.type === 'assistant' && Boolean((message as import('@proma/shared').SDKAssistantMessage).error))
+  return message.type === 'result' || (message.type === 'assistant' && Boolean((message as import('@luxcoder/shared').SDKAssistantMessage).error))
 }
 
 // ===== 事件订阅与初始化 =====
