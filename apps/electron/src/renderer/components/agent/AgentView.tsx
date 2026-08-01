@@ -2729,7 +2729,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     handleCompact,
   ])
 
-  const sendControl = streaming && !hasTextInput ? (
+  const stopControl = (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
@@ -2746,7 +2746,9 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         <p>停止 Agent ({getAcceleratorDisplay(getActiveAccelerator('stop-generation'))})</p>
       </TooltipContent>
     </Tooltip>
-  ) : (
+  )
+
+  const sendButton = (
     <Button
       type="button"
       variant="ghost"
@@ -2760,6 +2762,14 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
       <CornerDownLeft className="size-[22px]" />
     </Button>
   )
+
+  // Agent 运行中：有草稿时发送按钮和停止按钮都显示（可边写边发）；无草稿只显示停止。
+  const sendControl = streaming ? (
+    <>
+      {hasTextInput && sendButton}
+      {stopControl}
+    </>
+  ) : sendButton
 
   const inputTrailingNode = (
     <>
