@@ -9,6 +9,7 @@ import { join, basename } from 'node:path'
 import { mkdirSync, existsSync, cpSync, rmSync, readdirSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { createRequire } from 'node:module'
+import { rmSyncWithRetry } from './fs-retry'
 
 /**
  * 获取配置目录名称
@@ -589,6 +590,9 @@ export function seedDefaultSkills(): void {
 
   const userDir = getDefaultSkillsDir()
 
+  // 清理已从 bundle 移除但缓存在用户目录的退役内置 Skills
+  removeRetiredDefaultSkills(userDir)
+
   try {
     const entries = readdirSync(bundledDir, { withFileTypes: true })
 
@@ -789,4 +793,35 @@ export function getExcalidrawDir(workspaceSlug: string): string {
   }
 
   return dir
+}
+
+/**
+ * 已从 App bundle 移除、但仍需在既有用户目录中清理的默认 Skills。
+ *
+ * 不根据 bundle 中缺失的目录自动删除，避免误删用户自行安装的 Skills；
+ * 后续退役某个内置 Skill 时，显式把它的 slug 加到这里。
+ */
+export const RETIRED_DEFAULT_SKILL_SLUGS: readonly string[] = [
+  'brainstorming',
+]
+
+const RETIRED_DEFAULT_SKILL_SLUG_SET = new Set(RETIRED_DEFAULT_SKILL_SLUGS)
+
+export function isRetiredDefaultSkill(slug: string): boolean {
+  return RETIRED_DEFAULT_SKILL_SLUG_SET.has(slug)
+}
+
+/** 清理 ~/.luxcoder/default-skills/ 中已退役的内置 Skill 缓存。 */
+export function removeRetiredDefaultSkills(dir = getDefaultSkillsDir()): void {
+  for (const slug of RETIRED_DEFAULT_SKILL_SLUGS) {
+    const target = join(dir, slug)
+    if (!existsSync(target)) continue
+
+    try {
+      rmSyncWithRetry(target, { recursive: true, force: true })
+      console.log(`[Agent 工作区] 已移除退役默认 Skill 缓存: ${slug}`)
+    } catch (err) {
+      console.warn(`[Agent 工作区] 移除退役默认 Skill 缓存失败 (${slug}):`, err)
+    }
+  }
 }
