@@ -193,3 +193,18 @@ describe('buildRegenerateTitlePrompt', () => {
     expect(prompt).toContain('标题：')
   })
 })
+
+describe('sanitizeGeneratedTitle 数组兼容（OpenCode Go 推理模型）', () => {
+  test('Given content 为内容块数组 When 清理标题 Then 提取 text 文本', () => {
+    expect(sanitizeGeneratedTitle([{ type: 'text', text: '  修复登录超时  ' }] as never)).toBe('修复登录超时')
+  })
+
+  test('Given content 为字符串 When 清理标题 Then 行为不变', () => {
+    expect(sanitizeGeneratedTitle('优化侧边栏显示')).toBe('优化侧边栏显示')
+  })
+
+  test('Given 非文本内容 When 清理标题 Then 返回 null', () => {
+    expect(sanitizeGeneratedTitle(null)).toBeNull()
+    expect(sanitizeGeneratedTitle([{ type: 'tool_call', id: 'x' }] as never)).toBeNull()
+  })
+})
