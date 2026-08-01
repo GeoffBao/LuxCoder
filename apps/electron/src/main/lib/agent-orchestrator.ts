@@ -54,6 +54,7 @@ import { projectRepository } from './project-repository'
 import { getRuntimeStatus } from './runtime-init'
 import { buildSystemPrompt, buildDynamicContext } from './agent-prompt-builder'
 import { MAX_CONTEXT_MESSAGES, buildContextPrompt, buildRecoveryPrompt, buildReferencedSessionsPrompt } from './agent-session-context-prompt'
+import { buildReferencedPlanningPrompt } from './planning-reference-context'
 import { permissionService } from './agent-permission-service'
 import type { PermissionResult, CanUseToolOptions } from './agent-permission-service'
 import { resolvePlanningDeletionPermission } from './planning-permission-policy'
@@ -869,7 +870,7 @@ export class AgentOrchestrator {
    * 通过 EventBus 分发 AgentEvent，通过 callbacks 发送控制信号。
    */
   async sendMessage(input: AgentSendInput, callbacks: SessionCallbacks): Promise<void> {
-    const { sessionId, userMessage, channelId, modelId, agentRuntime: inputAgentRuntime, workspaceId, additionalDirectories, customMcpServers, permissionModeOverride, mentionedSkills, mentionedMcpServers, mentionedSessionIds, automationContext, workContext, retryOfErrorUuid, toolPolicy } = input
+    const { sessionId, userMessage, channelId, modelId, agentRuntime: inputAgentRuntime, workspaceId, additionalDirectories, customMcpServers, permissionModeOverride, mentionedSkills, mentionedMcpServers, mentionedSessionIds, mentionedTodoIds, mentionedCalendarEventIds, automationContext, workContext, retryOfErrorUuid, toolPolicy } = input
     const toolsDisabled = toolPolicy === 'none'
     const stderrChunks: string[] = []
     const streamStartedAt = input.startedAt ?? Date.now()
@@ -1395,6 +1396,15 @@ export class AgentOrchestrator {
         }
         enrichedMessage = `<mentioned_tools>\n${toolLines.join('\n')}\n</mentioned_tools>\n\n${enrichedMessage}`
         console.log(`[Agent 编排] 注入 mentioned_tools: ${mentionedSkills?.length ?? 0} skills, ${mentionedMcpServers?.length ?? 0} MCP`)
+      }
+      const referencedPlanningBlock = buildReferencedPlanningPrompt(
+        mentionedTodoIds,
+        mentionedCalendarEventIds,
+        { requireToolRead: agentRuntime === 'pi' },
+      )
+      if (referencedPlanningBlock) {
+        enrichedMessage = `${referencedPlanningBlock}\n\n${enrichedMessage}`
+        console.log(`[Agent 编排] 注入 referenced_planning: ${mentionedTodoIds?.length ?? 0} todos, ${mentionedCalendarEventIds?.length ?? 0} calendar events`)
       }
 
       const contextualMessage = `${dynamicCtx}\n\n${enrichedMessage}`
@@ -2785,6 +2795,8 @@ ${workContext}` : '')
     mentionedSkills?: string[],
     mentionedMcpServers?: string[],
     mentionedSessionIds?: string[],
+    mentionedTodoIds?: string[],
+    mentionedCalendarEventIds?: string[],
   ): Promise<string> {
     if (!this.activeSessions.has(sessionId)) {
       throw new Error(`[Agent 编排] 会话未运行，无法追加消息: ${sessionId}`)
@@ -2817,6 +2829,15 @@ ${workContext}` : '')
         toolLines.push(`- MCP 服务器: ${name}（请使用此 MCP 服务器的工具来完成任务）`)
       }
       enrichedText = `<mentioned_tools>\n${toolLines.join('\n')}\n</mentioned_tools>\n\n${enrichedText}`
+    }
+    // Planning read tools are Pi-native. Do not direct Claude sessions to unavailable tools.
+    const referencedPlanningBlock = buildReferencedPlanningPrompt(
+      mentionedTodoIds,
+      mentionedCalendarEventIds,
+      { requireToolRead: normalizeAgentRuntime(meta?.agentRuntime ?? 'claude') === 'pi' },
+    )
+    if (referencedPlanningBlock) {
+      enrichedText = `${referencedPlanningBlock}\n\n${enrichedText}`
     }
 
     const uuid = presetUuid || randomUUID()

@@ -425,6 +425,8 @@ export async function queueAgentMessage(
     input.mentionedSkills,
     input.mentionedMcpServers,
     input.mentionedSessionIds,
+    input.mentionedTodoIds,
+    input.mentionedCalendarEventIds,
   )
 }
 
