@@ -2627,6 +2627,11 @@ ${workContext}` : '')
     return this.activeSessions.has(sessionId)
   }
 
+  /** 是否存在任意运行中 Agent（含后台运行与外部触发的会话）。 */
+  hasActiveSessions(): boolean {
+    return this.activeSessions.size > 0
+  }
+
   /**
    * 运行中动态切换会话的权限模式
    *

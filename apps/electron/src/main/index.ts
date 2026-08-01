@@ -89,11 +89,11 @@ import { initializeRuntime } from './lib/runtime-init'
 import { seedDefaultSkills, getExpertsDir } from './lib/config-paths'
 import { seedBuiltinExperts } from './lib/expert-service'
 import { upgradeDefaultSkillsInWorkspaces } from './lib/agent-workspace-manager'
-import { stopAllAgents, killOrphanedClaudeSubprocesses, isAgentSessionActive } from './lib/agent-service'
+import { stopAllAgents, killOrphanedClaudeSubprocesses, isAgentSessionActive, hasActiveAgentSessions } from './lib/agent-service'
 import { disposePiMcpConnections } from './lib/adapters/pi-mcp-tools'
 import { markRunningDelegationsAsInterrupted, markStaleTaskSessionsIdle } from './lib/agent-session-manager'
 import { stopAllGenerations } from './lib/chat-service'
-import { initAutoUpdater, cleanupUpdater } from './lib/updater/auto-updater'
+import { configureUpdater, initAutoUpdater, cleanupUpdater } from './lib/updater/auto-updater'
 import { startWorkspaceWatcher, stopWorkspaceWatcher } from './lib/workspace-watcher'
 import { startChatToolsWatcher, stopChatToolsWatcher } from './lib/chat-tools-watcher'
 import { getIsQuitting, setQuitting } from './lib/app-lifecycle'
@@ -563,8 +563,9 @@ async function bootstrap(): Promise<void> {
   // 启动 Chat 工具配置文件监听（Agent 创建工具后自动通知渲染进程）
   safeRun('startChatToolsWatcher', startChatToolsWatcher)
 
-  // 生产环境下初始化自动更新
+  // 自动更新仅在生产环境启用，并由主进程统一检测 Agent 是否空闲。
   if (app.isPackaged && mainWindow) {
+    configureUpdater(mainWindow, { hasActiveAgents: hasActiveAgentSessions })
     safeRun('initAutoUpdater', () => initAutoUpdater(mainWindow!))
   }
 
