@@ -5,7 +5,7 @@
  * - general: 通用设置
  * - channels: 渠道配置
  * - proxy: 代理配置
- * - tools: Chat 工具配置
+ * - tools: 工具配置（暂不在设置导航展示，保留用于兼容/直达）
  * - appearance: 外观设置
  * - about: 关于
  */
@@ -19,7 +19,7 @@ export type ToolSettingsFocus = 'memory' | 'web-search' | 'nano-banana' | 'custo
 /** 当前设置标签页（不持久化，每次打开设置默认显示渠道） */
 export const settingsTabAtom = atom<SettingsTab>('channels')
 
-/** Chat 工具设置页的目标配置区，用于从内置 MCP 详情直达对应配置 */
+/** 工具设置页的目标配置区，用于从内置 MCP 详情直达对应配置 */
 export const toolSettingsFocusAtom = atom<ToolSettingsFocus | null>(null)
 
 /** 设置浮窗是否打开 */

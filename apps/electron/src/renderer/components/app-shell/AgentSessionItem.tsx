@@ -4,6 +4,7 @@
  */
 
 import * as React from 'react'
+import { useAtomValue } from 'jotai'
 import {
   Pin,
   PinOff,
@@ -53,6 +54,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import type { AgentSessionMeta, SessionGroup } from '@luxcoder/shared'
 import type { KanbanProject } from './kanban/types'
+import { sessionHoverPreviewEnabledAtom } from '@/atoms/ui-preferences'
 
 export function formatRelativeUpdatedAt(updatedAt: number, now: number): string {
   const diff = Math.max(0, now - updatedAt)
@@ -355,7 +357,8 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
   const inputRef = React.useRef<HTMLInputElement>(null)
   const justStartedEditing = React.useRef(false)
   // 菜单打开时关闭迷你地图预览，避免预览面板盖住菜单项导致点不动
-  const preview = useSessionMiniMapHover(600, disableMiniMap || menuOpen)
+  const sessionHoverPreviewEnabled = useAtomValue(sessionHoverPreviewEnabledAtom)
+  const preview = useSessionMiniMapHover(600, !sessionHoverPreviewEnabled || disableMiniMap || menuOpen)
 
   const startEdit = (): void => {
     setEditTitle(session.title)

@@ -46,7 +46,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { workspaceFilesVersionAtom, fileBrowserAutoRevealAtom, recentlyModifiedPathsAtom, currentAgentSessionIdAtom } from '@/atoms/agent-atoms'
-import type { FileEntry } from '@luxcoder/shared'
+import type { FileAccessOptions, FileEntry } from '@luxcoder/shared'
 import { FileTypeIcon } from './FileTypeIcon'
 import { DefaultAppMenuItem } from './DefaultAppMenuItem'
 import {
@@ -94,13 +94,15 @@ interface FileBrowserProps {
   embedded?: boolean
   /** 隐藏"目录为空"提示（当外部已有附加目录等内容时使用） */
   hideEmpty?: boolean
+  /** 当前会话授权上下文：允许浏览 Project/worktree/session/attached roots。 */
+  access?: FileAccessOptions
   /** 点击添加到聊天（在文件操作菜单中显示） */
   onAddToChat?: (entry: FileEntry) => void
   /** 单击文件时在内联预览面板中显示（替代外部窗口预览） */
   onFilePreview?: (filePath: string) => void
 }
 
-export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, onAddToChat, onFilePreview }: FileBrowserProps): React.ReactElement {
+export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, access, onAddToChat, onFilePreview }: FileBrowserProps): React.ReactElement {
   const [entries, setEntries] = React.useState<FileEntry[]>([])
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
@@ -164,7 +166,7 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, onAddT
     setLoading(true)
     setError(null)
     try {
-      const items = await window.electronAPI.listDirectory(rootPath)
+      const items = await window.electronAPI.listDirectory(rootPath, access)
       setEntries(items)
     } catch (err) {
       const msg = err instanceof Error ? err.message : '加载失败'
@@ -207,7 +209,7 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, onAddT
 
   /** 在文件夹中显示 */
   const handleShowInFolder = React.useCallback((entry: FileEntry) => {
-    window.electronAPI.showInFolder(entry.path).catch(console.error)
+    window.electronAPI.showInFolder(entry.path, access).catch(console.error)
   }, [])
 
   /** 在系统终端中打开文件夹（仅 macOS） */
@@ -230,7 +232,7 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, onAddT
     // 同名检查
     const parentDir = filePath.substring(0, filePath.lastIndexOf('/'))
     try {
-      const siblings = await window.electronAPI.listDirectory(parentDir)
+      const siblings = await window.electronAPI.listDirectory(parentDir, access)
       const conflict = siblings.some((s) => s.name === newName && s.path !== filePath)
       if (conflict) {
         return '同名文件已存在'
@@ -240,7 +242,7 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, onAddT
     }
 
     try {
-      await window.electronAPI.renameFile(filePath, newName)
+      await window.electronAPI.renameFile(filePath, newName, access)
       await loadRoot()
       setRenamingPath(null)
       setSelectedPaths(new Set())
@@ -263,10 +265,10 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, onAddT
       if (selectedPaths.size > 1) {
         // 批量删除
         for (const path of selectedPaths) {
-          await window.electronAPI.deleteFile(path)
+          await window.electronAPI.deleteFile(path, access)
         }
       } else {
-        await window.electronAPI.deleteFile(deleteTarget.path)
+        await window.electronAPI.deleteFile(deleteTarget.path, access)
       }
       setSelectedPaths(new Set())
       await loadRoot()
@@ -285,10 +287,10 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, onAddT
 
       if (selectedPaths.size > 1) {
         for (const path of selectedPaths) {
-          await window.electronAPI.moveFile(path, result.path)
+          await window.electronAPI.moveFile(path, result.path, access)
         }
       } else {
-        await window.electronAPI.moveFile(entry.path, result.path)
+        await window.electronAPI.moveFile(entry.path, result.path, access)
       }
       setSelectedPaths(new Set())
       await loadRoot()
@@ -323,6 +325,7 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, onAddT
           depth={0}
           selectedPaths={selectedPaths}
           selectedCount={selectedCount}
+          access={access}
           renamingPath={renamingPath}
           moving={moving}
           refreshVersion={filesVersion}
@@ -360,7 +363,7 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, onAddT
             variant="ghost"
             size="icon"
             className="h-7 w-7 flex-shrink-0"
-            onClick={() => window.electronAPI.openFile(rootPath).catch(console.error)}
+            onClick={() => window.electronAPI.openFile(rootPath, access).catch(console.error)}
             title="在 Finder 中打开"
           >
             <ExternalLink className="size-3.5" />
@@ -421,6 +424,7 @@ interface FileTreeItemProps {
   depth: number
   selectedPaths: Set<string>
   selectedCount: number
+  access?: FileAccessOptions
   renamingPath: string | null
   moving: boolean
   /** 文件版本号，变化时已展开的文件夹自动重新加载子项 */
@@ -451,6 +455,7 @@ function FileTreeItem({
   depth,
   selectedPaths,
   selectedCount,
+  access,
   renamingPath,
   moving,
   refreshVersion,
@@ -481,7 +486,7 @@ function FileTreeItem({
   // 当 refreshVersion 变化时，已展开的文件夹自动重新加载子项
   React.useEffect(() => {
     if (expanded && childrenLoaded && entry.isDirectory) {
-      window.electronAPI.listDirectory(entry.path)
+      window.electronAPI.listDirectory(entry.path, access)
         .then((items) => setChildren(items))
         .catch((err) => console.error('[FileTreeItem] 刷新子目录失败:', err))
     }
@@ -508,7 +513,7 @@ function FileTreeItem({
       const run = async (): Promise<void> => {
         if (!childrenLoaded) {
           try {
-            const items = await window.electronAPI.listDirectory(entry.path)
+            const items = await window.electronAPI.listDirectory(entry.path, access)
             if (!cancelled) {
               setChildren(items)
               setChildrenLoaded(true)
@@ -555,7 +560,7 @@ function FileTreeItem({
 
     if (!expanded && !childrenLoaded) {
       try {
-        const items = await window.electronAPI.listDirectory(entry.path)
+        const items = await window.electronAPI.listDirectory(entry.path, access)
         setChildren(items)
         setChildrenLoaded(true)
 
@@ -563,7 +568,7 @@ function FileTreeItem({
         if (items.length === 0) {
           setTimeout(async () => {
             try {
-              const retryItems = await window.electronAPI.listDirectory(entry.path)
+              const retryItems = await window.electronAPI.listDirectory(entry.path, access)
               if (retryItems.length > 0) setChildren(retryItems)
             } catch { /* 静默忽略 */ }
           }, 800)
@@ -604,7 +609,7 @@ function FileTreeItem({
   const handleRefreshAfterDelete = async (): Promise<void> => {
     if (childrenLoaded) {
       try {
-        const items = await window.electronAPI.listDirectory(entry.path)
+        const items = await window.electronAPI.listDirectory(entry.path, access)
         setChildren(items)
       } catch {
         await onRefresh()
@@ -843,6 +848,7 @@ function FileTreeItem({
                 {menuSelectedCount === 1 && !entry.isDirectory && (
                   <DefaultAppMenuItem
                     filePath={entry.path}
+                    access={access}
                     className="text-xs py-1 [&>svg]:size-3.5"
                   />
                 )}
@@ -900,6 +906,7 @@ function FileTreeItem({
               depth={depth + 1}
               selectedPaths={selectedPaths}
               selectedCount={selectedCount}
+              access={access}
               renamingPath={renamingPath}
               moving={moving}
               refreshVersion={refreshVersion}

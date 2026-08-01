@@ -110,6 +110,7 @@ import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
 import { hasEnvironmentIssuesAtom } from '@/atoms/environment'
 import { promptConfigAtom, selectedPromptIdAtom, conversationPromptIdAtom } from '@/atoms/system-prompt-atoms'
 import { interfaceVariantAtom } from '@/atoms/theme'
+import { sessionHoverPreviewEnabledAtom } from '@/atoms/ui-preferences'
 import { newTaskProjectFlowOpenAtom } from '@/atoms/project-context-picker'
 import { useOpenSession } from '@/hooks/useOpenSession'
 import { useCreateSession } from '@/hooks/useCreateSession'
@@ -518,7 +519,8 @@ function RailRecentButton({
   item: RailRecentItem
   onSelect: (item: RailRecentItem) => void
 }): React.ReactElement {
-  const preview = useSessionMiniMapHover()
+  const sessionHoverPreviewEnabled = useAtomValue(sessionHoverPreviewEnabledAtom)
+  const preview = useSessionMiniMapHover(600, !sessionHoverPreviewEnabled)
 
   return (
     <>
@@ -3718,7 +3720,8 @@ const ConversationItem = React.memo(function ConversationItem({
   const inputRef = React.useRef<HTMLInputElement>(null)
   const justStartedEditing = React.useRef(false)
   // 菜单打开时关闭迷你地图预览，避免预览面板盖住菜单项导致点不动
-  const preview = useSessionMiniMapHover(600, menuOpen)
+  const sessionHoverPreviewEnabled = useAtomValue(sessionHoverPreviewEnabledAtom)
+  const preview = useSessionMiniMapHover(600, !sessionHoverPreviewEnabled || menuOpen)
 
   /** 进入编辑模式 */
   const startEdit = (): void => {

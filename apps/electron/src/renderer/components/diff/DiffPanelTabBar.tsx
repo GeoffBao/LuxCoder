@@ -1,7 +1,7 @@
 /**
  * DiffPanelTabBar — 右侧面板顶部 Tab 栏
  *
- * 切换「会话文件」「工作区文件」和「代码改动」三个视图。最右侧有关闭按钮。
+ * 切换「Files」和「代码改动」视图。最右侧有关闭按钮。
  */
 
 import * as React from 'react'
@@ -42,7 +42,8 @@ export function DiffPanelTabBar({
   const interfaceVariant = useAtomValue(interfaceVariantAtom)
   const isClassic = interfaceVariant === 'classic'
   const unseenChanges = unseenMap.get(currentSessionId ?? '') ?? false
-  const prevTabStateRef = React.useRef<PreviousTabState>({ sessionId: currentSessionId, activeTab })
+  const normalizedActiveTab: AgentSidePanelTab = activeTab === 'session' || activeTab === 'workspace' ? 'files' : activeTab
+  const prevTabStateRef = React.useRef<PreviousTabState>({ sessionId: currentSessionId, activeTab: normalizedActiveTab })
 
   const clearUnseen = React.useCallback((sessionId = currentSessionId) => {
     if (!sessionId) return
@@ -57,11 +58,11 @@ export function DiffPanelTabBar({
   // 同一会话内，从「文件改动」切走时，说明用户已经看过当前改动。
   React.useEffect(() => {
     const previous = prevTabStateRef.current
-    if (previous.sessionId === currentSessionId && previous.activeTab === 'changes' && activeTab !== 'changes') {
+    if (previous.sessionId === currentSessionId && previous.activeTab === 'changes' && normalizedActiveTab !== 'changes') {
       clearUnseen(currentSessionId)
     }
-    prevTabStateRef.current = { sessionId: currentSessionId, activeTab }
-  }, [activeTab, currentSessionId, clearUnseen])
+    prevTabStateRef.current = { sessionId: currentSessionId, activeTab: normalizedActiveTab }
+  }, [normalizedActiveTab, currentSessionId, clearUnseen])
 
   const handleChangesClick = () => {
     clearUnseen()
@@ -84,14 +85,14 @@ export function DiffPanelTabBar({
       )}>
         <button
           type="button"
-          onClick={() => onTabChange('session')}
+          onClick={() => onTabChange('files')}
           className={cn(
             isClassic
               ? 'h-[34px] flex-1 overflow-hidden whitespace-nowrap px-3 text-xs transition-colors select-none cursor-pointer'
               : 'inspector-tab flex-1 overflow-hidden whitespace-nowrap rounded-md px-2 text-[11px] font-medium transition-colors select-none cursor-pointer',
             isClassic ? 'rounded-t-lg' : 'rounded-none',
             'border-t border-l border-r',
-            activeTab === 'session'
+            normalizedActiveTab === 'files'
               ? isClassic
                 ? 'bg-content-area text-foreground border-border/50'
                 : 'app-tab-active text-foreground border-border/80'
@@ -100,27 +101,7 @@ export function DiffPanelTabBar({
                 : 'app-tab-inactive text-muted-foreground border-transparent hover:text-foreground',
           )}
         >
-          会话文件
-        </button>
-        <button
-          type="button"
-          onClick={() => onTabChange('workspace')}
-          className={cn(
-            isClassic
-              ? 'h-[34px] flex-1 overflow-hidden whitespace-nowrap px-3 text-xs transition-colors select-none cursor-pointer'
-              : 'inspector-tab flex-1 overflow-hidden whitespace-nowrap rounded-md px-2 text-[11px] font-medium transition-colors select-none cursor-pointer',
-            isClassic ? 'rounded-t-lg' : 'rounded-none',
-            'border-t border-l border-r',
-            activeTab === 'workspace'
-              ? isClassic
-                ? 'bg-content-area text-foreground border-border/50'
-                : 'app-tab-active text-foreground border-border/80'
-              : isClassic
-                ? 'text-muted-foreground border-transparent hover:text-foreground hover:bg-muted/50'
-                : 'app-tab-inactive text-muted-foreground border-transparent hover:text-foreground',
-          )}
-        >
-          工作区文件
+          Files
         </button>
         <button
           type="button"
@@ -131,7 +112,7 @@ export function DiffPanelTabBar({
               : 'inspector-tab relative flex-1 overflow-hidden whitespace-nowrap rounded-md px-2 text-[11px] font-medium transition-colors select-none cursor-pointer',
             isClassic ? 'rounded-t-lg' : 'rounded-none',
             'border-t border-l border-r',
-            activeTab === 'changes'
+            normalizedActiveTab === 'changes'
               ? isClassic
                 ? 'bg-content-area text-foreground border-border/50'
                 : 'app-tab-active text-foreground border-border/80'
@@ -141,7 +122,7 @@ export function DiffPanelTabBar({
           )}
         >
           <span className="inline-flex items-center gap-1">
-            {unseenChanges && activeTab !== 'changes' && (
+            {unseenChanges && normalizedActiveTab !== 'changes' && (
               <span className="size-2 rounded-full bg-primary ring-1 ring-background shrink-0" />
             )}
             文件改动
@@ -155,7 +136,7 @@ export function DiffPanelTabBar({
                 : 'inspector-tab relative flex-1 overflow-hidden whitespace-nowrap rounded-md text-[11px] font-medium transition-colors select-none',
               isClassic ? 'rounded-t-lg' : 'rounded-none',
               'border-t border-l border-r',
-              activeTab === 'chat'
+              normalizedActiveTab === 'chat'
                 ? isClassic
                   ? 'bg-content-area text-foreground border-border/50'
                   : 'app-tab-active text-foreground border-border/80'

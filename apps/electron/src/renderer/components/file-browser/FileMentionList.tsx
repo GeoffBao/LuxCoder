@@ -49,9 +49,12 @@ class MentionErrorBoundary extends React.Component<
 
 // ===== 树形结构类型 =====
 
-interface FileTreeNode {
+export interface FileTreeNode {
   name: string
+  /** 保留原始相对路径，供 @ 引用插入。 */
   path: string
+  /** 用 POSIX 分隔符归一化的相对路径，仅用于构建树和稳定 key。 */
+  treePath: string
   type: 'file' | 'dir'
   source: 'session' | 'workspace'
   depth: number
@@ -64,7 +67,7 @@ interface FileTreeNode {
 export interface FileMentionListProps {
   sessionEntries: FileIndexEntry[]
   workspaceEntries: FileIndexEntry[]
-  onSelect: (item: { name: string; path: string; type: 'file' | 'dir' }) => void
+  onSelect: (item: Pick<FileIndexEntry, 'name' | 'path' | 'type' | 'source'>) => void
   /** 作为统一命令菜单子层时，← 可返回命令根层。 */
   onBack?: () => void
   /** 嵌入另一个弹层时，移除自身的卡片容器样式。 */
@@ -77,15 +80,25 @@ export interface FileMentionRef {
 
 // ===== 工具函数 =====
 
-/** 从扁平条目列表构建树 */
-function buildTree(entries: FileIndexEntry[]): FileTreeNode[] {
+function normalizeTreePath(path: string): string {
+  return path.replace(/\\/g, '/')
+}
+
+function getTreeNodeKey(node: Pick<FileTreeNode, 'source' | 'treePath'>): string {
+  return `${node.source}\u0000${node.treePath}`
+}
+
+/** 从两种来源的扁平条目构建一个连续树，来源只用于权限语义和 badge。 */
+export function buildFileMentionTree(entries: FileIndexEntry[]): FileTreeNode[] {
   const pathMap = new Map<string, FileTreeNode>()
   const roots: FileTreeNode[] = []
 
   for (const entry of entries) {
-    pathMap.set(entry.path, {
+    const treePath = normalizeTreePath(entry.path)
+    pathMap.set(getTreeNodeKey({ source: entry.source, treePath }), {
       name: entry.name,
       path: entry.path,
+      treePath,
       type: entry.type,
       source: entry.source,
       depth: 0,
@@ -94,27 +107,32 @@ function buildTree(entries: FileIndexEntry[]): FileTreeNode[] {
     })
   }
 
-  for (const entry of entries) {
-    const node = pathMap.get(entry.path)!
-    const lastSlash = entry.path.lastIndexOf('/')
-    const parentPath = lastSlash === -1 ? '' : entry.path.slice(0, lastSlash)
+  for (const node of pathMap.values()) {
+    const lastSlash = node.treePath.lastIndexOf('/')
+    const parentTreePath = lastSlash === -1 ? '' : node.treePath.slice(0, lastSlash)
+    const parent = parentTreePath
+      ? pathMap.get(getTreeNodeKey({ source: node.source, treePath: parentTreePath }))
+      : undefined
 
-    if (parentPath && pathMap.has(parentPath)) {
-      pathMap.get(parentPath)!.children.push(node)
+    if (parent) {
+      parent.children.push(node)
     } else {
       roots.push(node)
     }
   }
 
-  // 递归排序：目录在前、文件在后，按名称字母序
+  // 递归排序：目录在前、文件在后，路径来源只在完全同名时稳定顺序。
   function sortNodes(nodes: FileTreeNode[]) {
     nodes.sort((a, b) => {
       if (a.type === 'dir' && b.type !== 'dir') return -1
       if (a.type !== 'dir' && b.type === 'dir') return 1
-      return a.name.localeCompare(b.name)
+      const byName = a.name.localeCompare(b.name)
+      if (byName !== 0) return byName
+      if (a.source !== b.source) return a.source === 'workspace' ? -1 : 1
+      return a.treePath.localeCompare(b.treePath)
     })
   }
-  for (const [, node] of pathMap) sortNodes(node.children)
+  for (const node of pathMap.values()) sortNodes(node.children)
   sortNodes(roots)
 
   // 设置深度
@@ -127,6 +145,11 @@ function buildTree(entries: FileIndexEntry[]): FileTreeNode[] {
   setDepth(roots, 0)
 
   return roots
+}
+
+/** 会话与项目可有相同相对路径，展开状态必须保留来源维度。 */
+function getTreeNodeStateKey(node: Pick<FileTreeNode, 'source' | 'treePath'>): string {
+  return getTreeNodeKey(node)
 }
 
 /** 将树扁平化为可见项列表（仅展开的目录显示子节点） */
@@ -148,54 +171,35 @@ function flattenVisible(nodes: FileTreeNode[]): FileTreeNode[] {
 
 export const FileMentionList = React.forwardRef<FileMentionRef, FileMentionListProps>(
   function FileMentionList({ sessionEntries, workspaceEntries, onSelect, onBack, embedded = false }, ref) {
-    // 构建树（仅在条目变化时重建）
-    const sessionTree = React.useMemo(
-      () => buildTree(sessionEntries),
-      [sessionEntries],
-    )
-    const workspaceTree = React.useMemo(
-      () => buildTree(workspaceEntries),
-      [workspaceEntries],
+    // 构建一棵连续树；项目与会话来源只通过 badge 区分，不形成两个列表。
+    const tree = React.useMemo(
+      () => buildFileMentionTree([...workspaceEntries, ...sessionEntries]),
+      [sessionEntries, workspaceEntries],
     )
 
     // 折叠/展开状态（用 expandedPaths Set 管理）
     const [expandedPaths, setExpandedPaths] = React.useState<Set<string>>(new Set())
 
     // 将 expanded 状态注入树节点
-    const sessionTreeWithState = React.useMemo(() => {
+    const treeWithState = React.useMemo(() => {
       function inject(nodes: FileTreeNode[]): FileTreeNode[] {
         return nodes.map((n) => ({
           ...n,
-          expanded: expandedPaths.has(n.path),
+          expanded: expandedPaths.has(getTreeNodeStateKey(n)),
           children: inject(n.children),
         }))
       }
-      return inject(sessionTree)
-    }, [sessionTree, expandedPaths])
-
-    const workspaceTreeWithState = React.useMemo(() => {
-      function inject(nodes: FileTreeNode[]): FileTreeNode[] {
-        return nodes.map((n) => ({
-          ...n,
-          expanded: expandedPaths.has(n.path),
-          children: inject(n.children),
-        }))
-      }
-      return inject(workspaceTree)
-    }, [workspaceTree, expandedPaths])
+      return inject(tree)
+    }, [tree, expandedPaths])
 
     // 可见项（用于键盘导航和渲染）
-    const sessionVisible = React.useMemo(
-      () => flattenVisible(sessionTreeWithState),
-      [sessionTreeWithState],
-    )
-    const workspaceVisible = React.useMemo(
-      () => flattenVisible(workspaceTreeWithState),
-      [workspaceTreeWithState],
+    const visibleNodes = React.useMemo(
+      () => flattenVisible(treeWithState),
+      [treeWithState],
     )
 
     // 选中索引
-    const totalItems = sessionVisible.length + workspaceVisible.length
+    const totalItems = visibleNodes.length
     const [selectedIndex, setSelectedIndex] = React.useState(0)
     const containerRef = React.useRef<HTMLDivElement>(null)
 
@@ -213,20 +217,19 @@ export const FileMentionList = React.forwardRef<FileMentionRef, FileMentionListP
       target?.scrollIntoView({ block: 'nearest' })
     }, [selectedIndex, totalItems])
 
-    // 获取指定索引对应的实际节点（跨 session 和 workspace 列表）
+    // 获取指定索引对应的实际节点
     function getNodeAt(index: number): FileTreeNode | null {
-      if (index < sessionVisible.length) return sessionVisible[index] ?? null
-      const wsIdx = index - sessionVisible.length
-      return workspaceVisible[wsIdx] ?? null
+      return visibleNodes[index] ?? null
     }
 
-    function toggleExpand(path: string) {
+    function toggleExpand(node: Pick<FileTreeNode, 'source' | 'treePath'>) {
       setExpandedPaths((prev) => {
         const next = new Set(prev)
-        if (next.has(path)) {
-          next.delete(path)
+        const key = getTreeNodeStateKey(node)
+        if (next.has(key)) {
+          next.delete(key)
         } else {
-          next.add(path)
+          next.add(key)
         }
         return next
       })
@@ -234,7 +237,7 @@ export const FileMentionList = React.forwardRef<FileMentionRef, FileMentionListP
 
     const handleSelect = React.useCallback(
       (node: FileTreeNode) => {
-        onSelect({ name: node.name, path: node.path, type: node.type })
+        onSelect({ name: node.name, path: node.path, type: node.type, source: node.source })
       },
       [onSelect],
     )
@@ -263,7 +266,7 @@ export const FileMentionList = React.forwardRef<FileMentionRef, FileMentionListP
           event.preventDefault()
           const node = getNodeAt(selectedIndex)
           if (node && node.type === 'dir' && node.children.length > 0) {
-            toggleExpand(node.path)
+            toggleExpand(node)
           }
           return true
         }
@@ -271,7 +274,7 @@ export const FileMentionList = React.forwardRef<FileMentionRef, FileMentionListP
           event.preventDefault()
           const node = getNodeAt(selectedIndex)
           if (node && node.type === 'dir' && node.children.length > 0 && !node.expanded) {
-            toggleExpand(node.path)
+            toggleExpand(node)
           }
           return true
         }
@@ -279,7 +282,7 @@ export const FileMentionList = React.forwardRef<FileMentionRef, FileMentionListP
           event.preventDefault()
           const node = getNodeAt(selectedIndex)
           if (node && node.type === 'dir' && node.expanded) {
-            toggleExpand(node.path)
+            toggleExpand(node)
           } else {
             onBack?.()
           }
@@ -300,9 +303,7 @@ export const FileMentionList = React.forwardRef<FileMentionRef, FileMentionListP
       },
     }))
 
-    const hasSession = sessionEntries.length > 0
-    const hasWorkspace = workspaceEntries.length > 0
-    const hasResults = hasSession || hasWorkspace
+    const hasResults = totalItems > 0
 
     // 无匹配结果
     if (!hasResults) {
@@ -328,33 +329,16 @@ export const FileMentionList = React.forwardRef<FileMentionRef, FileMentionListP
           'overflow-y-auto',
         )}
       >
-        {/* 会话文件 */}
-        {hasSession && (
-          <FileSection
-            label="会话文件"
-            tree={sessionTreeWithState}
-            selectedIndex={selectedIndex}
-            baseIndex={0}
-            onSelect={handleSelect}
-            onToggle={toggleExpand}
-            setSelectedIndex={handleSetIndex}
-            showHint
-          />
-        )}
-
-        {/* 工作区文件 */}
-        {hasWorkspace && (
-          <FileSection
-            label="工作区文件"
-            tree={workspaceTreeWithState}
-            selectedIndex={selectedIndex}
-            baseIndex={sessionVisible.length}
-            onSelect={handleSelect}
-            onToggle={toggleExpand}
-            setSelectedIndex={handleSetIndex}
-            showHint={!hasSession}
-          />
-        )}
+        <FileSection
+          label="文件"
+          tree={treeWithState}
+          selectedIndex={selectedIndex}
+          baseIndex={0}
+          onSelect={handleSelect}
+          onToggle={toggleExpand}
+          setSelectedIndex={handleSetIndex}
+          showHint
+        />
       </div>
       </MentionErrorBoundary>
       </TooltipProvider>
@@ -380,7 +364,7 @@ function FileSection({
   selectedIndex: number
   baseIndex: number
   onSelect: (node: FileTreeNode) => void
-  onToggle: (path: string) => void
+  onToggle: (node: Pick<FileTreeNode, 'source' | 'treePath'>) => void
   setSelectedIndex: (index: number) => void
   /** 在标题栏右侧显示快捷键提示 */
   showHint?: boolean
@@ -419,7 +403,7 @@ function TreeNodeList({
   selectedIndex: number
   baseIndex: number
   onSelect: (node: FileTreeNode) => void
-  onToggle: (path: string) => void
+  onToggle: (node: Pick<FileTreeNode, 'source' | 'treePath'>) => void
   setSelectedIndex: (index: number) => void
 }) {
   let offset = 0
@@ -438,7 +422,7 @@ function TreeNodeList({
       clickTimerRef.current = null
     }
     clickTimerRef.current = setTimeout(() => {
-      onToggle(node.path)
+      onToggle(node)
       clickTimerRef.current = null
     }, 180)
   }
@@ -458,7 +442,7 @@ function TreeNodeList({
     offset++
 
     return (
-      <React.Fragment key={node.path}>
+      <React.Fragment key={getTreeNodeStateKey(node)}>
         <Tooltip delayDuration={300}>
           <TooltipTrigger asChild>
             <button
@@ -513,6 +497,10 @@ function TreeNodeList({
 
           {/* 名称 */}
           <span className="truncate flex-1">{node.name}</span>
+
+          {node.source === 'session' && (
+            <span className="flex-shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] leading-none text-muted-foreground">会话文件</span>
+          )}
 
           {/* 路径（当路径不等于文件名时显示） */}
           {node.path !== node.name && (

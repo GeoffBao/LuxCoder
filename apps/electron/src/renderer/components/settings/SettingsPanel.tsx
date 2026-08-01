@@ -15,7 +15,6 @@ import {
   Info,
   Globe,
   BookOpen,
-  Wrench,
   Bot,
   GraduationCap,
   ArrowLeft,
@@ -34,7 +33,6 @@ import {
   type SettingsSessionNavigation,
 } from "@/atoms/settings-tab";
 import type { SettingsTab } from "@/atoms/settings-tab";
-import { appModeAtom } from "@/atoms/app-mode";
 import { activeViewAtom } from "@/atoms/active-view";
 import { automationFormAtom } from "@/atoms/automation-atoms";
 import { hasUpdateAtom } from "@/atoms/updater";
@@ -92,7 +90,6 @@ const NAV_GROUPS: NavGroup[] = [
     tabs: [
       { id: "channels", label: "模型配置", icon: <Radio size={16} /> },
       { id: "prompts", label: "提示词管理", icon: <BookOpen size={16} /> },
-      { id: "tools", label: "Chat 工具", icon: <Wrench size={16} /> },
       { id: "voice-input", label: "语音输入", icon: <Mic size={16} /> },
       { id: "proxy", label: "代理设置", icon: <Globe size={16} /> },
     ],
@@ -115,7 +112,12 @@ const NAV_GROUPS: NavGroup[] = [
 ];
 
 /** 暂时隐藏的 Tab（功能代码保留，待后续重新开放） */
-const HIDDEN_TABS = new Set<SettingsTab>(["bots", "shortcuts", "migration", "storage", "voice-input"]);
+const HIDDEN_TABS = new Set<SettingsTab>([
+  "bots",
+  "shortcuts",
+  // Chat 模式已下线，Chat 工具页先从设置导航移除；底层配置与兼容导入逻辑保留。
+  "tools",
+]);
 
 /** 根据标签页 id 渲染对应内容 */
 function renderTabContent(tab: SettingsTab): React.ReactElement {
@@ -164,7 +166,6 @@ export function SettingsPanel({
   const setSettingsOpen = useSetAtom(settingsOpenAtom);
   const setActiveView = useSetAtom(activeViewAtom);
   const setAutomationForm = useSetAtom(automationFormAtom);
-  const appMode = useAtomValue(appModeAtom);
   const hasUpdate = useAtomValue(hasUpdateAtom);
   const hasEnvironmentIssues = useAtomValue(hasEnvironmentIssuesAtom);
   const [mainTabs, setMainTabs] = useAtom(tabsAtom);
@@ -260,12 +261,12 @@ export function SettingsPanel({
     }
   }, [closeRequested, activeTab, setCloseRequested])
 
-  // 工具 tab 两种模式都显示，Agent Skills / MCP 独立在侧边栏能力中心管理。
+  // 过滤暂时下线/隐藏的设置页，保留数据迁移、磁盘管理、语音输入等可用入口。
   const navGroups = React.useMemo(() => {
     return NAV_GROUPS
       .map((group) => ({ ...group, tabs: group.tabs.filter((t) => !HIDDEN_TABS.has(t.id)) }))
       .filter((group) => group.tabs.length > 0);
-  }, [appMode]);
+  }, []);
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-content-area text-foreground">

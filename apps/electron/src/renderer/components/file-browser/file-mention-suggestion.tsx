@@ -98,9 +98,7 @@ export function createFileMentionSuggestion(
           props: {
             sessionEntries,
             workspaceEntries,
-            onSelect: (item: { name: string; path: string; type: 'file' | 'dir' }) => {
-              props.command({ id: item.path, label: item.name })
-            },
+            onSelect: selectItem,
           },
           editor: props.editor,
         })
@@ -196,9 +194,7 @@ export function createFileMentionSuggestion(
           renderer?.updateProps({
             sessionEntries,
             workspaceEntries,
-            onSelect: (item: { name: string; path: string; type: 'file' | 'dir' }) => {
-              props.command({ id: item.path, label: item.name })
-            },
+            onSelect: selectItem,
           })
           anchorPopup()
         },

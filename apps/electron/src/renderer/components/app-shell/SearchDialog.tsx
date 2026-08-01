@@ -21,6 +21,7 @@ import { Search, X, MessageSquare, Bot, Archive, Loader2, FolderKanban } from 'l
 import { Dialog, DialogContent, DialogPortal, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { searchDialogOpenAtom } from '@/atoms/search-atoms'
+import { sessionHoverPreviewEnabledAtom } from '@/atoms/ui-preferences'
 import { conversationsAtom, channelsAtom } from '@/atoms/chat-atoms'
 import {
   agentSessionsAtom,
@@ -174,7 +175,8 @@ function SearchResultRow({
   onSelect,
   onHover,
 }: SearchResultRowProps): React.ReactElement {
-  const preview = useSessionMiniMapHover(400)
+  const sessionHoverPreviewEnabled = useAtomValue(sessionHoverPreviewEnabledAtom)
+  const preview = useSessionMiniMapHover(400, !sessionHoverPreviewEnabled)
   const isContent = isContentResult(result)
   const wsName = result.type === 'agent' ? getAgentWorkspaceName(result.id) : undefined
 

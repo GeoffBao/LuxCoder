@@ -3428,20 +3428,17 @@ export function registerIpcHandlers(): void {
   // 列出目录内容（浅层，安全校验）
   ipcMain.handle(
     AGENT_IPC_CHANNELS.LIST_DIRECTORY,
-    async (_, dirPath: string): Promise<FileEntry[]> => {
+    async (_, dirPath: string, access?: FileAccessOptions): Promise<FileEntry[]> => {
       const { existsSync, readdirSync, statSync } = await import('node:fs')
       const { resolve } = await import('node:path')
 
-      // 安全校验：路径必须在 agent-workspaces 目录下
       const safePath = resolve(dirPath)
-      const workspacesRoot = resolve(getAgentWorkspacesDir())
-      if (!safePath.startsWith(workspacesRoot)) {
-        throw new Error('访问路径超出 Agent 工作区范围')
-      }
-
       // 目录可能已被删除（如删除 Agent 会话后面板仍持有旧路径），优雅返回空列表
       if (!existsSync(safePath)) {
         return []
+      }
+      if (!isPathAllowed(safePath, normalizeFileAccessOptions(access))) {
+        throw new Error('访问路径超出当前会话的授权范围')
       }
 
       const entries: FileEntry[] = []
@@ -3476,15 +3473,13 @@ export function registerIpcHandlers(): void {
   // 删除文件或目录
   ipcMain.handle(
     AGENT_IPC_CHANNELS.DELETE_FILE,
-    async (_, filePath: string): Promise<void> => {
+    async (_, filePath: string, access?: FileAccessOptions): Promise<void> => {
       const { rmSync } = await import('node:fs')
       const { resolve } = await import('node:path')
 
-      // 安全校验：路径必须在 agent-workspaces 目录下
       const safePath = resolve(filePath)
-      const workspacesRoot = resolve(getAgentWorkspacesDir())
-      if (!safePath.startsWith(workspacesRoot)) {
-        throw new Error('访问路径超出 Agent 工作区范围')
+      if (!isPathAllowed(safePath, normalizeFileAccessOptions(access))) {
+        throw new Error('访问路径超出当前会话的授权范围')
       }
 
       rmSync(safePath, { recursive: true, force: true })
@@ -3495,13 +3490,12 @@ export function registerIpcHandlers(): void {
   // 用系统默认应用打开文件
   ipcMain.handle(
     AGENT_IPC_CHANNELS.OPEN_FILE,
-    async (_, filePath: string): Promise<void> => {
+    async (_, filePath: string, access?: FileAccessOptions): Promise<void> => {
       const { resolve } = await import('node:path')
 
       const safePath = resolve(filePath)
-      const workspacesRoot = resolve(getAgentWorkspacesDir())
-      if (!safePath.startsWith(workspacesRoot)) {
-        throw new Error('访问路径超出 Agent 工作区范围')
+      if (!isPathAllowed(safePath, normalizeFileAccessOptions(access))) {
+        throw new Error('访问路径超出当前会话的授权范围')
       }
 
       await shell.openPath(safePath)
@@ -3548,13 +3542,12 @@ export function registerIpcHandlers(): void {
   // 在系统文件管理器中显示文件
   ipcMain.handle(
     AGENT_IPC_CHANNELS.SHOW_IN_FOLDER,
-    async (_, filePath: string): Promise<void> => {
+    async (_, filePath: string, access?: FileAccessOptions): Promise<void> => {
       const { resolve } = await import('node:path')
 
       const safePath = resolve(filePath)
-      const workspacesRoot = resolve(getAgentWorkspacesDir())
-      if (!safePath.startsWith(workspacesRoot)) {
-        throw new Error('访问路径超出 Agent 工作区范围')
+      if (!isPathAllowed(safePath, normalizeFileAccessOptions(access))) {
+        throw new Error('访问路径超出当前会话的授权范围')
       }
 
       shell.showItemInFolder(safePath)
@@ -3737,7 +3730,7 @@ export function registerIpcHandlers(): void {
   // 重命名文件/目录
   ipcMain.handle(
     AGENT_IPC_CHANNELS.RENAME_FILE,
-    async (_, filePath: string, newName: string): Promise<void> => {
+    async (_, filePath: string, newName: string, access?: FileAccessOptions): Promise<void> => {
       const { renameSync } = await import('node:fs')
       const { resolve, dirname, join, sep } = await import('node:path')
 
@@ -3746,9 +3739,8 @@ export function registerIpcHandlers(): void {
       }
 
       const safePath = resolve(filePath)
-      const workspacesRoot = resolve(getAgentWorkspacesDir())
-      if (!safePath.startsWith(workspacesRoot)) {
-        throw new Error('访问路径超出 Agent 工作区范围')
+      if (!isPathAllowed(safePath, normalizeFileAccessOptions(access))) {
+        throw new Error('访问路径超出当前会话的授权范围')
       }
 
       const newPath = join(dirname(safePath), newName)
@@ -3760,15 +3752,15 @@ export function registerIpcHandlers(): void {
   // 移动文件/目录到目标目录
   ipcMain.handle(
     AGENT_IPC_CHANNELS.MOVE_FILE,
-    async (_, filePath: string, targetDir: string): Promise<void> => {
+    async (_, filePath: string, targetDir: string, access?: FileAccessOptions): Promise<void> => {
       const { renameSync } = await import('node:fs')
       const { resolve, basename, join } = await import('node:path')
 
       const safePath = resolve(filePath)
       const safeTarget = resolve(targetDir)
-      const workspacesRoot = resolve(getAgentWorkspacesDir())
-      if (!safePath.startsWith(workspacesRoot) || !safeTarget.startsWith(workspacesRoot)) {
-        throw new Error('访问路径超出 Agent 工作区范围')
+      const options = normalizeFileAccessOptions(access)
+      if (!isPathAllowed(safePath, options) || !isPathAllowed(safeTarget, options)) {
+        throw new Error('访问路径超出当前会话的授权范围')
       }
 
       const newPath = join(safeTarget, basename(safePath))

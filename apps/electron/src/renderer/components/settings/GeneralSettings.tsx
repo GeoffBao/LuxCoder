@@ -38,9 +38,11 @@ import {
 import {
   longTextPasteAsAttachmentEnabledAtom,
   richTextRenderingEnabledAtom,
+  sessionHoverPreviewEnabledAtom,
   stickyUserMessageEnabledAtom,
   updateLongTextPasteAsAttachmentEnabled,
   updateRichTextRenderingEnabled,
+  updateSessionHoverPreviewEnabled,
   updateStickyUserMessageEnabled,
 } from '@/atoms/ui-preferences'
 import { thinkingExpandedAtom } from '@/atoms/chat-atoms'
@@ -60,6 +62,7 @@ export function GeneralSettings(): React.ReactElement {
   const [stickyUserMessageEnabled, setStickyUserMessageEnabled] = useAtom(stickyUserMessageEnabledAtom)
   const [longTextPasteAsAttachmentEnabled, setLongTextPasteAsAttachmentEnabled] = useAtom(longTextPasteAsAttachmentEnabledAtom)
   const [richTextRenderingEnabled, setRichTextRenderingEnabled] = useAtom(richTextRenderingEnabledAtom)
+  const [sessionHoverPreviewEnabled, setSessionHoverPreviewEnabled] = useAtom(sessionHoverPreviewEnabledAtom)
   const [thinkingExpanded, setThinkingExpanded] = useAtom(thinkingExpandedAtom)
   const [defaultThinkingLevel, setDefaultThinkingLevel] = React.useState<AgentThinkingLevel>(DEFAULT_AGENT_THINKING_LEVEL)
   const [isEditingName, setIsEditingName] = React.useState(false)
@@ -367,6 +370,15 @@ export function GeneralSettings(): React.ReactElement {
             onCheckedChange={(checked) => {
               setStickyUserMessageEnabled(checked)
               updateStickyUserMessageEnabled(checked)
+            }}
+          />
+          <SettingsToggle
+            label="会话悬浮预览"
+            description="开启后，鼠标悬浮左侧会话行时展示会话迷你地图；默认关闭以减少误触遮挡"
+            checked={sessionHoverPreviewEnabled}
+            onCheckedChange={(checked) => {
+              setSessionHoverPreviewEnabled(checked)
+              updateSessionHoverPreviewEnabled(checked)
             }}
           />
           <SettingsToggle

@@ -35,7 +35,7 @@ interface BuiltinMcpConfigInfo {
 function getConfigInfo(server: BuiltinMcpServerSummary): BuiltinMcpConfigInfo {
   if (server.id === 'nano-banana') {
     return {
-      source: 'Chat 工具 / Nano Banana',
+      source: 'Agent 工具 / Nano Banana',
       description: '配置 Gemini API Key、API 地址、模型与开关后，Agent 会话才能注入生图 MCP。',
       actionLabel: '配置生图',
     }
@@ -43,7 +43,7 @@ function getConfigInfo(server: BuiltinMcpServerSummary): BuiltinMcpConfigInfo {
   if (server.id === 'chrome-devtools') {
     return {
       source: 'Chrome DevTools MCP / npx',
-      description: '启用后 Proma 会通过 npx 启动 chrome-devtools-mcp，让 Agent 可以打开真实浏览器页面、截图和检查 DOM。首次使用可能需要下载 npm 包，并要求本机安装 Chrome。',
+      description: '启用后 LuxCoder 会通过 npx 启动 chrome-devtools-mcp，让 Agent 可以打开真实浏览器页面、截图和检查 DOM。首次使用可能需要下载 npm 包，并要求本机安装 Chrome。',
     }
   }
   if (server.id === 'collaboration') {

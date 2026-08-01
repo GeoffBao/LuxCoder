@@ -214,7 +214,7 @@ export const DEFAULT_AGENT_RUNTIME: AgentRuntime = 'pi'
 export type MarkdownFontSize = 'small' | 'medium' | 'large'
 
 /** 默认 Markdown 字号档位 */
-export const DEFAULT_MARKDOWN_FONT_SIZE: MarkdownFontSize = 'medium'
+export const DEFAULT_MARKDOWN_FONT_SIZE: MarkdownFontSize = 'small'
 
 /** Agent 灵动岛偏好。外接/无刘海屏默认不绘制顶部覆盖层。 */
 export interface AgentIslandSettings {
@@ -288,7 +288,9 @@ export interface AppSettings {
   longTextPasteAsAttachmentEnabled?: boolean
   /** 输入框是否渲染 Markdown 富文本格式（默认 false，关闭后为纯文本模式，仍保留 Mention 引用） */
   richTextRenderingEnabled?: boolean
-  /** Markdown 预览字号档位（默认 'medium'，对应 15px） */
+  /** 左侧会话行悬浮时是否展示迷你地图预览（默认 false） */
+  sessionHoverPreviewEnabled?: boolean
+  /** Markdown 预览字号档位（默认 'small'，对应 13px） */
   markdownFontSize?: MarkdownFontSize
   /** 上次是否在 Scratch Pad 页（用于重启恢复） */
   scratchPadActive?: boolean
