@@ -3336,12 +3336,18 @@ const electronAPI: ElectronAPI = {
   },
 }
 
+const luxcoderWindowKind = process.argv
+  .find((arg) => arg.startsWith('--luxcoder-window='))
+  ?.slice('--luxcoder-window='.length)
+
 // 将 API 暴露到渲染进程的 window 对象上
 contextBridge.exposeInMainWorld('electronAPI', electronAPI)
+contextBridge.exposeInMainWorld('__luxcoderWindowKind', luxcoderWindowKind)
 
 // 扩展 Window 接口的类型定义
 declare global {
   interface Window {
     electronAPI: ElectronAPI
+    __luxcoderWindowKind?: string
   }
 }

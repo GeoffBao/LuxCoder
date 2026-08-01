@@ -2,7 +2,7 @@
  * CodeClaw 桌面助手窗口管理
  */
 
-import { BrowserWindow, screen } from 'electron'
+import { app, BrowserWindow, screen } from 'electron'
 import { join } from 'node:path'
 import { getSettings, updateSettings } from './settings-service'
 
@@ -67,19 +67,25 @@ export function createCodeClawWindow(): BrowserWindow | null {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
+      additionalArguments: ['--luxcoder-window=codeclaw'],
     },
   })
 
   codeClawWindow.setAlwaysOnTop(true, process.platform === 'darwin' ? 'floating' : 'screen-saver')
   codeClawWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: false })
 
-  if (process.env.NODE_ENV === 'development') {
-    void codeClawWindow.loadURL('http://127.0.0.1:5173?window=codeclaw')
-  } else {
-    void codeClawWindow.loadFile(join(__dirname, 'renderer', 'index.html'), {
+  // 必须与主窗口统一使用 app.isPackaged 判断。开发启动脚本不保证设置
+  // NODE_ENV；若误判为生产环境会加载过期 dist/renderer，进而在 220×220
+  // 桌宠窗口渲染完整主界面。
+  const isDev = !app.isPackaged
+  const loadPromise = isDev
+    ? codeClawWindow.loadURL('http://127.0.0.1:5173?window=codeclaw')
+    : codeClawWindow.loadFile(join(__dirname, 'renderer', 'index.html'), {
       query: { window: 'codeclaw' },
     })
-  }
+  void loadPromise.catch((error: unknown) => {
+    console.error('[CodeClaw] failed to load its renderer', error)
+  })
 
   codeClawWindow.webContents.once('did-finish-load', () => {
     for (const cb of readyCallbacks) cb()

@@ -102,11 +102,15 @@ import './styles/globals.css'
 import 'katex/dist/katex.min.css'
 
 // ===== 窗口类型检测 =====
-const isQuickTaskWindow = new URLSearchParams(window.location.search).get('window') === 'quick-task'
-const isVoiceDictationIndicatorWindow = new URLSearchParams(window.location.search).get('window') === 'voice-dictation-indicator'
-const isDetachedPreviewWindow = new URLSearchParams(window.location.search).get('window') === 'detached-preview'
-const isPlanningWindow = new URLSearchParams(window.location.search).get('window') === 'planning'
-const isCodeClawWindow = new URLSearchParams(window.location.search).get('window') === 'codeclaw'
+const windowKindFromQuery = new URLSearchParams(window.location.search).get('window')
+// 辅助窗口不要只依赖 URL query：开发服务器或 loadFile 异常时 query 可能丢失，
+// 会导致 220x220 的辅助窗口误渲染主界面。preload additionalArguments 是兜底信号。
+const windowKind = windowKindFromQuery ?? window.__luxcoderWindowKind
+const isQuickTaskWindow = windowKind === 'quick-task'
+const isVoiceDictationIndicatorWindow = windowKind === 'voice-dictation-indicator'
+const isDetachedPreviewWindow = windowKind === 'detached-preview'
+const isPlanningWindow = windowKind === 'planning'
+const isCodeClawWindow = windowKind === 'codeclaw'
 const isMainWindow = !isQuickTaskWindow && !isVoiceDictationIndicatorWindow && !isDetachedPreviewWindow && !isPlanningWindow && !isCodeClawWindow
 
 // 仅主窗口禁用页面级滚动；独立浮窗各自管理自己的内容高度和滚动。
