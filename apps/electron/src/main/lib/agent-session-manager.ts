@@ -13,7 +13,7 @@ import { createInterface } from 'node:readline'
 import { writeJsonFileAtomic, writeTextFileAtomic, readJsonFileSafe } from './safe-file'
 import { randomUUID } from 'node:crypto'
 import { rmSyncWithRetry, renameWithRetry } from './fs-retry'
-import { join, resolve, dirname } from 'node:path'
+import { join, resolve, dirname, isAbsolute, relative, sep } from 'node:path'
 import {
   getAgentSessionsIndexPath,
   getAgentSessionsDir,
@@ -1571,6 +1571,44 @@ function findSdkSessionJsonl(sdkSessionId: string, _projectDir?: string): string
   }
 
   return undefined
+}
+
+/** Node 20–25 均兼容的最小 path API；测试可注入 Windows 路径语义。 */
+type RewindPathApi = {
+  isAbsolute(path: string): boolean
+  resolve(...pathSegments: string[]): string
+  relative(from: string, to: string): string
+  sep: string
+}
+
+const nativeRewindPathApi: RewindPathApi = { isAbsolute, resolve, relative, sep }
+
+/**
+ * 将快照中的路径解析为允许目录内的绝对路径。
+ * pathApi 参数让 Windows 路径语义可以在非 Windows 平台上独立测试。
+ */
+export function resolveSafeRewindPath(
+  filePath: string,
+  cwd: string,
+  attachedDirectories: string[] = [],
+  pathApi: RewindPathApi = nativeRewindPathApi,
+): string | undefined {
+  const resolvedCwd = pathApi.resolve(cwd)
+  const resolvedPath = pathApi.isAbsolute(filePath)
+    ? pathApi.resolve(filePath)
+    : pathApi.resolve(resolvedCwd, filePath)
+  const allowedDirs = [resolvedCwd, ...attachedDirectories.map((dir) => pathApi.resolve(dir))]
+
+  const isAllowed = allowedDirs.some((dir) => {
+    const relativePath = pathApi.relative(dir, resolvedPath)
+    return relativePath === '' || (
+      relativePath !== '..'
+      && !relativePath.startsWith(`..${pathApi.sep}`)
+      && !pathApi.isAbsolute(relativePath)
+    )
+  })
+
+  return isAllowed ? resolvedPath : undefined
 }
 
 /**
