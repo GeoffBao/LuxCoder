@@ -7,6 +7,7 @@ import {
   resolveEffectiveCwd,
   findProjectByWorkingDirectory,
   openOrCreateProjectForPath,
+  restoreProjectWorkingDirectory,
   type ProjectPathFs,
 } from './project-path-service.ts'
 
@@ -25,6 +26,7 @@ function accessibleFs(extra?: Partial<ProjectPathFs>): ProjectPathFs {
     exists: (p) => existsSync(p),
     realpath: (p) => p, // 测试用：跳过真实 symlink
     isDirectory: () => true,
+    mkdir: (p) => mkdirSync(p, { recursive: true }),
     ...extra,
   }
 }
@@ -85,5 +87,31 @@ describe('project-path-service', () => {
     const project = createProject(ws, { name: 'R', workingDirectory: external + '/' })
     const found = findProjectByWorkingDirectory(ws, external, accessibleFs())
     expect(found?.id).toBe(project.id)
+  })
+
+  test('restoreProjectWorkingDirectory 在缺失路径重建空目录', () => {
+    const ws = tempRoot()
+    const missing = join(ws, 'missing-repo')
+    const project = createProject(ws, { name: 'Gone', workingDirectory: missing })
+    expect(existsSync(missing)).toBe(false)
+    const restored = restoreProjectWorkingDirectory(ws, project.slug, accessibleFs())
+    expect(restored.slug).toBe(project.slug)
+    expect(existsSync(missing)).toBe(true)
+  })
+
+  test('restoreProjectWorkingDirectory 目录仍存在时拒绝执行', () => {
+    const ws = tempRoot()
+    const external = join(tempRoot(), 'repo')
+    mkdirSync(external)
+    const project = createProject(ws, { name: 'Still', workingDirectory: external })
+    expect(() => restoreProjectWorkingDirectory(ws, project.slug, accessibleFs()))
+      .toThrow('目录仍然存在')
+  })
+
+  test('restoreProjectWorkingDirectory 未绑定本地目录时拒绝执行', () => {
+    const ws = tempRoot()
+    const project = createProject(ws, { name: 'Managed' })
+    expect(() => restoreProjectWorkingDirectory(ws, project.slug, accessibleFs()))
+      .toThrow('未绑定本地目录')
   })
 })

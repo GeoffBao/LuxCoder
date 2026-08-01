@@ -1,4 +1,4 @@
-import { existsSync, realpathSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, realpathSync, statSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
 import type { ProjectConfig } from '@luxcoder/shared/projects'
 import {
@@ -24,12 +24,14 @@ export interface ProjectPathFs {
   exists: (path: string) => boolean
   realpath: (path: string) => string
   isDirectory: (path: string) => boolean
+  mkdir: (path: string) => void
 }
 
 export const defaultProjectPathFs: ProjectPathFs = {
   exists: existsSync,
   realpath: (p) => realpathSync(p),
   isDirectory: (p) => statSync(p).isDirectory(),
+  mkdir: (p) => { mkdirSync(p, { recursive: true }) },
 }
 
 export function canonicalizeForCompare(path: string, fs: ProjectPathFs = defaultProjectPathFs): string {
@@ -106,6 +108,27 @@ export function relocateProjectWorkingDirectory(
   return updateProject(workspaceRoot, projectSlug, {
     workingDirectory: absolute,
   })
+}
+
+/**
+ * 在本地项目原路径重建一个空目录。仅当路径确实缺失时才允许执行，
+ * 避免误清空一个只是暂时不可访问（如权限问题）的真实目录。
+ */
+export function restoreProjectWorkingDirectory(
+  workspaceRoot: string,
+  projectSlug: string,
+  fs: ProjectPathFs = defaultProjectPathFs,
+): ProjectConfig {
+  const loaded = loadWorkspaceProjects(workspaceRoot).find((p) => p.config.slug === projectSlug)
+  if (!loaded) throw new Error(`Project 不存在: ${projectSlug}`)
+  const target = loaded.config.workingDirectory?.trim()
+  if (!target) throw new Error('该 Project 未绑定本地目录，无需恢复')
+  const absolute = resolve(displayProjectPath(target))
+  if (fs.exists(absolute)) {
+    throw new Error('目录仍然存在，无需恢复；如需切换目录请使用重新关联')
+  }
+  fs.mkdir(absolute)
+  return loaded.config
 }
 
 /** Agent / Task 运行前校验：不可用主目录不得静默回退 */

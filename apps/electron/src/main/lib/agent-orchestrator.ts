@@ -51,6 +51,7 @@ import { appendSDKMessages, updateAgentSessionMeta, getAgentSessionMeta, getAgen
 import { getAgentWorkspace, getWorkspaceMcpConfig, ensurePluginManifest, getWorkspaceAutoMemoryDir, getWorkspaceAttachedDirectories, getWorkspaceAttachedFiles, getWorkspaceDefaultWorkingDirectory } from './agent-workspace-manager'
 import { getAgentWorkspacePath, getAgentSessionWorkspacePath, getSdkConfigDir, getWorkspaceFilesDir, getBundledCliPath, getWorkspaceSkillsDir, resolveClaudeAgentBinaryPath } from './config-paths'
 import { projectRepository } from './project-repository'
+import { resolveSessionCwd } from './agent-cwd-resolver'
 import { getRuntimeStatus } from './runtime-init'
 import { buildSystemPrompt, buildDynamicContext } from './agent-prompt-builder'
 import { MAX_CONTEXT_MESSAGES, buildContextPrompt, buildRecoveryPrompt, buildReferencedSessionsPrompt } from './agent-session-context-prompt'
@@ -1218,10 +1219,34 @@ export class AgentOrchestrator {
       if (workspaceId) {
         const ws = getAgentWorkspace(workspaceId)
         if (ws) {
-          agentCwd = getAgentSessionWorkspacePath(ws.slug, sessionId)
           workspaceSlug = ws.slug
           workspace = ws
-          console.log(`[Agent 编排] 使用 session 级别 cwd: ${agentCwd} (${ws.name}/${sessionId})`)
+          // 会话专属沙箱：无论最终 cwd 决策结果如何，都要确保它存在
+          // （放置 .claude/settings.json、.context/ 等会话级辅助文件，与实际
+          // 工作目录解耦，避免 project 模式下污染用户真实项目目录）。
+          const sandboxCwd = getAgentSessionWorkspacePath(ws.slug, sessionId)
+          const cwdResolution = resolveSessionCwd({
+            gitWorktreePath: sessionMeta?.gitWorktreePath,
+            agentCwdMode: sessionMeta?.agentCwdMode,
+            projectId: sessionMeta?.projectId,
+            resolveProjectCwd: (projectId) =>
+              projectRepository.resolveEffectiveCwdForProject(getAgentWorkspacePath(ws.slug), projectId),
+            sandboxCwd,
+          })
+
+          if ('unavailable' in cwdResolution) {
+            reportPreflightError({
+              code: 'project_directory_unavailable',
+              title: '项目目录不可用',
+              message: `该会话绑定的项目目录「${cwdResolution.displayPath ?? '未知路径'}」已不可访问，可能已被移动或删除。请在项目设置里重新关联或恢复该目录后再继续。`,
+              canRetry: false,
+              actions: [],
+            })
+            return
+          }
+
+          agentCwd = cwdResolution.cwd
+          console.log(`[Agent 编排] 使用 ${cwdResolution.source} 级别 cwd: ${agentCwd} (${ws.name}/${sessionId})`)
 
           if (agentRuntime === 'claude') {
             ensurePluginManifest(ws.slug, ws.name)

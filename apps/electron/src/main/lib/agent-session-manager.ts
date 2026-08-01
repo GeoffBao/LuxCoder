@@ -297,6 +297,8 @@ export function createAgentSession(
     modelId,
     workspaceId,
     agentRuntime,
+    // 新会话遵循「优先使用绑定 Project 工作目录」语义；历史会话字段缺失按 'session' 解释。
+    agentCwdMode: 'project',
     // 思考深度从创建起归属于会话（对齐 craft sticky ThinkingLevel）
     ...sessionThinkingLevelPatch(defaultLevel),
     createdAt: now,
@@ -564,7 +566,7 @@ export function getRecentAgentSessionSDKMessages(
 /**
  * 更新会话元数据
  */
-export type AgentSessionMetaUpdates = Partial<Pick<AgentSessionMeta, 'title' | 'titleSource' | 'channelId' | 'modelId' | 'sdkSessionId' | 'piSessionFile' | 'piEntryBindings' | 'agentRuntime' | 'codexFastMode' | 'reasoningLevel' | 'thinkingLevel' | 'openAIThinkingLevel' | 'workspaceId' | 'pinned' | 'starred' | 'archived' | 'attachedDirectories' | 'attachedFiles' | 'forkSourceDir' | 'forkSourceSdkSessionId' | 'resumeAtMessageUuid' | 'stoppedByUser' | 'sessionStatus' | 'permissionMode' | 'completedButUnconfirmed' | 'sourceAutomationId' | 'automationGraduated' | 'parentSessionId' | 'rootSessionId' | 'sourceDelegationId' | 'delegationRole' | 'delegationStatus' | 'delegationDepth' | 'delegationGoal' | 'projectId' | 'customGroupId' | 'workingDirectory' | 'gitRepoPath' | 'gitBranch' | 'gitExecutionMode' | 'gitWorktreePath' | 'gitBaseRef' | 'kanbanColumn' | 'taskSlug' | 'taskRunId' | 'taskNodeId' | 'taskAttempt' | 'taskCorrelationKey' | 'taskNodeCount' | 'taskDraft' | 'labelIds'>>
+export type AgentSessionMetaUpdates = Partial<Pick<AgentSessionMeta, 'title' | 'titleSource' | 'channelId' | 'modelId' | 'sdkSessionId' | 'piSessionFile' | 'piEntryBindings' | 'agentRuntime' | 'codexFastMode' | 'reasoningLevel' | 'thinkingLevel' | 'openAIThinkingLevel' | 'workspaceId' | 'pinned' | 'starred' | 'archived' | 'attachedDirectories' | 'attachedFiles' | 'forkSourceDir' | 'forkSourceSdkSessionId' | 'resumeAtMessageUuid' | 'stoppedByUser' | 'sessionStatus' | 'permissionMode' | 'completedButUnconfirmed' | 'sourceAutomationId' | 'automationGraduated' | 'parentSessionId' | 'rootSessionId' | 'sourceDelegationId' | 'delegationRole' | 'delegationStatus' | 'delegationDepth' | 'delegationGoal' | 'projectId' | 'agentCwdMode' | 'customGroupId' | 'workingDirectory' | 'gitRepoPath' | 'gitBranch' | 'gitExecutionMode' | 'gitWorktreePath' | 'gitBaseRef' | 'kanbanColumn' | 'taskSlug' | 'taskRunId' | 'taskNodeId' | 'taskAttempt' | 'taskCorrelationKey' | 'taskNodeCount' | 'taskDraft' | 'labelIds'>>
 
 export function updateAgentSessionMeta(
   id: string,

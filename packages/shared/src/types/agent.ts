@@ -434,6 +434,7 @@ export type ErrorCode =
   | 'api_key_decrypt_failed'
   | 'claude_binary_not_found'
   | 'agent_runtime_not_found'
+  | 'project_directory_unavailable'
   | 'session_busy'
   | 'unknown_error'
 
@@ -783,6 +784,13 @@ export interface AgentSessionMeta {
   delegationGoal?: string
   /** 绑定的项目 ID（project.config.id），看板过滤用 */
   projectId?: string
+  /**
+   * Agent 执行 cwd 的持久化语义：'project' 表示优先使用 projectId 绑定 Project 的
+   * workingDirectory（若可用）；'session' 表示固定使用会话隔离沙箱目录。
+   * 新会话创建时写入 'project'；历史会话缺失该字段按 'session' 解释，避免升级后
+   * 把旧会话已经在沙箱里产生的状态错误切换到共享项目目录。
+   */
+  agentCwdMode?: 'session' | 'project'
   /** 用户自建分组 ID（SessionGroup.id），与 projectId 独立，用于侧边栏「分组方式：自定义分组」 */
   customGroupId?: string
   /** 项目继承的工作目录绝对路径（Conductor / additionalDirectories）；Git Worktree 模式下为 worktree 路径 */

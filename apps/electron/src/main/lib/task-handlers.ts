@@ -57,6 +57,7 @@ import { analyzeProjectDeleteImpact, analyzeTaskDeleteImpact } from './project-i
 import {
   openOrCreateProjectForPath,
   relocateProjectWorkingDirectory,
+  restoreProjectWorkingDirectory,
   resolveEffectiveCwd,
 } from './project-path-service'
 import { TaskRepository } from './task-repository'
@@ -602,6 +603,17 @@ export function registerTaskHandlers(window: BrowserWindow): void {
       relocateProjectWorkingDirectory(workspaceRoot, projectSlug, newPath)
       const loaded = projectRepository.getProjectAtRoot(workspaceRoot, projectSlug)
       if (!loaded) throw new Error(`重新定位后无法加载项目: ${projectSlug}`)
+      broadcastProjectsChanged(workspaceRoot, workspaceIdFor(workspaceRoot))
+      return loaded
+    },
+  )
+
+  ipcMain.handle(
+    PROJECT_IPC_CHANNELS.RESTORE_WORKING_DIRECTORY,
+    (_event, workspaceRoot: string, projectSlug: string) => {
+      restoreProjectWorkingDirectory(workspaceRoot, projectSlug)
+      const loaded = projectRepository.getProjectAtRoot(workspaceRoot, projectSlug)
+      if (!loaded) throw new Error(`恢复目录后无法加载项目: ${projectSlug}`)
       broadcastProjectsChanged(workspaceRoot, workspaceIdFor(workspaceRoot))
       return loaded
     },

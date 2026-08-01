@@ -1,0 +1,59 @@
+/**
+ * Agent 会话执行 cwd 决策
+ *
+ * 优先级（从高到低）：
+ * 1. Git Worktree 绑定路径（会话级隔离，创建后不随 Project 变化）
+ * 2. 新会话（agentCwdMode === 'project'）绑定的 Project 工作目录（动态解析，
+ *    Project 重新关联目录后自动生效）
+ * 3. 会话隔离沙箱目录（历史会话兼容 / 未绑定 Project 时的托管目录）
+ *
+ * 纯函数，不直接依赖 projectRepository / 文件系统，便于单测覆盖决策分支。
+ */
+
+import type { EffectiveCwdResult } from './project-path-service'
+
+export interface ResolveSessionCwdInput {
+  /** 会话绑定的 Git Worktree 路径；存在时优先级最高 */
+  gitWorktreePath?: string
+  /** 会话的 cwd 语义标记；历史会话缺失时应传 undefined（按 'session' 解释） */
+  agentCwdMode?: 'session' | 'project'
+  /** 会话关联的 Project ID */
+  projectId?: string
+  /** 解析指定 Project 的有效 cwd；仅在 agentCwdMode === 'project' 且 projectId 存在时调用 */
+  resolveProjectCwd: (projectId: string) => EffectiveCwdResult | null
+  /** 会话隔离沙箱目录（托管目录），作为最终兜底 */
+  sandboxCwd: string
+}
+
+export type SessionCwdSource = 'worktree' | 'project' | 'sandbox'
+
+export interface ResolveSessionCwdResult {
+  cwd: string
+  source: SessionCwdSource
+}
+
+export interface ResolveSessionCwdUnavailable {
+  unavailable: true
+  /** 供错误提示展示的原始路径（可能已不存在） */
+  displayPath?: string
+}
+
+export function resolveSessionCwd(
+  input: ResolveSessionCwdInput,
+): ResolveSessionCwdResult | ResolveSessionCwdUnavailable {
+  if (input.gitWorktreePath) {
+    return { cwd: input.gitWorktreePath, source: 'worktree' }
+  }
+
+  if (input.agentCwdMode === 'project' && input.projectId) {
+    const result = input.resolveProjectCwd(input.projectId)
+    if (result?.status === 'unavailable') {
+      return { unavailable: true, displayPath: result.displayPath }
+    }
+    if (result?.cwd) {
+      return { cwd: result.cwd, source: 'project' }
+    }
+  }
+
+  return { cwd: input.sandboxCwd, source: 'sandbox' }
+}

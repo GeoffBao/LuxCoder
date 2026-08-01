@@ -1386,6 +1386,10 @@ export interface ElectronAPI {
       projectSlug: string,
       newPath: string,
     ) => Promise<BrowserProject>
+    restoreWorkingDirectory: (
+      workspaceRoot: string,
+      projectSlug: string,
+    ) => Promise<BrowserProject>
     onChanged: (callback: (event: BrowserProjectChangedEvent) => void) => () => void
   }
   sessionGroups: {
@@ -3098,6 +3102,17 @@ const electronAPI: ElectronAPI = {
         workspaceRoot,
         projectSlug,
         newPath,
+      )
+      return toBrowserProject(project)
+    },
+    restoreWorkingDirectory: async (
+      workspaceRoot: string,
+      projectSlug: string,
+    ): Promise<BrowserProject> => {
+      const project = await invokeTyped<LoadedProject>(
+        PROJECT_IPC_CHANNELS.RESTORE_WORKING_DIRECTORY,
+        workspaceRoot,
+        projectSlug,
       )
       return toBrowserProject(project)
     },
