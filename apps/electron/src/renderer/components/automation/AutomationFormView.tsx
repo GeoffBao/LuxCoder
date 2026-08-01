@@ -281,9 +281,28 @@ function SaveStatusBadge({
   )
 }
 
-const AGENT_RUNTIME_OPTIONS: Array<{ value: AgentRuntime; label: string; description: string }> = [
-  { value: 'claude', label: 'Claude', description: '使用 Claude Agent SDK；模型仅限已标记为 Agent 兼容的渠道' },
-  { value: 'pi', label: 'Pi', description: '使用 Pi Agent SDK；可选择任意已启用模型渠道' },
+// Pi 为默认与推荐内核，Claude Agent SDK 计划于 2026 年 8 月中旬彻底下线
+const AGENT_RUNTIME_OPTIONS: Array<{
+  value: AgentRuntime
+  label: string
+  description: string
+  badge?: string
+  badgeTone?: 'recommended' | 'deprecated'
+}> = [
+  {
+    value: 'claude',
+    label: 'Claude',
+    description: 'Claude Agent SDK；模型仅限已标记为 Agent 兼容的渠道',
+    badge: '即将下线',
+    badgeTone: 'deprecated',
+  },
+  {
+    value: 'pi',
+    label: 'Pi',
+    description: 'Pi Agent SDK，LuxCoder 默认内核，新功能仅在 Pi 上提供；可选择任意已启用模型渠道',
+    badge: '推荐',
+    badgeTone: 'recommended',
+  },
 ]
 
 function AutomationRuntimeSelector({
@@ -333,7 +352,21 @@ function AutomationRuntimeSelector({
               >
                 <Box className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                 <span className="min-w-0 flex-1">
-                  <span className="block text-xs font-medium">{option.label}</span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="text-xs font-medium">{option.label}</span>
+                    {option.badge && (
+                      <span
+                        className={cn(
+                          'rounded-sm px-1 py-px text-[10px] font-medium leading-tight',
+                          option.badgeTone === 'deprecated'
+                            ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
+                            : 'bg-primary/10 text-primary',
+                        )}
+                      >
+                        {option.badge}
+                      </span>
+                    )}
+                  </span>
                   <span className="mt-0.5 block text-[11px] leading-relaxed text-muted-foreground">{option.description}</span>
                 </span>
                 {active && <Check className="mt-0.5 size-3.5 shrink-0" />}
