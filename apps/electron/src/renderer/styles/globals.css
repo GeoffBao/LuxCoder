@@ -1544,9 +1544,7 @@
 /* 设置卡片（经典界面）：保留 upstream 的卡片底 + 柔阴影 */
 .ui-classic .settings-card {
   background: hsl(var(--card));
-  box-shadow:
-    0 1px 2px 0 rgb(0 0 0 / 0.03),
-    0 1px 3px 0 rgb(0 0 0 / 0.06);
+  box-shadow: var(--shadow-sm);
 }
 .ui-classic.dark:not([class*="theme-"]) .settings-card {
   background: transparent;

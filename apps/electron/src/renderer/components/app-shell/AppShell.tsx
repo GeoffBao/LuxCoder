@@ -24,7 +24,9 @@ import { automationFormAtom } from '@/atoms/automation-atoms'
 import { activeViewAtom } from '@/atoms/active-view'
 import { interfaceVariantAtom } from '@/atoms/theme'
 import { isLegacyCoworkMode } from '@/components/app-shell/code-main-view-model'
+import { settingsOpenAtom } from '@/atoms/settings-tab'
 import { WindowControls } from '@/components/WindowControls'
+import { SettingsPanel } from '@/components/settings/SettingsPanel'
 import { detectIsWindows, WINDOW_CONTROLS_INSET_RIGHT } from '@/lib/platform'
 import { cn } from '@/lib/utils'
 
@@ -53,6 +55,8 @@ export function AppShell({ contextValue }: AppShellProps): React.ReactElement {
   const isPanelOpen = useAtomValue(currentSessionSidePanelOpenAtom)
   const automationForm = useAtomValue(automationFormAtom)
   const interfaceVariant = useAtomValue(interfaceVariantAtom)
+  const settingsOpen = useAtomValue(settingsOpenAtom)
+  const setSettingsOpen = useSetAtom(settingsOpenAtom)
   const isClassic = interfaceVariant === 'classic'
   const [labelManagerOpen, setLabelManagerOpen] = useAtom(labelManagerOpenAtom)
   const labelManagerWorkspaceRoot = useAtomValue(labelManagerWorkspaceRootAtom)
@@ -195,57 +199,64 @@ export function AppShell({ contextValue }: AppShellProps): React.ReactElement {
       {/* Windows 自定义窗口控制按钮（最小化/最大化/关闭） */}
       <WindowControls />
 
-      <div className="shell-bg refined-shell h-screen w-screen flex overflow-hidden bg-gradient-to-br from-zinc-50 to-zinc-100 dark:from-zinc-950 dark:to-zinc-900">
-        {/* 左侧边栏：折叠态和 Claude 一样整体隐藏（不保留图标 rail），
-            折叠/展开按钮固定在 TabBar（紧邻第一个标签），收起后仍可从那里唤回。 */}
-        {!sidebarCollapsed && (
-          <>
-            <div className={cn(isClassic ? 'p-2 pr-0' : '', 'relative z-[60] crt-sidebar')}>
-              <LeftSidebar width={clampedLeftSidebarWidth} noTransition={isDraggingLeftSidebar} />
+      <div className="shell-bg refined-shell relative h-screen w-screen overflow-hidden bg-gradient-to-br from-zinc-50 to-zinc-100 dark:from-zinc-950 dark:to-zinc-900">
+        <div className={cn('flex h-full w-full', settingsOpen && 'hidden')} aria-hidden={settingsOpen}>
+          {/* 左侧边栏：折叠态和 Claude 一样整体隐藏（不保留图标 rail），
+              折叠/展开按钮固定在 TabBar（紧邻第一个标签），收起后仍可从那里唤回。 */}
+          {!sidebarCollapsed && (
+            <>
+              <div className={cn(isClassic ? 'p-2 pr-0' : '', 'relative z-[60] crt-sidebar')}>
+                <LeftSidebar width={clampedLeftSidebarWidth} noTransition={isDraggingLeftSidebar} />
+                <div
+                  className={cn(
+                    'absolute right-0 top-0 bottom-0 w-4 translate-x-1/2 cursor-col-resize hover:bg-primary/5 active:bg-primary/50 transition-colors z-20'
+                  )}
+                  onMouseDown={handleLeftSidebarMouseDown}
+                />
+              </div>
+              {!isClassic && (
+                <div aria-hidden="true" className="relative z-[61] w-px flex-shrink-0 bg-foreground/[0.045]" />
+              )}
+            </>
+          )}
+
+          {/* 中间容器：relative z-[60] 使其在 z-50 拖动区域之上 */}
+          <div className={cn('flex-1 min-w-0 relative z-[60]', isClassic && 'p-2')}>
+            {/* 主内容区域（TabBar + TabContent） */}
+            <MainArea />
+          </div>
+
+          {/* 右侧边栏：Agent 文件面板 */}
+          {showRightPanel && (
               <div
                 className={cn(
-                  'absolute right-0 top-0 bottom-0 w-4 translate-x-1/2 cursor-col-resize hover:bg-primary/5 active:bg-primary/50 transition-colors z-20'
+                  'relative z-[60] flex items-stretch crt-sidebar',
+                  isClassic
+                    ? 'transition-[padding] duration-300 ease-in-out'
+                    : '',
+                  isClassic && (isPanelOpen ? 'p-2 pl-0' : 'p-0')
                 )}
-                onMouseDown={handleLeftSidebarMouseDown}
-              />
-            </div>
-            {!isClassic && (
-              <div aria-hidden="true" className="relative z-[61] w-px flex-shrink-0 bg-foreground/[0.045]" />
+              >
+                {!isClassic && (
+                  <div aria-hidden="true" className="pointer-events-none absolute left-0 top-0 bottom-0 z-10 w-px bg-border/80 dark:bg-border/70" />
+                )}
+                {/* 拖拽手柄 */}
+                {isPanelOpen && (
+                  <div
+                    className={cn(
+                      'absolute left-0 top-0 bottom-0 w-[8px] -translate-x-1/2 cursor-col-resize active:bg-primary/50 transition-colors',
+                      isClassic ? 'z-10' : 'z-20'
+                    )}
+                    onMouseDown={handleMouseDown}
+                  />
+                )}
+                <RightSidePanel width={clampedRightPanelWidth} />
+              </div>
             )}
-          </>
-        )}
-
-        {/* 中间容器：relative z-[60] 使其在 z-50 拖动区域之上 */}
-        <div className={cn('flex-1 min-w-0 relative z-[60]', isClassic && 'p-2')}>
-          {/* 主内容区域（TabBar + TabContent） */}
-          <MainArea />
         </div>
-
-        {/* 右侧边栏：Agent 文件面板 */}
-        {showRightPanel && (
-          <div
-            className={cn(
-              'relative z-[60] flex items-stretch crt-sidebar',
-              isClassic
-                ? 'transition-[padding] duration-slow ease-out'
-                : '',
-              isClassic && (isPanelOpen ? 'p-2 pl-0' : 'p-0')
-            )}
-          >
-            {!isClassic && (
-              <div aria-hidden="true" className="pointer-events-none absolute left-0 top-0 bottom-0 z-10 w-px bg-foreground/[0.045]" />
-            )}
-            {/* 拖拽手柄 */}
-            {isPanelOpen && (
-              <div
-                className={cn(
-                  'absolute left-0 top-0 bottom-0 w-[8px] -translate-x-1/2 cursor-col-resize active:bg-primary/50 transition-colors',
-                  isClassic ? 'z-10' : 'z-20'
-                )}
-                onMouseDown={handleMouseDown}
-              />
-            )}
-            <RightSidePanel width={clampedRightPanelWidth} />
+        {settingsOpen && (
+          <div className="absolute inset-0 z-[60]">
+            <SettingsPanel onClose={() => setSettingsOpen(false)} />
           </div>
         )}
       </div>
