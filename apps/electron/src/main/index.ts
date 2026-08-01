@@ -628,7 +628,7 @@ async function bootstrap(): Promise<void> {
   )
   safeRun('registerGlobalShortcut:voice-dictation', () =>
     registerGlobalShortcut('voice-dictation', () => {
-      toggleVoiceDictationWindow({ targetIsProma: mainWindow?.isFocused() === true })
+      toggleVoiceDictationWindow({ targetIsLuxCoder: mainWindow?.isFocused() === true })
     }),
   )
 

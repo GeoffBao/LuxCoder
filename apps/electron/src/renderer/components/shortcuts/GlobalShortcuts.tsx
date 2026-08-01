@@ -61,6 +61,10 @@ import {
   recordTabActivationAtom,
 } from '@/atoms/tab-history-atoms'
 import { activateTab } from '@/components/tabs/activate-tab'
+import {
+  VOICE_DICTATION_CLEAR_PREVIEW_EVENT,
+  VOICE_DICTATION_PREVIEW_EVENT,
+} from '@/lib/voice-input-focus'
 
 /**
  * 快捷键初始化 + 全局 Handler 注册
@@ -428,13 +432,20 @@ export function GlobalShortcuts(): null {
   // ===== 语音输入 → 写入当前 LuxCoder 输入框 =====
 
   useEffect(() => {
-    const cleanup = window.electronAPI.onVoiceDictationInsertText(({ text }) => {
-      const trimmed = text.trim()
+    const cleanupPreview = window.electronAPI.onVoiceDictationPreviewText((data) => {
+      if (!data.text.trim()) return
+      window.dispatchEvent(new CustomEvent(VOICE_DICTATION_PREVIEW_EVENT, { detail: data }))
+    })
+    const cleanupClearPreview = window.electronAPI.onVoiceDictationClearPreviewText((data) => {
+      window.dispatchEvent(new CustomEvent(VOICE_DICTATION_CLEAR_PREVIEW_EVENT, { detail: data }))
+    })
+    const cleanup = window.electronAPI.onVoiceDictationInsertText((data) => {
+      const trimmed = data.text.trim()
       if (!trimmed) return
 
       const insertedAtCursor = !window.dispatchEvent(new CustomEvent('luxcoder:insert-voice-dictation-text', {
         cancelable: true,
-        detail: { text: trimmed },
+        detail: { ...data, text: trimmed },
       }))
       if (insertedAtCursor) {
         window.dispatchEvent(new CustomEvent('luxcoder:focus-input'))
@@ -487,7 +498,11 @@ export function GlobalShortcuts(): null {
         window.dispatchEvent(new CustomEvent('luxcoder:focus-input'))
       }
     })
-    return cleanup
+    return () => {
+      cleanupPreview()
+      cleanupClearPreview()
+      cleanup()
+    }
   }, [store])
 
   // ===== 菜单栏 → 打开 / 创建会话 =====
