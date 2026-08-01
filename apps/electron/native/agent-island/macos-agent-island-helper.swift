@@ -366,10 +366,10 @@ struct CompactIslandView: View {
 
   private var compactLabel: String {
     if let session = primarySession {
-      return "Proma · \(phaseText(session.phase))"
+      return "LuxCoder · \(phaseText(session.phase))"
     }
-    if !snapshot.state.recentSessions.isEmpty {
-      return "Proma · 最近会话"
+    if snapshot.state.idleDashboard {
+      return snapshot.state.recentSessions.isEmpty ? "LuxCoder · 额度概览" : "LuxCoder · 最近会话"
     }
     return planningIndicator?.label ?? "工作提醒"
   }
