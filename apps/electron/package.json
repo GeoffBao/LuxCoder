@@ -3,6 +3,7 @@
   "version": "0.6.0",
   "description": "LuxCoder next gen ai software with general agents - Electron App",
   "main": "dist/main.cjs",
+  "homepage": "https://github.com/GeoffBao/LuxCoder",
   "author": {
     "name": "GeoffBao",
     "email": "erlichliu@gmail.com"

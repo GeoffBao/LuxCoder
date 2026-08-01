@@ -139,6 +139,7 @@ dmg:
 # ============================================
 win:
   icon: resources/icon.ico
+  artifactName: ${productName}-Setup-${version}-${arch}.${ext}
   fileAssociations:
     - ext: luxcoder-backup
       name: LuxCoder Personal Backup
@@ -163,6 +164,7 @@ nsis:
 # ============================================
 linux:
   icon: resources/icon.png
+  artifactName: ${productName}-${version}-${arch}.${ext}
   category: Development
   maintainer: support@luxshare.com
   target:
@@ -176,9 +178,12 @@ linux:
 # ============================================
 # 发布配置
 # 每个平台的 build job 通过 --publish always 直接上传到 GitHub Release。
-# electron-builder 会自动创建/复用 Release，并在多架构并行上传时合并 latest-mac.yml。
+# releaseType: release —— validate job 已用 gh release create 预创建正式 Release 并写入
+# 发布说明；若保持默认 draft 会导致「existing type not compatible」而跳过上传。
+# 多架构并行上传时 electron-builder 自动合并 latest-mac.yml。
 # ============================================
 publish:
   provider: github
   owner: GeoffBao
   repo: LuxCoder
+  releaseType: release
