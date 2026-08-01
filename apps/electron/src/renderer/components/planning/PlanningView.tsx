@@ -24,6 +24,7 @@ import { serverKanbanProjectsAtom } from '@/atoms/project-atoms'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { TodoDatePicker, formatTodoDueDate } from '@/components/ui/todo-date-picker'
 import { ShortcutKeycaps } from '@/components/shortcuts/ShortcutKeycaps'
+import { detectIsWindows, WINDOW_CONTROLS_INSET_RIGHT } from '@/lib/platform'
 
 const TABS: Array<{ id: PlanningTab; label: string }> = [
   { id: 'todos', label: 'Todo' },
@@ -45,6 +46,7 @@ function CreateShortcutHint(): React.ReactElement | null {
 export function PlanningView({ standalone = false }: { standalone?: boolean } = {}): React.ReactElement {
   const [tab, setTab] = useAtom(planningTabAtom)
   const [workspaceScope, setWorkspaceScope] = useAtom(planningWorkspaceScopeAtom)
+  const isWindows = React.useMemo(() => detectIsWindows(), [])
   const automations = useAtomValue(automationsAtom)
   const setAutomationForm = useSetAtom(automationFormAtom)
   const requestTodoCreate = useSetAtom(planningTodoCreateRequestAtom)
@@ -85,15 +87,16 @@ export function PlanningView({ standalone = false }: { standalone?: boolean } = 
       {/* 非 standalone（内嵌主窗口）时用 pt-14 让内容让到 AppShell 全局 drag 层
           （0–50px, z-50）下方，避免与 Windows 自定义 WindowControls 视觉重叠；
           standalone 独立窗口没有该全局拖拽层，维持原有 pt-8。 */}
-      <header className={cn('titlebar-drag-region flex w-full items-center justify-between', standalone ? 'px-5 pb-4 pt-8' : 'px-6 pb-5 pt-14 sm:px-8 xl:px-10')}>
-        <div className="flex items-center gap-2.5">
+      <header className={cn('relative titlebar-no-drag flex w-full items-center justify-between', standalone ? 'px-5 pb-4 pt-8' : 'px-6 pb-5 pt-14 sm:px-8 xl:px-10')}>
+        <div className={cn('absolute inset-y-0 left-0 z-0 titlebar-drag-region', isWindows ? WINDOW_CONTROLS_INSET_RIGHT : 'right-0')} />
+        <div className="relative z-[1] flex items-center gap-2.5">
           <CalendarDays className="size-6 text-foreground/70" />
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-wrap-balance">任务/日程</h1>
             <p className="mt-1 text-sm text-muted-foreground">安排待办、日程与定时任务</p>
           </div>
         </div>
-        <div className="titlebar-no-drag flex items-center gap-2">
+        <div className="relative z-[1] titlebar-no-drag flex items-center gap-2">
           {!standalone && (
             <button
               type="button"

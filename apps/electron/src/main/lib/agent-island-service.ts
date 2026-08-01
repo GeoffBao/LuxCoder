@@ -23,14 +23,17 @@ import {
   type AgentIslandState,
   type AgentIslandPlanningSnapshot,
   type AgentIslandPlanQuotaSnapshot,
+  type AgentIslandWindowSnapshot,
   type NativeAgentIslandEvent,
   type NativeAgentIslandSnapshot,
 } from '@luxcoder/shared'
 import type { AgentStreamPayload } from '@luxcoder/shared'
 import { agentEventBus } from './agent-service'
 import { getAgentSessionMeta, listAgentSessions } from './agent-session-manager'
-import { getAgentIslandWindow, hideAgentIslandWindow, moveAgentIslandWindow, onAgentIslandWindowReady, resizeAgentIslandWindow, showAgentIslandWindow } from './agent-island-window'
+import { createAgentIslandWindow, getAgentIslandWindow, hideAgentIslandWindow, moveAgentIslandWindow, onAgentIslandWindowReady, resizeAgentIslandWindow, showAgentIslandWindow } from './agent-island-window'
 import { isMacAgentIslandNativeHostReady, publishMacAgentIslandSnapshot } from './mac-agent-island-native-host'
+import { getAgentIslandTodoAttentionKeys, selectAgentIslandTodos } from './agent-island-planning'
+import { selectAgentIslandCompactPlanQuota } from './agent-island-plan-quota'
 import { listCalendarEvents, listTodos } from './planning-manager'
 import { onPlanningChanged } from './planning-events'
 import { getChannelPlanQuota, listChannels } from './channel-manager'
@@ -474,6 +477,24 @@ function buildState(now: number): AgentIslandState {
   }
 }
 
+/**
+ * 收起态优先给最需要处理的运行中会话展示额度；会话列表已按语义优先级稳定排序。
+ * 未读完成/错误会话不是“当前渠道”，不应挤占正在运行 Agent 的额度位置。
+ */
+function buildCompactPlanQuota(state: AgentIslandState): AgentIslandState['compactPlanQuota'] {
+  const activeChannelIds = state.sessions
+    .filter((session) => session.phase === 'running' || session.phase === 'needs-interaction')
+    .flatMap((session) => {
+      try {
+        const channelId = getAgentSessionMeta(session.sessionId)?.channelId
+        return channelId ? [channelId] : []
+      } catch {
+        return []
+      }
+    })
+  return selectAgentIslandCompactPlanQuota(activeChannelIds, planQuotas)
+}
+
 function buildPlanningSnapshot(now: number): AgentIslandPlanningSnapshot {
   const today = new Date(now)
   today.setHours(0, 0, 0, 0)
@@ -482,11 +503,8 @@ function buildPlanningSnapshot(now: number): AgentIslandPlanningSnapshot {
   const allTodayTodos = listTodos({ status: 'open' })
     .filter((todo) => todo.dueAt !== undefined && todo.dueAt < dayEnd)
     .sort((a, b) => (a.dueAt ?? 0) - (b.dueAt ?? 0))
-  // Compact visibility remains an imminent (one-hour) signal, while expansion
-  // is a useful short look-ahead: show the next three future items per column.
-  const todos = listTodos({ status: 'open' })
-    .filter((todo) => todo.dueAt !== undefined && todo.dueAt >= now)
-    .sort((a, b) => (a.dueAt ?? 0) - (b.dueAt ?? 0))
+  // 逾期事项必须优先于未来事项；否则 Island 会在最需要提醒时变成空面板。
+  const todos = selectAgentIslandTodos(listTodos({ status: 'open' }), now)
   const events = listCalendarEvents({ from: dayStart })
     // Keep an event visible while it is in progress, not only before its start.
     // All-day items without an explicit end remain active through their day.
@@ -526,10 +544,9 @@ function getImminentPlanningKeys(now: number): string[] {
   const dayStart = today.getTime()
   const dayEnd = dayStart + 24 * 60 * 60_000
   // 不依赖 UI 的前三条投影：多条逾期 Todo 不能遮蔽稍后临近的第四条事项。
+  // 逾期项也必须维持 Island 可见，直到用户明确关闭或完成它。
   return [
-    ...listTodos({ status: 'open' })
-      .filter((todo) => isImminent(todo.dueAt, now))
-      .map((todo) => `t:${todo.id}:${todo.dueAt}`),
+    ...getAgentIslandTodoAttentionKeys(listTodos({ status: 'open' }), now, PLANNING_ATTENTION_WINDOW_MS),
     ...listCalendarEvents({ from: dayStart, to: dayEnd })
       .filter((event) => isImminent(event.startAt, now))
       .map((event) => `e:${event.id}:${event.startAt}`),
@@ -572,6 +589,7 @@ function pushState(): void {
   const planning = buildPlanningSnapshot(now)
   const planningKeys = getImminentPlanningKeys(now)
   const state = buildState(now)
+  state.compactPlanQuota = buildCompactPlanQuota(state)
   // The idle dashboard is a true home surface: it remains visible even for a
   // new user without any recorded Agent session. Future items do not displace
   // it; only live Agent work or imminent plans take priority.
@@ -580,7 +598,7 @@ function pushState(): void {
   state.visible = enabled && isIslandVisible(state, planningKeys)
   state.presentation = state.visible ? (isExpanded() ? 'expanded' : 'compact') : 'hidden'
   // Planning 独立 revision 解决“同一毫秒内 Todo 变更而 Agent state.updatedAt 恰好相同”的漏推边界。
-  const json = JSON.stringify({ state, planning, planningRevision, dismissedVisibilityKey })
+  const json = JSON.stringify({ state, planning, planQuotas, planningRevision, dismissedVisibilityKey })
   // 状态无变化时跳过，避免无谓 IPC 与原生 helper 写入。
   if (json === lastStateJson) return
   lastStateJson = json
@@ -592,9 +610,12 @@ function pushState(): void {
   }
 
   // 非 macOS、helper 缺失或运行失败时，保留 Electron 版本作为降级体验。
-  const win = getAgentIslandWindow()
+  // 用户关闭 fallback 窗口或系统回收窗口后，下一次有效状态变更仍应恢复提醒 Surface。
+  let win = getAgentIslandWindow()
+  if ((!win || win.isDestroyed()) && state.visible) win = createAgentIslandWindow()
   if (!win || win.isDestroyed()) return
-  if (!win.webContents.isDestroyed()) win.webContents.send(AGENT_ISLAND_IPC_CHANNELS.STATE, state)
+  const rendererSnapshot: AgentIslandWindowSnapshot = { state, planning, planQuotas }
+  if (!win.webContents.isDestroyed()) win.webContents.send(AGENT_ISLAND_IPC_CHANNELS.STATE, rendererSnapshot)
   if (state.visible) showAgentIslandWindow()
   else hideAgentIslandWindow()
 }
@@ -619,9 +640,11 @@ async function refreshPlanQuotas(): Promise<void> {
     const next = results.flatMap(({ channel, quota }) => {
       if (!quota.supported || quota.windows.length === 0) return []
       return [{
+        channelId: channel.id,
         channelName: channel.name,
         planName: quota.planName || channel.name,
         windows: quota.windows.map((window) => ({
+          windowType: window.type,
           windowLabel: window.label,
           remainingPercent: window.remainingPercent,
           remainingLabel: window.remainingLabel,
@@ -766,6 +789,10 @@ export function initAgentIslandService(deps: AgentIslandServiceDeps): void {
     if (typeof next === 'boolean') setAgentIslandExpanded(next)
   })
 
+  ipcMain.handle(AGENT_ISLAND_IPC_CHANNELS.SET_HOVERED, (_event, next: unknown) => {
+    if (typeof next === 'boolean') setAgentIslandHovered(next)
+  })
+
   ipcMain.handle(AGENT_ISLAND_IPC_CHANNELS.RESIZE, (_event, req: { width: number; height: number }) => {
     if (typeof req?.width === 'number' && typeof req?.height === 'number') {
       resizeAgentIslandWindow(req.width, req.height)
@@ -782,23 +809,40 @@ export function initAgentIslandService(deps: AgentIslandServiceDeps): void {
     deps.showAndFocusMainWindow()
   })
 
+  ipcMain.handle(AGENT_ISLAND_IPC_CHANNELS.OPEN_PLANNING, () => {
+    if (deps.openPlanning) deps.openPlanning()
+    else deps.showAndFocusMainWindow()
+  })
+
   ipcMain.handle(AGENT_ISLAND_IPC_CHANNELS.OPEN_SESSION, (_event, sessionId: unknown) => {
     if (typeof sessionId !== 'string' || sessionId.length === 0) return
     openAgentIslandSession(sessionId)
   })
+
+  ipcMain.handle(AGENT_ISLAND_IPC_CHANNELS.MARK_SESSION_VIEWED, (_event, sessionId: unknown) => {
+    if (typeof sessionId !== 'string' || sessionId.length === 0) return
+    markAgentIslandSessionViewed(sessionId)
+  })
+}
+
+/**
+ * 完成态的未读由主进程管理；主应用确认用户已经看过结果后，在此统一清除。
+ * 错误和需要交互的会话必须保留 attention，不能被普通查看动作吞掉。
+ */
+function markAgentIslandSessionViewed(sessionId: string): void {
+  const session = sessions.get(sessionId)
+  if (session?.phase !== 'completed' || !session.unread) return
+  session.unread = false
+  session.attention = false
+  schedulePush()
 }
 
 function openAgentIslandSession(sessionId: string): void {
   if (!serviceDeps) return
   const session = sessions.get(sessionId)
-  // “完成但未检查”在用户进入对应会话后即视为已检查；异常/阻塞仍保留直到状态改变。
-  if (session?.phase === 'completed' && session.unread) {
-    session.unread = false
-    session.attention = false
-  }
+  markAgentIslandSessionViewed(sessionId)
   serviceDeps.openAgentSession(sessionId, session?.title ?? getTitle(sessionId))
   serviceDeps.showAndFocusMainWindow()
-  schedulePush()
 }
 
 function isExpanded(): boolean {

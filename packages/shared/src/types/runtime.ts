@@ -445,6 +445,8 @@ export const IPC_CHANNELS = {
   WINDOW_IS_MAXIMIZED: 'window:is-maximized',
   /** 窗口是否处于原生全屏 */
   WINDOW_IS_FULLSCREEN: 'window:is-fullscreen',
+  /** 在系统剪贴板中写入纯文本 */
+  WRITE_CLIPBOARD_TEXT: 'clipboard:write-text',
   /** 截图导出：将 HTML 渲染为 PNG 图片 */
   SCREENSHOT_CAPTURE: 'screenshot:capture',
 } as const

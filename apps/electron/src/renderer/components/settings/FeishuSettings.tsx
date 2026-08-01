@@ -46,6 +46,7 @@ import { SettingsRow } from './primitives/SettingsRow'
 import { feishuBotStatesAtom, feishuBindingsAtom } from '@/atoms/feishu-atoms'
 import { agentWorkspacesAtom, agentSessionsAtom } from '@/atoms/agent-atoms'
 import { cn } from '@/lib/utils'
+import { copyTextToClipboard } from '@/lib/clipboard'
 import {
   FEISHU_BINDING_PAGE_SIZE,
   filterFeishuBindings,
@@ -255,7 +256,7 @@ function PermissionsStep(): React.ReactElement {
   const [expanded, setExpanded] = React.useState(false)
 
   const handleCopy = React.useCallback(() => {
-    navigator.clipboard.writeText(FEISHU_SCOPES_JSON).then(() => {
+    copyTextToClipboard(FEISHU_SCOPES_JSON).then(() => {
       setCopied(true)
       toast.success('权限配置已复制到剪贴板')
       setTimeout(() => setCopied(false), 2000)
@@ -349,7 +350,7 @@ function FeishuCliSection(): React.ReactElement {
   const [copied, setCopied] = React.useState(false)
 
   const handleSendToAgent = React.useCallback(() => {
-    navigator.clipboard.writeText(FEISHU_CLI_PROMPT).then(() => {
+    copyTextToClipboard(FEISHU_CLI_PROMPT).then(() => {
       setCopied(true)
       toast.success('配置指令已复制，请在 Agent 对话中粘贴发送')
       setTimeout(() => setCopied(false), 2000)
@@ -833,7 +834,7 @@ function CliRecommendationCard(): React.ReactElement {
   const [copied, setCopied] = React.useState(false)
 
   const handleCopy = React.useCallback(() => {
-    navigator.clipboard.writeText(FEISHU_CLI_PROMPT).then(() => {
+    copyTextToClipboard(FEISHU_CLI_PROMPT).then(() => {
       setCopied(true)
       toast.success('提示词已复制，前往 Agent 对话粘贴发送')
       setTimeout(() => setCopied(false), 2000)

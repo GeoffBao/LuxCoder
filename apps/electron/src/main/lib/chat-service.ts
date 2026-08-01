@@ -213,24 +213,18 @@ export async function sendMessage(
     return
   }
 
-  // Codex OAuth uses the ChatGPT-specific Responses protocol, which Chat does
+  // Subscription OAuth uses Pi provider-specific transports, which Chat mode does
   // not currently implement. Keep this guard for historical conversations that
-  // still reference a formerly selectable Codex model.
-  if (channel.provider === 'openai-codex') {
+  // still reference a formerly selectable subscription model.
+  if (channel.provider === 'openai-codex' || channel.provider === 'xai' || channel.provider === 'anthropic-oauth') {
+    const providerName = channel.provider === 'xai'
+      ? 'xAI（Grok OAuth）'
+      : channel.provider === 'anthropic-oauth'
+        ? 'Claude OAuth 登录'
+        : 'ChatGPT 订阅（Codex OAuth）'
     webContents.send(CHAT_IPC_CHANNELS.STREAM_ERROR, {
       conversationId,
-      error: 'Chat 模式暂不支持 ChatGPT 订阅（Codex OAuth），请切换到 Code 模式使用。',
-    })
-    return
-  }
-
-  // anthropic-oauth 渠道只在 Agent（Code）模式下可用：其 apiKey 字段存储的是
-  // CLAUDE_CODE_OAUTH_TOKEN，只能喂给真实 claude 二进制，Chat 走的裸 Messages
-  // API 请求无法使用它。
-  if (channel.provider === 'anthropic-oauth') {
-    webContents.send(CHAT_IPC_CHANNELS.STREAM_ERROR, {
-      conversationId,
-      error: 'Chat 模式暂不支持 Claude OAuth 登录，请切换到 Code 模式使用。',
+      error: `Chat 模式暂不支持 ${providerName}，请切换到 Agent 模式使用。`,
     })
     return
   }

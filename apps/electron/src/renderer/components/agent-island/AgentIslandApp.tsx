@@ -22,6 +22,7 @@ import type {
   AgentIslandActivityLine,
   AgentIslandSessionSnapshot,
   AgentIslandState,
+  AgentIslandWindowSnapshot,
   CalendarEvent,
   Todo,
 } from '@luxcoder/shared'
@@ -30,7 +31,9 @@ import './agent-island.css'
 function useAgentIslandState(): AgentIslandState | null {
   const [state, setState] = useState<AgentIslandState | null>(null)
   useEffect(() => {
-    const unsubscribeState = window.electronAPI.agentIsland.onState(setState)
+    const unsubscribeState = window.electronAPI.agentIsland.onState((snapshot: AgentIslandWindowSnapshot) => {
+      setState(snapshot.state)
+    })
     const unsubscribeToggle = window.electronAPI.agentIsland.onToggleExpanded(() => {
       setState((previous) => {
         if (!previous) return previous
