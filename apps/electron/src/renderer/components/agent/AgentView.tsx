@@ -17,7 +17,7 @@ import * as React from 'react'
 import { unstable_batchedUpdates } from 'react-dom'
 import { useAtom, useAtomValue, useSetAtom, useStore } from 'jotai'
 import { toast } from 'sonner'
-import { Box, CornerDownLeft, Square, Settings, Paperclip, FolderPlus, X, Copy, Check, Brain, Sparkles, ChevronDown } from 'lucide-react'
+import { Box, CornerDownLeft, Square, Settings, X, Copy, Check, Brain, Sparkles, ChevronDown } from 'lucide-react'
 import { AgentMessages } from './AgentMessages'
 import { AgentHeader } from './AgentHeader'
 import { AgentMessageQueue } from './AgentMessageQueue'
@@ -2599,18 +2599,6 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
   const canSend = messagesLoaded && (streaming || !messagesRefreshing) && (hasTextInput || pendingFiles.length > 0 || !!suggestion) && agentChannelId !== null && hasAvailableModel && (!streaming || hasTextInput)
 
   const inputToolbarItems = React.useMemo<ToolbarItem[]>(() => [
-    {
-      key: 'model',
-      kind: 'context',
-      node: (
-        <ModelSelector
-          filterChannelIds={sessionAgentRuntime === 'pi' ? undefined : agentChannelIds}
-          externalSelectedModel={externalSelectedModel}
-          onModelSelect={handleModelSelect}
-          useSharedOpenState
-        />
-      ),
-    },
     ...(isCodexFastModeAvailable ? [{
       key: 'codex-fast-mode',
       kind: 'context' as const,
@@ -2634,18 +2622,6 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         </Tooltip>
       ),
     }] : []),
-    // Claude 内核默认关闭时，隐藏内核选择器（仅 Pi）。
-    ...(CLAUDE_RUNTIME_ENABLED ? [{
-      key: 'runtime',
-      kind: 'context' as const,
-      node: (
-        <AgentRuntimeSelector
-          runtime={sessionAgentRuntime}
-          disabled={streaming || backgroundWaiting}
-          onChange={handleAgentRuntimeChange}
-        />
-      ),
-    }] : []),
     { key: 'permission-mode', kind: 'context', node: <PermissionModeSelector sessionId={sessionId} /> },
     ...(isSessionThinkingAvailable ? [{
       key: 'thinking',
@@ -2662,50 +2638,6 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
       ),
     }] : []),
     { key: 'speech', kind: 'tool', node: <SpeechButton className={inputToolbarButtonClass} /> },
-    {
-      key: 'attach-file',
-      kind: 'tool',
-      node: (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className={inputToolbarButtonClass}
-              onClick={handleOpenFileDialog}
-            >
-              <Paperclip className="size-5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="top">
-            <p>添加附件</p>
-          </TooltipContent>
-        </Tooltip>
-      ),
-    },
-    {
-      key: 'attach-folder',
-      kind: 'tool',
-      node: (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className={inputToolbarButtonClass}
-              onClick={handleAttachFolder}
-            >
-              <FolderPlus className="size-5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="top">
-            <p>附加文件夹</p>
-          </TooltipContent>
-        </Tooltip>
-      ),
-    },
     {
       key: 'context-usage',
       kind: 'status',
@@ -2728,8 +2660,6 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
       ),
     },
   ], [
-    agentChannelIds,
-    agentChannelId,
     planQuotaChannelId,
     planQuotaChannelUpdatedAt,
     isCodexFastModeAvailable,
@@ -2743,10 +2673,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     handleModelSelect,
     sessionAgentRuntime,
     backgroundWaiting,
-    handleAgentRuntimeChange,
     sessionId,
-    handleOpenFileDialog,
-    handleAttachFolder,
     contextStatus.inputTokens,
     contextStatus.outputTokens,
     contextStatus.cacheReadTokens,
@@ -2758,7 +2685,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     handleCompact,
   ])
 
-  const inputTrailingNode = streaming && !hasTextInput ? (
+  const sendControl = streaming && !hasTextInput ? (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
@@ -2788,6 +2715,26 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     >
       <CornerDownLeft className="size-[22px]" />
     </Button>
+  )
+
+  const inputTrailingNode = (
+    <>
+      <div className="flex min-w-0 items-center gap-1 [&_.model-selector-trigger>span]:max-w-[min(12rem,30vw)]">
+        <ModelSelector
+          filterChannelIds={sessionAgentRuntime === 'pi' ? undefined : agentChannelIds}
+          externalSelectedModel={externalSelectedModel}
+          onModelSelect={handleModelSelect}
+          showChannelInTrigger
+          useSharedOpenState
+        />
+        <AgentRuntimeSelector
+          runtime={sessionAgentRuntime}
+          disabled={streaming || backgroundWaiting}
+          onChange={handleAgentRuntimeChange}
+        />
+      </div>
+      {sendControl}
+    </>
   )
 
   // 同批图片附件 — 用于大图预览时左右翻页（提取到 useMemo 避免每次渲染重建）
@@ -2962,8 +2909,8 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
               placeholder={
                 agentChannelId && hasAvailableModel
                   ? sendWithCmdEnter
-                    ? '输入消息... (⌘/Ctrl+Enter 发送，Enter 换行，@ 引用文件，/ 调用 Skill，# 调用 MCP，& 引用会话)'
-                    : '输入消息... (Enter 发送，Shift+Enter 换行，@ 引用文件，/ 调用 Skill，# 调用 MCP，& 引用会话)'
+                    ? '输入消息... (输入 / 打开菜单，⌘/Ctrl+Enter 发送)'
+                    : '输入消息... (输入 / 打开菜单，Enter 发送)'
                   : !agentChannelId
                     ? '请先在设置中选择 Agent 供应商'
                     : '暂无可用模型，请先在设置中启用渠道'
@@ -2973,7 +2920,6 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
               collapsible
               enableMentions
               workspacePath={sessionPath}
-              workspaceId={currentWorkspaceId}
               workspaceSlug={workspaceSlug}
               sessionId={sessionId}
               attachedDirs={workspaceMentionPaths}
@@ -2981,6 +2927,10 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
               htmlValue={inputHtmlContent}
               onHtmlChange={setInputHtmlContent}
               sendWithCmdEnter={sendWithCmdEnter}
+              commandActions={{
+                onAttachFile: handleOpenFileDialog,
+                onAttachFolder: handleAttachFolder,
+              }}
             />
 
             {/* Footer 工具栏 — 容器变窄时尾部按钮自动折叠进「更多」Popover */}
