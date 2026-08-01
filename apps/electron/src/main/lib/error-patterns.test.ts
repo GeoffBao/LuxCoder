@@ -60,6 +60,11 @@ describe('isMalformedResponseError', () => {
     expect(isMalformedResponseError('Unexpected end of JSON input')).toBe(true)
   })
 
+  test('Given 完整 JSON 后收到脏数据 Then 判定为响应体解析失败（JSC 措辞）', () => {
+    expect(isMalformedResponseError('Unexpected non-whitespace character after JSON at position 199 (line 2 column 1)')).toBe(true)
+    expect(isMalformedResponseError('Unexpected non-whitespace character in local config')).toBe(false)
+  })
+
   test('Given 普通错误 Then 不判定为响应体解析失败', () => {
     expect(isMalformedResponseError('socket hang up')).toBe(false)
   })

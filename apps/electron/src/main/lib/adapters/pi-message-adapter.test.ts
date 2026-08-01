@@ -91,6 +91,15 @@ describe('convertPiMessage', () => {
     expect(terminalError.error).toEqual({ message: errorMessage, errorType: 'network_error' })
   })
 
+  test('classifies a malformed upstream JSON response as service_error', () => {
+    const errorMessage = 'Unexpected non-whitespace character after JSON at position 199 (line 2 column 1)'
+    const terminalError = convertPiMessage({
+      role: 'assistant', content: [], stopReason: 'error', errorMessage,
+    } as unknown as AssistantMessage, 'session-1') as { error?: { message?: string; errorType?: string } }
+
+    expect(terminalError.error).toEqual({ message: errorMessage, errorType: 'service_error' })
+  })
+
   test('keeps generated text separate from a terminal transport error', () => {
     const body = 'Generated assistant output must not appear inside the error card.'
     const transportError = 'peer closed connection without sending complete message body (incomplete chunked read)'
