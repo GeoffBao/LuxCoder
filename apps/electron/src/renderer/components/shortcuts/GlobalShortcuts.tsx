@@ -269,6 +269,16 @@ export function GlobalShortcuts(): null {
     }, []),
   )
 
+  // Cmd+Shift+T / Ctrl+Shift+T → 打开或聚焦独立任务/日程窗口
+  useShortcut(
+    'open-planning',
+    useCallback(() => {
+      void window.electronAPI.openPlanningWindow().catch((error) => {
+        console.error('[任务/日程] 打开独立窗口失败:', error)
+      })
+    }, []),
+  )
+
   // ===== 快速任务窗口 → 创建会话并自动发送 =====
 
   useEffect(() => {

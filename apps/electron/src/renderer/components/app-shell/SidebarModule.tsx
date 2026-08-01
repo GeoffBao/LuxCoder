@@ -15,6 +15,7 @@ import { ChevronRight } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatSidebarModuleCount } from './sidebar-module-model'
+import { ShortcutKeycaps } from '@/components/shortcuts/ShortcutKeycaps'
 
 /** 各部位追加 className（用于特殊主题的既有钩子类，如 automation-entry-*） */
 export interface SidebarModuleClassNames {
@@ -51,6 +52,8 @@ export interface SidebarModuleProps {
   active?: boolean
   /** 无障碍标签（默认根据 title / count 生成） */
   ariaLabel?: string
+  /** 标题旁显示的快捷键键帽（如 open-planning） */
+  keycapShortcutId?: string
   /** 展开体容器 id（用于 aria-controls） */
   bodyId?: string
   /** 各部位追加 className */
@@ -72,6 +75,7 @@ export function SidebarModule({
   ariaLabel,
   bodyId,
   classNames,
+  keycapShortcutId,
 }: SidebarModuleProps): React.ReactElement {
   const isCollapsed = collapsed ?? false
 
@@ -113,6 +117,13 @@ export function SidebarModule({
           <Icon size={16} className="block" />
         </span>
         <span className="truncate">{title}</span>
+        {keycapShortcutId && (
+          <ShortcutKeycaps
+            shortcutId={keycapShortcutId}
+            keycapClassName="h-5 min-w-5 px-1 text-[11px]"
+            separatorClassName="text-[10px]"
+          />
+        )}
       </span>
       <span className="ml-2 flex flex-shrink-0 items-center gap-1">
         {badge}

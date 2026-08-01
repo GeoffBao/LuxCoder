@@ -3145,6 +3145,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
           count={automationCount}
           active={activeView === 'planning'}
           onClick={handleOpenPlanning}
+          keycapShortcutId="open-planning"
           ariaLabel={`Task 日历，${automationCount} 个任务已创建`}
           classNames={{
             row: cn('automation-entry', activeView === 'planning' && 'automation-entry-selected'),

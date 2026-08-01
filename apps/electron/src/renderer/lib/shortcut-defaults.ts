@@ -138,6 +138,14 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
     defaultWin: 'Ctrl+L',
     category: 'navigation',
   },
+  {
+    id: 'open-planning',
+    name: '打开任务/日程',
+    description: '打开或聚焦独立的 Todo、日程与定时任务窗口',
+    defaultMac: 'Cmd+Shift+T',
+    defaultWin: 'Ctrl+Shift+T',
+    category: 'navigation',
+  },
 
   // 编辑级（输入框格式化，仅 macOS — Cmd+B/S 被全局快捷键占用）
   {
