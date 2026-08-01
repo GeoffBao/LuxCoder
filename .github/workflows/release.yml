@@ -47,6 +47,21 @@ jobs:
 
           echo "发布版本校验通过：$tag"
 
+      # 预创建 GitHub Release 并写入发布说明；后续各平台 job 的 electron-builder
+      # --publish always 会复用该 Release 并上传各自产物（多平台并行上传自动合并）。
+      - name: 创建/复用 GitHub Release（含发布说明）
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            echo "Release ${GITHUB_REF_NAME} 已存在，跳过创建"
+          else
+            gh release create "${GITHUB_REF_NAME}" \
+              --title "LuxCoder ${GITHUB_REF_NAME}" \
+              --notes-file apps/electron/RELEASE_NOTES.md
+            echo "已创建 Release ${GITHUB_REF_NAME}"
+          fi
+
   build-mac-arm64:
     name: build (macos-latest, mac, arm64, --arm64)
     runs-on: macos-latest
@@ -104,6 +119,97 @@ jobs:
             echo "Attempt $i failed, retrying in 10s..."
             sleep 10
           done
+        working-directory: apps/electron
+
+  build-mac-x64:
+    name: build (macos-13, mac, x64, --x64)
+    runs-on: macos-13
+    needs: validate-release-version
+    env:
+      MAC_CERTS: ${{ secrets.MAC_CERTS }}
+      MAC_CERTS_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 安装依赖
+        run: bun install --frozen-lockfile
+
+      # 有签名证书时导入；无证书（内部构建）时跳过，产出未签名包
+      - name: 导入 macOS 签名证书
+        if: env.MAC_CERTS != ''
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          echo "$MAC_CERTS" | base64 --decode > $RUNNER_TEMP/cert.p12
+          security import $RUNNER_TEMP/cert.p12 -P "$MAC_CERTS_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          rm $RUNNER_TEMP/cert.p12
+
+      - name: 构建 Electron 应用
+        run: bun run electron:build
+        working-directory: .
+
+      - name: 打包并发布 (macOS x64)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ env.MAC_CERTS != '' }}
+        run: |
+          for i in 1 2 3; do
+            npx electron-builder --mac --x64 --publish always && break
+            echo "Attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+        working-directory: apps/electron
+
+  build-linux:
+    name: build (ubuntu-latest, linux, x64)
+    runs-on: ubuntu-latest
+    needs: validate-release-version
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 安装依赖
+        run: bun install --frozen-lockfile
+
+      - name: 构建 Electron 应用
+        run: bun run electron:build
+        working-directory: .
+
+      - name: 打包并发布 (Linux/Ubuntu)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --linux --x64 --publish always
         working-directory: apps/electron
 
   build-windows-x64:

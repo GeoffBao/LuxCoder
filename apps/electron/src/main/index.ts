@@ -131,6 +131,12 @@ import { TRAY_IPC_CHANNELS } from '../types'
 
 const MIGRATION_IPC_OPEN = 'migration:open-import-file'
 
+/**
+ * 灵动岛（Agent Island）已暂停启用：等待 CodeClaw 桌宠功能替换。
+ * 启动代码、IPC、原生 Swift helper 与设置项全部保留，恢复时只需改回 false。
+ */
+const AGENT_ISLAND_PAUSED = true
+
 let agentIslandElectronFallbackActive = false
 
 /** 非 macOS 或 Swift helper 不可用时的无损降级。 */
@@ -605,18 +611,21 @@ async function bootstrap(): Promise<void> {
     safeRun('createVoiceDictationWindow', createVoiceDictationWindow)
   }
 
-  // Agent 灵动岛：macOS 优先 Swift/AppKit NSPanel（真刘海），其他平台回退 BrowserWindow。
-  safeRun('initAgentIslandService', () => {
-    initAgentIslandService({
-      showAndFocusMainWindow,
-      openAgentSession: (sessionId, title) => {
-        sendToMainWindow(TRAY_IPC_CHANNELS.OPEN_AGENT_SESSION, { sessionId, title })
-      },
-      openPlanning: showPlanningWindow,
-      enabled: () => getSettings().agentIsland?.enabled !== false,
+  // Agent 灵动岛：已暂停启用（等待 CodeClaw 替代），保留启动代码便于后续恢复。
+  if (!AGENT_ISLAND_PAUSED) {
+    // macOS 优先 Swift/AppKit NSPanel（真刘海），其他平台回退 BrowserWindow。
+    safeRun('initAgentIslandService', () => {
+      initAgentIslandService({
+        showAndFocusMainWindow,
+        openAgentSession: (sessionId, title) => {
+          sendToMainWindow(TRAY_IPC_CHANNELS.OPEN_AGENT_SESSION, { sessionId, title })
+        },
+        openPlanning: showPlanningWindow,
+        enabled: () => getSettings().agentIsland?.enabled !== false,
+      })
     })
-  })
-  safeRun('startAgentIslandSurface', startAgentIslandSurface)
+    safeRun('startAgentIslandSurface', startAgentIslandSurface)
+  }
 
   // 飞书实时同步开启时，默认阻止系统自动休眠，保证远程群内继续可用。
   safeRun('syncFeishuSyncSleepBlocker', () => syncFeishuSyncSleepBlocker(getSettings()))
