@@ -1761,6 +1761,7 @@ ${workContext}` : '')
         },
         onModelResolved: handleModelResolved,
         onContextWindow: handleContextWindow,
+        retryRunStartedAt: streamStartedAt,
         onRetry: (retry) => {
           this.eventBus.emit(sessionId, { kind: 'luxcoder_event', event: { type: 'retry', ...retry } })
         },
