@@ -2,7 +2,7 @@
  * WelcomeEmptyState — 对话/会话空状态引导
  *
  * 安静空态（对齐 Cursor / Codex）：
- * 1. OpenMoji 吉祥物插图（Chat: 👩‍🎤 woman singer / Code: 👨‍🌾 man farmer）
+ * 1. 企业版品牌 Mascot / OpenMoji 吉祥物插图
  * 2. 个性化时段问候（大字号 + regular 字重）
  * 3. 一行弱化的平台感知 Tip
  *
@@ -17,6 +17,7 @@ import { userProfileAtom } from '@/atoms/user-profile'
 import { appModeAtom } from '@/atoms/app-mode'
 import { normalizeAppModeForUi } from '@/components/app-shell/code-main-view-model'
 import { getRandomTip, getPlatform, type Tip } from '@/lib/tips'
+import luxshareIctMascotUrl from '@/assets/brand/luxshare-ict-mascot.png'
 
 /** 根据小时返回时段问候 */
 function getGreeting(hour: number): string {
@@ -121,6 +122,21 @@ function MascotFarmer({ className }: { className?: string }): React.ReactElement
   )
 }
 
+function EnterpriseMascot({ className }: { className?: string }): React.ReactElement {
+  return (
+    <img
+      src={luxshareIctMascotUrl}
+      className={cn(
+        'rounded-full object-cover shadow-[0_12px_40px_rgba(28,82,180,0.18)] ring-1 ring-blue-500/15',
+        className,
+      )}
+      alt=""
+      aria-hidden="true"
+      draggable={false}
+    />
+  )
+}
+
 export function WelcomeEmptyState(): React.ReactElement {
   const userProfile = useAtomValue(userProfileAtom)
   const mode = useAtomValue(appModeAtom)
@@ -135,10 +151,12 @@ export function WelcomeEmptyState(): React.ReactElement {
 
   return (
     <div className="welcome-empty-state flex h-full flex-col items-center justify-center gap-5 px-4">
-      {/* 吉祥物：按模式切换 */}
+      {/* 吉祥物：企业版 Code 空态优先展示 LuxshareICT Mascot；其他模式保留原轻量插图。 */}
       {uiMode === 'chat'
         ? <MascotSinger className="size-28 opacity-85" />
-        : <MascotFarmer className="size-28 opacity-85" />
+        : uiMode === 'agent'
+          ? <EnterpriseMascot className="size-32 opacity-95" />
+          : <MascotFarmer className="size-28 opacity-85" />
       }
 
       {/* 问候语 */}

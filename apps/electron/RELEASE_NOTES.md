@@ -1,5 +1,11 @@
 # LuxCoder v0.6.0
 
+## 品牌与企业版体验
+
+- **全新应用图标**：应用 Dock / 安装包 / Windows 图标统一升级为更适合企业级 Agent 工作台的品牌视觉。
+- **企业版新会话空态**：Code / Agent 新会话页接入 LuxshareICT Mascot，替换原默认农夫插图，强化企业研发场景识别。
+- **CodeClaw 桌宠 MVP**：以桌面宠物替代原灵动岛入口，可跟随 Agent idle / running / needs-interaction / completed / error 状态变化；设置中可切换 CodeClaw / Clawd / Calico / Cloudling 主题。
+
 ## 文件与项目体验
 
 - **Files 统一**：右侧文件面板收敛为「Files / 文件改动」，Files 内新增「会话文件 / 项目文件」二级来源筛选，按会话记忆上次选择。
@@ -23,7 +29,7 @@
 - 新增 **Linux (Ubuntu)** 构建产物：AppImage + deb。
 - 发布矩阵覆盖：**macOS arm64 / macOS Intel / Windows x64 / Ubuntu x64**。
 - Windows 剪贴板与规划窗口操作修复。
-- 灵动岛（Agent Island）功能**暂停启用**，等待后续 CodeClaw 桌宠替代；相关代码与设置项保留。
+- 灵动岛（Agent Island）入口已由 **CodeClaw 桌宠**替代，减少界面遮挡并保留 Agent 状态感知能力。
 
 ## 上游同步
 

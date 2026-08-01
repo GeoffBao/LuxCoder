@@ -26,9 +26,18 @@ if ! command -v iconutil &> /dev/null; then
     echo "⚠️  iconutil not found (macOS only). Skipping .icns generation"
 fi
 
-# 1. Generate icon.png (1024x1024) from SVG
+# 1. Generate icon.png (1024x1024). Prefer raster icon-source.png when the app
+# icon is imported from an existing macOS app; otherwise fall back to icon.svg.
 echo "📦 Generating icon.png (1024x1024)..."
-rsvg-convert -w 1024 -h 1024 icon.svg -o icon.png
+if [ -f "icon-source.png" ]; then
+  if command -v sips &> /dev/null; then
+    sips -z 1024 1024 icon-source.png --out icon.png > /dev/null 2>&1
+  else
+    magick icon-source.png -resize 1024x1024 icon.png
+  fi
+else
+  rsvg-convert -w 1024 -h 1024 icon.svg -o icon.png
+fi
 
 # 2. Generate menubar/tray icons (multi-resolution for Retina displays)
 echo "📦 Generating tray icons..."
