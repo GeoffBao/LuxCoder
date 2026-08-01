@@ -43,6 +43,7 @@ import type {
   AttachmentSaveInput,
   AttachmentSaveResult,
   FileDialogResult,
+  FileOrFolderDialogResult,
   RecentMessagesResult,
   MessageSearchResult,
   AgentSessionMeta,
@@ -124,7 +125,9 @@ import type {
   CreateAutomationInput,
   UpdateAutomationInput,
   Todo,
+  TodoListQuery,
   CalendarEvent,
+  CalendarEventListQuery,
   PlanningGroup,
   PlanningGroupScope,
   PlanningTag,
@@ -915,6 +918,9 @@ export interface ElectronAPI {
 
   /** 打开文件夹选择对话框 */
   openFolderDialog: () => Promise<{ path: string; name: string } | null>
+
+  /** 打开支持文件与文件夹混合选择的 Composer 对话框 */
+  openFileOrFolderDialog: () => Promise<FileOrFolderDialogResult>
 
   /** 附加外部目录到 Agent 会话 */
   attachDirectory: (input: AgentAttachDirectoryInput) => Promise<string[]>
@@ -2282,6 +2288,10 @@ const electronAPI: ElectronAPI = {
 
   openFolderDialog: () => {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.OPEN_FOLDER_DIALOG)
+  },
+
+  openFileOrFolderDialog: () => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.OPEN_FILE_OR_FOLDER_DIALOG)
   },
 
   attachDirectory: (input: AgentAttachDirectoryInput) => {

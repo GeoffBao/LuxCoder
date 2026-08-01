@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LuxCoder 项目 Review 报告</title>
+<style>
+  :root {
+    --bg: #fafafa;
+    --surface: #ffffff;
+    --surface-alt: #f5f5f5;
+    --border: #e5e7eb;
+    --text: #1f2937;
+    --text-secondary: #6b7280;
+    --text-tertiary: #9ca3af;
+    --primary: #6366f1;
+    --primary-light: #eef2ff;
+    --success: #10b981;
+    --success-light: #ecfdf5;
+    --warning: #f59e0b;
+    --warning-light: #fffbeb;
+    --danger: #ef4444;
+    --danger-light: #fef2f2;
+    --code-bg: #f3f4f6;
+    --code-text: #374151;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container { max-width: 960px; margin: 0 auto; padding: 48px 24px; }
+
+  /* Header */
+  .header { text-align: center; margin-bottom: 48px; }
+  .header h1 {
+    font-size: 32px; font-weight: 700; color: var(--text);
+    margin-bottom: 8px; letter-spacing: -0.5px;
+  }
+  .header .subtitle { color: var(--text-secondary); font-size: 15px; }
+  .header .meta {
+    display: inline-flex; gap: 16px; margin-top: 16px;
+    padding: 8px 20px; background: var(--surface); border-radius: 999px;
+    border: 1px solid var(--border); font-size: 13px; color: var(--text-secondary);
+  }
+  .header .meta span { display: flex; align-items: center; gap: 6px; }
+
+  /* Score Card */
+  .score-card {
+    background: var(--surface); border-radius: 16px; padding: 32px;
+    margin-bottom: 40px; border: 1px solid var(--border);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .score-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px; }
+  .score-item { text-align: center; padding: 16px 8px; border-radius: 12px; background: var(--surface-alt); }
+  .score-value { font-size: 28px; font-weight: 700; }
+  .score-label { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+  .score-good .score-value { color: var(--success); }
+  .score-warn .score-value { color: var(--warning); }
+  .score-bad .score-value { color: var(--danger); }
+
+  /* Section */
+  .section { margin-bottom: 40px; }
+  .section-title {
+    font-size: 20px; font-weight: 700; color: var(--text);
+    margin-bottom: 16px; padding-bottom: 8px;
+    border-bottom: 2px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-title .icon { font-size: 22px; }
+
+  /* Card */
+  .card {
+    background: var(--surface); border-radius: 12px; padding: 20px 24px;
+    margin-bottom: 12px; border: 1px solid var(--border);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    transition: box-shadow 0.15s;
+  }
+  .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .card-title { font-size: 15px; font-weight: 600; color: var(--text); }
+  .card-body { font-size: 14px; color: var(--text-secondary); }
+  .card-body p { margin-bottom: 6px; }
+  .card-body ul { margin-left: 20px; margin-top: 6px; }
+  .card-body li { margin-bottom: 4px; }
+
+  /* Badges */
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 600;
+  }
+  .badge-danger { background: var(--danger-light); color: var(--danger); }
+  .badge-warning { background: var(--warning-light); color: var(--warning); }
+  .badge-success { background: var(--success-light); color: var(--success); }
+  .badge-info { background: var(--primary-light); color: var(--primary); }
+
+  /* Code */
+  code {
+    font-family: "SF Mono", "Fira Code", "JetBrains Mono", Consolas, monospace;
+    font-size: 13px; background: var(--code-bg); color: var(--code-text);
+    padding: 2px 6px; border-radius: 4px;
+  }
+  .code-block {
+    background: var(--code-bg); border-radius: 8px; padding: 12px 16px;
+    margin: 8px 0; font-family: "SF Mono", "Fira Code", Consolas, monospace;
+    font-size: 13px; color: var(--code-text); overflow-x: auto;
+    line-height: 1.5;
+  }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th { text-align: left; padding: 10px 12px; background: var(--surface-alt); font-weight: 600; color: var(--text); border-bottom: 2px solid var(--border); }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text-secondary); }
+  tr:hover td { background: var(--surface-alt); }
+
+  /* Summary box */
+  .summary-box {
+    background: linear-gradient(135deg, var(--primary-light), #f0f9ff);
+    border-radius: 12px; padding: 24px; margin-bottom: 32px;
+    border: 1px solid #e0e7ff;
+  }
+  .summary-box h3 { font-size: 16px; margin-bottom: 8px; color: var(--text); }
+  .summary-box p { font-size: 14px; color: var(--text-secondary); }
+
+  /* File reference */
+  .file-ref {
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 12px; color: var(--primary);
+    background: var(--primary-light); padding: 2px 8px;
+    border-radius: 4px; white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>LuxCoder 项目 Review 报告</h1>
+    <div class="subtitle">面向真实研发交付的本地优先 AI Coding 工作台</div>
+    <div class="meta">
+      <span>📊 182,000+ 行代码</span>
+      <span>📦 Monorepo (Bun)</span>
+      <span>🖥️ Electron + React</span>
+      <span>📅 2026-07-31</span>
+    </div>
+  </div>
+
+  <!-- Score Card -->
+  <div class="score-card">
+    <div class="score-grid">
+      <div class="score-item score-good">
+        <div class="score-value">A</div>
+        <div class="score-label">类型安全</div>
+      </div>
+      <div class="score-item score-good">
+        <div class="score-value">A</div>
+        <div class="score-label">安全实践</div>
+      </div>
+      <div class="score-item score-good">
+        <div class="score-value">A-</div>
+        <div class="score-label">测试覆盖</div>
+      </div>
+      <div class="score-item score-warn">
+        <div class="score-value">C</div>
+        <div class="score-label">代码拆分</div>
+      </div>
+      <div class="score-item score-warn">
+        <div class="score-value">B</div>
+        <div class="score-label">依赖管理</div>
+      </div>
+      <div class="score-item score-good">
+        <div class="score-value">A</div>
+        <div class="score-label">架构设计</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary -->
+  <div class="summary-box">
+    <h3>总体评价</h3>
+    <p>LuxCoder 是一个架构成熟、工程质量较高的开源项目。类型安全（仅 9 处 <code>any</code>）、安全实践（无 <code>eval</code>、密钥加密、路径授权）、文档质量和测试覆盖都表现优秀。主要改进方向集中在<strong>超大文件拆分</strong>（ipc.ts 5167 行、LeftSidebar.tsx 4486 行、sendMessage 方法 ~1700 行）、<strong>依赖版本对齐</strong>（zod v3/v4 冲突）和<strong>主进程同步 I/O 优化</strong>。</p>
+  </div>
+
+  <!-- Strengths -->
+  <div class="section">
+    <div class="section-title"><span class="icon">✅</span> 项目亮点</div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">类型安全接近完美</span>
+        <span class="badge badge-success">9 / 全项目</span>
+      </div>
+      <div class="card-body">
+        <p>全项目仅 <strong>9 处</strong> <code>any</code> 使用，且全部位于第三方库集成点（markdown-it ruler、ProseMirror editor、Excalidraw API）。<code>packages/shared</code>、<code>packages/core</code>、<code>packages/session-core</code>、<code>packages/ui</code> 四个包 <strong>零 any</strong>。tsconfig 开启 <code>strict: true</code> 和 <code>noUncheckedIndexedAccess</code>。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">安全实践优秀</span>
+        <span class="badge badge-success">无 eval / 无硬编码密钥</span>
+      </div>
+      <div class="card-body">
+        <ul>
+          <li>零 <code>eval()</code> 和 <code>new Function()</code> 使用</li>
+          <li>API Key 使用 Electron <code>safeStorage</code>（AES-256-GCM）加密存储</li>
+          <li>IPC 文件访问有完整的路径授权层：<code>isPathAllowed()</code> → <code>realpathSync</code> 解析符号链接 → 白名单校验</li>
+          <li>Windows 命令注入防护：<code>isSafeWindowsProgId()</code> 正则校验</li>
+          <li>敏感日志脱敏：<code>redactSensitiveLogValue()</code> 统一应用于飞书/钉钉/微信 Bridge</li>
+          <li>测试文件中的 API Key 均为 mock 值（<code>sk-test-...</code>）</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">技术债务极低</span>
+        <span class="badge badge-success">3 TODO / 0 FIXME</span>
+      </div>
+      <div class="card-body">
+        <p>全项目仅 3 个 TODO 标记，0 个 FIXME / HACK / XXX。无注释掉的死代码块。9 个 <code>@deprecated</code> 标记均附带替代方案指引。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">架构设计清晰</span>
+        <span class="badge badge-success">Monorepo + IPC 四层</span>
+      </div>
+      <div class="card-body">
+        <ul>
+          <li><strong>IPC 四层模式</strong>：类型常量 → 主进程 Handler → Preload 桥接 → Renderer 调用，职责清晰</li>
+          <li><strong>Provider 适配器模式</strong>：统一 <code>ProviderAdapter</code> 接口 + 注册表，支持 9+ AI 供应商</li>
+          <li><strong>Jotai 最佳实践</strong>：<code>atomFamily</code> 按 sessionId 切片避免重渲染风暴，派生 atom 使用合理</li>
+          <li><strong>Agent 编排与 IPC 解耦</strong>：<code>SessionCallbacks</code> 接口使编排层可独立测试</li>
+          <li><strong>全局 IPC 监听</strong>：挂在 <code>main.tsx</code> 顶层，页面切换不丢失流式输出和权限请求</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">测试与文档覆盖良好</span>
+        <span class="badge badge-success">132 测试文件</span>
+      </div>
+      <div class="card-body">
+        <p>132 个测试文件覆盖核心业务逻辑，测试与源码同目录 <code>__tests__/</code>。每个文件都有 JSDoc 头注释说明职责，内联注释解释"为什么"而非仅"是什么"。Kanban 看板有 16 个测试文件覆盖 DAG、拖拽回滚、状态合并等复杂逻辑。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Critical Issues -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🔴</span> 关键问题</div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">1. ipc.ts 单文件 5,167 行，296 个 Handler</span>
+        <span class="badge badge-danger">P0 - 可维护性</span>
+      </div>
+      <div class="card-body">
+        <p><span class="file-ref">apps/electron/src/main/ipc.ts</span></p>
+        <p>所有 IPC Handler 集中在一个 5167 行的文件中，包含 293 个 <code>ipcMain.handle()</code> 和 3 个 <code>ipcMain.on()</code>。任何修改都需要在超大文件中导航，PR Review 困难，合并冲突频发。</p>
+        <p><strong>建议</strong>：按领域拆分为 <code>ipc/agent-handlers.ts</code>、<code>ipc/chat-handlers.ts</code>、<code>ipc/project-handlers.ts</code>、<code>ipc/feishu-handlers.ts</code> 等，入口文件只做注册聚合。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">2. sendMessage 方法约 1,700 行</span>
+        <span class="badge badge-danger">P0 - 可维护性</span>
+      </div>
+      <div class="card-body">
+        <p><span class="file-ref">agent-orchestrator.ts:846-2545</span></p>
+        <p>单个方法从第 846 行到第 2545 行，混合了并发守卫、消息持久化、渠道查找、API Key 解密、环境变量构建、SDK 路径解析、提示词构建、MCP 注入、权限设置、事件流迭代、错误重试、自动标题生成等十余种职责。</p>
+        <p><strong>建议</strong>：抽取为 <code>resolveChannel()</code>、<code>buildSdkOptions()</code>、<code>processEventStream()</code>、<code>handleStreamError()</code>、<code>generateAutoTitle()</code> 等独立方法。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">3. Shell 注入风险 — mcp-validator.ts</span>
+        <span class="badge badge-danger">P0 - 安全</span>
+      </div>
+      <div class="card-body">
+        <p><span class="file-ref">main/lib/mcp-validator.ts:123</span></p>
+        <div class="code-block">execSync(`${whichCommand} ${command}`, { stdio: 'ignore' })</div>
+        <p><code>command</code> 来自用户配置的 MCP Server 条目。如果配置中包含 shell 元字符（如 <code>npx; rm -rf /</code>），会执行任意命令。</p>
+        <p><strong>建议</strong>：改用 <code>spawnSync(whichCommand, [command])</code> 避免字符串拼接执行 shell。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- High Priority -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🟡</span> 重要问题</div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">4. LeftSidebar.tsx 4,486 行</span>
+        <span class="badge badge-warning">P1</span>
+      </div>
+      <div class="card-body">
+        <p><span class="file-ref">renderer/components/app-shell/LeftSidebar.tsx</span></p>
+        <p>单文件包含 4 个组件（<code>LeftSidebar</code>、<code>ConversationItem</code>、<code>ChildSessionItem</code>、<code>AgentProjectGroupItem</code>）和 30+ 个 helper 函数。会话树逻辑、快捷键、拖拽、日期分组全部耦合。</p>
+        <p><strong>建议</strong>：拆为 <code>LeftSidebar/</code> 目录，含 <code>index.tsx</code>、<code>ConversationItem.tsx</code>、<code>ChildSessionItem.tsx</code>、<code>AgentProjectGroupItem.tsx</code>、<code>utils.ts</code>。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">5. Zod 版本冲突 — v3 vs v4</span>
+        <span class="badge badge-warning">P1 - 依赖</span>
+      </div>
+      <div class="card-body">
+        <table>
+          <tr><th>包</th><th>声明版本</th><th>实际安装</th></tr>
+          <tr><td>packages/shared</td><td>^3.23.0</td><td>3.25.76 (nested)</td></tr>
+          <tr><td>apps/electron</td><td>^4.0.0</td><td>4.3.6 (hoisted)</td></tr>
+        </table>
+        <p>共享包内部使用 zod v3，而 Electron 应用使用 zod v4。Bun 的嵌套安装避免了直接报错，但 zod v3 和 v4 的 API 有差异，存在运行时类型校验不一致的隐患。</p>
+        <p><strong>建议</strong>：统一到 zod v4（或 v3），在所有包中使用相同主版本。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">6. Pi Agent SDK 版本声明与 Override 不一致</span>
+        <span class="badge badge-warning">P1 - 依赖</span>
+      </div>
+      <div class="card-body">
+        <p>根 <code>package.json</code> 的 <code>overrides</code> 强制 <code>@earendil-works/pi-*</code> 为 <code>0.82.1</code>，但 <code>apps/electron/package.json</code> 声明的是 <code>0.80.9</code>。实际安装 0.82.1（override 生效），但声明版本过时，容易误导。</p>
+        <p><strong>建议</strong>：同步 <code>apps/electron/package.json</code> 中的声明版本到 <code>0.82.1</code>。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">7. 主进程大量同步文件 I/O</span>
+        <span class="badge badge-warning">P1 - 性能</span>
+      </div>
+      <div class="card-body">
+        <p>以下文件在主进程（Electron Main Thread）中使用了大量同步 fs 操作：</p>
+        <table>
+          <tr><th>文件</th><th>同步操作数</th></tr>
+          <tr><td><code>ipc.ts</code></td><td>~20+ (existsSync, readFileSync, writeFileSync, ...)</td></tr>
+          <tr><td><code>agent-orchestrator.ts</code></td><td>~5 (existsSync, mkdirSync, readFileSync, writeFileSync)</td></tr>
+          <tr><td><code>config-paths.ts</code></td><td>~6 (mkdirSync, cpSync, rmSync, readdirSync)</td></tr>
+          <tr><td><code>feishu-config.ts</code></td><td>~3 (readFileSync, writeFileSync, existsSync)</td></tr>
+          <tr><td><code>attachment-service.ts</code></td><td>~5 (readFileSync, writeFileSync, unlinkSync)</td></tr>
+        </table>
+        <p>Agent 运行期间的 <code>writeFileSync</code> 会阻塞主线程，可能导致 UI 卡顿（尤其是在消息持久化时）。</p>
+        <p><strong>建议</strong>：高频写操作改用 <code>fs.promises</code> 异步 API；启动时的配置读取可保留同步。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Medium Priority -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🔵</span> 建议改进</div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">8. IPC 输入缺乏 Schema 校验</span>
+        <span class="badge badge-info">P2</span>
+      </div>
+      <div class="card-body">
+        <p>文件路径有完整的授权层，但其他输入（字符串、ID、配置对象）直接使用，未做 schema 校验。恶意或畸形的渲染进程请求可能绕过预期。</p>
+        <p><strong>建议</strong>：在 IPC 边界添加 zod schema 校验（至少对关键通道）。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">9. 51 个 IPC 通道定义不在 shared 包</span>
+        <span class="badge badge-info">P2</span>
+      </div>
+      <div class="card-body">
+        <p><code>apps/electron/src/types/settings.ts</code> 中定义了 ~43 个通道（SETTINGS、SCRATCH_PAD、EXCALIDRAW、DOCK_BADGE 等），<code>user-profile.ts</code> 定义了 ~8 个。这打破了"shared 包是 IPC 常量唯一来源"的设计原则。</p>
+        <p><strong>建议</strong>：将这 51 个通道迁移到 <code>packages/shared/src/</code> 对应的类型文件中。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">10. tsconfig 未启用 noUnusedLocals / noUnusedParameters</span>
+        <span class="badge badge-info">P2</span>
+      </div>
+      <div class="card-body">
+        <p>这两个选项被设为 <code>false</code>，意味着死变量和未使用参数不会被编译器捕获。随着代码增长，可能积累无用代码。</p>
+        <p><strong>建议</strong>：逐步启用（先开 <code>noUnusedLocals</code>，修复后再开 <code>noUnusedParameters</code>）。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">11. @types/bun: "latest" 非确定性</span>
+        <span class="badge badge-info">P2</span>
+      </div>
+      <div class="card-body">
+        <p>根 <code>package.json</code> devDependencies 中 <code>@types/bun: "latest"</code>，不同时间安装可能得到不同版本，影响类型一致性。</p>
+        <p><strong>建议</strong>：锁定到具体版本（如 <code>"1.2.x"</code>）。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">12. React import 风格不统一</span>
+        <span class="badge badge-info">P2</span>
+      </div>
+      <div class="card-body">
+        <p>约 30 个文件使用 <code>import * as React from 'react'</code>，约 20 个文件使用 <code>import { useState } from 'react'</code>。<code>ui/</code> shadcn 组件用双引号，其余文件用单引号。</p>
+        <p><strong>建议</strong>：统一为 named imports + 单引号（ESLint 规则可自动修复）。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">13. atoms/index.ts Barrel 不完整</span>
+        <span class="badge badge-info">P2</span>
+      </div>
+      <div class="card-body">
+        <p>39 个 atom 文件中只有 6 个通过 <code>atoms/index.ts</code> re-export，其余直接按路径导入。不一致的导入方式增加认知负担。</p>
+        <p><strong>建议</strong>：要么补全 barrel，要么移除 index.ts 改为全部直接导入。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">14. 大文件缺乏直接测试</span>
+        <span class="badge badge-info">P2</span>
+      </div>
+      <div class="card-body">
+        <p>以下超大文件没有对应的直接测试：</p>
+        <ul>
+          <li><code>ipc.ts</code> (5,167 行) — 无测试</li>
+          <li><code>LeftSidebar.tsx</code> (4,486 行) — 无测试</li>
+          <li><code>feishu-bridge.ts</code> (2,601 行) — 无直接测试</li>
+          <li><code>preload/index.ts</code> (3,103 行) — 无测试</li>
+        </ul>
+        <p><strong>建议</strong>：优先为 ipc.ts 的路径授权层和 feishu-bridge 的核心消息同步逻辑补充测试。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Large Files Table -->
+  <div class="section">
+    <div class="section-title"><span class="icon">📏</span> 超大文件 TOP 15</div>
+    <table>
+      <thead>
+        <tr><th>行数</th><th>文件</th><th>建议</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>5,167</strong></td><td><code>main/ipc.ts</code></td><td>按领域拆分</td></tr>
+        <tr><td><strong>4,486</strong></td><td><code>LeftSidebar.tsx</code></td><td>拆为目录 + 子组件</td></tr>
+        <tr><td><strong>3,103</strong></td><td><code>preload/index.ts</code></td><td>按通道分组拆分</td></tr>
+        <tr><td><strong>3,013</strong></td><td><code>AgentView.tsx</code></td><td>抽取子组件</td></tr>
+        <tr><td><strong>2,794</strong></td><td><code>agent-orchestrator.ts</code></td><td>拆分 sendMessage</td></tr>
+        <tr><td><strong>2,601</strong></td><td><code>feishu-bridge.ts</code></td><td>拆分消息同步/通知/OAuth</td></tr>
+        <tr><td><strong>2,129</strong></td><td><code>agent-session-manager.ts</code></td><td>—</td></tr>
+        <tr><td><strong>2,041</strong></td><td><code>channel-manager.ts</code></td><td>—</td></tr>
+        <tr><td><strong>1,910</strong></td><td><code>pi-agent-adapter.ts</code></td><td>—</td></tr>
+        <tr><td><strong>1,877</strong></td><td><code>shared/types/agent.ts</code></td><td>类型可按子域拆分</td></tr>
+        <tr><td><strong>1,713</strong></td><td><code>FeishuSettings.tsx</code></td><td>按设置分区拆分</td></tr>
+        <tr><td><strong>1,679</strong></td><td><code>agent-workspace-manager.ts</code></td><td>—</td></tr>
+        <tr><td><strong>1,460</strong></td><td><code>DiffTabContent.tsx</code></td><td>—</td></tr>
+        <tr><td><strong>1,434</strong></td><td><code>SDKMessageRenderer.tsx</code></td><td>—</td></tr>
+        <tr><td><strong>1,423</strong></td><td><code>agent-collaboration-tools.ts</code></td><td>—</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Project Stats -->
+  <div class="section">
+    <div class="section-title"><span class="icon">📈</span> 项目数据概览</div>
+    <div class="score-grid">
+      <div class="score-item"><div class="score-value" style="color:var(--primary)">809</div><div class="score-label">TS/TSX 源文件</div></div>
+      <div class="score-item"><div class="score-value" style="color:var(--primary)">182K</div><div class="score-label">代码行数</div></div>
+      <div class="score-item"><div class="score-value" style="color:var(--success)">132</div><div class="score-label">测试文件</div></div>
+      <div class="score-item"><div class="score-value" style="color:var(--success)">296</div><div class="score-label">IPC Handler</div></div>
+      <div class="score-item"><div class="score-value" style="color:var(--success)">9+</div><div class="score-label">AI Provider</div></div>
+      <div class="score-item"><div class="score-value" style="color:var(--success)">3</div><div class="score-label">协作平台</div></div>
+      <div class="score-item"><div class="score-value" style="color:var(--warning)">53</div><div class="score-label">>500行文件</div></div>
+      <div class="score-item"><div class="score-value" style="color:var(--success)">9</div><div class="score-label">any 使用</div></div>
+      <div class="score-item"><div class="score-value" style="color:var(--success)">0</div><div class="score-label">eval 使用</div></div>
+    </div>
+  </div>
+
+  <!-- Action Items -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🎯</span> 改进优先级建议</div>
+    <table>
+      <thead>
+        <tr><th>优先级</th><th>事项</th><th>工作量</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><span class="badge badge-danger">P0</span></td><td>修复 mcp-validator.ts shell 注入</td><td>小</td></tr>
+        <tr><td><span class="badge badge-danger">P0</span></td><td>拆分 ipc.ts 为领域模块</td><td>大</td></tr>
+        <tr><td><span class="badge badge-danger">P0</span></td><td>拆分 agent-orchestrator.ts sendMessage 方法</td><td>中</td></tr>
+        <tr><td><span class="badge badge-warning">P1</span></td><td>拆分 LeftSidebar.tsx</td><td>中</td></tr>
+        <tr><td><span class="badge badge-warning">P1</span></td><td>统一 zod 版本</td><td>小</td></tr>
+        <tr><td><span class="badge badge-warning">P1</span></td><td>同步 Pi Agent SDK 声明版本</td><td>小</td></tr>
+        <tr><td><span class="badge badge-warning">P1</span></td><td>主进程同步 I/O 改异步</td><td>中</td></tr>
+        <tr><td><span class="badge badge-info">P2</span></td><td>IPC 输入 schema 校验</td><td>中</td></tr>
+        <tr><td><span class="badge badge-info">P2</span></td><td>迁移 51 个 IPC 通道到 shared</td><td>小</td></tr>
+        <tr><td><span class="badge badge-info">P2</span></td><td>启用 noUnusedLocals</td><td>小</td></tr>
+        <tr><td><span class="badge badge-info">P2</span></td><td>锁定 @types/bun 版本</td><td>小</td></tr>
+        <tr><td><span class="badge badge-info">P2</span></td><td>统一 React import 风格</td><td>小</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div style="text-align:center; padding: 32px 0; color: var(--text-tertiary); font-size: 13px;">
+    Generated by WorkBuddy · 2026-07-31
+  </div>
+
+</div>
+</body>
+</html>

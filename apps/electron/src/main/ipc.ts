@@ -45,6 +45,7 @@ import type {
   AttachmentSaveInput,
   AttachmentSaveResult,
   FileDialogResult,
+  FileOrFolderDialogResult,
   RecentMessagesResult,
   AgentSessionMeta,
   AgentSendInput,
@@ -119,7 +120,9 @@ import type {
   CreateAutomationInput,
   UpdateAutomationInput,
   Todo,
+  TodoListQuery,
   CalendarEvent,
+  CalendarEventListQuery,
   PlanningGroup,
   PlanningGroupScope,
   PlanningTag,
@@ -178,6 +181,7 @@ import {
   readAttachmentAsBase64,
   deleteAttachment,
   openFileDialog,
+  openFileOrFolderDialog,
 } from './lib/attachment-service'
 import { extractTextFromAttachment } from './lib/document-parser'
 import { getTutorialContent, createWelcomeConversation } from './lib/tutorial-service'
@@ -3226,6 +3230,14 @@ export function registerIpcHandlers(): void {
     }
   )
 
+  // 打开支持文件与文件夹混合选择的 Composer 对话框
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.OPEN_FILE_OR_FOLDER_DIALOG,
+    async (): Promise<FileOrFolderDialogResult> => {
+      return openFileOrFolderDialog()
+    }
+  )
+
   // 附加外部目录到 Agent 会话
   ipcMain.handle(
     AGENT_IPC_CHANNELS.ATTACH_DIRECTORY,
@@ -4990,6 +5002,25 @@ export function registerIpcHandlers(): void {
     value === 'low' || value === 'medium' || value === 'high'
   const isTodoStatus = (value: unknown): value is 'open' | 'completed' =>
     value === 'open' || value === 'completed'
+  const parseTodoListQuery = (input: unknown): TodoListQuery => {
+    if (input === undefined) return {}
+    if (!input || typeof input !== 'object') throw new Error('Todo 查询参数非法')
+    const query = input as TodoListQuery
+    if (query.status !== undefined && !isTodoStatus(query.status)) throw new Error('Todo status 非法')
+    if (query.dueBefore !== undefined && !isPlanningTimestamp(query.dueBefore)) throw new Error('Todo dueBefore 非法')
+    if (query.limit !== undefined && (!Number.isInteger(query.limit) || query.limit < 1)) throw new Error('Todo limit 非法')
+    return query
+  }
+  const parseCalendarEventListQuery = (input: unknown): CalendarEventListQuery => {
+    if (input === undefined) return {}
+    if (!input || typeof input !== 'object') throw new Error('日程查询参数非法')
+    const query = input as CalendarEventListQuery
+    if (query.from !== undefined && !isPlanningTimestamp(query.from)) throw new Error('日程 from 非法')
+    if (query.to !== undefined && !isPlanningTimestamp(query.to)) throw new Error('日程 to 非法')
+    if (query.from !== undefined && query.to !== undefined && query.from > query.to) throw new Error('日程范围非法')
+    if (query.limit !== undefined && (!Number.isInteger(query.limit) || query.limit < 1)) throw new Error('日程 limit 非法')
+    return query
+  }
 
   ipcMain.handle(PLANNING_IPC_CHANNELS.OPEN_WINDOW, async (): Promise<void> => {
     const { showPlanningWindow } = await import('./lib/planning-window')
