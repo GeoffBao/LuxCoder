@@ -58,3 +58,6 @@ pnpm-workspace.yaml
 
 # superpowers brainstorming 可视化配套（本地临时 mockup，不入仓）
 .superpowers/
+
+# Claude Code local worktrees/settings (not part of this repo)
+.claude/

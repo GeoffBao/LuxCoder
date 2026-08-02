@@ -1,8 +1,8 @@
 /**
  * ToolSettings - 工具设置页
  *
- * Chat 模式工具统一管理 tab。
- * 内嵌 MemorySettings（记忆工具）+ 联网搜索工具配置。
+ * Home 模式「增强工具」统一管理 tab。
+ * 联网搜索 + Nano Banana 生图 + 自定义 HTTP 工具配置。
  */
 
 import * as React from 'react'
@@ -12,7 +12,6 @@ import { ExternalLink, Eye, EyeOff, Loader2, CheckCircle2, XCircle, Trash2 } fro
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
-import { MemorySettings } from './MemorySettings'
 import { SettingsSection, SettingsCard } from './primitives'
 import { chatToolsAtom } from '@/atoms/chat-tool-atoms'
 import { toolSettingsFocusAtom, type ToolSettingsFocus } from '@/atoms/settings-tab'
@@ -467,7 +466,6 @@ function CustomToolsSection(): React.ReactElement | null {
 
 export function ToolSettings(): React.ReactElement {
   const [focusedTool, setFocusedTool] = useAtom(toolSettingsFocusAtom)
-  const memoryRef = React.useRef<HTMLDivElement>(null)
   const webSearchRef = React.useRef<HTMLDivElement>(null)
   const nanoBananaRef = React.useRef<HTMLDivElement>(null)
   const customToolsRef = React.useRef<HTMLDivElement>(null)
@@ -475,7 +473,6 @@ export function ToolSettings(): React.ReactElement {
   React.useEffect(() => {
     if (!focusedTool) return
     const refs: Record<ToolSettingsFocus, React.RefObject<HTMLDivElement>> = {
-      memory: memoryRef,
       'web-search': webSearchRef,
       'nano-banana': nanoBananaRef,
       'custom-tools': customToolsRef,
@@ -501,11 +498,6 @@ export function ToolSettings(): React.ReactElement {
       {/* 自定义工具 */}
       <div ref={customToolsRef}>
         <CustomToolsSection />
-      </div>
-
-      {/* 记忆工具（复用现有 MemorySettings 组件，置于列表末尾） */}
-      <div ref={memoryRef}>
-        <MemorySettings />
       </div>
     </div>
   )

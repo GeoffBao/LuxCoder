@@ -6,7 +6,7 @@
  * 2. 个性化时段问候（大字号 + regular 字重）
  * 3. 一行弱化的平台感知 Tip
  *
- * 不再保留 Chat/Code 切换按钮——侧边栏 ModeSwitcher 提供唯一出入口，
+ * 不在空态页内重复放 Home/Code 切换按钮——侧边栏 ModeSwitcher 提供唯一出入口，
  * 空态页聚焦于「开始打字」一个 CTA。
  */
 
@@ -28,7 +28,7 @@ function getGreeting(hour: number): string {
 }
 
 /**
- * OpenMoji Woman Singer (1F469-200D-1F3A4) — Chat 模式吉祥物
+ * OpenMoji Woman Singer (1F469-200D-1F3A4) — Home 模式吉祥物
  */
 function MascotSinger({ className }: { className?: string }): React.ReactElement {
   return (

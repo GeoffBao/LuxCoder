@@ -1,5 +1,5 @@
 /**
- * ModeSwitcher - Chat/Code 双模式切换（带滑动指示器）
+ * ModeSwitcher - Home/Code 双模式切换（带滑动指示器）
  *
  * 切换模式时自动恢复上一次在该模式下查看的对话/会话：
  * 1. 优先恢复上次选中的对话 ID
@@ -22,7 +22,7 @@ import { Code2, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const modes: { value: 'chat' | 'agent'; label: string; icon: React.ReactNode }[] = [
-  { value: 'chat', label: 'Chat', icon: <MessageSquare size={15} /> },
+  { value: 'chat', label: 'Home', icon: <MessageSquare size={15} /> },
   { value: 'agent', label: 'Code', icon: <Code2 size={15} /> },
 ]
 

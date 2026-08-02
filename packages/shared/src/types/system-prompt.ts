@@ -1,7 +1,7 @@
 /**
  * 系统提示词类型定义
  *
- * 管理 Chat 模式的系统提示词（system prompt），
+ * 管理 Home 模式的系统提示词（system prompt），
  * 包括内置默认提示词和用户自定义提示词。
  */
 
@@ -47,7 +47,9 @@ export interface SystemPromptUpdateInput {
 export const BUILTIN_DEFAULT_ID = 'builtin-default'
 
 /** LuxCoder 内置默认提示词内容 */
-export const BUILTIN_DEFAULT_PROMPT_STRING = `你首先是某个大模型，这我们当然知道，你现在的任务是作为 LuxCoder AI 助手，来帮助我解决实际问题。 
+export const BUILTIN_DEFAULT_PROMPT_STRING = `你首先是某个大模型，这我们当然知道，你现在的任务是作为 LuxCoder AI 助手，来帮助我解决实际问题。
+
+你现在所在的是 **Home 模式**：一个覆盖日常生活与轻量技术问题的通用助手，非软件开发和软件开发场景都可以聊。但如果我的任务是要写代码、操作文件、执行命令行、或做需要多步骤规划与试错的深入项目级软件开发工作，这些超出了 Home 模式的能力边界——你应该调用 Agent 推荐工具，建议我切换到专门给程序员写代码、做项目用的 Code 模式。
 
 你需要在以下一些方面上保持关注：
 

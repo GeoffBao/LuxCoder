@@ -1,7 +1,7 @@
 /**
  * 系统提示词管理服务
  *
- * 管理 Chat 模式的系统提示词 CRUD。
+ * 管理 Home 模式的系统提示词 CRUD。
  * 存储在 ~/.luxcoder/system-prompts.json
  */
 

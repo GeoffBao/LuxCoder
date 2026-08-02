@@ -17,6 +17,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import { MarqueeText } from '@/components/ui/marquee-text'
 import { SearchDialog } from './SearchDialog'
 import { SidebarToggleButton } from './SidebarToggleButton'
+import { ModeSwitcher } from './ModeSwitcher'
 import { TabNavigationControls } from '@/components/tabs/TabNavigationControls'
 import { UserAvatar } from '@/components/chat/UserAvatar'
 import { activeViewAtom, agentSkillsTabAtom } from '@/atoms/active-view'
@@ -850,10 +851,10 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     return map
   }, [workspaces])
 
-  // Excalidraw 画布计数
+  // Excalidraw 画布计数（仅 Home 模式，走当前工作区的 excalidraw 目录）
   const [excalidrawCount, setExcalidrawCount] = React.useState(0)
   React.useEffect(() => {
-    if (!currentWorkspaceSlug || mode !== 'agent') {
+    if (!currentWorkspaceSlug || mode !== 'chat') {
       setExcalidrawCount(0)
       return
     }
@@ -2628,7 +2629,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             <TooltipTrigger asChild>
               <button
                 type="button"
-                aria-label="切换到 Chat 模式"
+                aria-label="切换到 Home 模式"
                 onClick={() => handleRailModeSwitch('chat')}
                 className={cn(
                   'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag',
@@ -2640,7 +2641,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                 <MessageSquare size={17} />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="right">Chat 模式</TooltipContent>
+            <TooltipContent side="right">Home 模式</TooltipContent>
           </Tooltip>
 
           <CollapsedWorkspacePopover>
@@ -2812,7 +2813,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             </Tooltip>
           )}
 
-          {mode === 'agent' && (
+          {/* Excalidraw 画板：仅 Home 模式可见 */}
+          {mode === 'chat' && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -3021,8 +3023,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
       {/* 展开态顶部工具栏：全部留在左侧栏上方（折叠、搜索、后退、前进）。
           SidebarWindowDragStrip 是 z-1 的原生窗口拖拽层；工具栏必须 z-10 + no-drag，
-          否则 Electron 会将点击吞为窗口拖拽，Tooltip 也不会触发。
-          Chat 模式下线后 ModeSwitcher 整行不再需要，搜索按钮并入此行收敛垂直空间。 */}
+          否则 Electron 会将点击吞为窗口拖拽，Tooltip 也不会触发。 */}
       <div className={cn('relative z-10 w-full flex-shrink-0 flex items-center justify-end gap-1 titlebar-no-drag', isMac ? 'h-[30px] pr-2' : 'h-7 pr-1.5')}>
         <SidebarToggleButton className="size-6" />
         <Tooltip>
@@ -3044,6 +3045,11 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
           <TooltipContent side="bottom">搜索 ({getAcceleratorDisplay(getActiveAccelerator('global-search'))})</TooltipContent>
         </Tooltip>
         <TabNavigationControls className="h-7 gap-0" />
+      </div>
+
+      {/* 模式切换器：Home | Code（ModeSwitcher 自带 pt-2 + 拖拽区，这里只补水平内边距） */}
+      <div className="px-3">
+        <ModeSwitcher />
       </div>
 
       {mode === 'agent' && (
@@ -3163,8 +3169,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         </div>
       )}
 
-      {/* Excalidraw 画板：手绘风格白板，仅 Agent 模式可见 */}
-      {mode === 'agent' && (
+      {/* Excalidraw 画板：手绘风格白板，仅 Home 模式可见（通用创作工具） */}
+      {mode === 'chat' && (
         <div className="sidebar-module-zone px-3 pb-0.5">
           <SidebarModule
             icon={PenTool}
