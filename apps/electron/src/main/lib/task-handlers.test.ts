@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { LABEL_IPC_CHANNELS, PROJECT_IPC_CHANNELS, TASK_IPC_CHANNELS } from '@luxcoder/shared/channels'
 import { saveTaskSpec } from '@luxcoder/shared/tasks/storage'
 import type { BrowserWindow as ElectronBrowserWindow } from 'electron'
+import { mockElectronModule } from './__tests__/electron-mock'
 
 type RegisteredHandler = (...args: unknown[]) => unknown
 
@@ -26,33 +27,14 @@ mock.module('./conductor-session-host', () => ({
   }),
 }))
 
-mock.module('electron', () => ({
-  BrowserWindow: class BrowserWindow {
-    isDestroyed(): boolean { return false }
-    webContents = {
-      isDestroyed: (): boolean => false,
-      send: (): undefined => undefined,
-    }
-  },
+mockElectronModule({
   app: { getPath: () => '/tmp/luxcoder-test', isPackaged: false },
-  clipboard: {},
-  dialog: {},
-  globalShortcut: {},
   ipcMain: {
     handle: (channel: string, handler: RegisteredHandler) => {
       registeredHandlers.set(channel, handler)
     },
   },
-  nativeImage: {},
-  nativeTheme: {},
-  net: {},
-  powerMonitor: {},
-  powerSaveBlocker: {},
-  safeStorage: {},
-  screen: {},
-  shell: {},
-  systemPreferences: {},
-}))
+})
 
 const {
   pauseTaskRun,

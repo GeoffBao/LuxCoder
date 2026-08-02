@@ -22,6 +22,14 @@ import { getCodeClawWindow, hideCodeClawWindow, moveCodeClawWindow, onCodeClawWi
 const UNREAD_RETAIN_MS = 10 * 60_000
 const PUSH_THROTTLE_MS = 120
 const AGENT_STREAM_PUSH_THROTTLE_MS = 1_500
+/** 终态会话在 Map 中的最长保留时间：超过后回收，避免长期运行内存无限增长。 */
+const SESSION_RETAIN_MS = 24 * 60 * 60_000
+/**
+ * 活跃会话（running / needs-interaction）无事件时的最长保留时间。
+ * 活跃会话正常会持续刷新 lastActivityAt；若事件流因 Agent 异常终止等原因
+ * 永久停更，仍需兜底回收，否则会与终态会话一样无限累积。
+ */
+const SESSION_ACTIVE_MAX_MS = 7 * 24 * 60 * 60_000
 
 interface InternalCodeClawSession extends CodeClawSessionSnapshot {
   unread: boolean
@@ -223,12 +231,28 @@ function phaseScore(phase: CodeClawPhase): number {
 }
 
 function isVisibleSession(session: InternalCodeClawSession, now: number): boolean {
-  if (now - session.lastActivityAt >= 24 * 60 * 60_000) return false
+  if (now - session.lastActivityAt >= SESSION_RETAIN_MS) return false
   if (session.phase === 'running' || session.phase === 'needs-interaction' || session.phase === 'error') return true
   return session.phase === 'completed'
     && session.unread
     && session.terminalAt !== undefined
     && now - session.terminalAt < UNREAD_RETAIN_MS
+}
+
+/**
+ * 回收早已结束且长时间无活动的终态会话，防止 sessions Map 无限增长。
+ * 终态会话（completed / error）在超过 SESSION_RETAIN_MS 无活动后清理；
+ * 活跃会话（running / needs-interaction）在超过 SESSION_ACTIVE_MAX_MS
+ * （事件流可能已永久中断）后同样兜底回收。
+ */
+function pruneExpiredSessions(now: number): void {
+  for (const [sessionId, session] of sessions) {
+    const isActive = session.phase === 'running' || session.phase === 'needs-interaction'
+    const maxRetain = isActive ? SESSION_ACTIVE_MAX_MS : SESSION_RETAIN_MS
+    if (now - session.lastActivityAt >= maxRetain) {
+      sessions.delete(sessionId)
+    }
+  }
 }
 
 function compareSessions(a: InternalCodeClawSession, b: InternalCodeClawSession): number {
@@ -244,6 +268,7 @@ function getThemeId(): CodeClawThemeId {
 
 function buildState(): CodeClawState {
   const now = Date.now()
+  pruneExpiredSessions(now)
   const visibleSessions = [...sessions.values()].filter((session) => isVisibleSession(session, now)).sort(compareSessions)
   const priority = visibleSessions[0]
   const phase = priority?.phase ?? 'idle'

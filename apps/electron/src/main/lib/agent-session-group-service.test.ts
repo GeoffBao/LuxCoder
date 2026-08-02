@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, mock, test } from 'b
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import * as os from 'node:os'
 import { join } from 'node:path'
+import { mockElectronModule } from './__tests__/electron-mock'
 
 type GroupService = typeof import('./agent-session-group-service')
 type SessionManager = typeof import('./agent-session-manager')
@@ -13,26 +14,12 @@ const originalHome = process.env.HOME
 const originalLuxcoderDev = process.env.LUXCODER_DEV
 const originalPromaDev = process.env.PROMA_DEV
 
-mock.module('electron', () => ({
+mockElectronModule({
   app: {
     isPackaged: true,
     getPath: () => join(process.env.HOME ?? tempHome, 'Library', 'Application Support'),
   },
-  BrowserWindow: class {},
-  clipboard: {},
-  dialog: {},
-  nativeImage: { createFromPath: () => ({}) },
-  nativeTheme: {},
-  powerMonitor: {},
-  powerSaveBlocker: {},
-  screen: {},
-  shell: {},
-  safeStorage: {
-    isEncryptionAvailable: () => false,
-    encryptString: (value: string) => Buffer.from(value),
-    decryptString: (value: Buffer) => value.toString('utf-8'),
-  },
-}))
+})
 
 mock.module('node:os', () => ({
   ...os,

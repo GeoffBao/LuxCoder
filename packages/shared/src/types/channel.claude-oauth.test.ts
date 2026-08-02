@@ -85,11 +85,11 @@ describe('Claude 订阅 OAuth access token 过期判定', () => {
     expect(isClaudeOAuthCredentialExpired(sample)).toBe(false)
   })
 
-  test('Given expiresAt 在 1 分钟缓冲之外 When 判定 Then 未过期', () => {
-    expect(isClaudeOAuthCredentialExpired({ ...samplePkce, expiresAt: Date.now() + 5 * 60_000 })).toBe(false)
+  test('Given expiresAt 在 5 分钟缓冲之外 When 判定 Then 未过期', () => {
+    expect(isClaudeOAuthCredentialExpired({ ...samplePkce, expiresAt: Date.now() + 10 * 60_000 })).toBe(false)
   })
 
-  test('Given expiresAt 已在 1 分钟缓冲内 When 判定 Then 视为过期', () => {
+  test('Given expiresAt 已在 5 分钟缓冲内 When 判定 Then 视为过期', () => {
     expect(isClaudeOAuthCredentialExpired({ ...samplePkce, expiresAt: Date.now() + 30_000 })).toBe(true)
   })
 

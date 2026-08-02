@@ -1,10 +1,12 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
 
-mock.module('electron', () => ({
+import { mockElectronModule } from './__tests__/electron-mock'
+
+mockElectronModule({
   shell: {
     openExternal: mock(async () => undefined),
   },
-}))
+})
 
 type ClaudeOAuthServiceModule = typeof import('./claude-oauth-service')
 let service: ClaudeOAuthServiceModule

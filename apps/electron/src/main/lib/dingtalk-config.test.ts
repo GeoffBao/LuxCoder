@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, mock, test } from 'b
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import * as os from 'node:os'
 import { join } from 'node:path'
+import { mockElectronModule } from './__tests__/electron-mock'
 import { createStableDingTalkBotId } from './dingtalk-bot-identity'
 
 type DingTalkConfigModule = typeof import('./dingtalk-config')
@@ -14,17 +15,12 @@ const originalHome = process.env.HOME
 const originalLuxcoderDev = process.env.LUXCODER_DEV
 const originalPromaDev = process.env.PROMA_DEV
 
-mock.module('electron', () => ({
+mockElectronModule({
   app: {
     isPackaged: true,
     getPath: () => join(process.env.HOME ?? tempHome, 'Library', 'Application Support'),
   },
-  safeStorage: {
-    isEncryptionAvailable: () => false,
-    encryptString: (value: string) => Buffer.from(value),
-    decryptString: (value: Buffer) => value.toString('utf-8'),
-  },
-}))
+})
 
 mock.module('node:os', () => ({
   ...os,
