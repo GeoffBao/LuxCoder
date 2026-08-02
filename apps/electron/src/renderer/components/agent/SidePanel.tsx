@@ -38,12 +38,12 @@ import {
 } from '@/atoms/agent-atoms'
 import type { AgentFileSourceFilter, AgentSidePanelTab } from '@/atoms/agent-atoms'
 import { agentSideChatMapAtom } from '@/atoms/chat-atoms'
-import { serverKanbanProjectsAtom } from '@/atoms/project-atoms'
+// Project 文件根由主进程统一解析。
 import { interfaceVariantAtom } from '@/atoms/theme'
 import { previewFileMapAtom } from '@/atoms/preview-atoms'
 import { useOpenPreview } from '@/components/diff/preview-opener'
 import { detectIsWindows } from '@/lib/platform'
-import type { FileEntry, AgentPendingFile } from '@luxcoder/shared'
+import type { FileEntry, AgentPendingFile, AgentOutputRecord, AgentSessionFileRoots } from '@luxcoder/shared'
 import { setFilePanelDragData, getMediaTypeFromFilename, dispatchInsertFileMention } from '@/lib/file-panel-drag'
 
 function getPathBasename(filePath: string): string {
@@ -138,13 +138,34 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
   const workspaces = useAtomValue(agentWorkspacesAtom)
   const currentWorkspaceId = currentSession?.workspaceId ?? selectedWorkspaceId
   const workspaceSlug = workspaces.find((w) => w.id === currentWorkspaceId)?.slug ?? null
-  const projects = useAtomValue(serverKanbanProjectsAtom)
-  const boundProject = currentSession?.projectId
-    ? projects.find((project) => project.id === currentSession.projectId)
-    : undefined
-  const projectRootPath = currentSession?.gitExecutionMode === 'worktree' && currentSession.gitWorktreePath
-    ? currentSession.gitWorktreePath
-    : boundProject?.workingDirectory ?? null
+  const [sessionFileRoots, setSessionFileRoots] = React.useState<AgentSessionFileRoots | null>(null)
+  const [sessionOutputs, setSessionOutputs] = React.useState<AgentOutputRecord[]>([])
+  React.useEffect(() => {
+    if (!currentWorkspaceId) {
+      setSessionFileRoots(null)
+      setSessionOutputs([])
+      return
+    }
+    let cancelled = false
+    Promise.all([
+      window.electronAPI.getAgentSessionFileRoots(currentWorkspaceId, sessionId),
+      window.electronAPI.listAgentSessionOutputs(currentWorkspaceId, sessionId),
+    ]).then(([roots, outputs]) => {
+      if (cancelled) return
+      setSessionFileRoots(roots)
+      setSessionOutputs(outputs)
+    }).catch((error) => {
+      if (cancelled) return
+      console.error('[SidePanel] 加载会话文件根失败:', error)
+      setSessionFileRoots(null)
+      setSessionOutputs([])
+    })
+    return () => { cancelled = true }
+  }, [currentWorkspaceId, sessionId, filesVersion])
+
+  const projectFilesPath = sessionFileRoots?.projectRoot ?? null
+  const sessionOutboxPath = sessionFileRoots?.sessionOutboxPath ?? null
+  const fileAccess = React.useMemo(() => ({ sessionId }), [sessionId])
 
   // 附加目录列表（会话级）
   const attachedDirsMap = useAtomValue(agentAttachedDirectoriesMapAtom)
@@ -380,8 +401,8 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
     window.electronAPI.getWorkspaceFilesPath(workspaceSlug).then(setWorkspaceFilesPath).catch(() => setWorkspaceFilesPath(null))
   }, [workspaceSlug])
 
-  const projectFilesPath = projectRootPath ?? workspaceFilesPath
-  const fileAccess = React.useMemo(() => ({ sessionId }), [sessionId])
+  // 右侧 Files 的“项目文件”只展示当前会话绑定 Project 的 effective root；
+  // Workspace Files 仍由输入框 @ 引用和 workspace 附加目录提供，不在此处冒充 Project。
 
   const worktreeRepoPathsMemo = React.useMemo(
     // gitRepoPath（主仓库根）优先：WorktreeSelector 靠它枚举出的 worktree 列表才包含
@@ -392,7 +413,7 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
 
   const fileSourceFilterMap = useAtomValue(agentFileSourceFilterMapAtom)
   const setFileSourceFilterMap = useSetAtom(agentFileSourceFilterMapAtom)
-  const fileSourceFilter = fileSourceFilterMap[sessionId] ?? 'session'
+  const fileSourceFilter = fileSourceFilterMap[sessionId] ?? (projectFilesPath ? 'project' : 'session')
   const setFileSourceFilter = React.useCallback((source: AgentFileSourceFilter) => {
     setFileSourceFilterMap((prev) => {
       if (prev[sessionId] === source) return prev
@@ -413,6 +434,7 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
     const path = autoRevealSignal.path
     const inSession =
       (!!sessionPath && (path === sessionPath || isPathUnderRoot(sessionPath, path)))
+      || (!!sessionOutboxPath && (path === sessionOutboxPath || isPathUnderRoot(sessionOutboxPath, path)))
       || attachedDirs.some((d) => isPathUnderRoot(d, path))
       || attachedFiles.includes(path)
     const inProject =
@@ -424,12 +446,12 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
     consumedTabRevealTsRef.current = autoRevealSignal.ts
     setFileSourceFilter(nextSource)
     if (activeTab !== 'files' && activeTab !== 'session' && activeTab !== 'workspace') onTabChange('files')
-  }, [autoRevealSignal, sessionId, sessionPath, projectFilesPath, attachedDirs, attachedFiles, wsAttachedDirs, wsAttachedFiles, activeTab, onTabChange, setFileSourceFilter])
+  }, [autoRevealSignal, sessionId, sessionPath, sessionOutboxPath, projectFilesPath, attachedDirs, attachedFiles, wsAttachedDirs, wsAttachedFiles, activeTab, onTabChange, setFileSourceFilter])
 
   // RightSidePanel 完全由用户控制，不因 Agent 文件变更自动打开
 
   // 同步 basePaths ref（供 handleFilePreview 使用，避免 hooks 声明顺序问题）
-  basePathsRef.current = [sessionPath, projectFilesPath, workspaceFilesPath, ...fileAccessPathsMemo].filter(Boolean) as string[]
+  basePathsRef.current = [sessionPath, sessionOutboxPath, projectFilesPath, workspaceFilesPath, ...fileAccessPathsMemo].filter(Boolean) as string[]
   const hasSessionAttachedItems = attachedDirs.length > 0 || attachedFiles.length > 0
   const hasWorkspaceAttachedItems = wsAttachedDirs.length > 0 || wsAttachedFiles.length > 0
   const hasVisibleSessionAttachedItems = showSessionFiles && hasSessionAttachedItems
@@ -580,6 +602,27 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
                         sessionId={sessionId}
                       />
                     )}
+                    {showSessionFiles && sessionOutputs.length > 0 && (
+                      <CapturedOutputsSection
+                        outputs={sessionOutputs}
+                        onFilePreview={handleFilePreview}
+                      />
+                    )}
+                    {showSessionFiles && sessionOutboxPath && (
+                      <div className="mb-1.5 mt-1 rounded-md bg-primary/[0.04] px-1 pb-1">
+                        <div className="px-2 pt-1.5 text-[11px] font-medium text-foreground/75">Outbox · 会话产出</div>
+                        <FileBrowser
+                          rootPath={sessionOutboxPath}
+                          access={fileAccess}
+                          hideToolbar
+                          embedded
+                          hideEmpty
+                          groupByType
+                          onAddToChat={handleAddToChat}
+                          onFilePreview={handleFilePreview}
+                        />
+                      </div>
+                    )}
                     {showSessionFiles && (
                       <div className="mb-1.5 ml-4 border-l-2 border-primary/40 pl-2 text-[11px] leading-4 text-foreground/75">
                         支持拖拽文件或文件夹到输入框，实现引用
@@ -608,8 +651,20 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
                     )}
                     {showProjectFiles && projectFilesPath && (
                       <>
+                        <div className="mb-1 mt-1 rounded-md bg-amber-500/[0.04] px-1 pb-1">
+                          <div className="px-2 pt-1.5 text-[11px] font-medium text-foreground/75">计划 · .context/plan</div>
+                          <FileBrowser
+                            rootPath={joinPath(joinPath(projectFilesPath, '.context'), 'plan')}
+                            access={fileAccess}
+                            hideToolbar
+                            embedded
+                            hideEmpty
+                            onAddToChat={handleAddToChat}
+                            onFilePreview={handleFilePreview}
+                          />
+                        </div>
                         {hasVisibleWorkspaceAttachedItems && (
-                          <div className="text-[11px] font-medium text-muted-foreground mb-1 px-3 pt-2">项目文件（{boundProject?.name ?? '当前工作目录'}）</div>
+                          <div className="text-[11px] font-medium text-muted-foreground mb-1 px-3 pt-2">工作区附加文件（项目外）</div>
                         )}
                         <FileBrowser rootPath={projectFilesPath} access={fileAccess} hideToolbar embedded hideEmpty={hasVisibleWorkspaceAttachedItems} onAddToChat={handleAddToChat} onFilePreview={handleFilePreview} />
                       </>
@@ -656,6 +711,33 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
             </div>
           ) : null}
         </div>
+    </div>
+  )
+}
+
+function CapturedOutputsSection({
+  outputs,
+  onFilePreview,
+}: {
+  outputs: AgentOutputRecord[]
+  onFilePreview: (filePath: string) => void
+}): React.ReactElement {
+  return (
+    <div className="mb-1 rounded-md bg-emerald-500/[0.04] px-1 pb-1">
+      <div className="px-2 pt-1.5 text-[11px] font-medium text-foreground/75">本次会话生成</div>
+      {outputs.slice(0, 30).map((output) => (
+        <button
+          key={output.id}
+          type="button"
+          className="flex w-full min-w-0 items-center gap-1.5 rounded px-2 py-1 text-left text-[11px] hover:bg-muted/70"
+          title={output.path}
+          onClick={() => onFilePreview(output.path)}
+        >
+          <FileTypeIcon name={getPathBasename(output.path)} isDirectory={false} size={14} />
+          <span className="min-w-0 flex-1 truncate">{output.relativePath}</span>
+          <span className="shrink-0 text-[10px] text-muted-foreground">{output.scope === 'project' ? '项目' : output.scope === 'outbox' ? 'Outbox' : '会话'}</span>
+        </button>
+      ))}
     </div>
   )
 }

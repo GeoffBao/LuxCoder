@@ -111,7 +111,7 @@ export function ProjectKnowledgeTab({ workspaceRoot, project, onError, onDirtyCh
 
       <div className="text-xs text-muted-foreground space-y-1 px-1">
         <p><strong>提示</strong>：该内容存储在 <code>projects/{slug}/MEMORY.md</code> 中，可在任意编辑器中直接编辑。</p>
-        <p><strong>Workspace 跨项目规则与偏好</strong>请写入 Workspace Context（Agent 技能 → Context），不要写在这里。</p>
+        <p><strong>Workspace 跨项目规则与偏好</strong>请写入设置 → Yoda 记忆，不要写在这里。</p>
       </div>
     </div>
   )

@@ -53,7 +53,7 @@ import { NewTaskComposer } from './NewTaskComposer'
 import { TaskEditor } from './TaskEditor'
 import { resolveTaskEditorTarget } from './task-editor-model'
 import { resolveTaskBoardEmptyState } from './task-board-empty-state'
-import type { KanbanItem, TaskEditorTarget } from './types'
+import { filterPickableKanbanProjects, type KanbanItem, type TaskEditorTarget } from './types'
 
 /** 任务创建/运行后回调；`ran` 为 true 时打开编排会话。 */
 export interface TaskCreatedEvent {
@@ -83,6 +83,8 @@ export function KanbanBoardContainer({
 }: KanbanBoardContainerProps): React.ReactElement {
   const items = useAtomValue(kanbanItemsAtom)
   const projects = useAtomValue(serverKanbanProjectsAtom)
+  // 隐藏容器 Project（home/ad-hoc）只用于卡片归属展示，不应出现在筛选器/任务编辑器的项目选择里。
+  const pickableProjects = React.useMemo(() => filterPickableKanbanProjects(projects), [projects])
   const setProjects = useSetAtom(serverKanbanProjectsAtom)
   const [scope, setScope] = useAtom(taskBoardScopeAtom)
   const [composerOpen, setComposerOpen] = React.useState(false)
@@ -308,7 +310,7 @@ export function KanbanBoardContainer({
       <TaskEditor
         workspaceRoot={workspaceRoot}
         workspaceId={workspace.id}
-        projects={projects}
+        projects={pickableProjects}
         target={editorTarget}
         defaultModel={defaultModel}
         modelGroups={modelGroups}
@@ -342,7 +344,7 @@ export function KanbanBoardContainer({
           <div className="titlebar-no-drag flex items-center gap-2.5">
             <LayoutDashboard className="size-6 text-foreground/70" />
             <div>
-              <h1 className="text-2xl font-semibold text-foreground">任务看板</h1>
+              <h1 className="text-2xl font-semibold text-foreground">Project 看板</h1>
               <p className="text-xs text-muted-foreground">
                 {taskSummaries.length === visibleItems.length
                   ? `${visibleItems.length} 个正式 Task`
@@ -358,7 +360,7 @@ export function KanbanBoardContainer({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="titlebar-no-drag flex flex-wrap items-center gap-2">
             <KanbanProjectFilter
-              projects={projects}
+              projects={pickableProjects}
               value={scope}
               onChange={setScope}
               onCreateProject={() => setCreateProjectOpen(true)}
@@ -368,7 +370,7 @@ export function KanbanBoardContainer({
           <div className="titlebar-no-drag flex items-center gap-1">
             <BoardListToggle value={mode} onChange={setMode} />
             {onRefresh ? (
-              <Button variant="ghost" size="icon-sm" disabled={refreshing} onClick={() => { void onRefresh() }} aria-label="刷新任务看板" title="刷新">
+              <Button variant="ghost" size="icon-sm" disabled={refreshing} onClick={() => { void onRefresh() }} aria-label="刷新 Project 看板" title="刷新">
                 <RefreshCw className={refreshing ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
               </Button>
             ) : null}

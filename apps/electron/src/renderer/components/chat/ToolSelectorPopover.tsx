@@ -23,7 +23,8 @@ import {
 import { cn } from '@/lib/utils'
 import { Wrench, Brain, Globe, Settings, ImagePlus } from 'lucide-react'
 import { chatToolsAtom, hasActiveToolsAtom } from '@/atoms/chat-tool-atoms'
-import { settingsTabAtom, settingsOpenAtom } from '@/atoms/settings-tab'
+import { agentSkillsTabAtom } from '@/atoms/active-view'
+import { settingsOpenAtom, settingsTabAtom } from '@/atoms/settings-tab'
 import { inputToolbarActiveButtonClass, inputToolbarButtonClass } from '@/components/ai-elements/input-toolbar-styles'
 
 /** 工具 ID 到图标的映射 */
@@ -45,6 +46,7 @@ export function ToolSelectorPopover(): React.ReactElement {
   const tools = useAtomValue(chatToolsAtom)
   const setChatTools = useSetAtom(chatToolsAtom)
   const hasActiveTools = useAtomValue(hasActiveToolsAtom)
+  const setAgentSkillsTab = useSetAtom(agentSkillsTabAtom)
   const setSettingsOpen = useSetAtom(settingsOpenAtom)
   const setSettingsTab = useSetAtom(settingsTabAtom)
 
@@ -59,11 +61,12 @@ export function ToolSelectorPopover(): React.ReactElement {
     }
   }
 
-  /** 跳转到设置页工具 tab */
+  /** 跳转到设置面板的 Yoda 插件页（API/增强工具 Tab），Home / Code 两模式共享同一份配置 */
   const goToToolSettings = (): void => {
     setOpen(false)
+    setAgentSkillsTab('api')
+    setSettingsTab('agent-plugins')
     setSettingsOpen(true)
-    setSettingsTab('tools')
   }
 
   return (

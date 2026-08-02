@@ -18,11 +18,11 @@ import { agentSessionsAtom, currentAgentSessionIdAtom } from '@/atoms/agent-atom
 import { tabsAtom } from '@/atoms/tab-atoms'
 import { useOpenSession } from '@/hooks/useOpenSession'
 import { normalizeAppModeForUi } from '@/components/app-shell/code-main-view-model'
-import { Code2, MessageSquare } from 'lucide-react'
+import { Code2, House } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const modes: { value: 'chat' | 'agent'; label: string; icon: React.ReactNode }[] = [
-  { value: 'chat', label: 'Home', icon: <MessageSquare size={15} /> },
+  { value: 'chat', label: 'Home', icon: <House size={15} /> },
   { value: 'agent', label: 'Code', icon: <Code2 size={15} /> },
 ]
 

@@ -52,7 +52,7 @@ type TodoRow = {
 }
 type CalendarEventRow = {
   id: string; title: string; notes: string | null; start_at: number; end_at: number | null; all_day: number
-  calendar_group_id: string | null; workspace_id: string | null; todo_id: string | null
+  calendar_group_id: string | null; workspace_id: string | null; project_id: string | null; todo_id: string | null
   created_at: number; updated_at: number
 }
 type GroupRow = { id: string; name: string; color: string | null; sort_order: number; created_at: number; updated_at: number }
@@ -106,7 +106,7 @@ function getDatabase(): SqliteDatabase {
     CREATE TABLE IF NOT EXISTS calendar_events (
       id TEXT PRIMARY KEY, title TEXT NOT NULL CHECK(length(title) BETWEEN 1 AND 500), notes TEXT, start_at INTEGER NOT NULL, end_at INTEGER,
       all_day INTEGER NOT NULL DEFAULT 0 CHECK(all_day IN (0, 1)), calendar_group_id TEXT REFERENCES calendar_groups(id) ON DELETE SET NULL,
-      workspace_id TEXT, todo_id TEXT REFERENCES todos(id) ON DELETE SET NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+      workspace_id TEXT, project_id TEXT, todo_id TEXT REFERENCES todos(id) ON DELETE SET NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
       CHECK(end_at IS NULL OR end_at >= start_at)
     );
     CREATE TABLE IF NOT EXISTS todo_tags (
@@ -131,10 +131,15 @@ function getDatabase(): SqliteDatabase {
       PRIMARY KEY(todo_id, session_id)
     );
   `)
-  // todos.project_id 是后续新增列；已存在的旧库（CREATE TABLE IF NOT EXISTS 不会补列）需要显式迁移。
+  // todos.project_id / calendar_events.project_id 是后续新增列；已存在的旧库
+  // （CREATE TABLE IF NOT EXISTS 不会补列）需要显式迁移。
   const todoColumns = db.prepare(`PRAGMA table_info(todos)`).all() as Array<{ name: string }>
   if (!todoColumns.some((column) => column.name === 'project_id')) {
     db.exec('ALTER TABLE todos ADD COLUMN project_id TEXT')
+  }
+  const calendarEventColumns = db.prepare(`PRAGMA table_info(calendar_events)`).all() as Array<{ name: string }>
+  if (!calendarEventColumns.some((column) => column.name === 'project_id')) {
+    db.exec('ALTER TABLE calendar_events ADD COLUMN project_id TEXT')
   }
   db.exec(`
     CREATE INDEX IF NOT EXISTS todos_status_due_at_idx ON todos(status, due_at);
@@ -142,6 +147,7 @@ function getDatabase(): SqliteDatabase {
     CREATE INDEX IF NOT EXISTS calendar_events_start_at_idx ON calendar_events(start_at);
     CREATE INDEX IF NOT EXISTS calendar_events_calendar_group_id_idx ON calendar_events(calendar_group_id);
     CREATE INDEX IF NOT EXISTS calendar_events_todo_id_idx ON calendar_events(todo_id);
+    CREATE INDEX IF NOT EXISTS calendar_events_project_id_idx ON calendar_events(project_id);
     CREATE INDEX IF NOT EXISTS planning_reminders_due_idx ON planning_reminders(status, snoozed_until, trigger_at);
     CREATE INDEX IF NOT EXISTS planning_reminders_target_idx ON planning_reminders(target_type, target_id);
     CREATE INDEX IF NOT EXISTS todo_session_links_recent_idx ON todo_session_links(todo_id, last_touched_at DESC);
@@ -278,14 +284,14 @@ function hydrateCalendarEvents(rows: CalendarEventRow[]): CalendarEvent[] {
     id: row.id, title: row.title, notes: row.notes ?? undefined, startAt: row.start_at, endAt: row.end_at ?? undefined,
     allDay: row.all_day === 1, groupId: row.calendar_group_id ?? undefined, group: row.calendar_group_id ? groups.get(row.calendar_group_id) : undefined,
     tags: tags.get(row.id) ?? [], reminders: reminders.get(row.id) ?? [], workspaceId: row.workspace_id ?? undefined,
-    todoId: row.todo_id ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at,
+    projectId: row.project_id ?? undefined, todoId: row.todo_id ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at,
   }))
 }
 function todoFromRow(row: TodoRow): Todo {
   return { id: row.id, title: row.title, notes: row.notes ?? undefined, status: row.status, priority: row.priority, dueAt: row.due_at ?? undefined, groupId: row.group_id ?? undefined, group: getPlanningGroup(row.group_id, 'todo'), tags: getTags('todo', row.id), reminders: getReminders('todo', row.id), sessionLinks: getTodoSessionLinks(row.id), workspaceId: row.workspace_id ?? undefined, projectId: row.project_id ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at, completedAt: row.completed_at ?? undefined }
 }
 function calendarEventFromRow(row: CalendarEventRow): CalendarEvent {
-  return { id: row.id, title: row.title, notes: row.notes ?? undefined, startAt: row.start_at, endAt: row.end_at ?? undefined, allDay: row.all_day === 1, groupId: row.calendar_group_id ?? undefined, group: getPlanningGroup(row.calendar_group_id, 'calendar'), tags: getTags('calendar_event', row.id), reminders: getReminders('calendar_event', row.id), workspaceId: row.workspace_id ?? undefined, todoId: row.todo_id ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at }
+  return { id: row.id, title: row.title, notes: row.notes ?? undefined, startAt: row.start_at, endAt: row.end_at ?? undefined, allDay: row.all_day === 1, groupId: row.calendar_group_id ?? undefined, group: getPlanningGroup(row.calendar_group_id, 'calendar'), tags: getTags('calendar_event', row.id), reminders: getReminders('calendar_event', row.id), workspaceId: row.workspace_id ?? undefined, projectId: row.project_id ?? undefined, todoId: row.todo_id ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at }
 }
 function assertTagIdsExist(tagIds: string[]): string[] {
   const unique = [...new Set(tagIds)]
@@ -461,6 +467,7 @@ export function listCalendarEvents(query: CalendarEventListQuery = {}): Calendar
   if (query.from !== undefined) { where.push('COALESCE(end_at,start_at)>=:from'); params.from = query.from }
   if (query.to !== undefined) { where.push('start_at<=:to'); params.to = query.to }
   if (query.workspaceId !== undefined) { where.push('workspace_id = :workspaceId'); params.workspaceId = query.workspaceId }
+  if (query.projectId !== undefined) { where.push('project_id = :projectId'); params.projectId = query.projectId }
   if (limit) params.limit = limit
   return hydrateCalendarEvents(getDatabase().prepare(`SELECT * FROM calendar_events ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY start_at ${limit ? 'LIMIT :limit' : ''}`).all(params) as CalendarEventRow[])
 }
@@ -475,11 +482,12 @@ export function createCalendarEvent(input: CreateCalendarEventInput): CalendarEv
   const event = {
     id: randomUUID(), title: assertTitle(input.title, '日程'), notes: input.notes?.trim() || undefined,
     startAt: input.startAt, endAt: input.endAt, allDay: input.allDay ?? false, groupId: input.groupId,
-    workspaceId: input.workspaceId || getCurrentWorkspaceId() || undefined, todoId: input.todoId || undefined, createdAt: now, updatedAt: now,
+    workspaceId: input.workspaceId || getCurrentWorkspaceId() || undefined, projectId: input.projectId || undefined,
+    todoId: input.todoId || undefined, createdAt: now, updatedAt: now,
   }
   if (event.groupId && !getPlanningGroup(event.groupId, 'calendar')) throw new Error('日程分组不存在')
   withPlanningTransaction(() => {
-    getDatabase().prepare(`INSERT INTO calendar_events (id,title,notes,start_at,end_at,all_day,calendar_group_id,workspace_id,todo_id,created_at,updated_at) VALUES (:id,:title,:notes,:startAt,:endAt,:allDay,:groupId,:workspaceId,:todoId,:createdAt,:updatedAt)`).run({ id: event.id, title: event.title, notes: event.notes ?? null, startAt: event.startAt, endAt: event.endAt ?? null, allDay: event.allDay ? 1 : 0, groupId: event.groupId ?? null, workspaceId: event.workspaceId ?? null, todoId: event.todoId ?? null, createdAt: event.createdAt, updatedAt: event.updatedAt })
+    getDatabase().prepare(`INSERT INTO calendar_events (id,title,notes,start_at,end_at,all_day,calendar_group_id,workspace_id,project_id,todo_id,created_at,updated_at) VALUES (:id,:title,:notes,:startAt,:endAt,:allDay,:groupId,:workspaceId,:projectId,:todoId,:createdAt,:updatedAt)`).run({ id: event.id, title: event.title, notes: event.notes ?? null, startAt: event.startAt, endAt: event.endAt ?? null, allDay: event.allDay ? 1 : 0, groupId: event.groupId ?? null, workspaceId: event.workspaceId ?? null, projectId: event.projectId ?? null, todoId: event.todoId ?? null, createdAt: event.createdAt, updatedAt: event.updatedAt })
     if (input.tagIds !== undefined) replaceTags('calendar_event', event.id, input.tagIds)
     if (input.reminders) createReminders('calendar_event', event.id, input.reminders)
   })
@@ -502,15 +510,16 @@ export function updateCalendarEvent(input: UpdateCalendarEventInput): CalendarEv
     allDay: input.allDay ?? old.allDay,
     groupId: input.groupId === undefined ? old.groupId : input.groupId ?? undefined,
     workspaceId: input.workspaceId === undefined ? old.workspaceId : input.workspaceId ?? undefined,
+    projectId: input.projectId === undefined ? old.projectId : input.projectId ?? undefined,
     todoId: input.todoId === undefined ? old.todoId : input.todoId ?? undefined,
     updatedAt: Math.max(Date.now(), old.updatedAt + 1),
   }
   if (updated.endAt && updated.endAt < updated.startAt) throw new Error('日程 endAt 不能早于 startAt')
   if (updated.groupId && !getPlanningGroup(updated.groupId, 'calendar')) throw new Error('日程分组不存在')
   withPlanningTransaction(() => {
-    const params: Record<string, unknown> = { id: updated.id, title: updated.title, notes: updated.notes ?? null, startAt: updated.startAt, endAt: updated.endAt ?? null, allDay: updated.allDay ? 1 : 0, groupId: updated.groupId ?? null, workspaceId: updated.workspaceId ?? null, todoId: updated.todoId ?? null, updatedAt: updated.updatedAt }
+    const params: Record<string, unknown> = { id: updated.id, title: updated.title, notes: updated.notes ?? null, startAt: updated.startAt, endAt: updated.endAt ?? null, allDay: updated.allDay ? 1 : 0, groupId: updated.groupId ?? null, workspaceId: updated.workspaceId ?? null, projectId: updated.projectId ?? null, todoId: updated.todoId ?? null, updatedAt: updated.updatedAt }
     if (input.expectedUpdatedAt !== undefined) params.expectedUpdatedAt = input.expectedUpdatedAt
-    const result = getDatabase().prepare(`UPDATE calendar_events SET title=:title,notes=:notes,start_at=:startAt,end_at=:endAt,all_day=:allDay,calendar_group_id=:groupId,workspace_id=:workspaceId,todo_id=:todoId,updated_at=:updatedAt WHERE id=:id${input.expectedUpdatedAt === undefined ? '' : ' AND updated_at=:expectedUpdatedAt'}`).run(params) as { changes?: number }
+    const result = getDatabase().prepare(`UPDATE calendar_events SET title=:title,notes=:notes,start_at=:startAt,end_at=:endAt,all_day=:allDay,calendar_group_id=:groupId,workspace_id=:workspaceId,project_id=:projectId,todo_id=:todoId,updated_at=:updatedAt WHERE id=:id${input.expectedUpdatedAt === undefined ? '' : ' AND updated_at=:expectedUpdatedAt'}`).run(params) as { changes?: number }
     if ((result.changes ?? 0) === 0) throw new Error(PLANNING_CONFLICT_ERROR)
     if (input.tagIds !== undefined) replaceTags('calendar_event', old.id, input.tagIds)
   })

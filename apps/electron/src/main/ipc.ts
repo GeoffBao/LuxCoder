@@ -258,6 +258,8 @@ import { permissionService } from './lib/agent-permission-service'
 import { askUserService } from './lib/agent-ask-user-service'
 import { exitPlanService } from './lib/agent-exit-plan-service'
 import { getAgentSessionWorkspacePath, getAgentWorkspacesDir, getWorkspaceSkillsDir, getWorkspaceFilesDir, getScratchPadPath, getExcalidrawDir, getExpertsDir } from './lib/config-paths'
+import { resolveAgentSessionFileRoots } from './lib/agent-file-roots'
+import { listSessionOutputs } from './lib/agent-output-capture'
 import { getAgentWorkspacePath } from './lib/config-paths'
 import { getCachedDefaultAppInfo, saveCachedDefaultAppInfo } from './lib/default-app-cache'
 import { calculateStorageStats, cleanupStorage, cleanupTempFiles } from './lib/storage-service'
@@ -3458,6 +3460,28 @@ export function registerIpcHandlers(): void {
       if (!ws) return null
       return getAgentSessionWorkspacePath(ws.slug, sessionId)
     }
+  )
+
+  // 获取当前会话统一文件根。Project effective cwd 必须由主进程解析，renderer 不自行拼接托管路径。
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.GET_SESSION_FILE_ROOTS,
+    async (_, workspaceId: string, sessionId: string) => {
+      const ws = getAgentWorkspace(workspaceId)
+      const sessionMeta = getAgentSessionMeta(sessionId)
+      if (!ws || !sessionMeta || (sessionMeta.workspaceId && sessionMeta.workspaceId !== workspaceId)) return null
+      return resolveAgentSessionFileRoots(sessionMeta, ws.slug)
+    },
+  )
+
+  // 获取当前会话本轮捕获的文件产出；Outbox 不参与 @ Workspace Files 搜索。
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.LIST_SESSION_OUTPUTS,
+    async (_, workspaceId: string, sessionId: string) => {
+      const ws = getAgentWorkspace(workspaceId)
+      const sessionMeta = getAgentSessionMeta(sessionId)
+      if (!ws || !sessionMeta || (sessionMeta.workspaceId && sessionMeta.workspaceId !== workspaceId)) return []
+      return listSessionOutputs(getWorkspaceFilesDir(ws.slug), sessionId)
+    },
   )
 
   // 列出目录内容（浅层，安全校验）

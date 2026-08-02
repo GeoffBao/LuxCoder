@@ -6,9 +6,11 @@ import { mockElectronModule } from './__tests__/electron-mock'
 
 type AgentWorkspaceManager = typeof import('./agent-workspace-manager')
 type ConfigPathsModule = typeof import('./config-paths')
+type ProjectRepositoryModule = typeof import('./project-repository')
 
 let manager: AgentWorkspaceManager
 let configPaths: ConfigPathsModule
+let projectRepositoryModule: ProjectRepositoryModule
 let tempHome: string
 const originalHome = process.env.HOME
 const originalLuxcoderDev = process.env.LUXCODER_DEV
@@ -33,6 +35,7 @@ beforeAll(async () => {
   process.env.PROMA_DEV = '0'
   configPaths = await import('./config-paths')
   manager = await import('./agent-workspace-manager')
+  projectRepositoryModule = await import('./project-repository')
 })
 
 beforeEach(() => {
@@ -115,6 +118,36 @@ describe('Agent 工作区创建', () => {
     expect(existsSync(join(copiedSkillDir, 'SKILL.md'))).toBe(true)
     expect(existsSync(join(copiedSkillDir, '.git'))).toBe(false)
     expect(existsSync(join(copiedSkillDir, 'node_modules'))).toBe(false)
+  })
+})
+
+describe('隐藏容器 Project', () => {
+  test('Given 新建工作区 When 创建完成 Then 自动生成 home 与 ad-hoc 各一个隐藏 Project', () => {
+    const workspace = manager.createAgentWorkspace('隐藏容器测试')
+    const projects = projectRepositoryModule.projectRepository.listProjectsAtRoot(
+      configPaths.getAgentWorkspacePath(workspace.slug),
+    )
+
+    const home = projects.find((project) => project.config.kind === 'home')
+    const adHoc = projects.find((project) => project.config.kind === 'ad-hoc')
+    expect(home?.config.workingDirectory).toBe(configPaths.getWorkspaceFilesDir(workspace.slug))
+    expect(adHoc?.config.workingDirectory).toBeUndefined()
+    expect(projects.filter((project) => project.config.kind === 'home')).toHaveLength(1)
+    expect(projects.filter((project) => project.config.kind === 'ad-hoc')).toHaveLength(1)
+  })
+
+  test('Given 隐藏 Project 已存在 When 重复 ensure Then 不产生重复也不覆盖已有配置', () => {
+    const workspace = manager.createAgentWorkspace('隐藏容器幂等测试')
+    const root = configPaths.getAgentWorkspacePath(workspace.slug)
+    const first = projectRepositoryModule.projectRepository.ensureHomeProject(root)
+
+    projectRepositoryModule.projectRepository.ensureHomeProject(root)
+    projectRepositoryModule.projectRepository.ensureAdHocProject(root)
+    const projects = projectRepositoryModule.projectRepository.listProjectsAtRoot(root)
+
+    expect(projects.filter((project) => project.config.kind === 'home')).toHaveLength(1)
+    expect(projects.filter((project) => project.config.kind === 'ad-hoc')).toHaveLength(1)
+    expect(projects.find((project) => project.config.kind === 'home')?.config.id).toBe(first.id)
   })
 })
 

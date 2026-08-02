@@ -240,6 +240,35 @@ describe('buildKanbanViewModel', () => {
     ])
   })
 
+  test('无 Project 会话懒归类到隐藏的临时会话容器，仅用于卡片展示', () => {
+    const projectsWithAdHoc: KanbanProject[] = [...projects, { id: 'ad-hoc-1', name: '临时会话', kind: 'ad-hoc' }]
+    const model = buildKanbanViewModel({
+      projects: projectsWithAdHoc,
+      sessions: [
+        createSession({ id: 'no-project', title: '未绑定项目的会话' }),
+        createSession({ id: 'has-project', title: '已绑定项目的会话', projectId: 'project-a' }),
+      ],
+      runs: [],
+      bindings: [],
+      filter: {},
+    })
+
+    expect(model.listItems.find((item) => item.id === 'no-project')?.project?.id).toBe('ad-hoc-1')
+    expect(model.listItems.find((item) => item.id === 'has-project')?.project?.id).toBe('project-a')
+  })
+
+  test('未提供隐藏容器 Project 时无 Project 会话仍展示为 null（向后兼容旧调用方）', () => {
+    const model = buildKanbanViewModel({
+      projects,
+      sessions: [createSession({ id: 'no-project', title: '未绑定项目的会话' })],
+      runs: [],
+      bindings: [],
+      filter: {},
+    })
+
+    expect(model.listItems.find((item) => item.id === 'no-project')?.project).toBeNull()
+  })
+
   test('按项目筛选时排除其他项目的会话', () => {
     const model = buildKanbanViewModel({
       projects,

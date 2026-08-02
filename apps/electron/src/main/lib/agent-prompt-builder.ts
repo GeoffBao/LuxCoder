@@ -53,6 +53,8 @@ function buildWorkspacePromptPaths(workspaceSlug: string, sessionId: string) {
   return {
     workspaceRoot,
     sessionDir: join(workspaceRoot, sessionId),
+    sessionOutbox: join(workspaceRoot, 'workspace-files', 'Outbox', sessionId),
+    outboxIndex: join(workspaceRoot, 'workspace-files', 'Outbox', 'index.json'),
     mcpConfig: join(workspaceRoot, 'mcp.json'),
     skillsDir: join(workspaceRoot, 'skills'),
     workspaceContextDir: join(workspaceRoot, 'workspace-files', '.context'),
@@ -153,7 +155,7 @@ LuxCoder 提供内置 \`collaboration\` 工具，用来创建真实可见、可�
   }
 
   // 工作区信息
-  if (ctx.workspaceName && ctx.workspaceSlug) {
+  if (workspacePaths && ctx.workspaceName && ctx.workspaceSlug) {
     sections.push(`## 工作区
 
 - 工作区名称: ${ctx.workspaceName}
@@ -177,6 +179,14 @@ LuxCoder 提供内置 \`collaboration\` 工具，用来创建真实可见、可�
 - 跨会话有参考价值的内容（调研报告、架构分析等） → 工作区级 \`.context/\`
 - 用户明确指定了位置时，按用户要求
 - 新会话开始时，**两个目录都要检查**以恢复完整上下文`)
+
+    sections.push(`## 文件归属与 Agent 产出
+
+- Session sandbox（当前会话目录）用于会话辅助文件、临时脚本和历史兼容内容。
+- 当前绑定 Project 时，代码、计划和项目 Markdown 默认写入实际的 Project effective cwd（当前执行目录），不要因为“当前会话目录”路径而误写到 sandbox。
+- 需要保存为会话级最终交付物时，写入本会话专属 Outbox：\`${workspacePaths.sessionOutbox}\`。Outbox 是 Workspace 级持久产出，删除 Session 或磁盘清理不会删除其中的文件。
+- Agent turn 会自动捕获 Outbox、Session sandbox 和 Project cwd 的新增/修改文件，写入\`${workspacePaths.outboxIndex}\`作为未来 Yoda 知识库的素材清单；不要把源码、密钥、node_modules 或构建缓存当作知识库素材。
+- “本轮生成”是右侧 Files 的逻辑索引，不需要把 Project 文件复制到 Outbox。`)
   }
 
   // 自主执行与最小澄清策略

@@ -56,6 +56,7 @@ import {
   canBeSticky,
 } from './tree-row-layout'
 import { setFilePanelDragData, dispatchInsertFileMention } from '@/lib/file-panel-drag'
+import { groupOutboxFilesByType } from './outbox-file-grouping'
 
 /** 计算目标路径相对 rootPath 的祖先目录集合（不含 rootPath 自身、含目标的所有上级） */
 export function computeRevealAncestors(rootPath: string, targetPath: string): Set<string> {
@@ -100,9 +101,16 @@ interface FileBrowserProps {
   onAddToChat?: (entry: FileEntry) => void
   /** 单击文件时在内联预览面板中显示（替代外部窗口预览） */
   onFilePreview?: (filePath: string) => void
+  /**
+   * 顶层文件按扩展名机械推断的通用类型分组展示（文档/图片/数据/演示/代码/其他），
+   * 用于 Outbox 这类不需要用户维护分类体系的场景。只影响顶层排布和分组标题，
+   * 每个文件仍由未改动的 FileTreeItem 渲染，右键菜单/重命名/删除/拖拽行为不变。
+   * 目录条目不参与分组，始终排在分组之前。
+   */
+  groupByType?: boolean
 }
 
-export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, access, onAddToChat, onFilePreview }: FileBrowserProps): React.ReactElement {
+export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, access, onAddToChat, onFilePreview, groupByType }: FileBrowserProps): React.ReactElement {
   const [entries, setEntries] = React.useState<FileEntry[]>([])
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
@@ -307,6 +315,41 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, access
     return parts.length > 2 ? `.../${parts.slice(-2).join('/')}` : rootPath
   }, [rootPath])
 
+  const renderEntry = (entry: FileEntry): React.ReactElement => (
+    <FileTreeItem
+      key={entry.path}
+      entry={entry}
+      depth={0}
+      selectedPaths={selectedPaths}
+      selectedCount={selectedCount}
+      access={access}
+      renamingPath={renamingPath}
+      moving={moving}
+      refreshVersion={filesVersion}
+      revealAncestors={revealAncestors}
+      revealTarget={revealTarget}
+      revealTs={revealTs}
+      recentlyModifiedSet={recentlyModifiedSet}
+      onSelect={handleSelect}
+      onShowInFolder={handleShowInFolder}
+      onOpenInTerminal={handleOpenInTerminal}
+      onStartRename={handleStartRename}
+      onCancelRename={handleCancelRename}
+      onRename={handleRename}
+      onDelete={handleRequestDelete}
+      onMove={handleMove}
+      onRefresh={loadRoot}
+      onClearSelection={() => setSelectedPaths(new Set())}
+      onAddToChat={onAddToChat}
+      onFilePreview={onFilePreview}
+    />
+  )
+
+  // groupByType 只重排顶层文件、插入分组标题；目录条目和每个文件的渲染（含右键菜单/
+  // 重命名/删除/拖拽）完全复用 renderEntry，不改变既有行为。
+  const directoryEntries = groupByType ? entries.filter((entry) => entry.isDirectory) : entries
+  const groupedFileBuckets = groupByType ? groupOutboxFilesByType(entries) : []
+
   const fileTree = (
     <div className="inspector-file-tree file-tree-guide-scope py-1" onClick={handleBackgroundClick}>
       {error && (
@@ -318,35 +361,21 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, access
           <span className="text-[11px]">目录为空</span>
         </div>
       )}
-      {entries.map((entry) => (
-        <FileTreeItem
-          key={entry.path}
-          entry={entry}
-          depth={0}
-          selectedPaths={selectedPaths}
-          selectedCount={selectedCount}
-          access={access}
-          renamingPath={renamingPath}
-          moving={moving}
-          refreshVersion={filesVersion}
-          revealAncestors={revealAncestors}
-          revealTarget={revealTarget}
-          revealTs={revealTs}
-          recentlyModifiedSet={recentlyModifiedSet}
-          onSelect={handleSelect}
-          onShowInFolder={handleShowInFolder}
-          onOpenInTerminal={handleOpenInTerminal}
-          onStartRename={handleStartRename}
-          onCancelRename={handleCancelRename}
-          onRename={handleRename}
-          onDelete={handleRequestDelete}
-          onMove={handleMove}
-          onRefresh={loadRoot}
-          onClearSelection={() => setSelectedPaths(new Set())}
-          onAddToChat={onAddToChat}
-          onFilePreview={onFilePreview}
-        />
-      ))}
+      {groupByType ? (
+        <>
+          {directoryEntries.map(renderEntry)}
+          {groupedFileBuckets.map((bucket) => (
+            <div key={bucket.group}>
+              <div className="px-2 pt-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">
+                {bucket.label}
+              </div>
+              {bucket.entries.map(renderEntry)}
+            </div>
+          ))}
+        </>
+      ) : (
+        entries.map(renderEntry)
+      )}
     </div>
   )
 

@@ -55,6 +55,8 @@ import type {
   AgentThinkingLevel,
   AgentStreamEvent,
   AgentStreamCompletePayload,
+  AgentSessionFileRoots,
+  AgentOutputRecord,
   AgentWorkspace,
   SessionGroup,
   AgentGenerateTitleInput,
@@ -985,6 +987,10 @@ export interface ElectronAPI {
 
   /** 获取 session 工作路径 */
   getAgentSessionPath: (workspaceId: string, sessionId: string) => Promise<string | null>
+  /** 获取当前会话统一文件根 */
+  getAgentSessionFileRoots: (workspaceId: string, sessionId: string) => Promise<AgentSessionFileRoots | null>
+  /** 获取当前会话本轮捕获的文件产出 */
+  listAgentSessionOutputs: (workspaceId: string, sessionId: string) => Promise<AgentOutputRecord[]>
 
   /** 列出目录内容 */
   listDirectory: (dirPath: string, access?: import('@luxcoder/shared').FileAccessOptions) => Promise<FileEntry[]>
@@ -2428,6 +2434,12 @@ const electronAPI: ElectronAPI = {
   // Agent 文件系统操作
   getAgentSessionPath: (workspaceId: string, sessionId: string) => {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.GET_SESSION_PATH, workspaceId, sessionId)
+  },
+  getAgentSessionFileRoots: (workspaceId: string, sessionId: string) => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.GET_SESSION_FILE_ROOTS, workspaceId, sessionId) as Promise<AgentSessionFileRoots | null>
+  },
+  listAgentSessionOutputs: (workspaceId: string, sessionId: string) => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.LIST_SESSION_OUTPUTS, workspaceId, sessionId) as Promise<AgentOutputRecord[]>
   },
 
   listDirectory: (dirPath: string, access?: import('@luxcoder/shared').FileAccessOptions) => {

@@ -76,7 +76,7 @@ describe('Task Board / Project Page navigation', () => {
 })
 
 describe('shouldShowWorkViewInCode', () => {
-  test('agent 模式 + tasks 视图 + conversations → 显示正式 Task 看板', () => {
+  test('agent 模式 + tasks 视图 + conversations → 显示正式 Project 看板', () => {
     expect(shouldShowWorkViewInCode({
       appMode: 'agent',
       codeMainView: 'tasks',
@@ -84,7 +84,7 @@ describe('shouldShowWorkViewInCode', () => {
     })).toBe(true)
   })
 
-  test('遗留 work 仍作为 Task 看板兼容 alias', () => {
+  test('遗留 work 仍作为 Project 看板兼容 alias', () => {
     expect(shouldShowWorkViewInCode({
       appMode: 'agent',
       codeMainView: 'work',

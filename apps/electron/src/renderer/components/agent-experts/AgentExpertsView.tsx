@@ -1,7 +1,7 @@
 /**
  * AgentExpertsView — 「Agent 专家 / 专家团」视图
  *
- * 默认由 Agent 插件视图嵌入（专家 / 专家团平级 Tab，宿主工具条承载搜索与新建）。
+ * 默认由 Yoda 插件视图嵌入（专家 / 专家团平级 Tab，宿主工具条承载搜索与新建）。
  * 非 embedded 时保留自带头部/搜索条与内部「专家 / 专家团」双 Tab（兼容独立入口）。
  */
 
@@ -19,7 +19,7 @@ import { CreateExpertDialog, type CreateExpertDraft } from './CreateExpertDialog
 type ExpertsTab = 'expert' | 'team'
 
 interface AgentExpertsViewProps {
-  /** 嵌入 Agent 插件视图时：隐藏自带头部/搜索条，由宿主工具条承载；搜索词与新建请求由宿主传入。 */
+  /** 嵌入 Yoda 插件视图时：隐藏自带头部/搜索条，由宿主工具条承载；搜索词与新建请求由宿主传入。 */
   embedded?: boolean
   /** embedded 模式下宿主工具条的搜索词；非 embedded 忽略。 */
   externalSearch?: string

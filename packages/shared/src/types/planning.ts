@@ -103,6 +103,8 @@ export interface CalendarEvent {
   tags: PlanningTag[]
   reminders: PlanningReminder[]
   workspaceId?: string
+  /** 可选关联的 Project（当前 Workspace 下的子分组），仅用于分类/筛选。 */
+  projectId?: string
   todoId?: string
   createdAt: number
   updatedAt: number
@@ -124,6 +126,8 @@ export interface CalendarEventListQuery {
   limit?: number
   /** 按归属 Workspace 过滤；不传表示不过滤（全部工作区）。 */
   workspaceId?: string
+  /** 按关联 Project 过滤；不传表示不过滤。 */
+  projectId?: string
 }
 
 export interface CreatePlanningReminderInput {
@@ -193,6 +197,8 @@ export interface CreateCalendarEventInput {
   tagIds?: string[]
   reminders?: CreatePlanningReminderInput[]
   workspaceId?: string
+  /** 可选关联的 Project。 */
+  projectId?: string
   todoId?: string
 }
 
@@ -206,6 +212,8 @@ export interface UpdateCalendarEventInput {
   groupId?: string | null
   tagIds?: string[]
   workspaceId?: string | null
+  /** 可选关联的 Project；传 null 清空。 */
+  projectId?: string | null
   todoId?: string | null
   /** 详情面板保存时携带的版本号，用于拒绝跨窗口的旧草稿覆盖。 */
   expectedUpdatedAt?: number

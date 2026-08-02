@@ -66,7 +66,7 @@ export function ProjectPageRoute(): React.ReactElement {
       <div className="grid h-full place-items-center bg-background p-6">
         <div className="text-center">
           <p className="text-sm text-muted-foreground">无法找到该 Project。</p>
-          <Button className="mt-3" size="sm" onClick={() => openTaskBoard(null)}>返回任务看板</Button>
+          <Button className="mt-3" size="sm" onClick={() => openTaskBoard(null)}>返回 Project 看板</Button>
         </div>
       </div>
     )

@@ -292,7 +292,7 @@ function EnvironmentCard(): React.ReactElement {
           </button>
         </div>
         <p className="text-xs text-muted-foreground mt-1">
-          Agent 模式需要 Node.js 和 Git 支持
+          Code 模式需要 Node.js 和 Git 支持
         </p>
       </div>
 
@@ -415,7 +415,7 @@ function ShellEnvironmentCard(): React.ReactElement | null {
           </button>
         </div>
         <p className="text-xs text-muted-foreground mt-1">
-          Agent 模式需要 Git Bash 或 WSL 支持
+          Code 模式需要 Git Bash 或 WSL 支持
         </p>
       </div>
 
@@ -481,7 +481,7 @@ function ShellEnvironmentCard(): React.ReactElement | null {
             <AlertDescription className="text-xs">
               <strong>未检测到可用的 Shell 环境！</strong>
               <br />
-              Agent 模式需要 Git Bash 或 WSL 才能运行。请安装其中之一后重启应用。
+              Code 模式需要 Git Bash 或 WSL 才能运行。请安装其中之一后重启应用。
             </AlertDescription>
           </Alert>
         )}

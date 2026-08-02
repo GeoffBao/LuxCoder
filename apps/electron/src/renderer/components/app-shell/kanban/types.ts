@@ -53,6 +53,21 @@ export interface KanbanProject {
   /** 项目默认 Agent 专家 slug；任务未指定时由 TaskRunner 注入 */
   defaultExpertId?: string
   workspaceId?: string
+  /**
+   * 缺省（undefined）等价于 'project'。'home' / 'ad-hoc' 是每个 Workspace 自动维护的
+   * 隐藏容器 Project，仅用于看板卡片归属展示，不应出现在项目选择/管理类 UI 中。
+   */
+  kind?: 'project' | 'home' | 'ad-hoc'
+}
+
+/** 隐藏容器 Project（home / ad-hoc）判定；用于从"选择/管理项目"类 UI 中排除它们。 */
+export function isHiddenKanbanProjectKind(kind: KanbanProject['kind']): boolean {
+  return kind === 'home' || kind === 'ad-hoc'
+}
+
+/** 过滤掉隐藏容器 Project，得到用户可见/可选择的真实 Project 列表。 */
+export function filterPickableKanbanProjects(projects: readonly KanbanProject[]): KanbanProject[] {
+  return projects.filter((project) => !isHiddenKanbanProjectKind(project.kind))
 }
 
 /** 从任务运行快照归一化后的最小节点状态。 */

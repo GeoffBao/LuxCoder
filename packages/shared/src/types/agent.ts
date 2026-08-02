@@ -1360,6 +1360,39 @@ export interface FileEntry {
   children?: FileEntry[]
 }
 
+/** Agent 会话文件根：由主进程统一解析，供右侧 Files 与相对路径处理共用。 */
+export interface AgentSessionFileRoots {
+  /** 会话 sandbox，保存会话辅助文件和历史兼容内容。 */
+  sessionDir: string
+  /** Agent 本轮实际执行 cwd。 */
+  executionCwd: string
+  /** executionCwd 的来源。 */
+  executionSource: 'worktree' | 'project' | 'sandbox'
+  /** 当前会话实际使用的 Project root；sandbox 会话为空。 */
+  projectRoot?: string
+  /** 绑定的 Project ID。 */
+  projectId?: string
+  /** Workspace Files 根目录。 */
+  workspaceFilesPath: string
+  /** 持久化的 Workspace 级会话 Outbox。 */
+  sessionOutboxPath: string
+}
+
+/** Agent turn 捕获到的文件变化。 */
+export interface AgentOutputRecord {
+  /** 稳定去重键。 */
+  id: string
+  sessionId: string
+  workspaceSlug: string
+  projectId?: string
+  path: string
+  relativePath: string
+  scope: 'outbox' | 'session' | 'project'
+  change: 'created' | 'modified'
+  capturedAt: number
+  turnStartedAt: number
+}
+
 /** 文件索引条目（用于 @ 引用搜索） */
 export interface FileIndexEntry {
   /** 文件/目录名称 */
@@ -1809,6 +1842,12 @@ export const AGENT_IPC_CHANNELS = {
   // 文件系统操作
   /** 获取 session 工作路径 */
   GET_SESSION_PATH: 'agent:get-session-path',
+  /** 获取当前会话的统一文件根 */
+  GET_SESSION_FILE_ROOTS: 'agent:get-session-file-roots',
+  /** 列出当前会话本轮捕获的文件产出 */
+  LIST_SESSION_OUTPUTS: 'agent:list-session-outputs',
+  /** Workspace Outbox/产出索引发生变化 */
+  OUTPUTS_CHANGED: 'agent:outputs-changed',
   /** 列出目录内容 */
   LIST_DIRECTORY: 'agent:list-directory',
   /** 删除文件/空目录 */

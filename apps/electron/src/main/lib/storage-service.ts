@@ -21,6 +21,7 @@ import {
 } from './config-paths'
 import { listAgentSessions } from './agent-session-manager'
 import { listAgentWorkspaces } from './agent-workspace-manager'
+import { isWorkspaceMetadataDir } from './storage-boundaries'
 
 // ─── 类型定义 ───
 
@@ -82,21 +83,9 @@ const SKIP_DIRS = new Set([
 const MAX_FILE_SCAN = 100_000
 const MAX_ORPHAN_ITEM_PREVIEW = 80
 
-const WORKSPACE_METADATA_DIRS = new Set([
-  'workspace-files',
-  'skills',
-  'skills-inactive',
-  '.claude',
-  '.claude-plugin',
-])
-
 const PRESERVED_ORPHAN_SESSION_DIRS = new Set([
   '.context',
 ])
-
-function isWorkspaceMetadataDir(entryName: string): boolean {
-  return WORKSPACE_METADATA_DIRS.has(entryName)
-}
 
 function displayStoragePath(filePath: string): string {
   const configDir = getConfigDir()

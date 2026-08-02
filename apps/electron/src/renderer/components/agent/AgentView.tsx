@@ -112,7 +112,7 @@ import { AgentSessionProvider } from '@/contexts/session-context'
 import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
 import { sendWithCmdEnterAtom } from '@/atoms/shortcut-atoms'
 import { useOpenPreview } from '@/components/diff/preview-opener'
-import type { AgentRuntime, AgentSendInput, AgentPendingFile, AgentThinkingLevel, FileDialogLargeFile, FileDialogResult, ModelOption, ReasoningCapability, SDKMessage, SDKUserMessage, ProviderType } from '@luxcoder/shared'
+import type { AgentRuntime, AgentSendInput, AgentPendingFile, AgentThinkingLevel, FileDialogLargeFile, FileDialogResult, ModelOption, ReasoningCapability, SDKMessage, SDKUserMessage, ProviderType, AgentSessionFileRoots } from '@luxcoder/shared'
 import { DEFAULT_AGENT_THINKING_LEVEL, getSessionThinkingLevel, inferAgentSdkContextWindow, inferContextWindow, inferReasoningTransport, isCodexFastModeSupportedModel, isOpenAIReasoningMaxSupportedModel, MAX_ATTACHMENT_SIZE, CLAUDE_RUNTIME_ENABLED, normalizeReasoningCapabilityLevel, normalizeReasoningLevel, resolveReasoningCapability, resolveReasoningProfile } from '@luxcoder/shared'
 import { fileToBase64, formatFileNames, getFileParentPath } from '@/lib/file-utils'
 import { getFilePanelDragData, INSERT_FILE_MENTION_EVENT, type FilePanelDragItem } from '@/lib/file-panel-drag'
@@ -498,6 +498,18 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     if (!sessionMeta) return globalWorkspaceId // 数据未加载，回退全局
     return sessionMeta.workspaceId ?? null     // 数据已加载，以会话自身为准
   }, [sessionMeta, globalWorkspaceId])
+  const [sessionFileRoots, setSessionFileRoots] = React.useState<AgentSessionFileRoots | null>(null)
+  React.useEffect(() => {
+    if (!currentWorkspaceId) {
+      setSessionFileRoots(null)
+      return
+    }
+    let cancelled = false
+    window.electronAPI.getAgentSessionFileRoots(currentWorkspaceId, sessionId)
+      .then((roots) => { if (!cancelled) setSessionFileRoots(roots) })
+      .catch(() => { if (!cancelled) setSessionFileRoots(null) })
+    return () => { cancelled = true }
+  }, [currentWorkspaceId, sessionId])
   const [pendingPrompt, setPendingPrompt] = useAtom(agentPendingPromptAtom)
   const [pendingFiles, setPendingFiles] = useAtom(agentPendingFilesAtomFamily(sessionId))
   const [queuedMessages, setQueuedMessages] = useAtom(agentMessageQueueAtomFamily(sessionId))
@@ -2920,6 +2932,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
           streamState={streamState}
           liveMessages={liveMessages}
           sessionPath={sessionPath}
+          fileRoots={sessionFileRoots}
           attachedDirs={allAttachedDirs}
           stoppedByUser={stoppedByUser}
           onRetry={handleRetry}

@@ -262,6 +262,7 @@ export function createProject(workspaceRootPath: string, input: CreateProjectInp
     details: input.details,
     colorTheme: input.colorTheme,
     color: input.color,
+    kind: input.kind,
     createdAt: now,
     updatedAt: now,
   };

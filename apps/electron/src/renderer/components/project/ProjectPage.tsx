@@ -69,7 +69,7 @@ export function ProjectPage({ workspaceRoot, project, onProjectChanged }: Projec
           className="titlebar-no-drag h-7 gap-1 text-xs"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          返回任务看板
+          返回 Project 看板
         </Button>
         <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
         <h1 className="truncate text-sm font-semibold">{project.name}</h1>

@@ -8,6 +8,8 @@ import { cn } from '@/lib/utils'
 import { automationsAtom } from '@/atoms/automation-atoms'
 import { calendarEventsAtom, calendarPlanningGroupsAtom, planningCalendarCreateRequestAtom, planningTagsAtom, todosAtom } from '@/atoms/planning-atoms'
 import { currentAgentWorkspaceIdAtom } from '@/atoms/agent-atoms'
+import { serverKanbanProjectsAtom } from '@/atoms/project-atoms'
+import { filterPickableKanbanProjects, type KanbanProject } from '@/components/app-shell/kanban/types'
 import { Button } from '@/components/ui/button'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
@@ -63,6 +65,8 @@ interface EventDraft {
   groupId: string
   tagIds: string[]
   todoId: string
+  /** 关联 Project；'__none__' 表示不关联，仅用于分类/筛选，不参与 Agent 启动路由。 */
+  projectId: string
 }
 
 type EventSaveResult =
@@ -159,6 +163,7 @@ function draftFromEvent(event?: CalendarEvent, startAt = Math.ceil(Date.now() / 
     groupId: event?.groupId ?? '__none__',
     tagIds: event?.tags.map((tag) => tag.id) ?? [],
     todoId: event?.todoId ?? '__none__',
+    projectId: event?.projectId ?? '__none__',
   }
 }
 
@@ -172,6 +177,11 @@ export function CalendarWorkspace(): React.ReactElement {
   const groups = useAtomValue(calendarPlanningGroupsAtom)
   const setGroups = useSetAtom(calendarPlanningGroupsAtom)
   const tags = useAtomValue(planningTagsAtom)
+  const kanbanProjects = useAtomValue(serverKanbanProjectsAtom)
+  const activeProjects = React.useMemo(
+    () => filterPickableKanbanProjects(kanbanProjects).filter((project) => !project.archivedAt),
+    [kanbanProjects],
+  )
   const [mode, setMode] = React.useState<CalendarMode>('week')
   const [cursor, setCursor] = React.useState(() => Date.now())
   const [selectedId, setSelectedId] = React.useState<string | null>(null)
@@ -279,6 +289,7 @@ export function CalendarWorkspace(): React.ReactElement {
         groupId: draft.groupId === '__none__' ? undefined : draft.groupId,
         tagIds: draft.tagIds,
         todoId: draft.todoId === '__none__' ? undefined : draft.todoId,
+        projectId: draft.projectId === '__none__' ? undefined : draft.projectId,
         // 归属当前 Workspace（与列表过滤一致，避免主进程 settings 异步更新导致的错位）。
         workspaceId: currentWorkspaceId ?? undefined,
       })
@@ -313,6 +324,7 @@ export function CalendarWorkspace(): React.ReactElement {
         groupId: next.groupId === '__none__' ? null : next.groupId,
         tagIds: next.tagIds,
         todoId: next.todoId === '__none__' ? null : next.todoId,
+        projectId: next.projectId === '__none__' ? null : next.projectId,
         expectedUpdatedAt,
       })
       if (!event) throw new Error('日程不存在')
@@ -413,7 +425,7 @@ export function CalendarWorkspace(): React.ReactElement {
         <div ref={calendarBodyRef} className="min-h-0 overflow-hidden">
           {mode === 'month' ? <MonthCalendar monthStart={rangeStart} today={today} events={events} todos={openTodos} automations={activeAutomations} onSelectEvent={selectEvent} onSelectTodo={selectTodo} /> : <WeekCalendar weekStart={rangeStart} events={events} todos={openTodos} automations={activeAutomations} draftPreview={showDraftPreview && createOpen ? draft : undefined} quickCreateOpen={createOpen} onNavigate={navigate} onSelectEvent={selectEvent} onCreateAt={openCreate} onSelectTodo={selectTodo} />}
         </div>
-        {selected && <CalendarEventDetail event={selected} groups={groups} tags={tags} todos={openTodos} onClose={() => setSelectedId(null)} onSave={updateEvent} onDelete={requestDeleteEvent} />}
+        {selected && <CalendarEventDetail event={selected} groups={groups} tags={tags} todos={openTodos} projects={activeProjects} onClose={() => setSelectedId(null)} onSave={updateEvent} onDelete={requestDeleteEvent} />}
         {selectedTodo && <CalendarTodoDetail todo={selectedTodo} onClose={() => setSelectedTodoId(null)} />}
       </div>
       <CalendarQuickCreatePopover open={createOpen} anchor={createAnchor} draft={draft} setDraft={setDraft} groups={groups} saving={saving} onCreateGroup={createCalendarGroup} onOpenChange={handleCreateOpenChange} onSave={() => void createEvent()} />
@@ -957,7 +969,7 @@ function WeekCalendar({ weekStart, events, todos, automations, draftPreview, qui
   )
 }
 
-function CalendarEventDetail({ event, groups, tags, todos, onClose, onSave, onDelete }: { event: CalendarEvent; groups: Array<{ id: string; name: string }>; tags: PlanningTag[]; todos: Todo[]; onClose: () => void; onSave: (id: string, draft: EventDraft, expectedUpdatedAt: number, silent?: boolean) => Promise<EventSaveResult>; onDelete: (event: CalendarEvent) => Promise<void> }): React.ReactElement {
+function CalendarEventDetail({ event, groups, tags, todos, projects, onClose, onSave, onDelete }: { event: CalendarEvent; groups: Array<{ id: string; name: string }>; tags: PlanningTag[]; todos: Todo[]; projects: KanbanProject[]; onClose: () => void; onSave: (id: string, draft: EventDraft, expectedUpdatedAt: number, silent?: boolean) => Promise<EventSaveResult>; onDelete: (event: CalendarEvent) => Promise<void> }): React.ReactElement {
   const [draft, setDraft] = React.useState(() => draftFromEvent(event))
   const [saveState, setSaveState] = React.useState<'saved' | 'saving' | 'failed' | 'invalid' | 'conflict'>('saved')
   const [saveGeneration, setSaveGeneration] = React.useState(0)
@@ -1058,7 +1070,7 @@ function CalendarEventDetail({ event, groups, tags, todos, onClose, onSave, onDe
         : saveState === 'conflict' ? '此日程已在其他窗口更新'
           : '已自动保存'
 
-  return <PlanningFloatingInspector label="日程详情" onClose={handleClose}><div className="space-y-6 p-5 pr-14"><div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">日程详情</p><div className="mt-1 flex items-center gap-2"><p className="text-xs text-muted-foreground">{statusLabel}</p>{saveState === 'conflict' && <Button type="button" variant="link" size="sm" className="h-auto px-0 text-xs" onClick={reloadLatest}>重新加载</Button>}</div></div><CalendarEventFields draft={draft} setDraft={setDraft} groups={groups} tags={tags} todos={todos} /><div className="flex items-center justify-between border-t border-border/60 pt-4"><Button type="button" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => void onDelete(event)}><Trash2 size={15} />删除</Button><span className="text-xs text-muted-foreground">编辑后自动保存</span></div></div></PlanningFloatingInspector>
+  return <PlanningFloatingInspector label="日程详情" onClose={handleClose}><div className="space-y-6 p-5 pr-14"><div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">日程详情</p><div className="mt-1 flex items-center gap-2"><p className="text-xs text-muted-foreground">{statusLabel}</p>{saveState === 'conflict' && <Button type="button" variant="link" size="sm" className="h-auto px-0 text-xs" onClick={reloadLatest}>重新加载</Button>}</div></div><CalendarEventFields draft={draft} setDraft={setDraft} groups={groups} tags={tags} todos={todos} projects={projects} /><div className="flex items-center justify-between border-t border-border/60 pt-4"><Button type="button" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => void onDelete(event)}><Trash2 size={15} />删除</Button><span className="text-xs text-muted-foreground">编辑后自动保存</span></div></div></PlanningFloatingInspector>
 }
 
 function CalendarTodoDetail({ todo, onClose }: { todo: Todo; onClose: () => void }): React.ReactElement {
@@ -1128,7 +1140,7 @@ function CalendarQuickCreatePopover({ open, anchor, draft, setDraft, groups, sav
   )
 }
 
-function CalendarEventFields({ draft, setDraft, groups, tags, todos }: { draft: EventDraft; setDraft: React.Dispatch<React.SetStateAction<EventDraft>>; groups: Array<{ id: string; name: string }>; tags: PlanningTag[]; todos: Todo[] }): React.ReactElement {
+function CalendarEventFields({ draft, setDraft, groups, tags, todos, projects }: { draft: EventDraft; setDraft: React.Dispatch<React.SetStateAction<EventDraft>>; groups: Array<{ id: string; name: string }>; tags: PlanningTag[]; todos: Todo[]; projects: KanbanProject[] }): React.ReactElement {
   const update = <K extends keyof EventDraft>(key: K, value: EventDraft[K]): void => setDraft((current) => ({ ...current, [key]: value }))
   const setAllDay = (allDay: boolean): void => setDraft((current) => {
     const startAt = allDay ? startOfDay(current.startAt) : current.startAt
@@ -1140,5 +1152,5 @@ function CalendarEventFields({ draft, setDraft, groups, tags, todos }: { draft: 
     return { ...current, startAt: normalizedStartAt, endAt: current.endAt < normalizedStartAt ? (current.allDay ? nextDayStart(normalizedStartAt) : normalizedStartAt + DEFAULT_EVENT_DURATION) : current.endAt }
   })
   const setEnd = (endAt: number): void => setDraft((current) => ({ ...current, endAt: current.allDay ? nextDayStart(endAt) : endAt }))
-  return <div className="space-y-5"><div><label className="mb-2 block text-sm font-medium" htmlFor="calendar-event-title">标题</label><Input id="calendar-event-title" autoFocus value={draft.title} onChange={(event) => update('title', event.target.value)} placeholder="例如：产品评审" className="text-base" /></div><div className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2"><div><p className="text-sm font-medium">全天</p><p className="text-xs text-muted-foreground">不占用具体小时段</p></div><input type="checkbox" checked={draft.allDay} onChange={(event) => setAllDay(event.target.checked)} className="size-4 accent-primary" /></div><div className="grid gap-4 sm:grid-cols-2"><label className="grid gap-2 text-sm font-medium">开始<TodoDatePicker value={draft.startAt} onChange={(value) => { if (value !== undefined) setStart(value) }} dateOnly={draft.allDay} allowClear={false} timeRequired={!draft.allDay} label="选择开始日期时间" className="h-10 w-full justify-start rounded-none border border-border/60 bg-transparent px-3 text-foreground hover:bg-muted/40" /></label><label className="grid gap-2 text-sm font-medium">结束<TodoDatePicker value={draft.allDay ? Math.max(draft.startAt, previousDayStart(draft.endAt)) : draft.endAt} onChange={(value) => { if (value !== undefined) setEnd(value) }} dateOnly={draft.allDay} allowClear={false} timeRequired={!draft.allDay} label="选择结束日期时间" className="h-10 w-full justify-start rounded-none border border-border/60 bg-transparent px-3 text-foreground hover:bg-muted/40" /></label></div><div><label className="mb-2 block text-sm font-medium" htmlFor="calendar-event-notes">更多信息</label><Textarea id="calendar-event-notes" value={draft.notes} onChange={(event) => update('notes', event.target.value)} placeholder="补充地点、议程、会议链接或其他上下文；Agent 可以读取这里的内容。" className="min-h-28 resize-y" /></div><div className="grid gap-4 sm:grid-cols-2"><label className="grid gap-2 text-sm font-medium">日程分组<Select value={draft.groupId} onValueChange={(value) => update('groupId', value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__none__">不分组</SelectItem>{groups.map((group) => <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>)}</SelectContent></Select></label><label className="grid gap-2 text-sm font-medium">关联 Todo<Select value={draft.todoId} onValueChange={(value) => update('todoId', value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__none__">不关联 Todo</SelectItem>{todos.map((todo) => <SelectItem key={todo.id} value={todo.id}>{todo.title}</SelectItem>)}</SelectContent></Select></label></div><div><p className="mb-2 text-sm font-medium">标签</p><div className="flex flex-wrap gap-1.5">{tags.length ? tags.map((tag) => { const selected = draft.tagIds.includes(tag.id); return <button key={tag.id} type="button" onClick={() => update('tagIds', selected ? draft.tagIds.filter((id) => id !== tag.id) : [...draft.tagIds, tag.id])} className={cn('rounded-md px-2 py-1 text-xs transition-colors', selected ? 'bg-primary text-primary-foreground' : 'bg-muted/60 text-muted-foreground hover:bg-muted')}>#{tag.name}</button> }) : <span className="text-xs text-muted-foreground">暂无标签</span>}</div></div></div>
+  return <div className="space-y-5"><div><label className="mb-2 block text-sm font-medium" htmlFor="calendar-event-title">标题</label><Input id="calendar-event-title" autoFocus value={draft.title} onChange={(event) => update('title', event.target.value)} placeholder="例如：产品评审" className="text-base" /></div><div className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2"><div><p className="text-sm font-medium">全天</p><p className="text-xs text-muted-foreground">不占用具体小时段</p></div><input type="checkbox" checked={draft.allDay} onChange={(event) => setAllDay(event.target.checked)} className="size-4 accent-primary" /></div><div className="grid gap-4 sm:grid-cols-2"><label className="grid gap-2 text-sm font-medium">开始<TodoDatePicker value={draft.startAt} onChange={(value) => { if (value !== undefined) setStart(value) }} dateOnly={draft.allDay} allowClear={false} timeRequired={!draft.allDay} label="选择开始日期时间" className="h-10 w-full justify-start rounded-none border border-border/60 bg-transparent px-3 text-foreground hover:bg-muted/40" /></label><label className="grid gap-2 text-sm font-medium">结束<TodoDatePicker value={draft.allDay ? Math.max(draft.startAt, previousDayStart(draft.endAt)) : draft.endAt} onChange={(value) => { if (value !== undefined) setEnd(value) }} dateOnly={draft.allDay} allowClear={false} timeRequired={!draft.allDay} label="选择结束日期时间" className="h-10 w-full justify-start rounded-none border border-border/60 bg-transparent px-3 text-foreground hover:bg-muted/40" /></label></div><div><label className="mb-2 block text-sm font-medium" htmlFor="calendar-event-notes">更多信息</label><Textarea id="calendar-event-notes" value={draft.notes} onChange={(event) => update('notes', event.target.value)} placeholder="补充地点、议程、会议链接或其他上下文；Agent 可以读取这里的内容。" className="min-h-28 resize-y" /></div><div className="grid gap-4 sm:grid-cols-2"><label className="grid gap-2 text-sm font-medium">日程分组<Select value={draft.groupId} onValueChange={(value) => update('groupId', value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__none__">不分组</SelectItem>{groups.map((group) => <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>)}</SelectContent></Select></label><label className="grid gap-2 text-sm font-medium">关联 Todo<Select value={draft.todoId} onValueChange={(value) => update('todoId', value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__none__">不关联 Todo</SelectItem>{todos.map((todo) => <SelectItem key={todo.id} value={todo.id}>{todo.title}</SelectItem>)}</SelectContent></Select></label></div><div className="grid gap-4 sm:grid-cols-2"><label className="grid gap-2 text-sm font-medium">关联项目<Select value={draft.projectId} onValueChange={(value) => update('projectId', value)}><SelectTrigger><SelectValue placeholder="不关联" /></SelectTrigger><SelectContent><SelectItem value="__none__">不关联</SelectItem>{projects.map((project) => <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>)}</SelectContent></Select></label></div><div><p className="mb-2 text-sm font-medium">标签</p><div className="flex flex-wrap gap-1.5">{tags.length ? tags.map((tag) => { const selected = draft.tagIds.includes(tag.id); return <button key={tag.id} type="button" onClick={() => update('tagIds', selected ? draft.tagIds.filter((id) => id !== tag.id) : [...draft.tagIds, tag.id])} className={cn('rounded-md px-2 py-1 text-xs transition-colors', selected ? 'bg-primary text-primary-foreground' : 'bg-muted/60 text-muted-foreground hover:bg-muted')}>#{tag.name}</button> }) : <span className="text-xs text-muted-foreground">暂无标签</span>}</div></div></div>
 }

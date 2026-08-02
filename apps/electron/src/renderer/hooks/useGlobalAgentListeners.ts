@@ -87,6 +87,11 @@ function getParentDir(path: string): string {
   return normalized.slice(0, idx)
 }
 
+function resolveRelativePath(root: string, targetPath: string): string {
+  const separator = root.includes('\\') && !root.includes('/') ? '\\' : '/'
+  return `${root.replace(/[\\/]+$/, '')}${separator}${targetPath.replace(/^[/\\]+/, '')}`
+}
+
 /** cyrb53: 快速字符串 hash，遍历完整内容避免边缘碰撞 */
 function cyrb53(str: string): string {
   let h1 = 0xdeadbeef
@@ -606,9 +611,15 @@ export function useGlobalAgentListeners(): void {
 
     const buildWrittenFilePreviewInfo = async (sid: string, targetPath: string) => {
       const sessionPath = store.get(agentSessionPathMapAtom).get(sid) ?? ''
-      const parentDir = getParentDir(targetPath)
-      const dirPath = isAbsolutePath(targetPath) ? parentDir : (sessionPath || parentDir)
       const workspaceId = getWorkspaceIdForSession(sid)
+      const roots = workspaceId
+        ? await window.electronAPI.getAgentSessionFileRoots(workspaceId, sid).catch(() => null)
+        : null
+      const resolvedTargetPath = isAbsolutePath(targetPath)
+        ? targetPath
+        : resolveRelativePath(roots?.executionCwd || sessionPath, targetPath)
+      const parentDir = getParentDir(resolvedTargetPath)
+      const dirPath = parentDir || roots?.executionCwd || sessionPath
       const workspaceFilesPath = await getWorkspaceFilesPathForSession(sid)
       const sessionAttachedDirs = store.get(agentAttachedDirectoriesMapAtom).get(sid) ?? []
       const sessionAttachedFiles = store.get(agentAttachedFilesMapAtom).get(sid) ?? []
@@ -620,6 +631,9 @@ export function useGlobalAgentListeners(): void {
         : []
       const basePaths = uniqueTruthyPaths([
         sessionPath,
+        roots?.executionCwd,
+        roots?.projectRoot,
+        roots?.sessionOutboxPath,
         workspaceFilesPath,
         dirPath,
         ...sessionAttachedDirs,
@@ -644,22 +658,21 @@ export function useGlobalAgentListeners(): void {
       const toForwardSlash = (p: string) => p.replace(/\\/g, '/')
       const sessionScopePaths = uniqueTruthyPaths([
         sessionPath,
+        roots?.executionCwd,
+        roots?.projectRoot,
+        roots?.sessionOutboxPath,
         workspaceFilesPath,
         ...sessionAttachedDirs,
         ...workspaceAttachedDirs,
       ]).map(toForwardSlash)
-      const absTarget = toForwardSlash(
-        isAbsolutePath(targetPath)
-          ? targetPath
-          : (sessionPath ? `${sessionPath.replace(/[/\\]+$/, '')}/${targetPath}` : targetPath)
-      )
+      const absTarget = toForwardSlash(resolvedTargetPath)
       const inDiffScope = sessionScopePaths.some((root) => {
         const r = root.replace(/\/+$/, '') + '/'
         return absTarget === root || absTarget.startsWith(r)
       })
 
       return {
-        filePath: targetPath,
+        filePath: resolvedTargetPath,
         dirPath: dirPath || undefined,
         previewOnly,
         inDiffScope,
@@ -851,16 +864,26 @@ export function useGlobalAgentListeners(): void {
               ?? (input?.notebook_path as string | undefined)
             pendingWriteTools.set(event.toolUseId, { path: targetPath || '', sessionId })
             if (typeof targetPath === 'string' && targetPath.length > 0) {
-              const now = Date.now()
-              store.set(fileBrowserAutoRevealAtom, { sessionId, path: targetPath, ts: now })
-              // 同时记入「最近修改」状态，用于 60s 内左侧竖条标记
-              store.set(recentlyModifiedPathsAtom, (prev) => {
-                const map = new Map(prev)
-                const inner = new Map(map.get(sessionId) ?? new Map())
-                inner.set(targetPath, now)
-                map.set(sessionId, inner)
-                return map
-              })
+              void (async () => {
+                const workspaceId = getWorkspaceIdForSession(sessionId)
+                const roots = workspaceId
+                  ? await window.electronAPI.getAgentSessionFileRoots(workspaceId, sessionId).catch(() => null)
+                  : null
+                const sessionPath = store.get(agentSessionPathMapAtom).get(sessionId) ?? ''
+                const resolvedTargetPath = isAbsolutePath(targetPath)
+                  ? targetPath
+                  : resolveRelativePath(roots?.executionCwd || sessionPath, targetPath)
+                const now = Date.now()
+                store.set(fileBrowserAutoRevealAtom, { sessionId, path: resolvedTargetPath, ts: now })
+                // 同时记入「最近修改」状态，用于 60s 内左侧竖条标记
+                store.set(recentlyModifiedPathsAtom, (prev) => {
+                  const map = new Map(prev)
+                  const inner = new Map(map.get(sessionId) ?? new Map())
+                  inner.set(resolvedTargetPath, now)
+                  map.set(sessionId, inner)
+                  return map
+                })
+              })()
             }
           }
 

@@ -1,24 +1,26 @@
 /**
- * AgentSkillsView — 「Agent 技能」全屏视图
+ * AgentSkillsView — Yoda 插件中心（专家 / 专家团 / Skills / MCP / API 统一配置）
  *
- * 由侧边栏「Agent 技能」入口触发，全屏占据中间内容区（隐藏 TabBar 与右侧文件面板）。
+ * 默认以 embedded 模式嵌入设置面板「Yoda 插件」tab（Home / Code 共享）；
+ * 全屏模式（activeView='agent-skills'）保留兼容历史 deep-link。
  *
  * 结构：
- * - 顶部：标题
- * - 工具条：Skills / MCP 切换 + 搜索 + 社区市场（占位）+ 新增入口
- * - 内容：能力卡片网格（商店风），点击卡片打开右侧详情抽屉
+ * - 标题栏（全屏模式）：Yoda 插件
+ * - 工具条：专家 / 专家团 / Skills / MCP / API 切换 + 搜索 + 新建/导入入口
+ * - 内容：各能力 tab 卡片/列表，点击打开详情抽屉
  */
 
 import * as React from 'react'
-import { useAtom, useSetAtom } from 'jotai'
+import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { toast } from 'sonner'
-import { Blocks, ChevronRight, Search, Plus, Store, Sparkles, Loader2, Plug } from 'lucide-react'
+import { Blocks, ChevronRight, Search, Plus, Store, Sparkles, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { agentPendingPromptAtom, workspaceCapabilitiesVersionAtom } from '@/atoms/agent-atoms'
 import { agentSkillsTabAtom } from '@/atoms/active-view'
-import { settingsOpenAtom, settingsTabAtom, toolSettingsFocusAtom, type ToolSettingsFocus } from '@/atoms/settings-tab'
+import { toolSettingsFocusAtom, type ToolSettingsFocus } from '@/atoms/settings-tab'
+import { chatToolsAtom } from '@/atoms/chat-tool-atoms'
 import { useCreateSession } from '@/hooks/useCreateSession'
 import type { BuiltinMcpServerSummary, McpServerEntry, SkillMeta } from '@luxcoder/shared'
 import { useAgentSkillsData } from './useAgentSkillsData'
@@ -28,7 +30,7 @@ import { SkillDetailSheet } from './SkillDetailSheet'
 import { McpDetailSheet } from './McpDetailSheet'
 import { BuiltinMcpDetailSheet } from './BuiltinMcpDetailSheet'
 import { ImportSkillDialog } from './ImportSkillDialog'
-import { WorkspaceMemoryTab } from './WorkspaceMemoryTab'
+import { EnhancedToolsPanel } from '@/components/settings/ToolSettings'
 import { AgentExpertsView } from '@/components/agent-experts/AgentExpertsView'
 import { groupSkills } from './skillGrouping'
 
@@ -80,13 +82,12 @@ version: "1.0.0"
 - 是否有需要用户确认或后续合并同类项的建议`
 }
 
-export function AgentSkillsView(): React.ReactElement {
+export function AgentSkillsView({ embedded = false }: { embedded?: boolean }): React.ReactElement {
   const data = useAgentSkillsData()
   const bumpCapabilities = useSetAtom(workspaceCapabilitiesVersionAtom)
   const setPendingPrompt = useSetAtom(agentPendingPromptAtom)
-  const setSettingsOpen = useSetAtom(settingsOpenAtom)
-  const setSettingsTab = useSetAtom(settingsTabAtom)
   const setToolSettingsFocus = useSetAtom(toolSettingsFocusAtom)
+  const chatTools = useAtomValue(chatToolsAtom)
   const { createAgent } = useCreateSession()
 
   const [tab, setTab] = useAtom(agentSkillsTabAtom)
@@ -156,7 +157,8 @@ export function AgentSkillsView(): React.ReactElement {
     () => Object.keys(data.mcpConfig.servers ?? {}).filter((n) => n !== 'memos-cloud').length + data.builtinMcpServers.length,
     [data.mcpConfig, data.builtinMcpServers],
   )
-  const memoryCount = (data.capabilities?.memory.claudeMd.exists ? 1 : 0) + (data.capabilities?.memory.autoMemory.fileCount ?? 0)
+  // API（增强工具）Tab 计数：已启用的增强工具数量（联网搜索 / Nano Banana / 自定义工具）
+  const apiToolCount = chatTools.filter((t) => t.enabled).length
 
   const selectedSkill = data.skills.find((s) => s.slug === selectedSkillSlug) ?? null
   const selectedIsBuiltin = selectedSkill ? data.defaultSkillSlugs.has(selectedSkill.slug) : false
@@ -171,11 +173,11 @@ export function AgentSkillsView(): React.ReactElement {
     }
     const focus = focusMap[serverId]
     if (!focus) return
+    // 增强工具已并入本视图 API Tab：切到 API Tab 并滚动到对应区块，不再跳设置弹窗
     setToolSettingsFocus(focus)
-    setSettingsTab('tools')
-    setSettingsOpen(true)
+    setTab('api')
     setSelectedBuiltinMcp(null)
-  }, [setSettingsOpen, setSettingsTab, setToolSettingsFocus])
+  }, [setTab, setToolSettingsFocus])
 
   const handleClassifySkills = React.useCallback(async (): Promise<void> => {
     if (classifyingSkills) return
@@ -208,31 +210,32 @@ export function AgentSkillsView(): React.ReactElement {
   }, [classifyingSkills, createAgent, data.skills, data.skillsDir, data.workspaceName, setPendingPrompt])
 
   // 注意：不在这里整体拦截 —— 专家 / 专家团 / API 数据不依赖工作区，应始终可用；
-  // 仅 Skills / MCP / Context 需要工作区，在内容区按 Tab 单独拦截。
+  // 仅 Skills / MCP 需要工作区，在内容区按 Tab 单独拦截。
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
-      {/* 标题栏：右侧不再放工作区切换器，避免与左侧栏当前工作区入口重复。 */}
-      <div className="titlebar-no-drag mx-auto flex w-full max-w-6xl shrink-0 items-center px-8 pt-14 pb-4">
-        <div className="flex items-center gap-2.5">
-          <Blocks className="size-6 text-foreground/70" />
-          <h1 className="text-2xl font-semibold text-foreground">Agent 插件</h1>
+    <div className={embedded ? 'flex flex-col' : 'flex h-full flex-col overflow-hidden'}>
+      {/* 标题栏：全屏模式保留；embedded（设置面板内）由设置面板导航提供标题，隐藏以免重复 */}
+      {!embedded && (
+        <div className="titlebar-no-drag mx-auto flex w-full max-w-6xl shrink-0 items-center px-8 pt-14 pb-4">
+          <div className="flex items-center gap-2.5">
+            <Blocks className="size-6 text-foreground/70" />
+            <h1 className="text-2xl font-semibold text-foreground">Yoda 插件</h1>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 工具条 */}
-      <div className="titlebar-no-drag mx-auto flex w-full max-w-6xl shrink-0 items-center gap-3 px-8 pb-4">
-        {/* 专家 / 专家团 / Skills / MCP / API / Context 切换 */}
+      <div className={cn('titlebar-no-drag flex w-full items-center gap-3 shrink-0', embedded ? 'flex-wrap' : 'mx-auto max-w-6xl px-8 pb-4')}>
+        {/* 专家 / 专家团 / Skills / MCP / API 切换（Context 已升级为 Code 左侧模块） */}
         <div className="relative flex h-8 items-stretch rounded-xl bg-muted p-0.5">
           <div
             className={cn(
-              'absolute bottom-0.5 top-0.5 w-[calc(16.666%-2px)] rounded-lg bg-background shadow-sm transition-transform duration-base ease-out',
+              'absolute bottom-0.5 top-0.5 w-[calc(20%-2px)] rounded-lg bg-background shadow-sm transition-transform duration-base ease-out',
               tab === 'experts' && 'translate-x-0',
               tab === 'teams' && 'translate-x-full',
               tab === 'skills' && 'translate-x-[200%]',
               tab === 'mcp' && 'translate-x-[300%]',
               tab === 'api' && 'translate-x-[400%]',
-              tab === 'context' && 'translate-x-[500%]',
             )}
           />
           {([
@@ -240,8 +243,7 @@ export function AgentSkillsView(): React.ReactElement {
             { value: 'teams' as const, label: '专家团', count: teamsCount },
             { value: 'skills' as const, label: 'Skills', count: data.skills.length },
             { value: 'mcp' as const, label: 'MCP', count: mcpCount },
-            { value: 'api' as const, label: 'API', count: 0 },
-            { value: 'context' as const, label: 'Context', count: memoryCount },
+            { value: 'api' as const, label: 'API', count: apiToolCount },
           ]).map(({ value, label, count }) => (
             <button
               key={value}
@@ -264,7 +266,7 @@ export function AgentSkillsView(): React.ReactElement {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder={tab === 'experts' ? '搜索专家名称或 slug...' : tab === 'teams' ? '搜索专家团名称或角色...' : tab === 'skills' ? '搜索 Skills...' : tab === 'mcp' ? '搜索 MCP 服务器...' : '搜索 Workspace Context...'}
+              placeholder={tab === 'experts' ? '搜索专家名称或 slug...' : tab === 'teams' ? '搜索专家团名称或角色...' : tab === 'skills' ? '搜索 Skills...' : '搜索 MCP 服务器...'}
               className="w-full bg-transparent text-[13px] text-foreground placeholder:text-foreground/35 focus:outline-none"
             />
           </div>
@@ -341,8 +343,8 @@ export function AgentSkillsView(): React.ReactElement {
       </div>
 
       {/* 内容 */}
-      <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
-        <div className="mx-auto w-full max-w-6xl px-8 pb-10">
+      <div className={cn(embedded ? 'mt-4' : 'min-h-0 flex-1 overflow-y-auto scrollbar-thin')}>
+        <div className={embedded ? '' : 'mx-auto w-full max-w-6xl px-8 pb-10'}>
           {data.loading ? (
             <div className="py-20 text-center text-sm text-muted-foreground">加载中...</div>
           ) : tab === 'experts' ? (
@@ -359,12 +361,12 @@ export function AgentSkillsView(): React.ReactElement {
               externalSearch={search}
             />
           ) : tab === 'api' ? (
-            <ApiPlaceholderTab />
+            <EnhancedToolsPanel />
           ) : !data.hasWorkspace ? (
             <EmptyState
               icon={<Blocks className="size-8 text-foreground/30" />}
               title="未选择工作区"
-              hint="请先在 Agent 模式下选择或创建一个工作区，再来管理它的 Skills、MCP 与 Context。"
+              hint="请先选择或创建一个工作区，再来管理它的 Skills 与 MCP。"
             />
           ) : tab === 'skills' ? (
             <SkillsTab
@@ -390,9 +392,7 @@ export function AgentSkillsView(): React.ReactElement {
               onRequestDelete={setPendingDeleteMcpName}
               onAdd={() => { setEditingMcp(null); setMcpSheetOpen(true) }}
             />
-          ) : (
-            <WorkspaceMemoryTab workspaceSlug={data.workspaceSlug} search={search} />
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -500,7 +500,7 @@ function SkillsTab({
   onUpdate,
 }: SkillsTabProps): React.ReactElement {
   if (total === 0) {
-    return <EmptyState icon={<Blocks className="size-8 text-foreground/30" />} title="暂无 Skill" hint="可以在 Agent 模式下让 LuxCoder 帮你联网查找并安装 Skill，或从其他工作区导入。" />
+    return <EmptyState icon={<Blocks className="size-8 text-foreground/30" />} title="暂无 Skill" hint="可以在 Code 模式下让 LuxCoder 帮你联网查找并安装 Skill，或从其他工作区导入。" />
   }
   if (customSkills.length === 0 && builtinSkills.length === 0) {
     return <EmptyState icon={<Search className="size-8 text-foreground/30" />} title="没有匹配的 Skill" hint="试试更换搜索关键词。" />
@@ -609,7 +609,7 @@ function McpTab({ userEntries, builtinServers, total, onOpen, onOpenBuiltin, onT
       <EmptyState
         icon={<Plus className="size-8 text-foreground/30" />}
         title="还没有 MCP 服务器"
-        hint="点击右上角「添加服务器」开始，或在 Agent 模式下让 LuxCoder 帮你查找并配置。"
+        hint="点击右上角「添加服务器」开始，或在 Code 模式下让 LuxCoder 帮你查找并配置。"
         action={
           <button
             type="button"
@@ -702,23 +702,6 @@ function EmptyState({ icon, title, hint, action }: { icon: React.ReactNode; titl
         <div className="text-[13px] leading-relaxed text-foreground/50">{hint}</div>
       </div>
       {action}
-    </div>
-  )
-}
-
-/** API Tab 占位：后续版本开发 API 密钥管理与自定义 API 接入。 */
-function ApiPlaceholderTab(): React.ReactElement {
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
-      <div className="flex size-16 items-center justify-center rounded-2xl bg-foreground/[0.04]">
-        <Plug className="size-8 text-foreground/30" />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <div className="text-[15px] font-medium text-foreground/85">API 能力即将上线</div>
-        <div className="max-w-sm text-[13px] leading-relaxed text-foreground/50">
-          这里将用于管理自定义 API 密钥与第三方服务接入。当前为占位入口，后续版本开发。
-        </div>
-      </div>
     </div>
   )
 }

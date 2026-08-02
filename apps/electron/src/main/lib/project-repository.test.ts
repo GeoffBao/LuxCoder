@@ -155,6 +155,35 @@ describe('ProjectRepository', () => {
     expect(repository.resolveEffectiveCwdForProject(root, created.config.id)?.status).toBe('managed')
   })
 
+  test('隐藏容器 Project 拒绝重命名、归档和删除', () => {
+    const root = createTempWorkspaceRoot()
+    const repository = createRepository({ 'ws-alpha': root })
+    const home = repository.createProjectAtRoot(root, { name: '首页工作区', kind: 'home' })
+
+    expect(() => repository.updateProjectAtRoot(root, home.config.slug, { name: '改个名字' })).toThrow(/重命名/)
+    expect(() => repository.updateProjectAtRoot(root, home.config.slug, { archivedAt: Date.now() })).toThrow(/归档/)
+    expect(() => repository.deleteProjectAtRoot(root, home.config.slug)).toThrow(/删除/)
+
+    // 非受限字段仍可更新，且同名重复设置（未实际改名）不应被误判为重命名
+    const updated = repository.updateProjectAtRoot(root, home.config.slug, { name: '首页工作区', color: '#ff0000' })
+    expect(updated.config.color).toBe('#ff0000')
+  })
+
+  test('ensureHomeProject / ensureAdHocProject 幂等且互不干扰', () => {
+    const root = createTempWorkspaceRoot()
+    const repository = createRepository({ 'ws-alpha': root })
+
+    const first = repository.ensureHomeProject(root)
+    const second = repository.ensureHomeProject(root)
+    const adHoc = repository.ensureAdHocProject(root)
+
+    expect(second.id).toBe(first.id)
+    expect(first.kind).toBe('home')
+    expect(adHoc.kind).toBe('ad-hoc')
+    expect(adHoc.id).not.toBe(first.id)
+    expect(adHoc.workingDirectory).toBeUndefined()
+  })
+
   test('外部目录不可用时 resolveWorkingDirectory 为 undefined，requireRunnable 抛错', () => {
     const root = createTempWorkspaceRoot()
     const repository = createRepository({ 'ws-alpha': root })

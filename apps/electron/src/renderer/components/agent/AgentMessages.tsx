@@ -41,6 +41,7 @@ import { TaskProgressOverlay, type ContextCompactionProgress } from './TaskProgr
 import type { AgentEventUsage, RetryAttempt, SDKMessage, SDKSystemMessage } from '@luxcoder/shared'
 import { getSDKCompactStatus } from '@luxcoder/shared'
 import type { AgentStreamState } from '@/atoms/agent-atoms'
+import type { AgentSessionFileRoots } from '@luxcoder/shared'
 
 function stableStringify(value: unknown): string {
   if (value == null || typeof value !== 'object') return JSON.stringify(value) ?? String(value)
@@ -189,8 +190,10 @@ interface AgentMessagesProps {
   streamState?: AgentStreamState
   /** Phase 2: 实时 SDKMessage 列表（流式期间累积） */
   liveMessages?: SDKMessage[]
-  /** 当前会话工作目录，用于解析相对文件路径 */
+  /** 当前会话 sandbox，用于历史兼容和会话文件解析 */
   sessionPath?: string | null
+  /** 主进程解析的实际执行目录与 Project/Outbox 文件根 */
+  fileRoots?: AgentSessionFileRoots | null
   /** 附加目录列表（与 sessionPath 一并用作相对路径解析候选） */
   attachedDirs?: string[]
   /** 最后一轮是否被用户中断 */
@@ -493,7 +496,7 @@ function AgentRunningIndicator({ startedAt }: { startedAt?: number }): React.Rea
   )
 }
 
-export function AgentMessages({ sessionId, sessionModelId, messagesLoaded, persistedSDKMessages, streaming, streamState, liveMessages, sessionPath, attachedDirs, stoppedByUser, onRetry, onRetryInNewSession, onFork, onRewind, onCompact }: AgentMessagesProps): React.ReactElement {
+export function AgentMessages({ sessionId, sessionModelId, messagesLoaded, persistedSDKMessages, streaming, streamState, liveMessages, sessionPath, fileRoots, attachedDirs, stoppedByUser, onRetry, onRetryInNewSession, onFork, onRewind, onCompact }: AgentMessagesProps): React.ReactElement {
   const userProfile = useAtomValue(userProfileAtom)
   const setMinimapCache = useSetAtom(tabMinimapCacheAtom)
   const channels = useAtomValue(channelsAtom)
@@ -718,9 +721,17 @@ export function AgentMessages({ sessionId, sessionModelId, messagesLoaded, persi
   const hasLiveAssistantContent = streaming
     ? allGroups.some((g) => g.type === 'assistant-turn' && liveGroupSet.has(g))
     : (liveMessages != null && liveMessages.some((m) => (m as { type: string }).type === 'assistant'))
+  const messageBasePath = fileRoots?.executionCwd || sessionPath || undefined
+  const messageBasePaths = Array.from(new Set([
+    sessionPath,
+    fileRoots?.executionCwd,
+    fileRoots?.projectRoot,
+    fileRoots?.sessionOutboxPath,
+    ...(attachedDirs ?? []),
+  ].filter((path): path is string => Boolean(path))))
 
   return (
-    <BasePathsProvider basePaths={attachedDirs}>
+    <BasePathsProvider basePaths={messageBasePaths}>
     <div ref={historySelectionRootRef} className="relative flex min-h-0 flex-1 flex-col">
       <Conversation resize={ready && !transitioning ? 'smooth' : 'instant'} className={ready ? (skipFadeIn ? 'opacity-100' : 'opacity-100 transition-opacity duration-200') : 'opacity-0'}>
         <ScrollPositionManager id={sessionId} ready={ready} />
@@ -744,7 +755,7 @@ export function AgentMessages({ sessionId, sessionModelId, messagesLoaded, persi
                     key={getGroupId(group)}
                     group={group}
                     allMessages={allSDKMessages}
-                    basePath={sessionPath || undefined}
+                    basePath={messageBasePath}
                     onFork={shouldDisableActions ? undefined : onFork}
                     onRewind={shouldDisableActions ? undefined : onRewind}
                     onRetry={shouldDisableActions ? undefined : onRetry}
@@ -786,8 +797,8 @@ export function AgentMessages({ sessionId, sessionModelId, messagesLoaded, persi
                               key={index}
                               block={block}
                               allMessages={allSDKMessages}
-                              basePath={sessionPath || undefined}
-                              basePaths={attachedDirs}
+                              basePath={messageBasePath}
+                              basePaths={messageBasePaths}
                               index={index}
                               dimmed={hasSmoothTextContent && block.type !== 'text'}
                               isStreaming={streaming}

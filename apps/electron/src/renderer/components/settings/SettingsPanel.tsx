@@ -15,7 +15,6 @@ import {
   Info,
   Globe,
   BookOpen,
-  Wrench,
   Bot,
   GraduationCap,
   ArrowLeft,
@@ -23,6 +22,9 @@ import {
   Mic,
   HardDriveDownload,
   HardDrive,
+  Blocks,
+  Layers,
+  Brain,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -61,6 +63,9 @@ import { ShortcutSettings } from "./ShortcutSettings";
 import { VoiceInputSettings } from "./VoiceInputSettings";
 import { MigrationSettings } from "./MigrationSettings";
 import { StorageSettings } from "./StorageSettings";
+import { WorkspaceSettings } from "./WorkspaceSettings";
+import { AgentSkillsView } from '@/components/agent-skills/AgentSkillsView'
+import { WorkspaceContextView } from '@/components/agent-skills/WorkspaceContextView'
 import { useOpenSession } from '@/hooks/useOpenSession'
 import { ShortcutKeycaps } from "@/components/shortcuts/ShortcutKeycaps";
 
@@ -90,8 +95,9 @@ const NAV_GROUPS: NavGroup[] = [
     label: "模型与工具",
     tabs: [
       { id: "channels", label: "模型配置", icon: <Radio size={16} /> },
+      { id: "agent-plugins", label: "Yoda 插件", icon: <Blocks size={16} /> },
+      { id: "workspace-memory", label: "Yoda 记忆", icon: <Brain size={16} /> },
       { id: "prompts", label: "提示词管理", icon: <BookOpen size={16} /> },
-      { id: "tools", label: "增强工具", icon: <Wrench size={16} /> },
       { id: "voice-input", label: "语音输入", icon: <Mic size={16} /> },
       { id: "proxy", label: "代理设置", icon: <Globe size={16} /> },
     ],
@@ -99,6 +105,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "连接与数据",
     tabs: [
+      { id: "workspace", label: "工作区", icon: <Layers size={16} /> },
       { id: "bots", label: "远程连接", icon: <Bot size={16} /> },
       { id: "migration", label: "数据迁移", icon: <HardDriveDownload size={16} /> },
       { id: "storage", label: "磁盘管理", icon: <HardDrive size={16} /> },
@@ -128,6 +135,10 @@ function renderTabContent(tab: SettingsTab): React.ReactElement {
       return <ChannelSettings />;
     case "prompts":
       return <PromptSettings />;
+    case "agent-plugins":
+      return <AgentSkillsView embedded />;
+    case "workspace-memory":
+      return <WorkspaceContextView embedded />;
     case "proxy":
       return <ProxySettings />;
     case "tools":
@@ -146,6 +157,8 @@ function renderTabContent(tab: SettingsTab): React.ReactElement {
       return <MigrationSettings />;
     case "storage":
       return <StorageSettings />;
+    case "workspace":
+      return <WorkspaceSettings />;
     default:
       // tutorial 等特殊 tab 由 handleTabChange 拦截打开主区 Tab，不会在此渲染
       return <GeneralSettings />;

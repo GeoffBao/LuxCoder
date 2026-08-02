@@ -33,6 +33,12 @@ export interface ProjectConfig {
   archivedAt?: number;
   /** 默认 Agent 专家 ID（仅存储展示，本阶段不注入编排器） */
   defaultExpertId?: string;
+  /**
+   * Project 归属类型；缺省（undefined）等价于 'project'，即用户创建的普通项目。
+   * 'home' / 'ad-hoc' 是每个 Workspace 自动维护的单例隐藏 Project，不可删除/重命名，
+   * 承载 Home 模式对话与未绑定真实 Project 的临时 Code 会话。
+   */
+  kind?: 'project' | 'home' | 'ad-hoc';
 }
 
 /**
@@ -57,6 +63,8 @@ export interface CreateProjectInput {
   details?: string;
   colorTheme?: string;
   color?: string;
+  /** 仅供主进程内部创建隐藏容器 Project 使用；普通创建入口不应传递。 */
+  kind?: 'project' | 'home' | 'ad-hoc';
 }
 
 /**

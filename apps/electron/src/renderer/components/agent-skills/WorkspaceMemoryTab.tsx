@@ -48,18 +48,19 @@ function buildWorkspaceMemoryInitPrompt(historyRange: MemoryHistoryRange): strin
 
 目标：
 1. 读取当前工作区${rangeLabel}的 Agent 工作会话，优先关注最新、最有代表性、用户实际完成工作的会话。如果证据不足，请说明而不是编造。
-2. 同时检查会话级 Context（各会话 cwd 下的 .context/）和工作区级 Context（工作区 workspace-files/.context/ 及相关本地文档），区分当前任务临时产物与跨会话长期资料。
-3. 从这些会话和 Context 中提炼工作区级别的稳定知识，包括项目结构、常用命令、架构约定、用户偏好、踩坑经验、重要决策和未来 Agent 必须知道的注意事项。
-4. 更新工作区根目录的 CLAUDE.md：只写稳定、跨会话有价值的项目指令和工作方式，避免写临时过程和聊天流水账。
-5. 更新工作区 .claude/memory/MEMORY.md，必要时创建主题文件：MEMORY.md 只放主题索引和路由，详细内容拆到主题文件；只记录 SDK auto memory 应该长期回忆的经验。
-6. 沉淀并持续迭代一份「用户画像」记忆，写入 .claude/memory/user-profile.md（并在 MEMORY.md 索引中登记）。这份画像用于让未来的 Agent 越来越懂用户，应包含：
+2. 同时检查当前 Workspace 下所有 Project 的 Project Knowledge（各项目 MEMORY.md）、项目 assets、项目级 plan/spec/design 文档，以及会话级 Context（各会话 cwd 下的 .context/）和工作区级 Context（workspace-files/.context/ 及相关本地文档）；必须保留来源 Project，区分项目专属事实、跨项目通用知识、当前任务临时产物与跨会话长期资料。
+3. Yoda 记忆要吸收 Project Knowledge 中对整个 Workspace 有长期价值的稳定知识，而不是只总结 Workspace 根目录文件；项目专属事实仍保留在对应 Project Knowledge，并在汇总内容中注明来源，避免丢失上下文。
+4. 从这些会话、Project Knowledge、项目资料和 Context 中提炼工作区级别的稳定知识，包括项目结构、常用命令、架构约定、用户偏好、踩坑经验、重要决策和未来 Agent 必须知道的注意事项。
+5. 更新工作区根目录的 CLAUDE.md：只写稳定、跨会话有价值的项目指令和工作方式，避免写临时过程和聊天流水账。
+6. 更新工作区 .claude/memory/MEMORY.md，必要时创建主题文件：MEMORY.md 只放主题索引和路由，详细内容拆到主题文件；只记录 SDK auto memory 应该长期回忆的经验。
+7. 沉淀并持续迭代一份「用户画像」记忆，写入 .claude/memory/user-profile.md（并在 MEMORY.md 索引中登记）。这份画像用于让未来的 Agent 越来越懂用户，应包含：
    - 用户的角色、技术背景与擅长领域
    - 稳定的工作方式与协作偏好（沟通风格、语言、颗粒度、对确认/自动化的偏好等）
    - 反复出现的关注点、常用工具链和技术栈倾向
    - 明确表达过的好恶、约束和"下次请这样做"的要求
    迭代原则：这是一份会被反复更新的活文档——基于已有内容做增量合并，只在有新证据时新增或修订对应条目，保留仍然成立的旧结论，不要整体推倒重写；对不确定或仅出现一次的信号，标注为"待确认"而非当成稳定画像。
-7. 写入长期记忆前先做筛选：只有明确重复出现、用户明确要求记住，或删掉后未来 Agent 明显会犯错的信息才写入；单次弱信号、临时过程和证据不足的判断不要写入，放到最终回复的待确认点里。
-8. ${rangeGuidance}
+8. 写入长期记忆前先做筛选：只有明确重复出现、用户明确要求记住，或删掉后未来 Agent 明显会犯错的信息才写入；单次弱信号、临时过程和证据不足的判断不要写入，放到最终回复的待确认点里。
+9. ${rangeGuidance}
 
 要求：
 - 先查看当前工作区可用的会话和文件（包括已有的 user-profile.md），再决定如何写。
@@ -290,7 +291,7 @@ export function WorkspaceMemoryTab({ workspaceSlug, search }: WorkspaceMemoryTab
       }
     } catch (err) {
       console.error('[Workspace Context] 刷新失败:', err)
-      toast.error('刷新Workspace Context失败')
+      toast.error('刷新 Yoda 记忆失败')
     } finally {
       setLoading(false)
     }
@@ -323,7 +324,7 @@ export function WorkspaceMemoryTab({ workspaceSlug, search }: WorkspaceMemoryTab
         setIsDirty(false)
       } catch (err) {
         console.error('[Workspace Context] 加载失败:', err)
-        toast.error('加载Workspace Context失败')
+        toast.error('加载 Yoda 记忆失败')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -408,7 +409,7 @@ export function WorkspaceMemoryTab({ workspaceSlug, search }: WorkspaceMemoryTab
         sessionId,
         message: buildWorkspaceMemoryInitPrompt(historyRange),
       })
-      toast.success('已创建Workspace Context 初始化会话')
+      toast.success('已创建 Yoda 记忆初始化会话')
     } catch (err) {
       console.error('[Workspace Context] 创建初始化会话失败:', err)
       toast.error(err instanceof Error ? err.message : '创建初始化会话失败')
@@ -423,7 +424,7 @@ export function WorkspaceMemoryTab({ workspaceSlug, search }: WorkspaceMemoryTab
   )
 
   if (loading || !summary) {
-    return <div className="py-20 text-center text-sm text-muted-foreground">加载 Workspace Context 中...</div>
+    return <div className="py-20 text-center text-sm text-muted-foreground">加载 Yoda 记忆中...</div>
   }
 
   return (
@@ -468,7 +469,7 @@ export function WorkspaceMemoryTab({ workspaceSlug, search }: WorkspaceMemoryTab
       <SettingsCard divided={false}>
         <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <div className="text-sm font-medium text-foreground">从历史会话生成 Workspace Context</div>
+            <div className="text-sm font-medium text-foreground">从历史会话生成 Yoda 记忆</div>
             <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
               新建一个 Agent 会话，读取当前工作区{historyRangeLabel}的工作会话，沉淀并更新 CLAUDE.md 与 auto memory 文件。
             </div>
@@ -492,7 +493,7 @@ export function WorkspaceMemoryTab({ workspaceSlug, search }: WorkspaceMemoryTab
             </Select>
             <Button onClick={handleInitializeMemory} disabled={initializing}>
               <Sparkles size={14} className="mr-1.5" />
-              {initializing ? '创建中...' : '生成 Workspace Context'}
+              {initializing ? '创建中...' : '生成 Yoda 记忆'}
             </Button>
           </div>
         </div>

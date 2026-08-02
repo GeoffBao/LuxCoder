@@ -126,7 +126,7 @@ export function AgentRecommendBanner(): React.ReactElement | null {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="size-4 text-primary" />
-            <span className="text-sm font-medium text-foreground">推荐使用 Agent 模式</span>
+            <span className="text-sm font-medium text-foreground">推荐切换到 Code 模式</span>
           </div>
           <button
             type="button"

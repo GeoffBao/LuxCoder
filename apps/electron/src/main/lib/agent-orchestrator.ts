@@ -52,6 +52,8 @@ import { getAgentWorkspace, getWorkspaceMcpConfig, ensurePluginManifest, getWork
 import { getAgentWorkspacePath, getAgentSessionWorkspacePath, getSdkConfigDir, getWorkspaceFilesDir, getBundledCliPath, getWorkspaceSkillsDir, resolveClaudeAgentBinaryPath } from './config-paths'
 import { projectRepository } from './project-repository'
 import { resolveSessionCwd } from './agent-cwd-resolver'
+import { resolveAgentSessionFileRoots } from './agent-file-roots'
+import { captureAgentTurnOutputs, snapshotOutputFiles } from './agent-output-capture'
 import { getRuntimeStatus } from './runtime-init'
 import { buildSystemPrompt, buildDynamicContext } from './agent-prompt-builder'
 import { MAX_CONTEXT_MESSAGES, buildContextPrompt, buildRecoveryPrompt, buildReferencedSessionsPrompt } from './agent-session-context-prompt'
@@ -1178,6 +1180,8 @@ export class AgentOrchestrator {
     let agentCwd: string | undefined
     let workspaceSlug: string | undefined
     let workspace: import('@luxcoder/shared').AgentWorkspace | undefined
+    let sessionFileRoots: import('@luxcoder/shared').AgentSessionFileRoots | undefined
+    let turnOutputSnapshot: ReturnType<typeof snapshotOutputFiles> | undefined
 
     try {
       const sdk = agentRuntime === 'claude' ? await import('@anthropic-ai/claude-agent-sdk') : undefined
@@ -1253,6 +1257,25 @@ export class AgentOrchestrator {
 
           agentCwd = cwdResolution.cwd
           console.log(`[Agent 编排] 使用 ${cwdResolution.source} 级别 cwd: ${agentCwd} (${ws.name}/${sessionId})`)
+
+          // 在真实 Agent cwd 确定后建立统一文件根快照。捕获失败不得阻断主流程。
+          try {
+            sessionFileRoots = resolveAgentSessionFileRoots(sessionMeta ?? {
+              id: sessionId,
+              title: '未命名会话',
+              workspaceId,
+              agentCwdMode: 'session',
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            }, ws.slug)
+            turnOutputSnapshot = snapshotOutputFiles([
+              { root: sessionFileRoots.sessionOutboxPath, scope: 'outbox' },
+              { root: sessionFileRoots.sessionDir, scope: 'session' },
+              ...(sessionFileRoots.projectRoot ? [{ root: sessionFileRoots.projectRoot, scope: 'project' as const }] : []),
+            ])
+          } catch (error) {
+            console.warn('[Agent 产出] turn 前快照失败，不影响 Agent 执行:', error)
+          }
 
           if (agentRuntime === 'claude') {
             ensurePluginManifest(ws.slug, ws.name)
@@ -2636,6 +2659,23 @@ ${workContext}` : '')
       }
 
     } finally {
+      // 每轮终态统一捕获新增/修改文件；索引写入失败不得覆盖原有清理逻辑。
+      if (sessionFileRoots && turnOutputSnapshot && workspaceSlug) {
+        try {
+          const captured = captureAgentTurnOutputs(sessionFileRoots, turnOutputSnapshot, {
+            sessionId,
+            workspaceSlug,
+            projectId: getAgentSessionMeta(sessionId)?.projectId ?? sessionMeta?.projectId,
+            turnStartedAt: streamStartedAt,
+          })
+          if (captured.length > 0) {
+            console.log(`[Agent 产出] 已捕获 ${captured.length} 个文件变化: sessionId=${sessionId}`)
+          }
+        } catch (error) {
+          console.warn('[Agent 产出] turn 后捕获失败，不影响 Agent 终态:', error)
+        }
+      }
+
       // 只在 generation 匹配时才清理，防止旧流的 finally 误删新流的注册
       releaseActiveRun()
       permissionService.clearSessionPending(sessionId)

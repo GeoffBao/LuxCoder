@@ -420,7 +420,7 @@ function CustomToolsSection(): React.ReactElement | null {
   return (
     <SettingsSection
       title="自定义工具"
-      description="通过 Agent 模式创建的 HTTP API 工具"
+      description="通过 Code 模式创建的 HTTP API 工具"
     >
       <SettingsCard divided>
         {customTools.map((tool) => (
@@ -464,7 +464,14 @@ function CustomToolsSection(): React.ReactElement | null {
   )
 }
 
-export function ToolSettings(): React.ReactElement {
+/**
+ * 增强工具面板（联网搜索 + Nano Banana + 自定义 HTTP 工具）。
+ *
+ * 同时被 Yoda 插件中心的「API」Tab 与设置页薄壳 `ToolSettings` 复用，
+ * 保证 Home / Code 两模式共享同一份增强工具配置。
+ * `toolSettingsFocusAtom` 用于外部深链滚动到指定区块。
+ */
+export function EnhancedToolsPanel(): React.ReactElement {
   const [focusedTool, setFocusedTool] = useAtom(toolSettingsFocusAtom)
   const webSearchRef = React.useRef<HTMLDivElement>(null)
   const nanoBananaRef = React.useRef<HTMLDivElement>(null)
@@ -501,4 +508,9 @@ export function ToolSettings(): React.ReactElement {
       </div>
     </div>
   )
+}
+
+/** 设置页薄壳：复用 EnhancedToolsPanel（保留以兼容直达/回退）。 */
+export function ToolSettings(): React.ReactElement {
+  return <EnhancedToolsPanel />
 }
