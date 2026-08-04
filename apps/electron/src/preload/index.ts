@@ -82,6 +82,8 @@ import type {
   OrganizationSkill,
   OrganizationSkillDetail,
   OrganizationSkillSyncResult,
+  CommunitySkill,
+  CommunitySkillInstallResult,
   WorkspaceCapabilities,
   WorkspaceMemorySummary,
   FileEntry,
@@ -857,6 +859,13 @@ export interface ElectronAPI {
   orgImportSkill: (targetSlug: string, orgId: string, orgName: string, skill: OrganizationSkill) => Promise<SkillMeta>
   /** 从组织源更新已导入 Skill */
   orgUpdateSkill: (targetSlug: string, skillSlug: string) => Promise<SkillMeta>
+
+  // ── 社区市场（n-skills） ───────────────────────────────
+
+  /** 拉取社区市场清单 */
+  communityFetchManifest: () => Promise<CommunitySkill[]>
+  /** 安装社区市场 Skill 到工作区 */
+  communityInstallSkill: (workspaceSlug: string, skill: CommunitySkill) => Promise<CommunitySkillInstallResult>
 
   /** 读取 SKILL.md 全文内容 */
   readSkillContent: (workspaceSlug: string, skillSlug: string) => Promise<string>
@@ -2265,6 +2274,16 @@ const electronAPI: ElectronAPI = {
 
   orgUpdateSkill: (targetSlug: string, skillSlug: string) => {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.ORG_UPDATE_SKILL, targetSlug, skillSlug)
+  },
+
+  // ── 社区市场（n-skills） ───────────────────────────────
+
+  communityFetchManifest: () => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.COMMUNITY_FETCH_MANIFEST)
+  },
+
+  communityInstallSkill: (workspaceSlug: string, skill: CommunitySkill) => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.COMMUNITY_INSTALL_SKILL, workspaceSlug, skill)
   },
 
   readSkillContent: (workspaceSlug: string, skillSlug: string) => {

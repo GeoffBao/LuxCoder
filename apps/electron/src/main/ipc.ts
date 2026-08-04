@@ -69,6 +69,10 @@ import type {
   SkillFileContent,
   WorkspaceCapabilities,
   WorkspaceMemorySummary,
+  OrganizationConnection,
+  OrganizationSkill,
+  CommunitySkill,
+  CommunitySkillInstallResult,
   FileEntry,
   FileSearchResult,
   EnvironmentCheckResult,
@@ -325,6 +329,7 @@ import {
   orgListMembers,
   orgListSkills,
 } from './lib/org-skill-service'
+import { fetchCommunityManifest, installCommunitySkill } from './lib/community-skill-service'
 import { projectRepository } from './lib/project-repository'
 import { getAllToolInfos } from './lib/chat-tool-registry'
 import { updateToolState, updateToolCredentials, getToolCredentials, addCustomTool, deleteCustomTool } from './lib/chat-tool-config'
@@ -2907,6 +2912,26 @@ export function registerIpcHandlers(): void {
       const conn = getOrganizationConnection()
       if (!conn) throw new Error('未连接组织服务，请先登录')
       return updateSkillFromOrganizationSource(targetSlug, skillSlug, conn)
+    }
+  )
+
+  // ── 社区市场（n-skills） ─────────────────────────────────
+
+  // 拉取社区市场清单
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.COMMUNITY_FETCH_MANIFEST,
+    async (): Promise<CommunitySkill[]> => {
+      return fetchCommunityManifest()
+    }
+  )
+
+  // 安装社区市场 Skill 到工作区
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.COMMUNITY_INSTALL_SKILL,
+    async (_, workspaceSlug: string, skill: CommunitySkill): Promise<CommunitySkillInstallResult> => {
+      const { getWorkspaceSkillsDir } = await import('./lib/agent-workspace-manager')
+      const dir = getWorkspaceSkillsDir(workspaceSlug)
+      return installCommunitySkill(dir, skill)
     }
   )
 

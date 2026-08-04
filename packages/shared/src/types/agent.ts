@@ -1161,6 +1161,28 @@ export interface OrganizationSkillSyncResult {
   localModified?: boolean
 }
 
+// ===== 社区市场（n-skills） =====
+
+/** 社区市场 Skill 条目 */
+export interface CommunitySkill {
+  name: string
+  description: string
+  displayName?: string
+  category?: string
+  license?: string
+  authorName?: string
+  homepage?: string
+  /** 仓库内 skill 目录相对路径 */
+  path: string
+}
+
+/** 社区市场安装结果 */
+export interface CommunitySkillInstallResult {
+  slug: string
+  name: string
+  version: string
+}
+
 /** Skill 目录下的文件/子目录节点（递归树） */
 export interface SkillFileNode {
   /** 相对于 Skill 根目录的相对路径，使用 POSIX 分隔符 */
@@ -1889,6 +1911,12 @@ export const AGENT_IPC_CHANNELS = {
   ORG_CREATE: 'org:create',
   /** 凭邀请码加入组织 */
   ORG_JOIN: 'org:join',
+
+  // 社区市场（n-skills）
+  /** 拉取社区市场清单 */
+  COMMUNITY_FETCH_MANIFEST: 'community:fetch-manifest',
+  /** 安装社区市场 Skill 到工作区 */
+  COMMUNITY_INSTALL_SKILL: 'community:install-skill',
 
   // 流式事件（主进程 → 渲染进程推送）
   /** Agent 流式事件 */
