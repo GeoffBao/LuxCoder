@@ -666,6 +666,10 @@
     0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
+/* 默认外层缝隙背景；具名主题和 custom ThemePack 在下方覆盖。 */
+.shell-bg { background: linear-gradient(135deg, rgb(250 250 250) 0%, rgb(244 244 245) 100%); }
+.dark .shell-bg { background: linear-gradient(135deg, rgb(9 9 11) 0%, rgb(24 24 27) 100%); }
+
 /* 特殊主题外层缝隙背景色覆盖 */
 .theme-ocean-light .shell-bg { background: linear-gradient(135deg, hsl(205 35% 88%) 0%, hsl(205 30% 91%) 100%); }
 .theme-ocean-dark .shell-bg  { background: linear-gradient(135deg, hsl(210 14% 5%) 0%, hsl(210 12% 7%) 100%); }
@@ -674,6 +678,54 @@
 .theme-slate-light .shell-bg { background: linear-gradient(135deg, hsl(40 6% 84%) 0%, hsl(40 6% 86%) 100%); }
 .theme-slate-dark .shell-bg  { background: linear-gradient(135deg, hsl(270 10% 7%) 0%, hsl(260 8% 9%) 100%); }
 .theme-terminal-dark .shell-bg { background: linear-gradient(135deg, hsl(100 6% 6%) 0%, hsl(100 8% 7%) 100%); }
+
+/* 自定义 ThemePack 的整块画布背景；具名旧主题由上方更高特异性的规则保留原效果。 */
+html.theme-custom .shell-bg,
+html:not(.theme-ocean-light):not(.theme-ocean-dark):not(.theme-forest-light):not(.theme-forest-dark):not(.theme-slate-light):not(.theme-slate-dark):not(.theme-terminal-dark):not(.theme-custom) .shell-bg {
+  background: linear-gradient(135deg, hsl(var(--shell-bg-from, 0 0% 96%)) 0%, hsl(var(--shell-bg-to, 0 0% 99%)) 100%);
+}
+
+/* 自定义 ThemePack 的全局字体与 macOS 材质；默认/旧主题不改变原有渲染。 */
+html.theme-custom {
+  font-family: var(--theme-font-ui, 'Geist Variable', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', 'Segoe UI', sans-serif);
+}
+html.theme-custom .font-chat-code,
+html.theme-custom code,
+html.theme-custom pre {
+  font-family: var(--theme-font-code, 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+}
+:root.ui-modern.translucent-windows .crt-sidebar,
+:root.ui-modern.translucent-windows .tabbar-bg {
+  background-color: color-mix(in srgb, var(--app-sidebar-background, hsl(var(--sidebar-surface))) 72%, transparent);
+  -webkit-backdrop-filter: var(--app-sidebar-backdrop-filter, blur(12px) saturate(135%));
+  backdrop-filter: var(--app-sidebar-backdrop-filter, blur(12px) saturate(135%));
+}
+@media (prefers-reduced-transparency: reduce) {
+  /* Solid custom 与旧主题尊重系统的「降低透明度」偏好；显式选择 Scenic 时仍保留
+     Craft 风格的主题效果，否则 Haze 会退化成用户截图中的不透明平涂。 */
+  :root.ui-modern.translucent-windows:not(.theme-scenic) .crt-sidebar,
+  :root.ui-modern.translucent-windows:not(.theme-scenic) .tabbar-bg {
+    background-color: hsl(var(--sidebar-surface));
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  :root.ui-modern.theme-custom:not(.theme-scenic) .refined-content,
+  :root.ui-modern.theme-custom:not(.theme-scenic) .refined-inspector,
+  :root.ui-modern.theme-custom:not(.theme-scenic) .refined-sidebar {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  :root.ui-modern.theme-custom:not(.theme-scenic) .refined-content {
+    background: hsl(var(--content-area)) !important;
+  }
+
+  :root.ui-modern.theme-custom:not(.theme-scenic) .refined-inspector,
+  :root.ui-modern.theme-custom:not(.theme-scenic) .refined-sidebar {
+    background: hsl(var(--sidebar-surface)) !important;
+  }
+}
 
 /* ===== 选中态 / 分段控件：全主题统一走 Ink 系统 =====
  * 旧实现为每个主题各写一套带 !important 的色块覆写（蓝底白字/绿底深字…），
@@ -793,10 +845,12 @@
 }
 
 /* ===== TabBar 背景 ===== */
-/* 默认背景 */
+/* 默认背景；ThemePack 的现代材质由下方 ui-modern 规则单独投影，避免污染 classic。 */
 .tabbar-bg {
   position: relative;
   background-color: hsl(var(--tabbar-surface));
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .tabbar-bg::after {
@@ -884,12 +938,138 @@
  * 使用低对比 hairline 与表面高光取代厚重边框，避免主题色被改写。
  */
 :root:not(.ui-classic) .refined-shell {
-  background: hsl(var(--background));
+  background: var(--app-shell-background, hsl(var(--background)));
+}
+
+/* Scenic ThemePack 的背景图与遮罩位于所有应用表面之下。Solid 主题使用 transparent/none，
+   不改变旧主题的绘制路径。 */
+html.theme-custom .shell-bg {
+  background: var(--app-shell-background, hsl(var(--background)));
+}
+
+html.theme-custom .shell-bg::before,
+html.theme-custom .shell-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+html.theme-custom .shell-bg::before {
+  z-index: 0;
+  background-image: var(--background-image, none);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+html.theme-custom .shell-bg::after {
+  z-index: 1;
+  background: var(--app-background-overlay, transparent);
+}
+
+/* Scenic 直接把图片挂在 shell 本体，避免被其它背景 shorthand 或合成层吞掉；伪元素仍负责遮罩。 */
+html.theme-custom.theme-scenic .shell-bg {
+  background-color: transparent;
+  background-image: var(--background-image, none);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+html.theme-custom body {
+  background: transparent;
+}
+
+/* 让设置页、看板、Planning 等直接使用 Tailwind 背景工具类的区域也遵循
+   ThemePack 的内容/纸面分层；旧主题不受影响。 */
+:root.ui-modern.theme-custom .bg-content-area {
+  background-color: var(--app-content-background, hsl(var(--content-area))) !important;
+}
+
+:root.ui-modern.theme-custom .bg-background {
+  background-color: var(--app-paper-background, hsl(var(--background))) !important;
+}
+
+/* Scenic 主题必须压过组件自身的 bg-[hsl(...)] 工具类，否则只有少数弹层会透出背景图，
+   侧栏、主内容和右侧检查器仍会变成不透明平涂。Solid custom 仍使用同一变量但不会有 alpha，
+   因此这组规则不会改变其它预设的视觉。 */
+:root.ui-modern.theme-custom .refined-sidebar,
+:root.ui-modern.theme-custom .refined-inspector {
+  background: var(--app-navigator-background, hsl(var(--sidebar-surface))) !important;
+  -webkit-backdrop-filter: var(--app-sidebar-backdrop-filter, none);
+  backdrop-filter: var(--app-sidebar-backdrop-filter, none);
+}
+
+:root.ui-modern.theme-custom .refined-content {
+  background: var(--app-content-background, hsl(var(--content-area))) !important;
+  -webkit-backdrop-filter: var(--app-content-backdrop-filter, none);
+  backdrop-filter: var(--app-content-backdrop-filter, none);
+}
+
+:root.ui-modern.theme-custom .tabbar-bg {
+  background-color: var(--app-navigator-background, hsl(var(--tabbar-surface))) !important;
+  -webkit-backdrop-filter: var(--app-sidebar-backdrop-filter, none);
+  backdrop-filter: var(--app-sidebar-backdrop-filter, none);
+}
+
+/* 输入框和弹层也沿用 Scenic 的独立表面；否则它们会成为唯一看起来"有效果"的局部区域。 */
+:root.ui-modern.theme-custom [data-input-mode] > div:first-child {
+  background: var(--app-input-background, hsl(var(--input-surface))) !important;
+  -webkit-backdrop-filter: var(--app-content-backdrop-filter, none);
+  backdrop-filter: var(--app-content-backdrop-filter, none);
+}
+
+:root.ui-modern.theme-custom [data-radix-dialog-content],
+:root.ui-modern.theme-custom [data-radix-popover-content],
+:root.ui-modern.theme-custom [data-radix-dropdown-menu-content],
+:root.ui-modern.theme-custom [data-radix-context-menu-content] {
+  background: var(--app-popover-background, hsl(var(--popover))) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(135%);
+  backdrop-filter: blur(24px) saturate(135%);
+}
+
+/* Scenic 的最后一层投影：这些是组件专属 class，既不带 bg-content-area，
+   也可能在前面的 refined 规则之后再次写入不透明 hsl。 */
+:root.ui-modern.theme-custom.theme-scenic .session-header-polished {
+  background: var(--app-content-background, hsl(var(--content-area))) !important;
+  -webkit-backdrop-filter: var(--app-content-backdrop-filter, none);
+  backdrop-filter: var(--app-content-backdrop-filter, none);
+}
+
+:root.ui-modern.theme-custom.theme-scenic .titlebar-drag-region {
+  /* 标题栏是位于 shell 之上的拖拽命中层，不能给它再铺一层黑色 surface，
+     否则 macOS 顶部会把 Scenic 背景完全挡住。 */
+  background: transparent !important;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* 主会话不是 Craft 的 shadow-middle 卡片：不要对整块内容 pane 做 backdrop blur，
+   否则低对比雾景会被再次糊成纯灰；具体卡片/输入框仍可单独使用毛玻璃。 */
+:root.ui-modern.theme-custom.theme-scenic .refined-content {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+:root.ui-modern.theme-custom.theme-scenic [data-input-mode] > div:first-child {
+  -webkit-backdrop-filter: blur(8px) saturate(135%);
+  backdrop-filter: blur(8px) saturate(135%);
+}
+
+:root.ui-modern.theme-custom.theme-scenic .primary-view-switcher,
+:root.ui-modern.theme-custom.theme-scenic .workspace-tabbar,
+:root.ui-modern.theme-custom.theme-scenic .inspector-tabbar {
+  background: var(--app-navigator-background, hsl(var(--tabbar-surface))) !important;
+  -webkit-backdrop-filter: var(--app-sidebar-backdrop-filter, none);
+  backdrop-filter: var(--app-sidebar-backdrop-filter, none);
 }
 
 :root:not(.ui-classic) .refined-sidebar {
-  background: hsl(var(--sidebar-surface) / 0.94);
+  background: var(--app-navigator-background, hsl(var(--sidebar-surface) / 0.94));
   box-shadow: inset -1px 0 0 hsl(var(--foreground) / 0.045);
+  -webkit-backdrop-filter: var(--app-sidebar-backdrop-filter, none);
+  backdrop-filter: var(--app-sidebar-backdrop-filter, none);
 }
 
 /* 左栏采用逐级缩进与材质差异建立信息层级，不改变主题色。 */
@@ -973,13 +1153,17 @@
 }
 
 :root:not(.ui-classic) .refined-content {
-  background: hsl(var(--content-area));
+  background: var(--app-content-background, hsl(var(--content-area)));
   box-shadow: inset 0 1px 0 hsl(var(--foreground) / 0.025);
+  -webkit-backdrop-filter: var(--app-content-backdrop-filter, none);
+  backdrop-filter: var(--app-content-backdrop-filter, none);
 }
 
 :root:not(.ui-classic) .refined-inspector {
-  background: hsl(var(--sidebar-surface));
+  background: var(--app-navigator-background, hsl(var(--sidebar-surface)));
   box-shadow: inset 1px 0 0 var(--ink-line);
+  -webkit-backdrop-filter: var(--app-sidebar-backdrop-filter, none);
+  backdrop-filter: var(--app-sidebar-backdrop-filter, none);
 }
 
 :root:not(.ui-classic) .refined-inspector .inspector-file-panel {

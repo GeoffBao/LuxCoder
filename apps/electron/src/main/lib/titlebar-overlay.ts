@@ -1,5 +1,5 @@
 import { BrowserWindow, nativeTheme } from 'electron'
-import type { ThemeMode, ThemeStyle } from '../../types'
+import type { ThemeMode, ThemePack, ThemeStyle, ThemeVariant } from '../../types'
 import { getSettings } from './settings-service'
 
 interface OverlayColors {
@@ -26,11 +26,21 @@ const THEME_COLORS: Record<string, { color: string; symbolColor: string }> = {
 export function resolveOverlayColors(
   themeMode: ThemeMode,
   themeStyle: ThemeStyle | undefined,
-  systemIsDark: boolean
+  systemIsDark: boolean,
+  themePacks?: Record<ThemeVariant, ThemePack>,
+  themeActiveVariant?: ThemeVariant,
 ): OverlayColors {
+  if (themeMode === 'special' && themeStyle === 'custom' && themePacks) {
+    const variant: ThemeVariant = themeActiveVariant ?? (systemIsDark ? 'dark' : 'light')
+    const theme = themePacks[variant]?.theme
+    if (theme) {
+      return { color: theme.surface, symbolColor: theme.ink, height: OVERLAY_HEIGHT }
+    }
+  }
+
   let key: string
 
-  if (themeMode === 'special' && themeStyle && themeStyle !== 'default') {
+  if (themeMode === 'special' && themeStyle && themeStyle !== 'default' && themeStyle !== 'custom') {
     key = themeStyle
   } else if (themeMode === 'system') {
     key = systemIsDark ? 'default-dark' : 'default-light'
@@ -53,7 +63,9 @@ export function updateWindowTitleBarOverlay(win: BrowserWindow): void {
     const { color, symbolColor, height } = resolveOverlayColors(
       settings.themeMode,
       settings.themeStyle,
-      nativeTheme.shouldUseDarkColors
+      nativeTheme.shouldUseDarkColors,
+      settings.themePacks,
+      settings.themeActiveVariant
     )
     win.setTitleBarOverlay({ color, symbolColor, height })
   } catch {

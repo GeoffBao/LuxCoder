@@ -1768,10 +1768,12 @@ export function registerIpcHandlers(): void {
       }
 
       // 主题相关设置变化时，广播给所有窗口（跨窗口同步，如 Quick Task 面板）
-      if (updates.themeMode !== undefined || updates.themeStyle !== undefined || updates.interfaceVariant !== undefined) {
+      if (updates.themeMode !== undefined || updates.themeStyle !== undefined || updates.themePacks !== undefined || updates.themeActiveVariant !== undefined || updates.interfaceVariant !== undefined) {
         const payload = {
           themeMode: result.themeMode,
           themeStyle: result.themeStyle,
+          themePacks: result.themePacks,
+          themeActiveVariant: result.themeActiveVariant,
           interfaceVariant: result.interfaceVariant,
         }
         BrowserWindow.getAllWindows().forEach((win) => {

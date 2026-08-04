@@ -11,14 +11,55 @@
         // 默认跟随系统；缓存键需与 atoms/theme.ts 保持一致（luxcoder-*）
         var mode = localStorage.getItem('luxcoder-theme-mode') || 'system'
         var style = localStorage.getItem('luxcoder-theme-style')
+        var cachedActiveVariant = localStorage.getItem('luxcoder-theme-active-variant')
+        var cachedInterfaceVariant = localStorage.getItem('luxcoder-interface-variant')
         var html = document.documentElement
+        // 先恢复界面布局类，避免 React 加载前沿用上一状态或默认落入现代工作台。
+        html.classList.add(cachedInterfaceVariant === 'classic' ? 'ui-classic' : 'ui-modern')
+        var isDarkSystem = window.matchMedia('(prefers-color-scheme: dark)').matches
+        function hexToHsl(hex) {
+          var raw = String(hex || '').replace('#', '')
+          if (raw.length !== 6) return null
+          var r = parseInt(raw.slice(0, 2), 16) / 255
+          var g = parseInt(raw.slice(2, 4), 16) / 255
+          var b = parseInt(raw.slice(4, 6), 16) / 255
+          var max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2
+          if (max === min) return '0 0% ' + Math.round(l * 100) + '%'
+          var d = max - min, s = l > 0.5 ? d / (2 - max - min) : d / (max + min), h = 0
+          if (max === r) h = (g - b) / d + (g < b ? 6 : 0)
+          else if (max === g) h = (b - r) / d + 2
+          else h = (r - g) / d + 4
+          return Math.round(h / 6 * 360) + ' ' + Math.round(s * 100) + '% ' + Math.round(l * 100) + '%'
+        }
 
-        if (mode === 'special' && style && style !== 'default') {
-          // 特殊风格模式：添加主题类名 + 根据后缀决定 dark 类
+        if (mode === 'special' && style && style !== 'default' && style !== 'custom') {
+          // 旧具名主题：先添加 class，完整 ThemePack 由 React 初始化后投影。
           html.classList.add('theme-' + style)
-          if (style.endsWith('-dark')) {
-            html.classList.add('dark')
-          }
+          if (style.endsWith('-dark')) html.classList.add('dark')
+        } else if (mode === 'special' && style === 'custom') {
+          // 自定义 ThemePack 先按用户最后选中的变体预绘制，完整派生由 React 单一来源接管。
+          var customVariant = cachedActiveVariant === 'light' || cachedActiveVariant === 'dark'
+            ? cachedActiveVariant
+            : (isDarkSystem ? 'dark' : 'light')
+          html.classList.add('theme-custom')
+          if (customVariant === 'dark') html.classList.add('dark')
+          try {
+            var cachedPacks = JSON.parse(localStorage.getItem('luxcoder-theme-packs') || '{}')
+            var cachedPack = cachedPacks[customVariant]
+            var cachedTheme = cachedPack && cachedPack.theme
+            if (cachedTheme) {
+              var background = hexToHsl(cachedTheme.canvas && cachedTheme.canvas.background)
+              var foreground = hexToHsl(cachedTheme.ink)
+              var accent = hexToHsl(cachedTheme.accent)
+              var shellFrom = hexToHsl(cachedTheme.canvas && cachedTheme.canvas.shellFrom)
+              var shellTo = hexToHsl(cachedTheme.canvas && cachedTheme.canvas.shellTo)
+              if (background) { html.style.setProperty('--background', background); html.style.setProperty('--content-area', background) }
+              if (foreground) html.style.setProperty('--foreground', foreground)
+              if (accent) { html.style.setProperty('--primary', accent); html.style.setProperty('--ring', accent) }
+              if (shellFrom) html.style.setProperty('--shell-bg-from', shellFrom)
+              if (shellTo) html.style.setProperty('--shell-bg-to', shellTo)
+            }
+          } catch (_) {}
         } else if (mode === 'dark') {
           html.classList.add('dark')
         } else if (mode === 'system') {

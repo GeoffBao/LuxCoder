@@ -177,10 +177,10 @@ export interface ShortcutOverrides {
   }
 }
 
-/** 主题模式 */
+/** 主题模式：保留 special 以兼容旧版具名主题。 */
 export type ThemeMode = 'light' | 'dark' | 'system' | 'special'
 
-/** 所有合法的特殊风格值（白名单，新增主题时只需追加这里） */
+/** 旧版具名主题 + Craft 风格自定义主题。 */
 export const THEME_STYLES = [
   'default',
   'ocean-light',
@@ -190,16 +190,100 @@ export const THEME_STYLES = [
   'slate-light',
   'slate-dark',
   'terminal-dark',
+  'custom',
 ] as const
 
-/** 特殊风格主题 */
 export type ThemeStyle = (typeof THEME_STYLES)[number]
+export type ThemeVariant = 'light' | 'dark'
+
+export interface ThemeFonts {
+  ui: string | null
+  code: string | null
+}
+
+export type ThemeCanvasMode = 'solid' | 'scenic'
+
+export interface ThemeCanvas {
+  background: string
+  shellFrom: string
+  shellTo: string
+  /** Scenic 模式下的全窗口背景图；为空时退化为纯色画布。 */
+  backgroundImage?: string | null
+  /** Scenic 背景遮罩透明度（0~1）。 */
+  backgroundAlpha?: number
+  mode?: ThemeCanvasMode
+}
+
+/** 内容、导航、输入和弹窗的独立表面层；缺失时回退到 surface。 */
+export interface ThemeSurfaces {
+  paper?: string
+  navigator?: string
+  input?: string
+  popover?: string
+  popoverSolid?: string
+}
+
+export interface ThemeSemanticColors {
+  diffAdded: string
+  diffRemoved: string
+  skill: string
+  info?: string
+  success?: string
+  destructive?: string
+}
+
+export interface ChromeTheme {
+  accent: string
+  contrast: number
+  fonts: ThemeFonts
+  ink: string
+  opaqueWindows: boolean
+  semanticColors: ThemeSemanticColors
+  surface: string
+  surfaces?: ThemeSurfaces
+  canvas: ThemeCanvas
+}
+
+export interface ThemePack {
+  codeThemeId: string
+  theme: ChromeTheme
+}
+
+export interface ThemeState {
+  mode: ThemeMode
+  style: ThemeStyle
+  packs: Record<ThemeVariant, ThemePack>
+}
 
 /** 默认主题模式：跟随系统 */
 export const DEFAULT_THEME_MODE: ThemeMode = 'system'
 
 /** 默认特殊风格 */
 export const DEFAULT_THEME_STYLE: ThemeStyle = 'default'
+
+/** 默认可编辑主题包；详细 legacy seed 由 renderer/theme/theme.logic.ts 归一化。 */
+export const DEFAULT_CHROME_THEMES: Record<ThemeVariant, ChromeTheme> = {
+  light: {
+    accent: '#0a0a0a',
+    contrast: 50,
+    fonts: { ui: null, code: null },
+    ink: '#0a0a0a',
+    opaqueWindows: true,
+    semanticColors: { diffAdded: '#16803c', diffRemoved: '#ba2623', skill: '#7048c8' },
+    surface: '#ffffff',
+    canvas: { background: '#ffffff', shellFrom: '#f1f1ef', shellTo: '#fafafa' },
+  },
+  dark: {
+    accent: '#da7756',
+    contrast: 50,
+    fonts: { ui: null, code: null },
+    ink: '#f4f1ec',
+    opaqueWindows: true,
+    semanticColors: { diffAdded: '#40c977', diffRemoved: '#fa423e', skill: '#ad7bf9' },
+    surface: '#1a1612',
+    canvas: { background: '#1a1612', shellFrom: '#14110e', shellTo: '#1f1914' },
+  },
+}
 
 /** 界面风格：经典保留旧版视觉，现代使用当前更克制的 UI */
 export type InterfaceVariant = 'classic' | 'modern'
@@ -232,8 +316,16 @@ export interface CodeClawSettings {
 export interface AppSettings {
   /** 主题模式 */
   themeMode: ThemeMode
-  /** 特殊风格主题 */
+  /** 特殊风格主题；custom 表示当前使用可编辑 ThemePack。 */
   themeStyle?: ThemeStyle
+  /** Craft 风格的浅色/深色可编辑主题包。 */
+  themePacks?: Record<ThemeVariant, ThemePack>
+  /**
+   * themeStyle==='custom' 时，用户实际选中/浏览的变体。只应由用户点击驱动，不能用
+   * 系统深浅色模式代替——否则单变体专属预设（如 Haze 只支持 dark）在系统当前是浅色时，
+   * 会读到从未写入过的另一侧 pack，表现为选中态打勾但视觉毫无变化。
+   */
+  themeActiveVariant?: ThemeVariant
   /** 界面风格 */
   interfaceVariant?: InterfaceVariant
   /** Agent 默认渠道 ID（由当前 Agent Core 解释） — 当前选中的渠道 */

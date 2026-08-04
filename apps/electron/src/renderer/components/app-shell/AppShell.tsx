@@ -22,7 +22,7 @@ import { leftSidebarWidthAtom, MIN_LEFT_SIDEBAR_WIDTH } from '@/atoms/sidebar-at
 import { sidebarCollapsedAtom } from '@/atoms/tab-atoms'
 import { automationFormAtom } from '@/atoms/automation-atoms'
 import { activeViewAtom } from '@/atoms/active-view'
-import { interfaceVariantAtom } from '@/atoms/theme'
+import { applyInterfaceVariantToDOM, interfaceVariantAtom } from '@/atoms/theme'
 import { isLegacyCoworkMode } from '@/components/app-shell/code-main-view-model'
 import { settingsOpenAtom } from '@/atoms/settings-tab'
 import { WindowControls } from '@/components/WindowControls'
@@ -69,6 +69,12 @@ export function AppShell({ contextValue }: AppShellProps): React.ReactElement {
     && !!currentSessionId
     && !automationForm.open
   const isWindows = React.useMemo(() => detectIsWindows(), [])
+
+  // AppShell 的布局分支以 atom 为唯一运行时来源；这里同步 document class，
+  // 防止设置页异步初始化或旧窗口状态让 CSS 仍停留在经典界面。
+  React.useLayoutEffect(() => {
+    applyInterfaceVariantToDOM(interfaceVariant)
+  }, [interfaceVariant])
 
   // 遗留顶栏 Work（cowork）持久化值：一次性迁移到 Code 主区看板
   React.useEffect(() => {
@@ -199,7 +205,7 @@ export function AppShell({ contextValue }: AppShellProps): React.ReactElement {
       {/* Windows 自定义窗口控制按钮（最小化/最大化/关闭） */}
       <WindowControls />
 
-      <div className="shell-bg refined-shell relative h-screen w-screen overflow-hidden bg-gradient-to-br from-zinc-50 to-zinc-100 dark:from-zinc-950 dark:to-zinc-900">
+      <div className="shell-bg refined-shell relative h-screen w-screen overflow-hidden">
         <div className={cn('flex h-full w-full', settingsOpen && 'hidden')} aria-hidden={settingsOpen}>
           {/* 左侧边栏：折叠态和 Claude 一样整体隐藏（不保留图标 rail），
               折叠/展开按钮固定在 TabBar（紧邻第一个标签），收起后仍可从那里唤回。 */}
@@ -214,9 +220,7 @@ export function AppShell({ contextValue }: AppShellProps): React.ReactElement {
                   onMouseDown={handleLeftSidebarMouseDown}
                 />
               </div>
-              {!isClassic && (
-                <div aria-hidden="true" className="relative z-[61] w-px flex-shrink-0 bg-foreground/[0.045]" />
-              )}
+              {!isClassic && <div aria-hidden="true" className="relative z-[61] w-px flex-shrink-0 bg-foreground/[0.045]" />}
             </>
           )}
 

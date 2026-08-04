@@ -19,9 +19,10 @@ import App from './App'
 import {
   themeModeAtom,
   themeStyleAtom,
+  themePacksAtom,
+  themeActiveVariantAtom,
   interfaceVariantAtom,
   systemIsDarkAtom,
-  resolvedThemeAtom,
   applyThemeToDOM,
   applyInterfaceVariantToDOM,
   initializeTheme,
@@ -127,10 +128,14 @@ if (isMainWindow) {
 function ThemeInitializer(): null {
   const setThemeMode = useSetAtom(themeModeAtom)
   const setThemeStyle = useSetAtom(themeStyleAtom)
+  const setThemePacks = useSetAtom(themePacksAtom)
+  const setThemeActiveVariant = useSetAtom(themeActiveVariantAtom)
   const setInterfaceVariant = useSetAtom(interfaceVariantAtom)
   const setSystemIsDark = useSetAtom(systemIsDarkAtom)
   const themeMode = useAtomValue(themeModeAtom)
   const themeStyle = useAtomValue(themeStyleAtom)
+  const themePacks = useAtomValue(themePacksAtom)
+  const themeActiveVariant = useAtomValue(themeActiveVariantAtom)
   const interfaceVariant = useAtomValue(interfaceVariantAtom)
   const systemIsDark = useAtomValue(systemIsDarkAtom)
 
@@ -139,7 +144,7 @@ function ThemeInitializer(): null {
     let isMounted = true
     let cleanup: (() => void) | undefined
 
-    initializeTheme(setThemeMode, setSystemIsDark, setThemeStyle, setInterfaceVariant).then((fn) => {
+    initializeTheme(setThemeMode, setSystemIsDark, setThemeStyle, setInterfaceVariant, setThemePacks, setThemeActiveVariant).then((fn) => {
       if (isMounted) {
         cleanup = fn
       } else {
@@ -152,26 +157,19 @@ function ThemeInitializer(): null {
       isMounted = false
       cleanup?.()
     }
-  }, [setThemeMode, setSystemIsDark, setThemeStyle, setInterfaceVariant])
+  }, [setThemeMode, setSystemIsDark, setThemeStyle, setInterfaceVariant, setThemePacks, setThemeActiveVariant])
 
-  // 响应式应用主题到 DOM
-  // 用 useMemo 计算"实际会影响 DOM 的状态签名"作为唯一依赖：
-  // special 模式下 systemIsDark 不影响最终 class，避免系统主题变化时触发无意义的
-  // applyThemeToDOM 调用（配合 applyThemeToDOM 内部的幂等检查双重兜底）。
-  const themeSignature = useMemo(() => {
-    if (themeMode === 'special') {
-      return `special:${themeStyle}`
-    }
-    if (themeMode === 'system') {
-      return `system:${systemIsDark ? 'dark' : 'light'}`
-    }
-    return themeMode
-  }, [themeMode, themeStyle, systemIsDark])
+  // 主题包包含完整画布配置，必须把它纳入签名，避免编辑自定义背景后 DOM 不更新。
+  // themeActiveVariant 决定 style==='custom' 时到底渲染浅色还是深色 pack，必须纳入依赖，
+  // 否则单变体专属预设（如 Haze）选中后不会触发重新应用。
+  const themeSignature = useMemo(
+    () => `${themeMode}:${themeStyle}:${themeActiveVariant}:${systemIsDark ? 'dark' : 'light'}:${JSON.stringify(themePacks)}`,
+    [themeMode, themeStyle, themeActiveVariant, themePacks, systemIsDark],
+  )
 
   useEffect(() => {
-    applyThemeToDOM(themeMode, themeStyle, systemIsDark)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [themeSignature])
+    applyThemeToDOM(themeMode, themeStyle, themePacks, systemIsDark, themeActiveVariant)
+  }, [themeSignature, themeMode, themeStyle, themePacks, systemIsDark, themeActiveVariant])
 
   useEffect(() => {
     applyInterfaceVariantToDOM(interfaceVariant)
