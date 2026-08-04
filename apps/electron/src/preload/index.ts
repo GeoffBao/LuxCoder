@@ -29,6 +29,8 @@ import type {
   FetchModelsResult,
   ChannelPlanQuotaResult,
   CodexOAuthLoginResult,
+  CodexOAuthDeviceCode,
+  CodexOAuthLoginMethod,
   ClaudeOAuthLoginResult,
   ClaudeOAuthPrepareResult,
   XaiOAuthLoginResult,
@@ -430,10 +432,13 @@ export interface ElectronAPI {
   getChannelPlanQuota: (channelId: string) => Promise<ChannelPlanQuotaResult>
 
   /** 发起 ChatGPT (Codex) OAuth 登录，返回序列化凭据（作为 apiKey 存储） */
-  codexOAuthLogin: () => Promise<CodexOAuthLoginResult>
+  codexOAuthLogin: (method?: CodexOAuthLoginMethod) => Promise<CodexOAuthLoginResult>
 
   /** 取消进行中的 ChatGPT (Codex) OAuth 登录 */
   codexOAuthCancel: () => Promise<void>
+
+  /** 订阅登录期间，接收 Codex device code 与授权链接。返回取消订阅函数。 */
+  onCodexOAuthDeviceCode: (callback: (deviceCode: CodexOAuthDeviceCode) => void) => () => void
 
   /** 生成 Claude Pro/Max 订阅登录授权 URL 并打开浏览器 */
   claudeOAuthPrepare: () => Promise<ClaudeOAuthPrepareResult>
@@ -1670,12 +1675,18 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(CHANNEL_IPC_CHANNELS.GET_PLAN_QUOTA, channelId)
   },
 
-  codexOAuthLogin: () => {
-    return ipcRenderer.invoke(CHANNEL_IPC_CHANNELS.CODEX_OAUTH_LOGIN)
+  codexOAuthLogin: (method?: CodexOAuthLoginMethod) => {
+    return ipcRenderer.invoke(CHANNEL_IPC_CHANNELS.CODEX_OAUTH_LOGIN, method)
   },
 
   codexOAuthCancel: () => {
     return ipcRenderer.invoke(CHANNEL_IPC_CHANNELS.CODEX_OAUTH_CANCEL)
+  },
+
+  onCodexOAuthDeviceCode: (callback: (deviceCode: CodexOAuthDeviceCode) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, deviceCode: CodexOAuthDeviceCode) => callback(deviceCode)
+    ipcRenderer.on(CHANNEL_IPC_CHANNELS.CODEX_OAUTH_DEVICE_CODE, listener)
+    return () => ipcRenderer.removeListener(CHANNEL_IPC_CHANNELS.CODEX_OAUTH_DEVICE_CODE, listener)
   },
 
   claudeOAuthPrepare: () => {

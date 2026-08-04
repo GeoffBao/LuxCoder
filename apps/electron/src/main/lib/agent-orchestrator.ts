@@ -871,7 +871,7 @@ export class AgentOrchestrator {
    * 通过 EventBus 分发 AgentEvent，通过 callbacks 发送控制信号。
    */
   async sendMessage(input: AgentSendInput, callbacks: SessionCallbacks): Promise<void> {
-    const { sessionId, userMessage, channelId, modelId, agentRuntime: inputAgentRuntime, workspaceId, additionalDirectories, customMcpServers, permissionModeOverride, mentionedSkills, mentionedMcpServers, mentionedSessionIds, mentionedTodoIds, mentionedCalendarEventIds, automationContext, workContext, retryOfErrorUuid, toolPolicy } = input
+    const { sessionId, userMessage, rawUserMessage, channelId, modelId, agentRuntime: inputAgentRuntime, workspaceId, additionalDirectories, customMcpServers, permissionModeOverride, mentionedSkills, mentionedMcpServers, mentionedSessionIds, mentionedTodoIds, mentionedCalendarEventIds, automationContext, workContext, retryOfErrorUuid, toolPolicy } = input
     const toolsDisabled = toolPolicy === 'none'
     const stderrChunks: string[] = []
     const streamStartedAt = input.startedAt ?? Date.now()
@@ -879,7 +879,9 @@ export class AgentOrchestrator {
 
     const persistInitialUserMessage = (): void => {
       if (userMessagePersisted) return
-      this.persistUserMessage(sessionId, userMessage)
+      // rawUserMessage 保留展示/持久化用的原始文本（@file 编码原文，remarkMentions 解码显示）；
+      // userMessage 是传给 Agent 的 SDK 文本（@file 路径已解码为真实路径）。
+      this.persistUserMessage(sessionId, rawUserMessage ?? userMessage)
       userMessagePersisted = true
       callbacks.onRunStarted?.({ startedAt: streamStartedAt })
     }
@@ -1293,6 +1295,13 @@ export class AgentOrchestrator {
       // fork 后的会话直接使用自己的 cwd，无需回退到源目录。
       // forkSourceDir 仅作为备用参考字段保留，不再影响 agentCwd。
 
+      // 必须与 runtime 接收的附加目录保持一致；视觉助手据此限制允许外发的图片路径。
+      const allAdditionalDirectories = collectAttachedDirectories({
+        extraDirs: additionalDirectories,
+        sessionMeta,
+        workspaceSlug,
+      })
+
       // 9.5 确保 SDK 项目设置（plansDirectory → .context）
       if (agentRuntime === 'claude') {
         const claudeSettingsDir = join(agentCwd, '.claude')
@@ -1377,6 +1386,7 @@ export class AgentOrchestrator {
               agentRuntime,
               workspaceId,
               workspaceSlug,
+              allowedRoots: allAdditionalDirectories,
               permissionMode: permissionModeOverride ?? sessionMeta?.permissionMode ?? LUXCODER_DEFAULT_PERMISSION_MODE,
               triggeredBy: input.triggeredBy,
             })
@@ -1652,6 +1662,15 @@ export class AgentOrchestrator {
           )
         }
 
+        // 视觉助手由用户在全局设置中显式启用并选择外发渠道；在正常会话中直接放行，
+        // 仍由工具服务限制为当前会话/附加目录内的图片。计划模式不执行任何外发操作。
+        if (toolName === 'VisionRelay') {
+          if (currentMode === 'plan') {
+            return { behavior: 'deny' as const, message: '计划模式下不能将本地图片发送给视觉模型，请在计划获批后执行。' }
+          }
+          return { behavior: 'allow' as const }
+        }
+
         // 自动任务/协作子 Agent 没有可靠的本地确认界面，不能发起删除。
         const planningDeletionPermission = resolvePlanningDeletionPermission(
           toolName,
@@ -1735,11 +1754,6 @@ export class AgentOrchestrator {
       const piThinkingLevel = agentRuntime === 'pi'
         ? resolvePiThinkingLevel(appSettings, sessionMeta, channel.provider, selectedModelId, piReasoningCapability)
         : undefined
-      const allAdditionalDirectories = collectAttachedDirectories({
-        extraDirs: additionalDirectories,
-        sessionMeta,
-        workspaceSlug,
-      })
       const systemPromptAppend = buildSystemPrompt({
         agentRuntime,
         workspaceName: workspace?.name,
