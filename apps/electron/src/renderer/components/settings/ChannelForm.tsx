@@ -44,6 +44,7 @@ import type {
   ChannelCreateInput,
   ChannelModel,
   ChannelTestResult,
+  CodexOAuthDeviceCode,
   FetchModelsResult,
   ProviderType,
   XaiOAuthDeviceCode,
@@ -238,6 +239,7 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
   const [showBaseUrlRiskDialog, setShowBaseUrlRiskDialog] = React.useState(false)
   const [pendingRiskAction, setPendingRiskAction] = React.useState<'auto-save' | 'create' | 'fetch' | 'save-and-close' | 'test' | null>(null)
   const [codexLoggingIn, setCodexLoggingIn] = React.useState(false)
+  const [codexDeviceCode, setCodexDeviceCode] = React.useState<CodexOAuthDeviceCode | null>(null)
   const [xaiLoggingIn, setXaiLoggingIn] = React.useState(false)
   const [xaiDeviceCode, setXaiDeviceCode] = React.useState<XaiOAuthDeviceCode | null>(null)
   // Claude 订阅登录分两步：prepare 打开浏览器授权页 → 用户从回调页复制授权码粘贴回来
@@ -251,6 +253,7 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
 
   const setChannelFormDirty = useSetAtom(channelFormDirtyAtom)
   const lastAgentEligibleRef = React.useRef(channel ? isAgentEligibleChannel(channel) : false)
+  const codexLoggingInRef = React.useRef(false)
   const xaiLoggingInRef = React.useRef(false)
 
   React.useEffect(() => {
@@ -258,8 +261,16 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
   }, [channel])
 
   React.useEffect(() => {
+    codexLoggingInRef.current = codexLoggingIn
+  }, [codexLoggingIn])
+
+  React.useEffect(() => {
     xaiLoggingInRef.current = xaiLoggingIn
   }, [xaiLoggingIn])
+
+  React.useEffect(() => {
+    return window.electronAPI.onCodexOAuthDeviceCode(setCodexDeviceCode)
+  }, [])
 
   React.useEffect(() => {
     return window.electronAPI.onXaiOAuthDeviceCode(setXaiDeviceCode)
@@ -267,6 +278,7 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
 
   // 关闭或放弃表单时取消仍在轮询的 device-code 授权，避免后台孤立请求。
   React.useEffect(() => () => {
+    if (codexLoggingInRef.current) void window.electronAPI.codexOAuthCancel()
     if (xaiLoggingInRef.current) void window.electronAPI.xaiOAuthCancel()
   }, [])
 
@@ -525,13 +537,15 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
     )
   }
 
-  /** 发起 ChatGPT (Codex) OAuth 登录：打开浏览器授权，成功后把凭据写入 apiKey */
-  const handleCodexLogin = async (): Promise<void> => {
+  /** 发起 ChatGPT (Codex) OAuth 登录，默认系统浏览器；网络受限时可改用设备码。 */
+  const handleCodexLogin = async (method: 'browser' | 'device_code' = 'browser'): Promise<void> => {
+    codexLoggingInRef.current = true
     codexOAuthCancelledRef.current = false
     setCodexLoggingIn(true)
+    setCodexDeviceCode(null)
     setTestResult(null)
     try {
-      const result = await window.electronAPI.codexOAuthLogin()
+      const result = await window.electronAPI.codexOAuthLogin(method)
       if (!result.success || !result.credentials) {
         if (!codexOAuthCancelledRef.current) {
           toast.error(result.message ?? 'ChatGPT 登录失败，请重试')
@@ -584,14 +598,17 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
         toast.error('ChatGPT 登录失败，请重试')
       }
     } finally {
+      codexLoggingInRef.current = false
       setCodexLoggingIn(false)
     }
   }
 
-  /** 取消进行中的 ChatGPT OAuth 登录，避免卡在"等待浏览器授权…"无法恢复 */
+  /** 取消进行中的 ChatGPT OAuth 登录，避免卡在"等待授权完成…"无法恢复 */
   const handleCodexOAuthCancel = (): void => {
+    codexLoggingInRef.current = false
     codexOAuthCancelledRef.current = true
     void window.electronAPI.codexOAuthCancel()
+    setCodexDeviceCode(null)
     setCodexLoggingIn(false)
     toast.info('已取消登录')
   }
@@ -674,12 +691,14 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
   }
 
   const handleCancelXaiLogin = (): void => {
+    xaiLoggingInRef.current = false
     void window.electronAPI.xaiOAuthCancel()
     setXaiDeviceCode(null)
   }
 
   /** 发起 xAI（Grok/X 订阅）OAuth 登录：Pi 打开预填 device-code 浏览器授权页。 */
   const handleXaiLogin = async (): Promise<void> => {
+    xaiLoggingInRef.current = true
     setXaiLoggingIn(true)
     setXaiDeviceCode(null)
     setTestResult(null)
@@ -742,6 +761,7 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
       console.error('[模型配置表单] xAI 登录失败:', error)
       toast.error('xAI 登录失败，请重试')
     } finally {
+      xaiLoggingInRef.current = false
       setXaiLoggingIn(false)
       setXaiDeviceCode(null)
     }
@@ -1070,28 +1090,41 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
                   variant="outline"
                   size="sm"
                   type="button"
-                  onClick={handleCodexLogin}
+                  onClick={() => void handleCodexLogin('browser')}
                   disabled={codexLoggingIn}
                   className="w-full"
                 >
                   {codexLoggingIn ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
-                  <span>{codexLoggingIn ? '等待浏览器授权…' : hasRequiredSecret ? '重新登录 ChatGPT' : '用 ChatGPT 登录'}</span>
+                  <span>{codexLoggingIn ? '等待授权完成…' : hasRequiredSecret ? '重新登录 ChatGPT' : '用 ChatGPT 登录'}</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  onClick={() => void handleCodexLogin('device_code')}
+                  disabled={codexLoggingIn}
+                  className="w-full text-muted-foreground"
+                >
+                  使用设备码登录（浏览器无法使用系统代理时）
                 </Button>
                 {codexLoggingIn && (
-                  <button
-                    type="button"
-                    onClick={handleCodexOAuthCancel}
-                    className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    浏览器没反应？取消登录
-                  </button>
+                  <Button variant="ghost" size="sm" type="button" onClick={handleCodexOAuthCancel} className="w-full text-muted-foreground">
+                    取消登录
+                  </Button>
+                )}
+                {codexDeviceCode && (
+                  <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground space-y-2">
+                    <div>在任意可访问网络的浏览器中打开链接，并输入设备码：<span className="font-mono font-medium text-foreground">{codexDeviceCode.userCode}</span></div>
+                    <a href={codexDeviceCode.verificationUri} target="_blank" rel="noreferrer" className="text-primary hover:underline">打开 ChatGPT 授权页面</a>
+                    {codexDeviceCode.qrCodeData && <img src={codexDeviceCode.qrCodeData} alt="ChatGPT 设备码授权二维码" className="h-28 w-28 rounded bg-white p-1" />}
+                  </div>
                 )}
                 {hasRequiredSecret ? (
                   <div className="flex items-center gap-1.5 text-xs text-emerald-600">
                     <CheckCircle2 size={12} className="shrink-0" />
                     <span>已登录 ChatGPT 订阅{codexCredentials?.accountId ? `（账号 ${codexCredentials.accountId.slice(0, 8)}…）` : ''}</span>
                   </div>
-                ) : <div className="text-xs text-muted-foreground">使用 ChatGPT Plus/Pro 订阅登录，通过 OAuth 授权，无需 API Key。授权将在系统浏览器中打开。</div>}
+                ) : <div className="text-xs text-muted-foreground">LuxCoder 会代理 token 请求；系统浏览器授权页仍需使用可访问 OpenAI 的网络。可改用设备码并在另一台设备完成授权。</div>}
               </div>
             ) : isXaiProvider ? (
               <div className="space-y-2">
@@ -1112,11 +1145,12 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
                   </Button>
                 )}
                 {xaiDeviceCode && (
-                  <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground space-y-1.5">
+                  <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground space-y-2">
                     <div>若浏览器未自动填入授权码，请输入：<span className="font-mono font-medium text-foreground">{xaiDeviceCode.userCode}</span></div>
                     <a href={xaiDeviceCode.verificationUri} target="_blank" rel="noreferrer" className="text-primary hover:underline">
                       打开 xAI 授权页面
                     </a>
+                    {xaiDeviceCode.qrCodeData && <img src={xaiDeviceCode.qrCodeData} alt="xAI 设备码授权二维码" className="h-28 w-28 rounded bg-white p-1" />}
                   </div>
                 )}
                 {hasRequiredSecret ? (
@@ -1124,7 +1158,7 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
                     <CheckCircle2 size={12} className="shrink-0" />
                     <span>已登录 xAI（Grok）订阅</span>
                   </div>
-                ) : <div className="text-xs text-muted-foreground">使用 SuperGrok 或 X Premium 订阅登录，通过 OAuth 授权，无需 API Key。授权将在系统浏览器中打开。</div>}
+                ) : <div className="text-xs text-muted-foreground">LuxCoder 会代理设备码与 token 请求；授权页由系统浏览器打开。若浏览器无可用代理，可扫码在另一台设备完成授权。</div>}
               </div>
             ) : isClaudeOAuthProvider ? (
               <div className="space-y-2">
