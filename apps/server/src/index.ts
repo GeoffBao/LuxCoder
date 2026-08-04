@@ -17,13 +17,13 @@ app.use('/api/*', cors())
 
 app.get('/api/health', (c) => c.json({ ok: true, service: 'luxcoder-server' }))
 
-// ── 路由模块（后续 Task 挂载） ──────────────────────────────
+// ── 路由模块 ─────────────────────────────────────────────
 import { authRoutes } from './auth/routes'
 import { orgRoutes } from './orgs/routes'
-// import { skillRoutes } from './skills/routes'
+import { skillRoutes } from './skills/routes'
 app.route('/api/auth', authRoutes)
 app.route('/api/orgs', orgRoutes)
-// app.route('/api/orgs', skillRoutes)
+app.route('/api/orgs', skillRoutes)
 
 export { app }
 
