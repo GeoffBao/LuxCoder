@@ -394,6 +394,21 @@ async function findPiCatalogModel(provider: ProviderType, modelId: string): Prom
   return undefined
 }
 
+/**
+ * 解析模型图片输入能力。未知模型保持 unknown，由调用方决定是否保守拒绝。
+ * 视觉助手等会产生数据外发的功能必须仅接受 confirmed supported。
+ */
+export async function resolvePiImageInputCapability(
+  provider: ProviderType,
+  modelId: string | undefined,
+): Promise<'supported' | 'unsupported' | 'unknown'> {
+  const resolvedModelId = stripAgentSdkContextSuffix(modelId)
+  if (!resolvedModelId) return 'unknown'
+  const catalogModel = await findPiCatalogModel(provider, resolvedModelId)
+  if (!catalogModel) return 'unknown'
+  return catalogModel.input.includes('image') ? 'supported' : 'unsupported'
+}
+
 /** 解析 Pi runtime 的会话级 reasoning capability。 */
 export async function resolvePiReasoningCapability(
   provider: ProviderType,
