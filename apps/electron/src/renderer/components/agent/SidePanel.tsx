@@ -31,6 +31,8 @@ import {
   workspaceAttachedFilesMapAtom,
   agentPendingFilesAtomFamily,
   agentDiffRefreshVersionAtom,
+  agentNonGitFileChangesAtom,
+  agentFileChangesCurrentRunAtom,
   fileBrowserAutoRevealAtom,
   agentSelectedWorktreeAtom,
   agentSessionsAtom,
@@ -135,6 +137,10 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
   const setFilesVersion = useSetAtom(workspaceFilesVersionAtom)
   const diffRefreshVersionMap = useAtomValue(agentDiffRefreshVersionAtom)
   const diffRefreshVersion = diffRefreshVersionMap.get(sessionId) ?? 0
+  const nonGitFileChangesMap = useAtomValue(agentNonGitFileChangesAtom)
+  const nonGitFileChanges = nonGitFileChangesMap.get(sessionId) ?? []
+  const fileChangesCurrentRunMap = useAtomValue(agentFileChangesCurrentRunAtom)
+  const fileChangesCurrentRunId = fileChangesCurrentRunMap.get(sessionId)
 
   // 文件面板跟随当前会话归属的 Workspace；仅在会话元数据尚未加载时回退全局选择。
   const selectedWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
@@ -549,6 +555,9 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
                 workspaceSlug={workspaceSlug || undefined}
                 worktreeRepoPaths={worktreeRepoPathsMemo}
                 sessionWorktreeContext={sessionWorktreeContext}
+                nonGitFileChanges={nonGitFileChanges}
+                currentFileChangeRunId={fileChangesCurrentRunId}
+                onPlainFileClick={handleFilePreview}
               />
             ) : (
               <div className="flex-1 flex items-center justify-center text-muted-foreground text-xs">等待会话初始化...</div>
