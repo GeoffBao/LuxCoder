@@ -66,6 +66,9 @@ import type {
   StopTaskInput,
   WorkspaceMcpConfig,
   SkillMeta,
+  BulkImportSkillItemResult,
+  BulkImportSkillsResult,
+  BulkImportWorkspaceSelection,
   SkillFileContent,
   WorkspaceCapabilities,
   WorkspaceMemorySummary,
@@ -285,6 +288,7 @@ import {
   getAgentWorkspace,
   deleteWorkspaceSkill,
   importSkillFromWorkspace,
+  batchImportSkillsFromWorkspaces,
   updateSkillFromSource,
   importSkillFromOrganization,
   updateSkillFromOrganizationSource,
@@ -2784,6 +2788,14 @@ export function registerIpcHandlers(): void {
     AGENT_IPC_CHANNELS.IMPORT_SKILL_FROM_WORKSPACE,
     async (_, targetSlug: string, sourceSlug: string, skillSlug: string): Promise<SkillMeta> => {
       return importSkillFromWorkspace(targetSlug, sourceSlug, skillSlug)
+    }
+  )
+
+  // 从其他工作区批量导入多个 Skill
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.BATCH_IMPORT_SKILLS_FROM_WORKSPACES,
+    async (_, targetSlug: string, selections: BulkImportWorkspaceSelection[]): Promise<BulkImportSkillsResult> => {
+      return batchImportSkillsFromWorkspaces(targetSlug, selections)
     }
   )
 
