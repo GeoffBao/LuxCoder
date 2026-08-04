@@ -62,6 +62,7 @@ import {
 } from '@/atoms/tab-history-atoms'
 import { activateTab } from '@/components/tabs/activate-tab'
 import {
+  shouldFallbackVoiceDictationToActiveTab,
   VOICE_DICTATION_CLEAR_PREVIEW_EVENT,
   VOICE_DICTATION_PREVIEW_EVENT,
 } from '@/lib/voice-input-focus'
@@ -440,15 +441,31 @@ export function GlobalShortcuts(): null {
       window.dispatchEvent(new CustomEvent(VOICE_DICTATION_CLEAR_PREVIEW_EVENT, { detail: data }))
     })
     const cleanup = window.electronAPI.onVoiceDictationInsertText((data) => {
+      const acknowledgeDelivery = (delivered: boolean): void => {
+        window.electronAPI.acknowledgeVoiceDictationTextDelivery({
+          sessionId: data.sessionId,
+          delivered,
+        })
+      }
       const trimmed = data.text.trim()
-      if (!trimmed) return
+      if (!trimmed) {
+        acknowledgeDelivery(false)
+        return
+      }
 
       const insertedAtCursor = !window.dispatchEvent(new CustomEvent('luxcoder:insert-voice-dictation-text', {
         cancelable: true,
         detail: { ...data, text: trimmed },
       }))
       if (insertedAtCursor) {
+        acknowledgeDelivery(true)
         window.dispatchEvent(new CustomEvent('luxcoder:focus-input'))
+        return
+      }
+
+      if (!shouldFallbackVoiceDictationToActiveTab(data.targetInputId)) {
+        console.warn('[语音输入] 冻结的输入目标已不可用，已丢弃听写结果:', data.targetInputId)
+        acknowledgeDelivery(false)
         return
       }
 
@@ -462,7 +479,10 @@ export function GlobalShortcuts(): null {
           : { type: 'chat' as const, sessionId: store.get(currentConversationIdAtom) }
       const target = activeTab ?? fallbackTarget
 
-      if (!target.sessionId) return
+      if (!target.sessionId) {
+        acknowledgeDelivery(false)
+        return
+      }
 
       store.set(activeViewAtom, 'conversations')
 
@@ -482,6 +502,7 @@ export function GlobalShortcuts(): null {
           return map
         })
         window.dispatchEvent(new CustomEvent('luxcoder:focus-input'))
+        acknowledgeDelivery(true)
         return
       }
 
@@ -496,7 +517,11 @@ export function GlobalShortcuts(): null {
           return map
         })
         window.dispatchEvent(new CustomEvent('luxcoder:focus-input'))
+        acknowledgeDelivery(true)
+        return
       }
+
+      acknowledgeDelivery(false)
     })
     return () => {
       cleanupPreview()

@@ -6,10 +6,15 @@
  */
 
 import { app, BrowserWindow, screen, type BrowserWindowConstructorOptions } from 'electron'
+import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
-import { VOICE_DICTATION_IPC_CHANNELS } from '../../types'
+import { VOICE_DICTATION_IPC_CHANNELS, type VoiceDictationOutputMode, type VoiceDictationShownEvent } from '../../types'
 import { getSettings } from './settings-service'
-import { captureVoiceDictationTarget } from './text-output-service'
+import {
+  beginVoiceDictationOutputContext,
+  captureVoiceDictationTarget,
+  releaseVoiceDictationOutputContext,
+} from './text-output-service'
 import { getMainWindow } from '../index'
 
 const INDICATOR_WIDTH = 360
@@ -21,10 +26,12 @@ let usesExternalIndicator = false
 let indicatorState: 'recording' | 'stopping' = 'recording'
 let indicatorVolume = 0
 let indicatorTranscript = ''
+let activeOutputContextId: string | null = null
 let voiceIndicatorWindow: BrowserWindow | null = null
 
 interface VoiceDictationToggleOptions {
   targetIsLuxCoder?: boolean
+  sourceInputId?: string
 }
 
 /**
@@ -53,14 +60,24 @@ export function toggleVoiceDictationWindow(options: VoiceDictationToggleOptions 
     return
   }
 
-  captureVoiceDictationTarget(options.targetIsLuxCoder)
+  const targetIsLuxCoder = captureVoiceDictationTarget(options.targetIsLuxCoder)
+  const outputMode = getSettings().voiceDictation?.outputMode ?? 'auto'
+  const routeToLuxCoderInput = shouldRouteVoiceDictationToLuxCoderInput(targetIsLuxCoder, outputMode)
+  const outputContextId = randomUUID()
+  beginVoiceDictationOutputContext(outputContextId, { routeToLuxCoderInput, outputMode })
+  activeOutputContextId = outputContextId
   voiceDictationActive = true
-  usesExternalIndicator = options.targetIsLuxCoder !== true
+  usesExternalIndicator = !targetIsLuxCoder
   indicatorState = 'recording'
   indicatorVolume = 0
   indicatorTranscript = ''
   if (usesExternalIndicator) showVoiceIndicator()
-  mainWindow.webContents.send(VOICE_DICTATION_IPC_CHANNELS.SHOWN)
+  const shownEvent: VoiceDictationShownEvent = {
+    routeToLuxCoderInput,
+    outputContextId,
+    sourceInputId: options.sourceInputId,
+  }
+  mainWindow.webContents.send(VOICE_DICTATION_IPC_CHANNELS.SHOWN, shownEvent)
 }
 
 /** 听写完成、取消或失败后关闭所有可见状态。 */
@@ -69,6 +86,8 @@ export function hideVoiceDictationWindow(): void {
   usesExternalIndicator = false
   indicatorVolume = 0
   indicatorTranscript = ''
+  releaseVoiceDictationOutputContext(activeOutputContextId ?? undefined)
+  activeOutputContextId = null
   if (voiceIndicatorWindow && !voiceIndicatorWindow.isDestroyed()) {
     voiceIndicatorWindow.hide()
   }
@@ -106,6 +125,13 @@ export function updateVoiceDictationIndicatorTranscript(text: string): void {
 
 function isVoiceDictationEnabled(): boolean {
   return getSettings().voiceDictation?.enabled === true
+}
+
+function shouldRouteVoiceDictationToLuxCoderInput(
+  targetIsLuxCoder: boolean,
+  outputMode: VoiceDictationOutputMode,
+): boolean {
+  return outputMode === 'luxcoder-input' || (outputMode === 'auto' && targetIsLuxCoder)
 }
 
 function showVoiceIndicator(): void {

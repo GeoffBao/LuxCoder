@@ -23,6 +23,8 @@ import type {
   VoiceDictationStartInput,
   VoiceDictationStopInput,
   VoiceDictationTestResult,
+  VoiceDictationTextDeliveryInput,
+  VoiceDictationToggleInput,
   MicPermissionResult,
 } from '../types'
 import type {
@@ -5066,10 +5068,13 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(
     VOICE_DICTATION_IPC_CHANNELS.TOGGLE,
-    async (event): Promise<void> => {
+    async (event, input?: VoiceDictationToggleInput): Promise<void> => {
       const { toggleVoiceDictationWindow } = await import('./lib/voice-dictation-window')
       const sourceWindow = BrowserWindow.fromWebContents(event.sender)
-      toggleVoiceDictationWindow({ targetIsLuxCoder: !!sourceWindow })
+      const sourceInputId = typeof input?.sourceInputId === 'string' && input.sourceInputId.length > 0 && input.sourceInputId.length <= 512
+        ? input.sourceInputId
+        : undefined
+      toggleVoiceDictationWindow({ targetIsLuxCoder: !!sourceWindow, sourceInputId })
     }
   )
 
@@ -5127,7 +5132,11 @@ export function registerIpcHandlers(): void {
     async (_, input: VoiceDictationStopInput): Promise<void> => {
       const { cancelDoubaoAsrSession } = await import('./lib/doubao-asr-service')
       const { clearVoiceDictationPreview } = await import('./lib/text-output-service')
-      clearVoiceDictationPreview(input.previewSessionId ?? input.sessionId)
+      clearVoiceDictationPreview(
+        input.previewSessionId ?? input.sessionId,
+        input.targetInputId,
+        input.outputContextId,
+      )
       cancelDoubaoAsrSession(input.sessionId)
     }
   )
@@ -5140,6 +5149,18 @@ export function registerIpcHandlers(): void {
       previewVoiceDictationText(input, getVoiceDictationSettings())
     }
   )
+
+  ipcMain.on(VOICE_DICTATION_IPC_CHANNELS.ACK_INSERT_TEXT, (event, input: VoiceDictationTextDeliveryInput) => {
+    void Promise.all([
+      import('./index'),
+      import('./lib/text-output-service'),
+    ]).then(([{ getMainWindow }, { acknowledgeVoiceDictationTextDelivery }]) => {
+      const mainWindow = getMainWindow()
+      if (!mainWindow || mainWindow.isDestroyed() || event.sender.id !== mainWindow.webContents.id) return
+      if (!input || typeof input.sessionId !== 'string' || typeof input.delivered !== 'boolean') return
+      acknowledgeVoiceDictationTextDelivery(input.sessionId, input.delivered)
+    }).catch(console.error)
+  })
 
   ipcMain.handle(
     VOICE_DICTATION_IPC_CHANNELS.COMMIT,

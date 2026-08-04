@@ -47,8 +47,13 @@ import {
   VOICE_DICTATION_INSERT_EVENT,
   VOICE_DICTATION_PREVIEW_EVENT,
   getLastFocusedVoiceInputId,
+  isVoiceDictationTargetInput,
   setLastFocusedVoiceInputId,
 } from '@/lib/voice-input-focus'
+import {
+  isVoiceDictationPreviewRangeCurrent,
+  type VoiceDictationPreviewRange,
+} from '@/lib/voice-dictation-preview'
 
 // ===== 行数计算 =====
 
@@ -122,6 +127,8 @@ interface RichTextInputProps {
   onPasteLongText?: (text: string) => void
   /** 触发超长文本粘贴回调的字符数阈值 */
   longTextPasteThreshold?: number
+  /** 当前实例的语音输入 ID；同工具栏的 SpeechButton 必须使用相同 ID。 */
+  voiceInputId?: string
   /** 占位文字 */
   placeholder?: string
   /** 是否显示建议样式（斜体占位符） */
@@ -176,6 +183,7 @@ export const RichTextInput = forwardRef<RichTextInputHandle, RichTextInputProps>
   onPasteFiles,
   onPasteLongText,
   longTextPasteThreshold,
+  voiceInputId,
   placeholder = '有什么可以帮助到你的呢？',
   suggestionActive = false,
   className,
@@ -195,8 +203,8 @@ export const RichTextInput = forwardRef<RichTextInputHandle, RichTextInputProps>
   fontSize = 15,
 }: RichTextInputProps, ref: React.Ref<RichTextInputHandle>): React.ReactElement {
   const [isExpanded, setIsExpanded] = useState(false)
-  const inputIdRef = useRef(`rich-text-input-${Math.random().toString(36).slice(2)}`)
-  const voicePreviewRef = useRef<{ sessionId: string; from: number; to: number } | null>(null)
+  const inputIdRef = useRef(voiceInputId ?? `rich-text-input-${Math.random().toString(36).slice(2)}`)
+  const voicePreviewRef = useRef<VoiceDictationPreviewRange | null>(null)
   // 手动折叠状态：用户主动折叠输入框
   const [isManuallyCollapsed, setIsManuallyCollapsed] = useState(false)
   // 跟踪 isExpanded 最新值（对比后再 setState，避免每键无谓 setState 触发重渲染）
@@ -835,6 +843,7 @@ export const RichTextInput = forwardRef<RichTextInputHandle, RichTextInputProps>
         sessionId: current.sessionId,
         from: from.pos,
         to: Math.max(from.pos, to.pos),
+        text: current.text,
       }
     }
 
@@ -849,32 +858,44 @@ export const RichTextInput = forwardRef<RichTextInputHandle, RichTextInputProps>
     if (!editor || disabled) return
 
     const updatePreview = (event: Event): void => {
-      const { sessionId, text } = (event as CustomEvent<{ sessionId?: string; text?: string }>).detail ?? {}
+      const { sessionId, text, targetInputId } = (event as CustomEvent<{ sessionId?: string; text?: string; targetInputId?: string | null }>).detail ?? {}
       const previewText = text?.trim()
       if (!sessionId || !previewText) return
 
       const current = voicePreviewRef.current
       if (current && current.sessionId !== sessionId) return
-      if (!current && getLastFocusedVoiceInputId() !== inputIdRef.current) return
+      if (!current && !isVoiceDictationTargetInput(inputIdRef.current, targetInputId)) return
       const from = current?.from ?? editor.state.selection.from
       const to = current?.to ?? editor.state.selection.to
       editor.view.dispatch(editor.state.tr.insertText(previewText, from, to))
-      voicePreviewRef.current = { sessionId, from, to: from + previewText.length }
+      voicePreviewRef.current = { sessionId, from, to: from + previewText.length, text: previewText }
       event.preventDefault()
+    }
+
+    const clearPreviewRange = (): void => {
+      const current = voicePreviewRef.current
+      if (!current) return
+      if (!editor.view.isDestroyed && isVoiceDictationPreviewRangeCurrent(
+        current,
+        (from, to) => editor.state.doc.textBetween(from, to, '\n', '\n'),
+      )) {
+        editor.view.dispatch(editor.state.tr.delete(current.from, current.to))
+      }
+      voicePreviewRef.current = null
     }
 
     const clearPreview = (event: Event): void => {
       const { sessionId } = (event as CustomEvent<{ sessionId?: string }>).detail ?? {}
       const current = voicePreviewRef.current
       if (!current || current.sessionId !== sessionId) return
-      editor.view.dispatch(editor.state.tr.delete(current.from, current.to))
-      voicePreviewRef.current = null
+      clearPreviewRange()
       event.preventDefault()
     }
 
     window.addEventListener(VOICE_DICTATION_PREVIEW_EVENT, updatePreview)
     window.addEventListener(VOICE_DICTATION_CLEAR_PREVIEW_EVENT, clearPreview)
     return () => {
+      clearPreviewRange()
       window.removeEventListener(VOICE_DICTATION_PREVIEW_EVENT, updatePreview)
       window.removeEventListener(VOICE_DICTATION_CLEAR_PREVIEW_EVENT, clearPreview)
     }
@@ -885,7 +906,7 @@ export const RichTextInput = forwardRef<RichTextInputHandle, RichTextInputProps>
     if (!editor || disabled) return
 
     const handler = (event: Event): void => {
-      const customEvent = event as CustomEvent<{ sessionId?: string; text?: string }>
+      const customEvent = event as CustomEvent<{ sessionId?: string; text?: string; targetInputId?: string | null }>
       const text = customEvent.detail?.text?.trim()
       if (!text) return
 
@@ -897,7 +918,7 @@ export const RichTextInput = forwardRef<RichTextInputHandle, RichTextInputProps>
         editor.view.dispatch(transaction)
         voicePreviewRef.current = null
       } else {
-        if (getLastFocusedVoiceInputId() !== inputIdRef.current) return
+        if (!isVoiceDictationTargetInput(inputIdRef.current, customEvent.detail?.targetInputId)) return
         editor.chain().focus().insertContent(text).run()
       }
       event.preventDefault()
