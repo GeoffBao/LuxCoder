@@ -994,11 +994,18 @@ export async function forkAgentSession(input: ForkSessionInput): Promise<AgentSe
     sdkSessionId: forkResult.sessionId,
     forkSourceDir: sourceDir,
     forkSourceSdkSessionId: forkSourceSdkSessionId,
+    // fork 继承源会话的 projectId，让新会话出现在左侧「项目」分组；
+    // 同时固定 agentCwdMode='session'，保持 fork 独立沙箱目录语义
+    // （工作区文件已复制到 destDir、SDK JSONL 路径已改写为 destDir）。
+    ...(sourceMeta.projectId ? { projectId: sourceMeta.projectId } : {}),
+    agentCwdMode: 'session',
   })
   // 同步返回值（updateAgentSessionMeta 已写入磁盘，这里让调用方拿到最新值）
   newMeta.sdkSessionId = forkResult.sessionId
   newMeta.forkSourceDir = sourceDir
   newMeta.forkSourceSdkSessionId = forkSourceSdkSessionId
+  if (sourceMeta.projectId) newMeta.projectId = sourceMeta.projectId
+  newMeta.agentCwdMode = 'session'
 
   // 4.4 计算 fork 目标会话的 cwd（新会话目录），后续多个步骤需要用到
   let destDir: string | undefined
@@ -1115,10 +1122,16 @@ async function forkPiAgentSession(sourceMeta: AgentSessionMeta, input: ForkSessi
       piSessionFile,
       piEntryBindings: { ...(sourceMeta.piEntryBindings ?? {}) },
       forkSourceDir: sourceDir,
+      // fork 继承源会话的 projectId，让新会话出现在左侧「项目」分组；
+      // 同时固定 agentCwdMode='session'，保持 fork 独立沙箱目录语义。
+      ...(sourceMeta.projectId ? { projectId: sourceMeta.projectId } : {}),
+      agentCwdMode: 'session',
     })
     newMeta.sdkSessionId = forkedManager.getSessionId()
     newMeta.piSessionFile = piSessionFile
     newMeta.piEntryBindings = { ...(sourceMeta.piEntryBindings ?? {}) }
+    if (sourceMeta.projectId) newMeta.projectId = sourceMeta.projectId
+    newMeta.agentCwdMode = 'session'
 
     if (sourceDir && destDir) copyForkWorkspaceFiles(sourceDir, destDir)
     await copyForkStoredSDKMessages({

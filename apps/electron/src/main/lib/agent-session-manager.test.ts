@@ -340,6 +340,43 @@ describe('Agent 会话 runtime 元数据', () => {
   })
 })
 
+describe('Agent 会话 fork 元数据继承', () => {
+  test('Given 项目内旧会话 When fork 会话 Then 新会话继承 projectId 且固定 agentCwdMode=session', async () => {
+    mock.module('@anthropic-ai/claude-agent-sdk', () => ({
+      forkSession: async () => ({ sessionId: 'forked-sdk-session-1' }),
+    }))
+
+    const source = manager.createAgentSession('项目旧会话', undefined, undefined, undefined, 'claude')
+    manager.updateAgentSessionMeta(source.id, {
+      sdkSessionId: 'source-sdk-session-1',
+      projectId: 'proj-luxcoder',
+    })
+
+    const forked = await manager.forkAgentSession({ sessionId: source.id })
+
+    expect(forked.projectId).toBe('proj-luxcoder')
+    expect(forked.agentCwdMode).toBe('session')
+    expect(manager.getAgentSessionMeta(forked.id)).toMatchObject({
+      projectId: 'proj-luxcoder',
+      agentCwdMode: 'session',
+    })
+  })
+
+  test('Given 未绑定项目会话 When fork 会话 Then 新会话不携带 projectId', async () => {
+    mock.module('@anthropic-ai/claude-agent-sdk', () => ({
+      forkSession: async () => ({ sessionId: 'forked-sdk-session-2' }),
+    }))
+
+    const source = manager.createAgentSession('无项目会话', undefined, undefined, undefined, 'claude')
+    manager.updateAgentSessionMeta(source.id, { sdkSessionId: 'source-sdk-session-2' })
+
+    const forked = await manager.forkAgentSession({ sessionId: source.id })
+
+    expect(forked.projectId).toBeUndefined()
+    expect(forked.agentCwdMode).toBe('session')
+  })
+})
+
 describe('Agent 会话引用搜索', () => {
   test('Given 工作区有超过 20 个会话 When 请求最近 200 条 Then 按更新时间返回 200 条', async () => {
     writeAgentSessionsIndex(createIndexedSessions(220))
