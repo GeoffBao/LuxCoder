@@ -13,7 +13,7 @@
 import * as React from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { toast } from 'sonner'
-import { Blocks, ChevronRight, Search, Plus, Store, Sparkles, Loader2 } from 'lucide-react'
+import { Blocks, ChevronRight, Search, Plus, Store, Sparkles, Loader2, Building2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -30,6 +30,7 @@ import { SkillDetailSheet } from './SkillDetailSheet'
 import { McpDetailSheet } from './McpDetailSheet'
 import { BuiltinMcpDetailSheet } from './BuiltinMcpDetailSheet'
 import { ImportSkillDialog } from './ImportSkillDialog'
+import { OrgSkillImportDialog } from './OrgSkillImportDialog'
 import { EnhancedToolsPanel } from '@/components/settings/ToolSettings'
 import { AgentExpertsView } from '@/components/agent-experts/AgentExpertsView'
 import { groupSkills } from './skillGrouping'
@@ -114,6 +115,7 @@ export function AgentSkillsView({ embedded = false }: { embedded?: boolean }): R
   const [editingMcp, setEditingMcp] = React.useState<{ name: string; entry: McpServerEntry } | null>(null)
   const [selectedBuiltinMcp, setSelectedBuiltinMcp] = React.useState<BuiltinMcpServerSummary | null>(null)
   const [showImport, setShowImport] = React.useState(false)
+  const [showOrgImport, setShowOrgImport] = React.useState(false)
   const [pendingDeleteSkill, setPendingDeleteSkill] = React.useState<SkillMeta | null>(null)
   const [pendingDeleteMcpName, setPendingDeleteMcpName] = React.useState<string | null>(null)
   const [isDeletingSkill, setIsDeletingSkill] = React.useState(false)
@@ -326,6 +328,14 @@ export function AgentSkillsView({ embedded = false }: { embedded?: boolean }): R
               <Plus size={14} />
               <span>导入</span>
             </button>
+            <button
+              type="button"
+              onClick={() => setShowOrgImport(true)}
+              className="flex h-8 flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 text-[13px] font-medium text-indigo-600 shadow-sm transition-colors hover:bg-indigo-500/20 dark:text-indigo-400"
+            >
+              <Building2 size={14} />
+              <span>从组织导入</span>
+            </button>
           </>
         )}
 
@@ -466,6 +476,14 @@ export function AgentSkillsView({ embedded = false }: { embedded?: boolean }): R
       <ImportSkillDialog
         open={showImport}
         onOpenChange={setShowImport}
+        workspaceSlug={data.workspaceSlug}
+        installedSkills={data.skills}
+        onImported={() => bumpCapabilities((v) => v + 1)}
+      />
+
+      <OrgSkillImportDialog
+        open={showOrgImport}
+        onOpenChange={setShowOrgImport}
         workspaceSlug={data.workspaceSlug}
         installedSkills={data.skills}
         onImported={() => bumpCapabilities((v) => v + 1)}
