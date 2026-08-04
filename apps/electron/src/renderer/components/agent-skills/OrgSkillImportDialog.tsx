@@ -50,7 +50,7 @@ export function OrgSkillImportDialog({ open, onOpenChange, workspaceSlug, instal
         }
       } catch (error) {
         console.error('[组织技能] 加载组织数据失败:', error)
-        toast.error('加载组织数据失败，请先到「设置 → 组织 Skills」完成连接')
+        toast.error('加载组织数据失败，请先到「设置 → 企业组织技能」完成连接')
       } finally {
         setLoading(false)
       }
@@ -94,7 +94,7 @@ export function OrgSkillImportDialog({ open, onOpenChange, workspaceSlug, instal
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Building2 className="size-5 text-indigo-500" />
-            从组织导入 Skill
+            从企业组织导入技能
           </DialogTitle>
           <DialogDescription>
             选择组织中的 Skill 导入到当前工作区。管理员发布的 Skill 会随组织版本更新同步。
@@ -105,7 +105,7 @@ export function OrgSkillImportDialog({ open, onOpenChange, workspaceSlug, instal
           <div className="py-8 text-center text-sm text-muted-foreground">
             你尚未加入任何组织。
             <br />
-            请先到「设置 → 组织 Skills」创建或加入组织。
+            请先到「设置 → 企业组织技能」创建或加入企业组织。
           </div>
         ) : (
           <div className="space-y-4">

@@ -1100,7 +1100,11 @@ export interface OtherWorkspaceSkillsGroup {
 /** 组织连接配置（~/.luxcoder/org-settings.json） */
 export interface OrganizationConnection {
   serverUrl: string
-  email: string
+  /** 认证方式：企业账号（JWT）或 API Key */
+  authType: 'account' | 'apikey'
+  /** account 模式：登录邮箱 */
+  email?: string
+  /** account 模式：JWT；apikey 模式：API Key（lx_ 前缀） */
   token: string
   /** 会话过期时间（ISO 8601）；为空则永不过期（单进程内存态） */
   tokenExpiresAt?: string

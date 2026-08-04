@@ -318,6 +318,7 @@ import {
   clearOrganizationConnection,
   orgLogin,
   orgRegister,
+  orgConnectWithApiKey,
   orgMe,
   orgCreate,
   orgJoin,
@@ -2812,10 +2813,21 @@ export function registerIpcHandlers(): void {
     }
   )
 
-  // 登录/注册（写连接配置）
+  // 登录/注册/API Key 连接（写连接配置）
   ipcMain.handle(
     'org:authenticate',
-    async (_, action: 'login' | 'register', serverUrl: string, email: string, password: string, displayName?: string) => {
+    async (
+      _,
+      action: 'login' | 'register' | 'apikey',
+      serverUrl: string,
+      email: string,
+      password: string,
+      displayName?: string,
+      apiKey?: string,
+    ) => {
+      if (action === 'apikey') {
+        return orgConnectWithApiKey(serverUrl, apiKey ?? '')
+      }
       return action === 'register'
         ? orgRegister(serverUrl, email, password, displayName)
         : orgLogin(serverUrl, email, password)

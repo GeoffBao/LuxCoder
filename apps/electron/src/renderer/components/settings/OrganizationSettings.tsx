@@ -1,12 +1,12 @@
 /**
- * OrganizationSettings — 企业版组织 Skills 分发设置
+ * OrganizationSettings — 企业组织技能分发设置
  *
  * 功能：
  * - 连接/登出组织服务端（登录/注册）
  * - 显示我的组织与角色
  * - 创建组织 / 凭邀请码加入组织
  * - 查看组织成员
- * - 浏览组织 Skills（导入到当前工作区由 agent-skills 面板完成）
+ * - 浏览企业组织技能（导入到当前工作区由 agent-skills 面板完成）
  */
 
 import * as React from 'react'
@@ -37,6 +37,8 @@ export function OrganizationSettings({ workspaceSlug }: OrganizationSettingsProp
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [displayName, setDisplayName] = React.useState('')
+  const [apiKey, setApiKey] = React.useState('')
+  const [authMode, setAuthMode] = React.useState<'account' | 'apikey'>('account')
 
   // 组织数据
   const [memberships, setMemberships] = React.useState<OrganizationMembership[]>([])
@@ -93,10 +95,30 @@ export function OrganizationSettings({ workspaceSlug }: OrganizationSettingsProp
       setConn(current)
       setPassword('')
       await refreshOrgData(current)
-      toast.success(action === 'register' ? '注册成功，已连接组织服务' : '登录成功')
+      toast.success(action === 'register' ? '注册成功，已连接企业组织服务' : '登录成功')
     } catch (error) {
       console.error('[组织设置] 认证失败:', error)
       toast.error((error as Error).message || '认证失败')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleApiKeyConnect = async (): Promise<void> => {
+    if (!serverUrl || !apiKey) {
+      toast.error('请填写服务端地址和 API Key')
+      return
+    }
+    setLoading(true)
+    try {
+      const current = await window.electronAPI.orgAuthenticate('apikey', serverUrl.trim(), '', '', undefined, apiKey.trim())
+      setConn(current)
+      setApiKey('')
+      await refreshOrgData(current)
+      toast.success('已通过 API Key 连接企业组织服务')
+    } catch (error) {
+      console.error('[组织设置] API Key 连接失败:', error)
+      toast.error((error as Error).message || 'API Key 连接失败')
     } finally {
       setLoading(false)
     }
@@ -167,15 +189,37 @@ export function OrganizationSettings({ workspaceSlug }: OrganizationSettingsProp
     return (
       <div className="space-y-8">
         <SettingsSection
-          title="企业版组织 Skills"
-          description="连接企业组织服务端，集中管理组织级 Skills 分发与协作。管理员可一键下发，成员免安装使用。"
+          title="企业组织技能"
+          description="连接企业组织服务端，集中管理组织级技能分发与协作。管理员可一键下发，成员免安装使用。"
         >
           <SettingsCard>
-            <div className="px-4 py-3 space-y-2">
+            <div className="px-4 py-3 space-y-3">
               <div className="flex items-center gap-2">
                 <Building2 className="size-4 text-indigo-500" />
-                <span className="text-sm font-medium">连接组织服务端</span>
+                <span className="text-sm font-medium">连接企业组织服务</span>
               </div>
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setAuthMode('account')}
+                  className={`flex-1 rounded-lg border px-3 py-2 text-[13px] font-medium transition-colors ${authMode === 'account'
+                    ? 'border-indigo-500/50 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+                    : 'border-border/60 text-muted-foreground hover:bg-foreground/[0.04]'}`}
+                >
+                  企业账号
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAuthMode('apikey')}
+                  className={`flex-1 rounded-lg border px-3 py-2 text-[13px] font-medium transition-colors ${authMode === 'apikey'
+                    ? 'border-indigo-500/50 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+                    : 'border-border/60 text-muted-foreground hover:bg-foreground/[0.04]'}`}
+                >
+                  API Key
+                </button>
+              </div>
+
               <SettingsInput
                 label="服务端地址"
                 description="部署的企业版 LuxCoder Server 地址，如 http://your-org.example.com"
@@ -183,41 +227,63 @@ export function OrganizationSettings({ workspaceSlug }: OrganizationSettingsProp
                 onChange={setServerUrl}
                 placeholder="http://localhost:8787"
               />
-              <SettingsInput
-                label="邮箱"
-                value={email}
-                onChange={setEmail}
-                placeholder="you@company.com"
-              />
-              <SettingsInput
-                label="密码"
-                type="password"
-                value={password}
-                onChange={setPassword}
-                placeholder="至少 8 位"
-              />
-              <SettingsInput
-                label="显示名称（仅注册时使用）"
-                value={displayName}
-                onChange={setDisplayName}
-                placeholder="张三"
-              />
-              <div className="flex gap-3 pt-1">
-                <Button
-                  onClick={() => void handleLogin('login')}
-                  disabled={loading}
-                  className="bg-indigo-600 hover:bg-indigo-500"
-                >
-                  登录
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => void handleLogin('register')}
-                  disabled={loading}
-                >
-                  注册新账号
-                </Button>
-              </div>
+
+              {authMode === 'account' ? (
+                <>
+                  <SettingsInput
+                    label="邮箱"
+                    value={email}
+                    onChange={setEmail}
+                    placeholder="you@company.com"
+                  />
+                  <SettingsInput
+                    label="密码"
+                    type="password"
+                    value={password}
+                    onChange={setPassword}
+                    placeholder="至少 8 位"
+                  />
+                  <SettingsInput
+                    label="显示名称（仅注册时使用）"
+                    value={displayName}
+                    onChange={setDisplayName}
+                    placeholder="张三"
+                  />
+                  <div className="flex gap-3 pt-1">
+                    <Button
+                      onClick={() => void handleLogin('login')}
+                      disabled={loading}
+                      className="bg-indigo-600 hover:bg-indigo-500"
+                    >
+                      登录
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => void handleLogin('register')}
+                      disabled={loading}
+                    >
+                      注册新账号
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <SettingsInput
+                    label="API Key"
+                    description="在服务端账号登录后生成（lx_ 开头），用于脚本/轻量接入"
+                    value={apiKey}
+                    onChange={setApiKey}
+                    placeholder="lx_xxxxxxxx"
+                  />
+                  <Button
+                    onClick={() => void handleApiKeyConnect()}
+                    disabled={loading}
+                    className="bg-indigo-600 hover:bg-indigo-500"
+                  >
+                    连接
+                  </Button>
+                </>
+              )}
             </div>
           </SettingsCard>
         </SettingsSection>
@@ -230,7 +296,7 @@ export function OrganizationSettings({ workspaceSlug }: OrganizationSettingsProp
   return (
     <div className="space-y-8">
       <SettingsSection
-        title="企业版组织 Skills"
+        title="企业组织技能"
         description={`已连接组织服务：${conn.serverUrl}`}
       >
         <SettingsCard>
@@ -315,7 +381,7 @@ export function OrganizationSettings({ workspaceSlug }: OrganizationSettingsProp
 
       {selectedOrgId && (
         <SettingsSection
-          title={`组织 Skills (${skills.length})`}
+          title={`企业组织技能 (${skills.length})`}
           description="组织管理员发布的 Skills。可在工作区的「Agent 技能」面板中导入/更新这些 Skills。"
         >
           <SettingsCard>
@@ -341,7 +407,7 @@ export function OrganizationSettings({ workspaceSlug }: OrganizationSettingsProp
       )}
 
       <p className="text-xs text-muted-foreground px-1">
-        导入组织 Skills 到当前工作区：前往「Agent 技能」面板，选择「从组织导入」。
+        导入企业组织技能到当前工作区：前往「Agent 技能」面板，选择「从组织导入」。
       </p>
     </div>
   )

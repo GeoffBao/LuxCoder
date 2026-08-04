@@ -334,7 +334,7 @@ export function AgentSkillsView({ embedded = false }: { embedded?: boolean }): R
               className="flex h-8 flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 text-[13px] font-medium text-indigo-600 shadow-sm transition-colors hover:bg-indigo-500/20 dark:text-indigo-400"
             >
               <Building2 size={14} />
-              <span>从组织导入</span>
+              <span>从企业组织导入</span>
             </button>
           </>
         )}

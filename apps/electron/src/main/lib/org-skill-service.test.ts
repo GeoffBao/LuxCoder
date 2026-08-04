@@ -31,6 +31,7 @@ import {
   orgLogin,
   orgMe,
   orgRegister,
+  orgConnectWithApiKey,
 } from './org-skill-service'
 import type { OrganizationConnection } from '@luxcoder/shared'
 
@@ -55,8 +56,9 @@ mock.post('/api/auth/login', async (c) => {
 })
 
 mock.use('/api/orgs/*', async (c, next) => {
-  const auth = c.req.header('authorization')
-  if (auth === `Bearer ${currentToken}`) {
+  const auth = c.req.header('authorization') ?? ''
+  // 接受 JWT（currentToken）或 lx_ API Key
+  if (auth === `Bearer ${currentToken}` || auth.startsWith('Bearer lx_')) {
     await next()
   } else {
     return c.json({ error: '认证无效或已过期' }, 401)
@@ -108,7 +110,7 @@ let serverUrl = ''
 let mockServer: ReturnType<typeof Bun.serve>
 
 function conn(): OrganizationConnection {
-  return { serverUrl, email: 'a@b.com', token: 'token-a@b.com' }
+  return { serverUrl, authType: 'account', email: 'a@b.com', token: 'token-a@b.com' }
 }
 
 describe('org-skill-service', () => {
@@ -193,7 +195,7 @@ describe('org-skill-service', () => {
   })
 
   test('401 过期抛 OrgApiError', async () => {
-    const expired = { serverUrl, email: 'a@b.com', token: 'expired-token' }
+    const expired = { serverUrl, authType: 'account', email: 'a@b.com', token: 'expired-token' }
     try {
       await orgListSkills(expired, 'org-1')
       expect.unreachable('应抛出 401')
@@ -206,6 +208,23 @@ describe('org-skill-service', () => {
   test('登出清除连接配置', () => {
     clearOrganizationConnection()
     expect(getOrganizationConnection()).toBeNull()
+  })
+
+  test('API Key 模式连接成功（lx_ 前缀）', async () => {
+    // mock server 的鉴权是 Bearer token-a@b.com；这里用 apikey 形式走同一通道
+    const saved = await orgConnectWithApiKey(serverUrl, 'lx_testkey123')
+    expect(saved.authType).toBe('apikey')
+    expect(saved.token).toBe('lx_testkey123')
+  })
+
+  test('API Key 格式不正确抛 OrgApiError', async () => {
+    try {
+      await orgConnectWithApiKey(serverUrl, 'plain-key')
+      expect.unreachable('应抛出格式错误')
+    } catch (err) {
+      expect(err).toBeInstanceOf(OrgApiError)
+      expect((err as OrgApiError).status).toBe(400)
+    }
   })
 
   test('buildOrganizationImportSource 生成组织源元数据', () => {

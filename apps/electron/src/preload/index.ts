@@ -842,7 +842,7 @@ export interface ElectronAPI {
   /** 设置/清除组织连接配置 */
   orgSetConnection: (mode: 'logout' | 'set', conn?: OrganizationConnection) => Promise<OrganizationConnection | null>
   /** 登录/注册并保存连接 */
-  orgAuthenticate: (action: 'login' | 'register', serverUrl: string, email: string, password: string, displayName?: string) => Promise<OrganizationConnection>
+  orgAuthenticate: (action: 'login' | 'register' | 'apikey', serverUrl: string, email: string, password: string, displayName?: string, apiKey?: string) => Promise<OrganizationConnection>
   /** 我的组织与角色 */
   orgMe: () => Promise<OrganizationMembership[]>
   /** 创建组织 */
@@ -2235,8 +2235,8 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.ORG_SET_CONNECTION, mode, conn)
   },
 
-  orgAuthenticate: (action: 'login' | 'register', serverUrl: string, email: string, password: string, displayName?: string) => {
-    return ipcRenderer.invoke('org:authenticate', action, serverUrl, email, password, displayName)
+  orgAuthenticate: (action: 'login' | 'register' | 'apikey', serverUrl: string, email: string, password: string, displayName?: string, apiKey?: string) => {
+    return ipcRenderer.invoke('org:authenticate', action, serverUrl, email, password, displayName, apiKey)
   },
 
   orgMe: () => {

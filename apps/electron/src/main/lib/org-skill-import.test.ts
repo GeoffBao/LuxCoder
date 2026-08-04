@@ -75,7 +75,7 @@ mock.get('/api/orgs/org-1/skills/org-skill/download', async () => {
 
 // ── 测试 ─────────────────────────────────────────────────
 
-const conn: OrganizationConnection = { serverUrl: 'http://localhost:0', email: 'a@b.com', token: TOKEN }
+const conn: OrganizationConnection = { serverUrl: 'http://localhost:0', authType: 'account', email: 'a@b.com', token: TOKEN }
 
 describe('组织 Skills 导入/更新', () => {
   beforeAll(async () => {

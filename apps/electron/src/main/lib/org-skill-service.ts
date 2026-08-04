@@ -133,7 +133,7 @@ async function orgRequest(
 
 // ===== 业务 API =====
 
-/** 登录（注册用 /auth/login；注册由服务端完成） */
+/** 账号登录（JWT） */
 export async function orgLogin(serverUrl: string, email: string, password: string): Promise<OrganizationConnection> {
   const url = `${serverUrl.replace(/\/+$/, '')}/api/auth/login`
   let res: Response
@@ -157,7 +157,7 @@ export async function orgLogin(serverUrl: string, email: string, password: strin
     throw new OrgApiError(message, res.status)
   }
   const body = (await res.json()) as { token: string }
-  const conn: OrganizationConnection = { serverUrl, email, token: body.token }
+  const conn: OrganizationConnection = { serverUrl, authType: 'account', email, token: body.token }
   setOrganizationConnection(conn)
   return conn
 }
@@ -186,7 +186,27 @@ export async function orgRegister(serverUrl: string, email: string, password: st
     throw new OrgApiError(message, res.status)
   }
   const body = (await res.json()) as { token: string }
-  const conn: OrganizationConnection = { serverUrl, email, token: body.token }
+  const conn: OrganizationConnection = { serverUrl, authType: 'account', email, token: body.token }
+  setOrganizationConnection(conn)
+  return conn
+}
+
+/** API Key 模式连接（不校验密码，直接用服务端生成的 Key） */
+export async function orgConnectWithApiKey(serverUrl: string, apiKey: string): Promise<OrganizationConnection> {
+  const trimmed = apiKey.trim()
+  if (!trimmed.startsWith('lx_')) {
+    throw new OrgApiError('API Key 格式不正确，应以 lx_ 开头', 400)
+  }
+  // 用 API Key 做一次健康探测，确认服务端可达且 Key 有效
+  const conn: OrganizationConnection = { serverUrl, authType: 'apikey', token: trimmed }
+  try {
+    await orgMe(conn)
+  } catch (err) {
+    if (err instanceof OrgApiError && err.status === 401) {
+      throw new OrgApiError('API Key 无效或已吊销', 401)
+    }
+    throw err
+  }
   setOrganizationConnection(conn)
   return conn
 }
