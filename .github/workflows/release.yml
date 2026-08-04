@@ -121,9 +121,11 @@ jobs:
           done
         working-directory: apps/electron
 
+  # GitHub 已淘汰 Intel macOS runner（macos-13），x64 构建改为在 macos-latest（arm64）上交叉构建：
+  # 显式下载 darwin-x64 SDK 子包（bun install 会按 os/cpu 过滤掉它），再 electron-builder --x64 产出 x64 DMG/ZIP。
   build-mac-x64:
-    name: build (macos-13, mac, x64, --x64)
-    runs-on: macos-13
+    name: build (macos-latest, mac, x64, --x64)
+    runs-on: macos-latest
     needs: validate-release-version
     env:
       MAC_CERTS: ${{ secrets.MAC_CERTS }}
@@ -145,6 +147,21 @@ jobs:
 
       - name: 安装依赖
         run: bun install --frozen-lockfile
+
+      # macos-latest 是 arm64 runner，bun install 按 os/cpu 只装 darwin-arm64 子包。
+      # x64 交叉打包需要 darwin-x64 子包（含 Intel claude binary），显式从 npm registry 下载解压
+      # 到 apps/electron/node_modules（electron-builder files 规则已包含该目录）。版本从
+      # apps/electron/package.json optionalDependencies 读取，避免与 lockfile 漂移。
+      - name: 安装 Intel 版 Claude SDK 子包
+        run: |
+          set -euo pipefail
+          SDK_X64_VERSION="$(node -p "require('./apps/electron/package.json').optionalDependencies['@anthropic-ai/claude-agent-sdk-darwin-x64']")"
+          mkdir -p apps/electron/node_modules/@anthropic-ai
+          curl -fsSL "https://registry.npmjs.org/@anthropic-ai/claude-agent-sdk-darwin-x64/-/claude-agent-sdk-darwin-x64-${SDK_X64_VERSION}.tgz" -o /tmp/sdk-x64.tgz
+          tar -xzf /tmp/sdk-x64.tgz -C apps/electron/node_modules/@anthropic-ai
+          mv apps/electron/node_modules/@anthropic-ai/package apps/electron/node_modules/@anthropic-ai/claude-agent-sdk-darwin-x64
+          rm -f /tmp/sdk-x64.tgz
+          test -x "apps/electron/node_modules/@anthropic-ai/claude-agent-sdk-darwin-x64/claude" && echo "Intel 版 Claude SDK 子包就绪: v${SDK_X64_VERSION}"
 
       # 有签名证书时导入；无证书（内部构建）时跳过，产出未签名包
       - name: 导入 macOS 签名证书
