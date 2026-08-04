@@ -75,6 +75,13 @@ import type {
   WorkspaceMcpConfig,
   SkillMeta,
   OtherWorkspaceSkillsGroup,
+  OrganizationConnection,
+  OrganizationInfo,
+  OrganizationMembership,
+  OrganizationMember,
+  OrganizationSkill,
+  OrganizationSkillDetail,
+  OrganizationSkillSyncResult,
   WorkspaceCapabilities,
   WorkspaceMemorySummary,
   FileEntry,
@@ -827,6 +834,29 @@ export interface ElectronAPI {
 
   /** 从源工作区同步更新已导入的 Skill */
   updateSkillFromSource: (targetSlug: string, skillSlug: string) => Promise<SkillMeta>
+
+  // ── 企业版组织 Skills 分发 ───────────────────────────────
+
+  /** 获取组织连接配置 */
+  orgGetConnection: () => Promise<OrganizationConnection | null>
+  /** 设置/清除组织连接配置 */
+  orgSetConnection: (mode: 'logout' | 'set', conn?: OrganizationConnection) => Promise<OrganizationConnection | null>
+  /** 登录/注册并保存连接 */
+  orgAuthenticate: (action: 'login' | 'register', serverUrl: string, email: string, password: string, displayName?: string) => Promise<OrganizationConnection>
+  /** 我的组织与角色 */
+  orgMe: () => Promise<OrganizationMembership[]>
+  /** 创建组织 */
+  orgCreate: (name: string) => Promise<OrganizationInfo>
+  /** 凭邀请码加入组织 */
+  orgJoin: (inviteCode: string) => Promise<{ org: OrganizationInfo; role: string }>
+  /** 列出组织成员 */
+  orgListMembers: (orgId: string) => Promise<OrganizationMember[]>
+  /** 列出组织 Skills */
+  orgListSkills: (orgId: string) => Promise<OrganizationSkill[]>
+  /** 导入组织 Skill 到工作区 */
+  orgImportSkill: (targetSlug: string, orgId: string, orgName: string, skill: OrganizationSkill) => Promise<SkillMeta>
+  /** 从组织源更新已导入 Skill */
+  orgUpdateSkill: (targetSlug: string, skillSlug: string) => Promise<SkillMeta>
 
   /** 读取 SKILL.md 全文内容 */
   readSkillContent: (workspaceSlug: string, skillSlug: string) => Promise<string>
@@ -2193,6 +2223,48 @@ const electronAPI: ElectronAPI = {
       targetSlug,
       skillSlug,
     )
+  },
+
+  // ── 企业版组织 Skills 分发 ───────────────────────────────
+
+  orgGetConnection: () => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.ORG_GET_CONNECTION)
+  },
+
+  orgSetConnection: (mode: 'logout' | 'set', conn?: Parameters<ElectronAPI['orgSetConnection']>[1]) => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.ORG_SET_CONNECTION, mode, conn)
+  },
+
+  orgAuthenticate: (action: 'login' | 'register', serverUrl: string, email: string, password: string, displayName?: string) => {
+    return ipcRenderer.invoke('org:authenticate', action, serverUrl, email, password, displayName)
+  },
+
+  orgMe: () => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.ORG_ME)
+  },
+
+  orgCreate: (name: string) => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.ORG_CREATE, name)
+  },
+
+  orgJoin: (inviteCode: string) => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.ORG_JOIN, inviteCode)
+  },
+
+  orgListMembers: (orgId: string) => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.ORG_LIST_MEMBERS, orgId)
+  },
+
+  orgListSkills: (orgId: string) => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.ORG_LIST_SKILLS, orgId)
+  },
+
+  orgImportSkill: (targetSlug: string, orgId: string, orgName: string, skill: OrganizationSkill) => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.ORG_IMPORT_SKILL, targetSlug, orgId, orgName, skill)
+  },
+
+  orgUpdateSkill: (targetSlug: string, skillSlug: string) => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.ORG_UPDATE_SKILL, targetSlug, skillSlug)
   },
 
   readSkillContent: (workspaceSlug: string, skillSlug: string) => {

@@ -282,6 +282,8 @@ import {
   deleteWorkspaceSkill,
   importSkillFromWorkspace,
   updateSkillFromSource,
+  importSkillFromOrganization,
+  updateSkillFromOrganizationSource,
   readWorkspaceSkillContent,
   writeWorkspaceSkillContent,
   toggleWorkspaceSkill,
@@ -310,6 +312,18 @@ import {
   getWorkspaceDefaultWorkingDirectory,
   setWorkspaceDefaultWorkingDirectory,
 } from './lib/agent-workspace-manager'
+import {
+  getOrganizationConnection,
+  setOrganizationConnection,
+  clearOrganizationConnection,
+  orgLogin,
+  orgRegister,
+  orgMe,
+  orgCreate,
+  orgJoin,
+  orgListMembers,
+  orgListSkills,
+} from './lib/org-skill-service'
 import { projectRepository } from './lib/project-repository'
 import { getAllToolInfos } from './lib/chat-tool-registry'
 import { updateToolState, updateToolCredentials, getToolCredentials, addCustomTool, deleteCustomTool } from './lib/chat-tool-config'
@@ -2772,6 +2786,115 @@ export function registerIpcHandlers(): void {
     AGENT_IPC_CHANNELS.UPDATE_SKILL_FROM_SOURCE,
     async (_, targetSlug: string, skillSlug: string): Promise<SkillMeta> => {
       return updateSkillFromSource(targetSlug, skillSlug)
+    }
+  )
+
+  // ── 企业版组织 Skills 分发 ───────────────────────────────
+
+  // 获取组织连接配置
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.ORG_GET_CONNECTION,
+    async (): Promise<ReturnType<typeof getOrganizationConnection>> => {
+      return getOrganizationConnection()
+    }
+  )
+
+  // 登出（清除连接配置）
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.ORG_SET_CONNECTION,
+    async (_, mode: 'logout' | 'set', conn?: Parameters<typeof setOrganizationConnection>[0]): Promise<ReturnType<typeof getOrganizationConnection>> => {
+      if (mode === 'logout') {
+        clearOrganizationConnection()
+      } else if (conn) {
+        setOrganizationConnection(conn)
+      }
+      return getOrganizationConnection()
+    }
+  )
+
+  // 登录/注册（写连接配置）
+  ipcMain.handle(
+    'org:authenticate',
+    async (_, action: 'login' | 'register', serverUrl: string, email: string, password: string, displayName?: string) => {
+      return action === 'register'
+        ? orgRegister(serverUrl, email, password, displayName)
+        : orgLogin(serverUrl, email, password)
+    }
+  )
+
+  // 我的组织与角色
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.ORG_ME,
+    async (): Promise<Awaited<ReturnType<typeof orgMe>>> => {
+      const conn = getOrganizationConnection()
+      if (!conn) throw new Error('未连接组织服务，请先登录')
+      return orgMe(conn)
+    }
+  )
+
+  // 创建组织
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.ORG_CREATE,
+    async (_, name: string): Promise<Awaited<ReturnType<typeof orgCreate>>> => {
+      const conn = getOrganizationConnection()
+      if (!conn) throw new Error('未连接组织服务，请先登录')
+      return orgCreate(conn, name)
+    }
+  )
+
+  // 凭邀请码加入组织
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.ORG_JOIN,
+    async (_, inviteCode: string): Promise<Awaited<ReturnType<typeof orgJoin>>> => {
+      const conn = getOrganizationConnection()
+      if (!conn) throw new Error('未连接组织服务，请先登录')
+      return orgJoin(conn, inviteCode)
+    }
+  )
+
+  // 列出组织成员
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.ORG_LIST_MEMBERS,
+    async (_, orgId: string): Promise<Awaited<ReturnType<typeof orgListMembers>>> => {
+      const conn = getOrganizationConnection()
+      if (!conn) throw new Error('未连接组织服务，请先登录')
+      return orgListMembers(conn, orgId)
+    }
+  )
+
+  // 列出组织 Skills
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.ORG_LIST_SKILLS,
+    async (_, orgId: string): Promise<Awaited<ReturnType<typeof orgListSkills>>> => {
+      const conn = getOrganizationConnection()
+      if (!conn) throw new Error('未连接组织服务，请先登录')
+      return orgListSkills(conn, orgId)
+    }
+  )
+
+  // 导入组织 Skill 到工作区
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.ORG_IMPORT_SKILL,
+    async (
+      _,
+      targetSlug: string,
+      orgId: string,
+      orgName: string,
+      skill: Parameters<typeof importSkillFromOrganization>[4],
+    ): Promise<SkillMeta> => {
+      const conn = getOrganizationConnection()
+      if (!conn) throw new Error('未连接组织服务，请先登录')
+      return importSkillFromOrganization(targetSlug, conn, orgId, orgName, skill)
+    }
+  )
+
+  // 从组织源更新已导入 Skill
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.ORG_UPDATE_SKILL,
+    async (_, targetSlug: string, skillSlug: string): Promise<SkillMeta> => {
+      const conn = getOrganizationConnection()
+      if (!conn) throw new Error('未连接组织服务，请先登录')
+      return updateSkillFromOrganizationSource(targetSlug, skillSlug, conn)
     }
   )
 
