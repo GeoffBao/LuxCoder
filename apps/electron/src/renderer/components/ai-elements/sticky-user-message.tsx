@@ -36,7 +36,12 @@ function toPlainPreview(text: string): string {
     .replace(/\*\*([^*]+)\*\*/g, '$1')
     .replace(/\*([^*]+)\*/g, '$1')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    .replace(/@file:(\S+)/g, (_m, p: string) => `📎 ${p.split('/').pop()}`)
+    .replace(/@file:(\S+)/g, (_m, p: string) => {
+      // #1393 后 @file 路径已 encodeURIComponent（含空格路径不再被 \S+ 截断），摘要层需解码回真实路径再取文件名。
+      let decoded = p
+      try { decoded = decodeURIComponent(p) } catch { /* 保持原值 */ }
+      return `📎 ${decoded.split('/').pop()}`
+    })
     .replace(/\/skill:(\S+)/g, (_m, p: string) => `/${p}`)
     .replace(/#mcp:(\S+)/g, (_m, p: string) => `#${p}`)
     .replace(/&session:(\S+)/g, (_m, p: string) => `会话 ${p}`)
