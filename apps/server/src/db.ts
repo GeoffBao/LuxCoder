@@ -46,6 +46,7 @@ export function migrate(database: Database): void {
       email         TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
       display_name  TEXT NOT NULL DEFAULT '',
+      api_key       TEXT,
       created_at    TEXT NOT NULL
     );
 

@@ -19,9 +19,11 @@ app.get('/api/health', (c) => c.json({ ok: true, service: 'luxcoder-server' }))
 
 // ── 路由模块 ─────────────────────────────────────────────
 import { authRoutes } from './auth/routes'
+import { apiKeyRoutes } from './auth/api-key-routes'
 import { orgRoutes } from './orgs/routes'
 import { skillRoutes } from './skills/routes'
 app.route('/api/auth', authRoutes)
+app.route('/api/auth', apiKeyRoutes)
 app.route('/api/orgs', orgRoutes)
 app.route('/api/orgs', skillRoutes)
 
