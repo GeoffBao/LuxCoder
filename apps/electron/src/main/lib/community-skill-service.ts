@@ -144,13 +144,23 @@ export async function installCommunitySkill(
     }
 
     const sourceDir = join(repoRoot, skill.path)
-    if (!existsSync(join(sourceDir, 'SKILL.md'))) {
-      throw new Error(`社区 Skill 缺少 SKILL.md: ${skill.name}`)
+    // n-skills 是 Claude Code plugin 格式：SKILL.md 可能在 <dir>/skills/<name>/ 嵌套目录
+    const nestedSkillDir = join(sourceDir, 'skills', skill.name)
+    let actualSkillDir = sourceDir
+    if (existsSync(join(sourceDir, 'SKILL.md'))) {
+      actualSkillDir = sourceDir
+    } else if (existsSync(join(nestedSkillDir, 'SKILL.md'))) {
+      actualSkillDir = nestedSkillDir
+    } else {
+      // 兜底：扫描目录内任意一层含 SKILL.md 的子目录
+      const found = scanForSkillDir(sourceDir)
+      if (found) actualSkillDir = found
+      else throw new Error(`社区 Skill 缺少 SKILL.md: ${skill.name}`)
     }
 
     // 复制到工作区
     const fs = await import('node:fs')
-    fs.cpSync(sourceDir, targetPath, { recursive: true })
+    fs.cpSync(actualSkillDir, targetPath, { recursive: true })
 
     // 写入来源标记
     const sourceMeta = {
@@ -179,4 +189,25 @@ export async function installCommunitySkill(
   } finally {
     rmSync(extractedRoot, { recursive: true, force: true })
   }
+}
+
+/** 扫描目录树找含 SKILL.md 的 skill 目录（兜底） */
+function scanForSkillDir(rootDir: string): string | null {
+  const { readdirSync, statSync } = require('node:fs')
+  const queue: string[] = [rootDir]
+  let guard = 0
+  while (queue.length > 0 && guard < 200) {
+    guard++
+    const dir = queue.shift()!
+    if (existsSync(join(dir, 'SKILL.md'))) return dir
+    try {
+      for (const entry of readdirSync(dir)) {
+        const full = join(dir, entry)
+        if (statSync(full).isDirectory()) queue.push(full)
+      }
+    } catch {
+      /* 忽略不可读目录 */
+    }
+  }
+  return null
 }
