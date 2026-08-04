@@ -980,7 +980,7 @@ function computeSkillContentHash(skillDir: string): string {
   const crypto = require('node:crypto')
   const files = readdirSync(skillDir, { recursive: true, withFileTypes: true })
     .filter((entry) => entry.isFile() && entry.name !== SOURCE_META_FILE)
-    .map((entry) => join(entry.parentPath ?? entry.path, entry.name))
+    .map((entry) => join(entry.parentPath, entry.name))
     .sort()
   const hash = crypto.createHash('sha256')
   for (const file of files) {
