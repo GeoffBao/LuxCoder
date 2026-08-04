@@ -1372,6 +1372,8 @@ export interface AgentSessionFileRoots {
   projectRoot?: string
   /** 绑定的 Project ID。 */
   projectId?: string
+  /** Project 已绑定但目录不可达时的原始路径；仅此时出现，供 UI 区分"未绑定"与"绑定但不可达"。 */
+  projectUnavailablePath?: string
   /** Workspace Files 根目录。 */
   workspaceFilesPath: string
   /** 持久化的 Workspace 级会话 Outbox。 */

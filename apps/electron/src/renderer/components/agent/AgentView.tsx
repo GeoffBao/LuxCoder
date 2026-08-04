@@ -509,7 +509,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
       .then((roots) => { if (!cancelled) setSessionFileRoots(roots) })
       .catch(() => { if (!cancelled) setSessionFileRoots(null) })
     return () => { cancelled = true }
-  }, [currentWorkspaceId, sessionId])
+  }, [currentWorkspaceId, sessionId, sessionMeta?.projectId])
   const [pendingPrompt, setPendingPrompt] = useAtom(agentPendingPromptAtom)
   const [pendingFiles, setPendingFiles] = useAtom(agentPendingFilesAtomFamily(sessionId))
   const [queuedMessages, setQueuedMessages] = useAtom(agentMessageQueueAtomFamily(sessionId))

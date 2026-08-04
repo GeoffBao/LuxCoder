@@ -33,4 +33,30 @@ describe('buildAgentSessionFileRoots', () => {
     expect(result.projectRoot).toBeUndefined()
     expect(result.sessionOutboxPath).toBe('/luxcoder/workspaces/default/workspace-files/Outbox/session-2')
   })
+
+  test('Project 目录不可达时透传原始路径，供 UI 与"未绑定"区分', () => {
+    const result = buildAgentSessionFileRoots({
+      sessionDir: '/luxcoder/workspaces/default/session-3',
+      workspaceFilesPath: '/luxcoder/workspaces/default/workspace-files',
+      executionCwd: '/luxcoder/workspaces/default/session-3',
+      executionSource: 'sandbox',
+      projectId: 'project-1',
+      projectUnavailablePath: '/Volumes/External/demo-project',
+    })
+
+    expect(result.projectRoot).toBeUndefined()
+    expect(result.projectUnavailablePath).toBe('/Volumes/External/demo-project')
+  })
+
+  test('会话完全没绑定 Project 时不出现 projectUnavailablePath', () => {
+    const result = buildAgentSessionFileRoots({
+      sessionDir: '/luxcoder/workspaces/default/session-4',
+      workspaceFilesPath: '/luxcoder/workspaces/default/workspace-files',
+      executionCwd: '/luxcoder/workspaces/default/session-4',
+      executionSource: 'sandbox',
+    })
+
+    expect(result.projectId).toBeUndefined()
+    expect(result.projectUnavailablePath).toBeUndefined()
+  })
 })

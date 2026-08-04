@@ -7,7 +7,7 @@
 
 import * as React from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
-import { X, ExternalLink, ChevronRight, MoreHorizontal, FolderSearch, Pencil, FolderInput, MessageSquarePlus } from 'lucide-react'
+import { X, ExternalLink, ChevronRight, MoreHorizontal, FolderSearch, Pencil, FolderInput, MessageSquarePlus, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -45,6 +45,9 @@ import { useOpenPreview } from '@/components/diff/preview-opener'
 import { detectIsWindows } from '@/lib/platform'
 import type { FileEntry, AgentPendingFile, AgentOutputRecord, AgentSessionFileRoots } from '@luxcoder/shared'
 import { setFilePanelDragData, getMediaTypeFromFilename, dispatchInsertFileMention } from '@/lib/file-panel-drag'
+import { buildProjectPageNavigation } from '@/components/app-shell/code-main-view-model'
+import { activeProjectPageIdAtom, codeMainViewAtom, projectPageTabAtom } from '@/atoms/project-atoms'
+import { activeViewAtom } from '@/atoms/active-view'
 
 function getPathBasename(filePath: string): string {
   return filePath.split(/[\\/]/).filter(Boolean).pop() || filePath
@@ -161,11 +164,27 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
       setSessionOutputs([])
     })
     return () => { cancelled = true }
-  }, [currentWorkspaceId, sessionId, filesVersion])
+  }, [currentWorkspaceId, sessionId, filesVersion, currentSession?.projectId])
 
   const projectFilesPath = sessionFileRoots?.projectRoot ?? null
+  const projectUnavailablePath = sessionFileRoots?.projectUnavailablePath ?? null
   const sessionOutboxPath = sessionFileRoots?.sessionOutboxPath ?? null
   const fileAccess = React.useMemo(() => ({ sessionId }), [sessionId])
+
+  // 项目目录不可用时跳转到该 Project 的设置页，那里已有可编辑的工作目录字段。
+  const setActiveProjectPageId = useSetAtom(activeProjectPageIdAtom)
+  const setProjectPageTab = useSetAtom(projectPageTabAtom)
+  const setCodeMainView = useSetAtom(codeMainViewAtom)
+  const setActiveView = useSetAtom(activeViewAtom)
+  const openProjectSettings = React.useCallback(() => {
+    const boundProjectId = sessionFileRoots?.projectId
+    if (!boundProjectId) return
+    const navigation = buildProjectPageNavigation(boundProjectId, 'settings')
+    setActiveProjectPageId(navigation.activeProjectPageId)
+    setProjectPageTab(navigation.projectPageTab)
+    setCodeMainView(navigation.codeMainView)
+    setActiveView(navigation.activeView)
+  }, [sessionFileRoots?.projectId, setActiveProjectPageId, setProjectPageTab, setCodeMainView, setActiveView])
 
   // 附加目录列表（会话级）
   const attachedDirsMap = useAtomValue(agentAttachedDirectoriesMapAtom)
@@ -669,7 +688,27 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
                         <FileBrowser rootPath={projectFilesPath} access={fileAccess} hideToolbar embedded hideEmpty={hasVisibleWorkspaceAttachedItems} onAddToChat={handleAddToChat} onFilePreview={handleFilePreview} />
                       </>
                     )}
-                    {showProjectFiles && !projectFilesPath && (
+                    {showProjectFiles && !projectFilesPath && projectUnavailablePath && (
+                      <div className="mx-2 my-2 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                        <div className="flex items-start gap-1.5">
+                          <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
+                          <div className="min-w-0">
+                            <div>项目目录不可用，可能已被移动或删除：</div>
+                            <div className="mt-0.5 truncate font-mono text-[11px] opacity-80" title={projectUnavailablePath}>{projectUnavailablePath}</div>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="mt-2 h-6 border-destructive/30 px-2 text-[11px] text-destructive hover:bg-destructive/10"
+                          onClick={openProjectSettings}
+                        >
+                          前往项目设置重新关联
+                        </Button>
+                      </div>
+                    )}
+                    {showProjectFiles && !projectFilesPath && !projectUnavailablePath && (
                       <div className="mx-2 my-2 px-3 py-2 text-xs text-muted-foreground bg-muted/40 rounded-md">
                         当前会话尚未绑定可用项目目录；可切回会话文件查看沙箱内容。
                       </div>

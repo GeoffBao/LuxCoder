@@ -17,6 +17,8 @@ export interface BuildAgentSessionFileRootsInput {
   executionCwd: string
   executionSource: AgentSessionFileRoots['executionSource']
   projectId?: string
+  /** Project 已绑定但目录不可达时的原始路径；透传给 UI 区分"未绑定"与"绑定但不可达"。 */
+  projectUnavailablePath?: string
 }
 
 /** 纯函数构建文件根，便于 renderer contract 之外的单测覆盖。 */
@@ -30,6 +32,7 @@ export function buildAgentSessionFileRoots(input: BuildAgentSessionFileRootsInpu
     executionSource: input.executionSource,
     ...(projectRoot ? { projectRoot } : {}),
     ...(input.projectId ? { projectId: input.projectId } : {}),
+    ...(input.projectUnavailablePath ? { projectUnavailablePath: input.projectUnavailablePath } : {}),
     workspaceFilesPath: input.workspaceFilesPath,
     sessionOutboxPath: join(input.workspaceFilesPath, 'Outbox', sessionId),
   }
@@ -57,6 +60,7 @@ export function resolveAgentSessionFileRoots(
       executionCwd: sessionDir,
       executionSource: 'sandbox',
       projectId: sessionMeta.projectId,
+      projectUnavailablePath: cwdResolution.displayPath,
     })
     mkdirSync(roots.sessionOutboxPath, { recursive: true })
     return roots
