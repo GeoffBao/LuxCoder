@@ -19,6 +19,7 @@ import { homedir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import type { AgentSendInput, AgentMessage, AgentGenerateTitleInput, AgentProviderAdapter, AgentSessionMeta, CodexOAuthCredentials, XaiOAuthCredentials, TypedError, RetryAttempt, SDKMessage, SDKAssistantMessage, AgentStreamPayload, RewindSessionResult, ProviderType, AgentThinkingLevel } from '@luxcoder/shared'
+import { UPDATER_LINKS } from '@luxcoder/shared'
 import {
   LUXCODER_DEFAULT_PERMISSION_MODE,
   LUXCODER_PERMISSION_MODE_CONFIG,
@@ -1206,7 +1207,7 @@ export class AgentOrchestrator {
               key: 'd',
               label: '下载最新安装包',
               action: 'open_external',
-              payload: 'https://luxcoder.cool/download',
+              payload: UPDATER_LINKS.releases,
             },
             {
               key: 'i',

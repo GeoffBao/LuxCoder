@@ -12,7 +12,7 @@ import '@fontsource-variable/geist/index.css'
 // Excalidraw editor styles — use package's official CSS export
 import '@excalidraw/excalidraw/index.css'
 
-import React, { useEffect, useMemo, useRef } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import { useSetAtom, useAtomValue, useStore } from 'jotai'
 import App from './App'
@@ -88,8 +88,17 @@ import type { FeishuBotBridgeState, FeishuBridgeState, DingTalkBotBridgeState, D
 import { Toaster } from './components/ui/sonner'
 import { toast } from 'sonner'
 import { ArrowUpRight } from 'lucide-react'
-import { diffCapabilities } from '@luxcoder/shared'
-import type { WorkspaceCapabilities } from '@luxcoder/shared'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from './components/ui/dialog'
+import { ReleaseNotesViewer } from './components/settings/ReleaseNotesViewer'
+import { diffCapabilities, UPDATER_LINKS } from '@luxcoder/shared'
+import type { GitHubRelease, WorkspaceCapabilities } from '@luxcoder/shared'
 import { showCapabilityChangeToasts } from './lib/capabilities-toast'
 import { ProjectsInitializer } from './components/ProjectsInitializer'
 import { GlobalShortcuts } from './components/shortcuts/GlobalShortcuts'
@@ -362,10 +371,76 @@ function AgentSettingsInitializer(): null {
  *
  * 订阅主进程推送的更新状态变化事件。
  */
-function UpdaterInitializer(): null {
+function UpdaterInitializer(): React.ReactElement | null {
   const setUpdateStatus = useSetAtom(updateStatusAtom)
   const updateStatus = useAtomValue(updateStatusAtom)
   const notifiedDownloadVersionRef = useRef<string | null>(null)
+  const notifiedAvailableVersionRef = useRef<string | null>(null)
+  // 应用内更新日志弹层
+  const [showReleaseNotes, setShowReleaseNotes] = useState(false)
+  const [releaseNotesVersion, setReleaseNotesVersion] = useState('')
+  const [releaseNotesRelease, setReleaseNotesRelease] = useState<GitHubRelease | null>(null)
+  const [releaseNotesLoading, setReleaseNotesLoading] = useState(false)
+
+  // 打开应用内更新日志弹层（发现新版本 / 下载完成 共用）
+  const openReleaseNotes = (versionLabel: string): void => {
+    setReleaseNotesVersion(versionLabel)
+    setShowReleaseNotes(true)
+    if (releaseNotesRelease?.tag_name === versionLabel) return
+    setReleaseNotesLoading(true)
+    window.electronAPI.getReleaseByTag(versionLabel)
+      .then((r) => { if (r) setReleaseNotesRelease(r) })
+      .catch((err) => console.error('[更新] 获取 Release 信息失败:', err))
+      .finally(() => setReleaseNotesLoading(false))
+  }
+
+  // 发现新版本：轻提示一次，可提前查看更新日志（下载完成后会有正式安装提示）
+  useEffect(() => {
+    if (updateStatus.status !== 'available') return
+
+    const version = updateStatus.version || '新版本'
+    if (notifiedAvailableVersionRef.current === version) return
+    notifiedAvailableVersionRef.current = version
+    const versionLabel = version.startsWith('v') ? version : `v${version}`
+
+    toast.custom((toastId) => (
+      <div className="w-[344px] max-w-[calc(100vw-32px)] rounded-xl bg-background/95 p-3 text-foreground shadow-[0_12px_32px_rgba(0,0,0,0.14)] ring-1 ring-black/5 backdrop-blur-xl dark:ring-white/10">
+        <div className="flex items-center gap-2.5">
+          <img src={LuxCoderLogo} alt="LuxCoder" className="size-8 rounded-lg" />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 text-sm leading-5">
+              <span className="font-semibold tracking-tight">发现新版本</span>
+              <span className="text-xs text-primary">{versionLabel}</span>
+            </div>
+            <p className="text-xs leading-4 text-muted-foreground">更新正在后台下载，完成后即可一键安装。</p>
+          </div>
+        </div>
+        <div className="mt-2.5 flex items-center justify-end gap-1">
+          <button
+            type="button"
+            className="flex h-7 items-center rounded-md px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:scale-[0.96]"
+            onClick={() => toast.dismiss(toastId)}
+          >
+            知道了
+          </button>
+          <button
+            type="button"
+            className="h-7 rounded-md bg-primary px-2.5 text-xs font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 active:scale-[0.96]"
+            onClick={() => {
+              toast.dismiss(toastId)
+              openReleaseNotes(versionLabel)
+            }}
+          >
+            查看更新日志
+          </button>
+        </div>
+      </div>
+    ), {
+      duration: 10_000,
+      dismissible: true,
+      unstyled: true,
+    })
+  }, [updateStatus])
 
   useEffect(() => {
     const cleanup = initializeUpdater(setUpdateStatus)
@@ -386,7 +461,7 @@ function UpdaterInitializer(): null {
           <img src={LuxCoderLogo} alt="LuxCoder" className="size-8 rounded-lg" />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 text-sm leading-5">
-              <span className="font-semibold tracking-tight">Proma 更新已下载</span>
+              <span className="font-semibold tracking-tight">LuxCoder 更新已下载</span>
               <span className="text-xs text-primary">{versionLabel}</span>
             </div>
             <p className="text-xs leading-4 text-muted-foreground">所有 Agent 完成后即可自动安装。</p>
@@ -404,10 +479,9 @@ function UpdaterInitializer(): null {
             <button
               type="button"
               className="flex h-7 items-center gap-1 rounded-md px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:scale-[0.96]"
-              onClick={() => { void window.electronAPI.openExternal('https://proma.cool/changelog') }}
+              onClick={() => openReleaseNotes(versionLabel)}
             >
               查看更新
-              <ArrowUpRight size={13} />
             </button>
             <button
               type="button"
@@ -466,7 +540,33 @@ function UpdaterInitializer(): null {
     })
   }, [updateStatus])
 
-  return null
+  return (
+    <Dialog open={showReleaseNotes} onOpenChange={setShowReleaseNotes}>
+      <DialogContent className="max-w-2xl max-h-[70vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>更新日志 {releaseNotesVersion}</DialogTitle>
+          <DialogDescription>{releaseNotesVersion} 版本的发布说明</DialogDescription>
+        </DialogHeader>
+        {releaseNotesLoading && !releaseNotesRelease ? (
+          <p className="text-sm text-muted-foreground">正在加载更新日志...</p>
+        ) : releaseNotesRelease ? (
+          <ReleaseNotesViewer release={releaseNotesRelease} />
+        ) : (
+          <p className="text-sm text-muted-foreground">暂无发布说明</p>
+        )}
+        <DialogFooter>
+          <button
+            type="button"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 active:scale-[0.96]"
+            onClick={() => { void window.electronAPI.openExternal(UPDATER_LINKS.releases) }}
+          >
+            前往 GitHub Releases
+            <ArrowUpRight size={13} />
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
 }
 
 /**

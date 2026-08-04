@@ -16,6 +16,7 @@ import {
   SettingsSelect,
 } from './primitives'
 import { updateStatusAtom, updaterAvailableAtom, checkForUpdates } from '@/atoms/updater'
+import { UPDATER_LINKS } from '@luxcoder/shared'
 import {
   environmentCheckResultAtom,
   hasEnvironmentIssuesAtom,
@@ -30,7 +31,18 @@ import { VersionHistory } from './VersionHistory'
 declare const __APP_VERSION__: string
 const APP_VERSION = __APP_VERSION__
 
-const GITHUB_RELEASES_URL = 'https://github.com/GeoffBao/LuxCoder/releases'
+/** 更新失败时引导前往 GitHub Releases 手动下载 */
+function ManualDownloadButton(): React.ReactElement {
+  return (
+    <button
+      onClick={() => window.electronAPI.openExternal(UPDATER_LINKS.releases)}
+      className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+    >
+      <ExternalLink className="h-3.5 w-3.5" />
+      前往手动下载
+    </button>
+  )
+}
 
 /** 更新状态卡片 */
 function UpdateCard(): React.ReactElement | null {
@@ -55,7 +67,7 @@ function UpdateCard(): React.ReactElement | null {
   }
 
   const handleGoToDownload = (): void => {
-    const url = release?.html_url || GITHUB_RELEASES_URL
+    const url = release?.html_url || UPDATER_LINKS.releases
     window.electronAPI.openExternal(url)
   }
 
@@ -127,6 +139,22 @@ function UpdateCard(): React.ReactElement | null {
               <ExternalLink className="h-3.5 w-3.5" />
               前往下载
             </button>
+          ) : status.status === 'error' ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleCheck}
+                disabled={isChecking}
+                className="inline-flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors disabled:opacity-50"
+              >
+                {isChecking ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5" />
+                )}
+                重新检查
+              </button>
+              <ManualDownloadButton />
+            </div>
           ) : (
             <button
               onClick={handleCheck}
@@ -215,7 +243,7 @@ function StatusText({ status, version, error }: {
       return (
         <span className="text-xs text-destructive flex items-center gap-1" title={error}>
           <AlertCircle className="h-3 w-3" />
-          检查失败
+          自动更新失败，请手动下载
         </span>
       )
     default:
