@@ -29,7 +29,8 @@ import { projectRepository } from './project-repository'
 import { listBuiltinMcpServers } from './builtin-mcp/catalog'
 import { RESERVED_BUILTIN_KEYS } from './builtin-mcp/baseline'
 import { inferMcpTransportType, normalizeMcpTransportType } from '@luxcoder/shared'
-import type { AgentWorkspace, WorkspaceMcpConfig, SkillMeta, SkillImportSource, OtherWorkspaceSkillsGroup, WorkspaceCapabilities, SkillFileNode, SkillFileContent, WorkspaceMemorySummary } from '@luxcoder/shared'
+import type { AgentWorkspace, WorkspaceMcpConfig, SkillMeta, SkillImportSource, OtherWorkspaceSkillsGroup, WorkspaceCapabilities, SkillFileNode, SkillFileContent, WorkspaceMemorySummary, OrganizationConnection, OrganizationSkill } from '@luxcoder/shared'
+import { extractSkillZip, orgDownloadSkill, buildOrganizationImportSource } from './org-skill-service'
 
 interface AgentWorkspacesIndex {
   version: number
@@ -1715,4 +1716,154 @@ export function cleanupStaleWorkspaceAttachedPaths(): number {
   }
 
   return count
+}
+
+// ===== 企业版组织 Skills 导入/更新 =====
+
+/**
+ * 从组织导入 Skill 到工作区。
+ * 目标已存在同名 Skill（active 或 inactive）时抛错。
+ */
+export async function importSkillFromOrganization(
+  targetSlug: string,
+  conn: OrganizationConnection,
+  orgId: string,
+  orgName: string,
+  skill: OrganizationSkill,
+): Promise<SkillMeta> {
+  const targetPath = join(getWorkspaceSkillsDir(targetSlug), skill.slug)
+  const inactivePath = join(getInactiveSkillsDir(targetSlug), skill.slug)
+  if (existsSync(targetPath) || existsSync(inactivePath)) {
+    throw new Error(`当前工作区已存在同名 Skill: ${skill.slug}`)
+  }
+  const zip = await orgDownloadSkill(conn, orgId, skill.slug)
+  const files = await extractSkillZip(zip)
+  if (!files['SKILL.md']) {
+    throw new Error('组织 Skill 包缺少 SKILL.md')
+  }
+  mkdirSync(targetPath, { recursive: true })
+  for (const [name, content] of Object.entries(files)) {
+    const filePath = join(targetPath, name)
+    mkdirSync(dirname(filePath), { recursive: true })
+    writeFileSync(filePath, content)
+  }
+  const source = buildOrganizationImportSource({
+    organizationId: orgId,
+    organizationName: orgName,
+    organizationServerUrl: conn.serverUrl,
+    organizationSkillSlug: skill.slug,
+    version: skill.version,
+    contentHash: computeSkillContentHash(targetPath),
+  })
+  writeSkillImportSource(targetPath, source)
+  const content = readFileSync(join(targetPath, 'SKILL.md'), 'utf-8')
+  const meta = parseSkillFrontmatter(content, skill.slug, true)
+  meta.importSource = source
+  console.log(`[Agent 工作区] 已从组织导入 Skill: ${targetSlug}/${skill.slug} (v${skill.version})`)
+  return meta
+}
+
+/**
+ * 从组织源同步更新已导入的 Skill（覆盖更新）。
+ * 仅处理 sourceType === 'organization' 的 Skill；workspace 源走 updateSkillFromSource。
+ */
+export async function updateSkillFromOrganizationSource(
+  targetSlug: string,
+  skillSlug: string,
+  conn: OrganizationConnection,
+): Promise<SkillMeta> {
+  const activeDir = getWorkspaceSkillsDir(targetSlug)
+  const inactiveDir = getInactiveSkillsDir(targetSlug)
+  const targetPath = existsSync(join(activeDir, skillSlug))
+    ? join(activeDir, skillSlug)
+    : existsSync(join(inactiveDir, skillSlug))
+      ? join(inactiveDir, skillSlug)
+      : null
+  if (!targetPath) {
+    throw new Error(`当前工作区中不存在 Skill: ${skillSlug}`)
+  }
+  const existingSource = readSkillImportSource(targetPath)
+  if (!existingSource || existingSource.sourceType !== 'organization') {
+    throw new Error(`Skill ${skillSlug} 不是从组织导入的，无法从组织源更新`)
+  }
+  const orgId = existingSource.organizationId
+  if (!orgId) {
+    throw new Error('Skill 来源缺少组织 ID，无法更新')
+  }
+  const orgSkillSlug = existingSource.organizationSkillSlug ?? skillSlug
+
+  // 服务端校验：Skill 是否仍存在、版本是否有更新
+  let serverSkill: OrganizationSkill
+  try {
+    serverSkill = await orgGetSkillForUpdate(conn, orgId, orgSkillSlug)
+  } catch (err) {
+    if ((err as { status?: number }).status === 404) {
+      throw new Error(`组织源中的 Skill 已撤销: ${orgSkillSlug}`)
+    }
+    throw err
+  }
+
+  // 版本相同且本地未修改 → 无需更新
+  if (serverSkill.version === existingSource.sourceVersion && !existingSource.localModified) {
+    return parseSkillFrontmatter(readFileSync(join(targetPath, 'SKILL.md'), 'utf-8'), skillSlug, targetPath === join(activeDir, skillSlug))
+  }
+
+  // 本地有修改时需调用方决策；这里默认覆盖更新（调用方可通过 UI 提示后再调）
+  const zip = await orgDownloadSkill(conn, orgId, orgSkillSlug)
+
+  // 原子替换：先解压到临时目录，成功后再替换旧目录
+  const parentDir = join(targetPath, '..')
+  const tmpPath = join(parentDir, `.${skillSlug}.updating`)
+  if (existsSync(tmpPath)) rmSyncWithRetry(tmpPath, { recursive: true, force: true })
+  mkdirSync(tmpPath, { recursive: true })
+  const files = await extractSkillZip(zip)
+  if (!files['SKILL.md']) {
+    rmSyncWithRetry(tmpPath, { recursive: true, force: true })
+    throw new Error('组织 Skill 包缺少 SKILL.md')
+  }
+  for (const [name, content] of Object.entries(files)) {
+    const filePath = join(tmpPath, name)
+    mkdirSync(dirname(filePath), { recursive: true })
+    writeFileSync(filePath, content)
+  }
+  rmSyncWithRetry(targetPath, { recursive: true, force: true })
+  renameWithRetry(tmpPath, targetPath)
+
+  // 更新来源元数据（保留 importedAt 与 detached）
+  const updatedSource: SkillImportSource = {
+    ...existingSource,
+    importedAt: existingSource.importedAt,
+    sourceVersion: serverSkill.version,
+    syncedAt: new Date().toISOString(),
+    sourceContentHash: computeSkillContentHash(targetPath),
+    localModified: false,
+    sourceRemoved: false,
+  }
+  writeSkillImportSource(targetPath, updatedSource)
+
+  const enabled = targetPath === join(activeDir, skillSlug)
+  const content = readFileSync(join(targetPath, 'SKILL.md'), 'utf-8')
+  const meta = parseSkillFrontmatter(content, skillSlug, enabled)
+  meta.importSource = updatedSource
+  meta.hasUpdate = false
+  console.log(`[Agent 工作区] 已从组织源更新 Skill: ${targetSlug}/${skillSlug} (v${serverSkill.version})`)
+  return meta
+}
+
+/** 获取组织 Skill 信息（用于更新前校验） */
+async function orgGetSkillForUpdate(
+  conn: OrganizationConnection,
+  orgId: string,
+  slug: string,
+): Promise<OrganizationSkill> {
+  const { orgGetSkill } = await import('./org-skill-service')
+  const detail = await orgGetSkill(conn, orgId, slug)
+  return {
+    id: detail.id,
+    slug: detail.slug,
+    name: detail.name,
+    description: detail.description,
+    version: detail.version,
+    updatedAt: detail.updatedAt,
+  }
 }
