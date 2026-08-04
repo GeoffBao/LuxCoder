@@ -1,10 +1,3 @@
-:root {
-  --codeclaw-blue: #0b5cff;
-  --codeclaw-deep: #071a55;
-  --codeclaw-gold: #ffd84d;
-  --codeclaw-gold-dark: #f0a81a;
-}
-
 html,
 body,
 #root {
@@ -70,138 +63,6 @@ body,
   animation: codeclaw-breathe 2.8s ease-in-out infinite;
 }
 
-.codeclaw-head {
-  position: absolute;
-  left: 18px;
-  top: 8px;
-  width: 94px;
-  height: 86px;
-  border-radius: 48% 48% 44% 44%;
-  background:
-    radial-gradient(circle at 28% 18%, rgba(255,255,255,.38), transparent 16%),
-    linear-gradient(145deg, #ffe778 0%, var(--codeclaw-gold) 42%, #ffbd28 100%);
-  box-shadow: inset -9px -10px 0 rgba(209, 119, 0, .15), 0 7px 18px rgba(9, 34, 96, .24);
-}
-
-.codeclaw-head::before,
-.codeclaw-head::after {
-  content: '';
-  position: absolute;
-  top: 30px;
-  width: 31px;
-  height: 22px;
-  border-radius: 70% 30% 70% 35%;
-  background: linear-gradient(145deg, #ffe16a, #f1a31b);
-  z-index: -1;
-}
-
-.codeclaw-head::before { left: -20px; transform: rotate(-18deg); }
-.codeclaw-head::after { right: -20px; transform: rotate(198deg); }
-
-.codeclaw-horn {
-  position: absolute;
-  top: 8px;
-  width: 31px;
-  height: 48px;
-  border-radius: 80% 20% 70% 30%;
-  background: linear-gradient(160deg, #0d3f91, #061941);
-  box-shadow: inset 6px 0 0 rgba(77, 163, 255, .2);
-  z-index: -1;
-}
-
-.codeclaw-horn.left { left: 18px; transform: rotate(-28deg); }
-.codeclaw-horn.right { right: 18px; transform: scaleX(-1) rotate(-28deg); }
-
-.codeclaw-eye {
-  position: absolute;
-  top: 36px;
-  width: 17px;
-  height: 20px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 28%, #fff 0 3px, #0b5cff 4px 9px, #06112c 10px 100%);
-  animation: codeclaw-blink 5s infinite;
-}
-
-.codeclaw-eye.left { left: 26px; }
-.codeclaw-eye.right { right: 26px; }
-
-.codeclaw-brow {
-  position: absolute;
-  top: 27px;
-  width: 28px;
-  height: 7px;
-  border-radius: 999px;
-  background: #2b1306;
-}
-
-.codeclaw-brow.left { left: 18px; transform: rotate(24deg); }
-.codeclaw-brow.right { right: 18px; transform: rotate(-24deg); }
-
-.codeclaw-nose {
-  position: absolute;
-  left: 39px;
-  top: 55px;
-  width: 18px;
-  height: 12px;
-  border-radius: 55% 55% 65% 65%;
-  background: #7b1e11;
-  box-shadow: inset 4px 2px 0 rgba(255,255,255,.2);
-}
-
-.codeclaw-mouth {
-  position: absolute;
-  left: 39px;
-  top: 72px;
-  width: 26px;
-  height: 12px;
-  border-bottom: 4px solid #65160d;
-  border-radius: 0 0 30px 30px;
-  transform: rotate(-4deg);
-}
-
-.codeclaw-body {
-  position: absolute;
-  left: 29px;
-  top: 88px;
-  width: 72px;
-  height: 54px;
-  border-radius: 26px 26px 18px 18px;
-  background: linear-gradient(145deg, #0d5ee8, var(--codeclaw-deep));
-  box-shadow: inset -8px -8px 0 rgba(0,0,0,.16);
-}
-
-.codeclaw-emblem {
-  position: absolute;
-  left: 50%;
-  top: 16px;
-  transform: translateX(-50%);
-  color: var(--codeclaw-gold);
-  font: 700 26px/1 ui-rounded, system-ui, sans-serif;
-}
-
-.codeclaw-arm {
-  position: absolute;
-  right: 17px;
-  top: 91px;
-  width: 28px;
-  height: 48px;
-  border-radius: 999px;
-  background: linear-gradient(160deg, #1269f4, #06205b);
-  transform-origin: 50% 10%;
-  transform: rotate(-38deg);
-}
-
-.codeclaw-arm::after {
-  content: '';
-  position: absolute;
-  left: -6px;
-  bottom: -9px;
-  width: 31px;
-  height: 26px;
-  border-radius: 50%;
-  background: linear-gradient(145deg, #ffe36e, #f5a51a);
-}
-
 .codeclaw-status {
   position: absolute;
   left: 12px;
@@ -231,10 +92,7 @@ body,
 .codeclaw-title { display: block; margin-top: 6px; font: 800 13px/1.15 system-ui, sans-serif; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .codeclaw-detail { display: block; margin-top: 3px; font: 500 11px/1.25 system-ui, sans-serif; color: rgba(255,255,255,.66); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.codeclaw-card.running .codeclaw-arm { animation: codeclaw-type 560ms ease-in-out infinite alternate; }
-.codeclaw-card.needs-interaction .codeclaw-arm { animation: codeclaw-wave 720ms ease-in-out infinite alternate; }
 .codeclaw-card.completed .codeclaw-mascot { animation: codeclaw-celebrate 820ms ease-in-out infinite; }
-.codeclaw-card.error .codeclaw-head { animation: codeclaw-shake 480ms ease-in-out infinite; }
 .codeclaw-card.needs-interaction .codeclaw-status { border-color: rgba(255, 216, 77, .55); }
 .codeclaw-card.error .codeclaw-status { border-color: rgba(255, 91, 91, .5); }
 .codeclaw-card.completed .codeclaw-status { border-color: rgba(72, 229, 153, .46); }
@@ -249,16 +107,6 @@ body,
   96% { transform: scaleY(.12); }
 }
 
-@keyframes codeclaw-type {
-  from { transform: rotate(-45deg) translateY(0); }
-  to { transform: rotate(-28deg) translateY(2px); }
-}
-
-@keyframes codeclaw-wave {
-  from { transform: rotate(-62deg); }
-  to { transform: rotate(-25deg); }
-}
-
 @keyframes codeclaw-celebrate {
   0%, 100% { transform: translateY(0) rotate(-1deg); }
   50% { transform: translateY(-8px) rotate(2deg); }
@@ -270,12 +118,7 @@ body,
   75% { transform: translateX(2px); }
 }
 
-/* Clean-room built-in themes inspired by the pet categories from clawd-on-desk.
-   These are pure CSS shapes authored for LuxCoder; no upstream artwork or assets are copied. */
-.codeclaw-card.theme-clawd { --codeclaw-blue: #f97316; --codeclaw-deep: #7c2d12; --codeclaw-gold: #ffe7a3; }
-.codeclaw-card.theme-calico { --codeclaw-blue: #d97706; --codeclaw-deep: #422006; --codeclaw-gold: #fff7ed; }
-.codeclaw-card.theme-cloudling { --codeclaw-blue: #38bdf8; --codeclaw-deep: #075985; --codeclaw-gold: #e0f2fe; }
-
+/* 主题卡片使用 vendored 素材（SVG/APNG），仅按主题微调展示位置。 */
 .codeclaw-crab,
 .codeclaw-cat,
 .codeclaw-cloud { filter: drop-shadow(0 10px 18px rgba(15, 23, 42, .18)); }

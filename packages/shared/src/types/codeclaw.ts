@@ -7,7 +7,7 @@
 
 export type CodeClawPhase = 'idle' | 'running' | 'needs-interaction' | 'completed' | 'error'
 
-export type CodeClawThemeId = 'lux' | 'clawd' | 'calico' | 'cloudling'
+export type CodeClawThemeId = 'calico' | 'clawd' | 'cloudling'
 
 export interface CodeClawThemeDefinition {
   id: CodeClawThemeId
@@ -16,13 +16,13 @@ export interface CodeClawThemeDefinition {
 }
 
 export const CODECLAW_THEMES: readonly CodeClawThemeDefinition[] = [
-  { id: 'lux', name: 'CodeClaw', description: 'LuxCoder 蓝金桌宠，默认企业研发助手形象' },
+  { id: 'calico', name: 'Calico', description: '来自 clawd-on-desk 的 AGPL 三花猫主题，LuxCoder 默认桌宠形象' },
   { id: 'clawd', name: 'Clawd', description: '来自 clawd-on-desk 的 AGPL 像素小螃蟹主题' },
-  { id: 'calico', name: 'Calico', description: '来自 clawd-on-desk 的 AGPL 三花猫主题' },
   { id: 'cloudling', name: 'Cloudling', description: '来自 clawd-on-desk 的 AGPL 云宝主题' },
 ] as const
 
-export const DEFAULT_CODECLAW_THEME_ID: CodeClawThemeId = 'lux'
+/** 新用户/未设置主题时默认打开的桌宠主题（Calico 三花猫）。 */
+export const DEFAULT_CODECLAW_THEME_ID: CodeClawThemeId = 'calico'
 
 export function isCodeClawThemeId(value: unknown): value is CodeClawThemeId {
   return typeof value === 'string' && CODECLAW_THEMES.some((theme) => theme.id === value)

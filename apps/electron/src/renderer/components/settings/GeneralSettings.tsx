@@ -427,7 +427,7 @@ export function GeneralSettings(): React.ReactElement {
           />
           <SettingsRow
             label="CodeClaw 宠物"
-            description="内置 CodeClaw 原创外观；Clawd / Calico / Cloudling 使用 clawd-on-desk 的 AGPL 主题素材并保留许可证说明"
+            description="Calico / Clawd / Cloudling 使用 clawd-on-desk 的 AGPL 主题素材并保留许可证说明"
           >
             <Select
               value={codeClawThemeId}

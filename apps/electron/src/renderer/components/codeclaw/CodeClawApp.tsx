@@ -13,7 +13,7 @@ const THEME_ASSETS = import.meta.glob('../../assets/codeclaw-themes/*/assets/*',
   import: 'default',
 }) as Record<string, string>
 
-const EXTERNAL_THEME_PHASE_ASSETS: Record<Exclude<CodeClawThemeId, 'lux'>, Record<CodeClawPhase, string>> = {
+const EXTERNAL_THEME_PHASE_ASSETS: Record<CodeClawThemeId, Record<CodeClawPhase, string>> = {
   clawd: {
     idle: 'clawd-idle-follow.svg',
     running: 'clawd-working-typing.svg',
@@ -59,38 +59,17 @@ function phaseIcon(phase: CodeClawPhase): React.ReactNode {
   return <Sparkles size={14} />
 }
 
-function resolveExternalThemeAsset(themeId: Exclude<CodeClawThemeId, 'lux'>, phase: CodeClawPhase): string | undefined {
+function resolveExternalThemeAsset(themeId: CodeClawThemeId, phase: CodeClawPhase): string | undefined {
   const file = EXTERNAL_THEME_PHASE_ASSETS[themeId][phase]
   return THEME_ASSETS[`../../assets/codeclaw-themes/${themeId}/assets/${file}`]
 }
 
 function renderMascot(themeId: CodeClawThemeId, phase: CodeClawPhase): React.ReactNode {
-  if (themeId !== 'lux') {
-    const src = resolveExternalThemeAsset(themeId, phase) ?? resolveExternalThemeAsset(themeId, 'idle')
-    if (src) {
-      return (
-        <span className="codeclaw-mascot codeclaw-vendored-theme" aria-hidden="true">
-          <img src={src} alt="" draggable={false} />
-        </span>
-      )
-    }
-  }
+  const src = resolveExternalThemeAsset(themeId, phase) ?? resolveExternalThemeAsset(themeId, 'idle')
+  if (!src) return null
   return (
-    <span className="codeclaw-mascot codeclaw-lux" aria-hidden="true">
-      <span className="codeclaw-horn left" />
-      <span className="codeclaw-horn right" />
-      <span className="codeclaw-head">
-        <span className="codeclaw-brow left" />
-        <span className="codeclaw-brow right" />
-        <span className="codeclaw-eye left" />
-        <span className="codeclaw-eye right" />
-        <span className="codeclaw-nose" />
-        <span className="codeclaw-mouth" />
-      </span>
-      <span className="codeclaw-body">
-        <span className="codeclaw-emblem">∞</span>
-      </span>
-      <span className="codeclaw-arm" />
+    <span className="codeclaw-mascot codeclaw-vendored-theme" aria-hidden="true">
+      <img src={src} alt="" draggable={false} />
     </span>
   )
 }
