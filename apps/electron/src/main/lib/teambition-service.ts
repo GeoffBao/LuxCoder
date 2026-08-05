@@ -20,6 +20,8 @@ export interface TeambitionRemoteTask {
   projectId: string
   status?: string
   updatedAt?: number
+  /** TB 任务编号（uniqueId，如 871）；UI 展示/按编号搜索用 */
+  uniqueId?: number
 }
 
 export interface TeambitionClaimableTask extends TeambitionRemoteTask {
@@ -29,8 +31,8 @@ export interface TeambitionClaimableTask extends TeambitionRemoteTask {
 export interface TeambitionGateway {
   probeCapabilities(): Promise<TeambitionGatewayCapabilities>
   listClaimableTasks(projectId: string): Promise<TeambitionRemoteTask[]>
-  /** 同步用户名下所有未 close 任务（不限项目）；供一键同步按钮使用 */
-  listMyOpenTasks(): Promise<TeambitionRemoteTask[]>
+  /** 同步用户名下所有未 close 任务（不限项目）；供一键同步按钮使用。roleTypes 可选：executor/creator/involveMember，默认 executor */
+  listMyOpenTasks(roleTypes?: string): Promise<TeambitionRemoteTask[]>
   claimTask(taskId: string, idempotencyKey: string): Promise<TeambitionRemoteTask>
   updateStatus(taskId: string, status: string, idempotencyKey: string): Promise<void>
   syncProgress(taskId: string, progress: number, idempotencyKey: string): Promise<void>

@@ -309,6 +309,8 @@ export interface BrowserTeambitionTask {
   status?: string
   updatedAt?: number
   syncState?: 'synced' | 'stale'
+  /** TB 任务编号（uniqueId） */
+  uniqueId?: number
 }
 export interface BrowserTeambitionBinding {
   id: string

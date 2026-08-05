@@ -58,6 +58,10 @@ export interface TeambitionToolNames {
   syncProgress?: string
   /** 用户名下未 close 任务查询工具（如 TB 的 SearchUserTasksV3）；一键同步使用 */
   listMyOpenTasks?: string
+  /** 企业级任务搜索（SearchTasksByTQLV2）；按 TQL 精确查询“我的任务”/搜索 */
+  searchTasksByTql?: string
+  /** 当前用户信息（GetUsersMe）；查询“我的任务”需要 userId */
+  getCurrentUser?: string
 }
 
 export interface McpTeambitionAdapterConfig {
@@ -124,6 +128,7 @@ export function mapTeambitionTask(raw: TeambitionTaskRaw, fallbackProjectId = ''
     title,
     projectId: textField(raw, 'projectId', '_projectId') ?? fallbackProjectId,
     status: textField(raw, 'status', 'taskflowstatusId') ?? (isDone ? 'done' : 'doing'),
+    ...(typeof raw.uniqueId === 'number' ? { uniqueId: raw.uniqueId } : {}),
     ...(timestampField(raw, 'updatedAt', 'updated') !== undefined
       ? { updatedAt: timestampField(raw, 'updatedAt', 'updated') }
       : {}),
@@ -208,21 +213,66 @@ export class McpTeambitionAdapter implements TeambitionAdapter {
     return (await this.fetchTasks(projectId)).map((task) => mapTeambitionTask(task, projectId))
   }
 
-  async listMyOpenTasks(): Promise<TeambitionRemoteTask[]> {
-    const toolName = this.config.toolNames.listMyOpenTasks
-    if (!toolName) {
-      // 未配置用户任务查询工具时，回退到空列表（让一键同步走“本地刷新”路径）
-      return []
-    }
+  async listMyOpenTasks(_roleTypes?: string): Promise<TeambitionRemoteTask[]> {
     const client = await this.getClient()
 
-    // 分页拉取用户名下所有未完成（isDone=false）任务；TB SearchUserTasksV3 返回
-    // { code, count, nextPageToken, result: [...] }
+    // 优先用 TQL 精确查询「我的任务」= 我执行且未完成（与 TB 系统“我的任务”视图一致）
+    const tqlTool = this.config.toolNames.searchTasksByTql
+    const meTool = this.config.toolNames.getCurrentUser
+    if (tqlTool && meTool) {
+      try {
+        // 1. 获取当前用户 id
+        const mePayload = extractToolPayload(await client.callTool({ name: meTool, arguments: {} }))
+        const me = (mePayload && typeof mePayload === 'object')
+          ? (mePayload as { id?: string; userId?: string })
+          : {}
+        const userId = me.id ?? me.userId
+        if (!userId) {
+          console.warn('[Teambition] GetUsersMe 未返回 userId，回退 SearchUserTasksV3')
+        } else {
+          const tql = `isDone = false AND executorId = "${userId}"`
+          const args: Record<string, unknown> = { tql, pageSize: 100 }
+          const payload = extractToolPayload(await client.callTool({ name: tqlTool, arguments: args }))
+          const ids = Array.isArray(payload)
+            ? payload as string[]
+            : payload && typeof payload === 'object'
+              ? (payload as { result?: string[] }).result ?? []
+              : []
+          // SearchTasksByTQLV2 只返回任务 ID 列表；逐条 QueryTaskV3 拉详情（最多 50 条，避免刷屏）
+          const detailTool = this.config.toolNames.getTaskDetail
+          if (!detailTool || ids.length === 0) return []
+          const details: TeambitionTaskRaw[] = []
+          for (const taskId of ids.slice(0, 50)) {
+            try {
+              const detailPayload = extractToolPayload(await client.callTool({
+                name: detailTool,
+                arguments: { taskId },
+              }))
+              const raw = Array.isArray(detailPayload)
+                ? detailPayload[0]
+                : (detailPayload as { result?: TeambitionTaskRaw[] }).result?.[0]
+              if (raw) details.push(raw as TeambitionTaskRaw)
+            } catch (error) {
+              console.warn(`[Teambition] 查询任务详情失败 ${taskId}:`, error)
+            }
+          }
+          return details
+            .filter((task) => task.isDone !== true && task.isArchived !== true)
+            .map((task) => mapTeambitionTask(task))
+        }
+      } catch (error) {
+        console.warn('[Teambition] TQL 查询我的任务失败，回退 SearchUserTasksV3:', error)
+      }
+    }
+
+    // 回退：SearchUserTasksV3 分页拉取（默认 executor）
+    const toolName = this.config.toolNames.listMyOpenTasks
+    if (!toolName) return []
     const collected: TeambitionTaskRaw[] = []
     let nextPageToken: string | undefined
     for (let page = 0; page < 50; page++) {
       const args: Record<string, unknown> = {
-        roleTypes: 'executor,creator,involveMember',
+        roleTypes: 'executor',
         pageSize: 100,
       }
       if (nextPageToken) args.pageToken = nextPageToken
@@ -235,7 +285,6 @@ export class McpTeambitionAdapter implements TeambitionAdapter {
           : []
       collected.push(...rawTasks)
 
-      // 下一页 token（TB 返回顶层 nextPageToken）
       const next = payload && typeof payload === 'object'
         ? (payload as { nextPageToken?: string }).nextPageToken
         : undefined
@@ -243,7 +292,6 @@ export class McpTeambitionAdapter implements TeambitionAdapter {
       nextPageToken = next
     }
 
-    // 过滤未完成（isDone !== true）且未归档的任务
     return collected
       .filter((task) => task.isDone !== true && task.isArchived !== true)
       .map((task) => mapTeambitionTask(task))

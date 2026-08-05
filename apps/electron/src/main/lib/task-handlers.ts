@@ -1122,6 +1122,8 @@ async function getTeambitionAdapterInfo(workspaceRoot: string): Promise<Teambiti
           updateStatus: 'UpdateTaskStatusV3',
           postComment: 'CreateTaskCommentV3',
           listMyOpenTasks: 'SearchUserTasksV3',
+          searchTasksByTql: 'SearchTasksByTQLV2',
+          getCurrentUser: 'GetUsersMe',
         },
       })
       console.warn(`[Teambition] 已连接 TB MCP (${tb.name})`)
