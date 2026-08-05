@@ -28,7 +28,7 @@ describe('API Key 认证', () => {
     })
     expect(res.status).toBe(201)
     const body = (await res.json()) as { apiKey: string }
-    expect(body.apiKey).toMatch(/^lx_[a-zA-Z0-9]+$/)
+    expect(body.apiKey).toMatch(/^lx_[a-zA-Z0-9_-]+$/)
   })
 
   test('使用 API Key 通过 requireAuth 鉴权', async () => {

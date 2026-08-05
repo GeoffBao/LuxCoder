@@ -70,7 +70,7 @@ mock.get('/api/orgs/org-1/skills/org-skill', (c) => {
 })
 
 mock.get('/api/orgs/org-1/skills/org-skill/download', async () => {
-  return new Response(skillZip(), { headers: { 'content-type': 'application/zip' } })
+  return new Response(skillZip().buffer as ArrayBuffer, { headers: { 'content-type': 'application/zip' } })
 })
 
 // ── 测试 ─────────────────────────────────────────────────

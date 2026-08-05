@@ -764,7 +764,7 @@ function scanSkillsInDir(dir: string, enabled: boolean): SkillMeta[] {
               meta.importSource = { ...importSource, localModified: currentHash !== importSource.sourceContentHash }
             } catch { /* 无法读取时保持现有状态 */ }
           }
-          const sourceSkillDir = resolveSkillDir(importSource.sourceWorkspaceSlug, entry.name)
+          const sourceSkillDir = importSource.sourceWorkspaceSlug ? resolveSkillDir(importSource.sourceWorkspaceSlug, entry.name) : null
           if (sourceSkillDir) {
             const currentSourceVersion = parseSkillVersion(sourceSkillDir)
             meta.hasUpdate = !importSource.detached && isNewerVersion(currentSourceVersion, importSource.sourceVersion)
@@ -1015,6 +1015,9 @@ export function updateSkillFromSource(
 
   const existingSource = readSkillImportSource(targetPath)
   if (!existingSource) {
+    throw new Error(`Skill ${skillSlug} 不是从其他工作区导入的，无法从源更新`)
+  }
+  if (!existingSource.sourceWorkspaceSlug) {
     throw new Error(`Skill ${skillSlug} 不是从其他工作区导入的，无法从源更新`)
   }
 

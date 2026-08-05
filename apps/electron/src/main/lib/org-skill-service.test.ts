@@ -195,7 +195,7 @@ describe('org-skill-service', () => {
   })
 
   test('401 过期抛 OrgApiError', async () => {
-    const expired = { serverUrl, authType: 'account', email: 'a@b.com', token: 'expired-token' }
+    const expired: import('@luxcoder/shared').OrganizationConnection = { serverUrl, authType: 'account', email: 'a@b.com', token: 'expired-token' }
     try {
       await orgListSkills(expired, 'org-1')
       expect.unreachable('应抛出 401')

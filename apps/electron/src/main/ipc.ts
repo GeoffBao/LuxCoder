@@ -2943,7 +2943,7 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(
     AGENT_IPC_CHANNELS.COMMUNITY_INSTALL_SKILL,
     async (_, workspaceSlug: string, skill: CommunitySkill): Promise<CommunitySkillInstallResult> => {
-      const { getWorkspaceSkillsDir } = await import('./lib/agent-workspace-manager')
+      const { getWorkspaceSkillsDir } = await import('./lib/config-paths')
       const dir = getWorkspaceSkillsDir(workspaceSlug)
       return installCommunitySkill(dir, skill)
     }
