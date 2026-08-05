@@ -1,17 +1,22 @@
 /**
- * CommunityMarketDialog — 社区市场（n-skills）
+ * CommunityMarketDialog — 技能市场（企业 SkillHub / 社区 n-skills）
  *
- * 拉取 n-skills 市场清单，浏览/搜索社区 Skill，一键安装到当前工作区。
+ * 统一的技能市场入口：
+ * - 企业 SkillHub（默认）：公司内网技能分发，GET /index.json 清单 + 逐文件下载安装
+ * - 社区 n-skills：开源社区技能，sources.yaml 清单 + tar.gz 安装
  */
 
 import * as React from 'react'
 import { toast } from 'sonner'
-import { Store, Download, RefreshCw, Search, ExternalLink } from 'lucide-react'
+import { Store, Download, RefreshCw, Search, Star, Download as DownloadIcon, Building2, Globe } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import type { CommunitySkill } from '@luxcoder/shared'
+import { cn } from '@/lib/utils'
+import type { CommunitySkill, SkillHubSkill } from '@luxcoder/shared'
+
+type MarketSource = 'enterprise' | 'community'
 
 interface CommunityMarketDialogProps {
   open: boolean
@@ -21,8 +26,28 @@ interface CommunityMarketDialogProps {
   onImported: () => void
 }
 
+interface EnterpriseSkillItem {
+  name: string
+  files: string[]
+  description?: string
+  displayName?: string
+  downloads: number
+  stars: number
+}
+
+/** 统一市场条目（内部归一化，便于一个渲染器） */
+interface MarketItem {
+  key: string
+  name: string
+  displayName: string
+  description: string
+  meta: { label: string; value: string | number }[]
+  raw: EnterpriseSkillItem | CommunitySkill
+}
+
 export function CommunityMarketDialog({ open, onOpenChange, workspaceSlug, installedSkills, onImported }: CommunityMarketDialogProps): React.ReactElement {
-  const [skills, setSkills] = React.useState<CommunitySkill[]>([])
+  const [source, setSource] = React.useState<MarketSource>('enterprise')
+  const [skills, setSkills] = React.useState<MarketItem[]>([])
   const [loading, setLoading] = React.useState(false)
   const [installing, setInstalling] = React.useState<string | null>(null)
   const [search, setSearch] = React.useState('')
@@ -33,23 +58,57 @@ export function CommunityMarketDialog({ open, onOpenChange, workspaceSlug, insta
     [installedSkills],
   )
 
-  React.useEffect(() => {
-    if (!open) return
-    void load()
-  }, [open, workspaceSlug])
-
-  const load = async (): Promise<void> => {
+  const load = React.useCallback(async (targetSource: MarketSource = source): Promise<void> => {
     setLoading(true)
     setError(null)
     try {
-      const data = await window.electronAPI.communityFetchManifest()
-      setSkills(data)
+      let items: MarketItem[]
+      if (targetSource === 'enterprise') {
+        const data = await window.electronAPI.skillhubFetchIndex()
+        items = data.map((s: SkillHubSkill) => ({
+          key: s.name,
+          name: s.name,
+          displayName: s.displayName ?? s.name,
+          description: s.description ?? '',
+          meta: [
+            { label: '下载', value: s.downloads },
+            { label: '收藏', value: s.stars },
+            { label: '文件', value: s.files.length },
+          ],
+          raw: { ...s, displayName: s.displayName, downloads: s.downloads, stars: s.stars },
+        }))
+      } else {
+        const data = await window.electronAPI.communityFetchManifest()
+        items = data.map((s: CommunitySkill) => ({
+          key: s.name,
+          name: s.name,
+          displayName: s.displayName ?? s.name,
+          description: s.description,
+          meta: [
+            ...(s.category ? [{ label: '分类', value: s.category }] : []),
+            ...(s.license ? [{ label: '许可', value: s.license }] : []),
+          ],
+          raw: s,
+        }))
+      }
+      setSkills(items)
     } catch (err) {
-      console.error('[社区市场] 拉取清单失败:', err)
-      setError((err as Error).message || '拉取社区市场失败')
+      console.error('[技能市场] 拉取清单失败:', err)
+      setError((err as Error).message || '拉取市场失败')
     } finally {
       setLoading(false)
     }
+  }, [source])
+
+  React.useEffect(() => {
+    if (!open) return
+    void load()
+  }, [open, source, load])
+
+  const handleSourceChange = (next: MarketSource): void => {
+    if (next === source) return
+    setSource(next)
+    setSearch('')
   }
 
   const filtered = React.useMemo(() => {
@@ -57,33 +116,29 @@ export function CommunityMarketDialog({ open, onOpenChange, workspaceSlug, insta
     if (!q) return skills
     return skills.filter((s) =>
       s.name.toLowerCase().includes(q) ||
-      s.description.toLowerCase().includes(q) ||
-      s.category?.toLowerCase().includes(q),
+      s.displayName.toLowerCase().includes(q) ||
+      s.description.toLowerCase().includes(q),
     )
   }, [skills, search])
 
-  const handleInstall = async (skill: CommunitySkill): Promise<void> => {
-    setInstalling(skill.name)
+  const handleInstall = async (item: MarketItem): Promise<void> => {
+    setInstalling(item.key)
     try {
-      await window.electronAPI.communityInstallSkill(workspaceSlug, skill)
-      toast.success(`已从社区市场安装 Skill：${skill.displayName ?? skill.name}`)
+      if (source === 'enterprise') {
+        const raw = item.raw as EnterpriseSkillItem
+        await window.electronAPI.skillhubInstallSkill(workspaceSlug, raw as unknown as SkillHubSkill)
+      } else {
+        await window.electronAPI.communityInstallSkill(workspaceSlug, item.raw as CommunitySkill)
+      }
+      toast.success(`已安装 Skill：${item.displayName}`)
       onImported()
     } catch (err) {
-      console.error('[社区市场] 安装失败:', err)
+      console.error('[技能市场] 安装失败:', err)
       toast.error('安装失败', { description: (err as Error).message || undefined })
     } finally {
       setInstalling(null)
     }
   }
-
-  const categoryCount = React.useMemo(() => {
-    const map = new Map<string, number>()
-    for (const s of skills) {
-      const c = s.category ?? 'other'
-      map.set(c, (map.get(c) ?? 0) + 1)
-    }
-    return map
-  }, [skills])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -91,12 +146,38 @@ export function CommunityMarketDialog({ open, onOpenChange, workspaceSlug, insta
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Store className="size-5 text-emerald-500" />
-            社区市场 · n-skills
+            技能市场
           </DialogTitle>
           <DialogDescription>
-            浏览社区贡献的 Agent Skills，一键安装到当前工作区。由 n-skills 社区维护，遵循各 Skill 的许可证。
+            浏览并一键安装 Agent Skills 到当前工作区。
           </DialogDescription>
         </DialogHeader>
+
+        {/* 市场源切换 */}
+        <div className="flex items-center gap-1 rounded-lg bg-muted p-0.5">
+          <button
+            type="button"
+            onClick={() => handleSourceChange('enterprise')}
+            className={cn(
+              'flex h-7 flex-1 items-center justify-center gap-1.5 rounded-md px-3 text-[12px] font-medium transition-colors',
+              source === 'enterprise' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <Building2 size={13} />
+            企业 SkillHub
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSourceChange('community')}
+            className={cn(
+              'flex h-7 flex-1 items-center justify-center gap-1.5 rounded-md px-3 text-[12px] font-medium transition-colors',
+              source === 'community' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <Globe size={13} />
+            社区 n-skills
+          </button>
+        </div>
 
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
@@ -104,7 +185,7 @@ export function CommunityMarketDialog({ open, onOpenChange, workspaceSlug, insta
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="搜索技能 / 描述 / 分类..."
+              placeholder="搜索技能 / 描述 / 发布者..."
               className="pl-8"
             />
           </div>
@@ -112,16 +193,6 @@ export function CommunityMarketDialog({ open, onOpenChange, workspaceSlug, insta
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
           </Button>
         </div>
-
-        {categoryCount.size > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {[...categoryCount.entries()].map(([cat, count]) => (
-              <Badge key={cat} variant="secondary" className="gap-1 text-[11px]">
-                {cat} · {count}
-              </Badge>
-            ))}
-          </div>
-        )}
 
         <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
           {loading ? (
@@ -133,50 +204,46 @@ export function CommunityMarketDialog({ open, onOpenChange, workspaceSlug, insta
             </div>
           ) : filtered.length === 0 ? (
             <div className="py-10 text-center text-sm text-muted-foreground">
-              {skills.length === 0 ? '社区市场暂无可用的 Skills' : '没有匹配的 Skill'}
+              {skills.length === 0 ? '市场暂无可用的技能' : '没有匹配的技能'}
             </div>
           ) : (
-            filtered.map((skill) => {
-              const already = installed.has(skill.name)
+            filtered.map((item) => {
+              const already = installed.has(item.name)
               return (
-                <div key={skill.name} className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2.5">
+                <div key={item.key} className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2.5">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="truncate text-sm font-medium">{skill.displayName ?? skill.name}</span>
-                      {skill.category && <Badge variant="outline" className="text-[10px]">{skill.category}</Badge>}
-                      {skill.license && <span className="shrink-0 text-[10px] text-muted-foreground">{skill.license}</span>}
+                      <span className="truncate text-sm font-medium">{item.displayName}</span>
+                      {source === 'enterprise' && (item.raw as EnterpriseSkillItem).displayName && (
+                        <span className="shrink-0 text-[10px] text-muted-foreground">
+                          by {(item.raw as EnterpriseSkillItem).displayName}
+                        </span>
+                      )}
                     </div>
-                    <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{skill.description || '暂无描述'}</p>
-                    {skill.authorName && (
-                      <p className="mt-0.5 text-[10px] text-muted-foreground/70">by {skill.authorName}</p>
+                    <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{item.description || '暂无描述'}</p>
+                    {item.meta.length > 0 && (
+                      <div className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground">
+                        {item.meta.map((m) => (
+                          <span key={m.label} className="inline-flex items-center gap-0.5">
+                            {m.label === '下载' ? <DownloadIcon size={11} /> : m.label === '收藏' ? <Star size={11} /> : null}
+                            {m.label}: {m.value}
+                          </span>
+                        ))}
+                      </div>
                     )}
                   </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    {skill.homepage && (
-                      <a
-                        href={skill.homepage}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-foreground/[0.06]"
-                        title="查看项目主页"
-                      >
-                        <ExternalLink size={14} />
-                      </a>
-                    )}
-                    <Button
-                      size="sm"
-                      variant={already ? 'ghost' : 'default'}
-                      disabled={already || installing === skill.name}
-                      onClick={() => void handleInstall(skill)}
-                      className={already ? '' : 'bg-emerald-600 hover:bg-emerald-500'}
-                    >
-                      {installing === skill.name
-                        ? <RefreshCw size={14} className="animate-spin" />
-                        : <Download size={14} />}
-                      {already ? '已安装' : '安装'}
-                    </Button>
-                  </div>
+                  <Button
+                    size="sm"
+                    variant={already ? 'ghost' : 'default'}
+                    disabled={already || installing === item.key}
+                    onClick={() => void handleInstall(item)}
+                    className={already ? '' : 'bg-emerald-600 hover:bg-emerald-500'}
+                  >
+                    {installing === item.key
+                      ? <RefreshCw size={14} className="animate-spin" />
+                      : <Download size={14} />}
+                    {already ? '已安装' : '安装'}
+                  </Button>
                 </div>
               )
             })
