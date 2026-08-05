@@ -3148,8 +3148,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
       {/* 项目中心入口已移除：Project 导航改由下方 Sessions | Projects Tab 承担 */}
 
-      {/* 置顶区：常驻在会话/项目 Tab 切换器上方，跨 Tab 可见 */}
-      {mode === 'chat' && viewMode === 'active' && pinnedConversations.length > 0 && (
+      {/* 置顶区：常驻在会话/项目 Tab 切换器上方，跨 Tab 可见（pwork agent 模式同样显示） */}
+      {(mode === 'chat' || mode === 'agent') && viewMode === 'active' && pinnedConversations.length > 0 && (
         <div className="pt-2 pb-1 flex-shrink-0 titlebar-no-drag">
           <div className="px-3.5 pb-1 text-[11px] font-medium text-foreground/40 select-none">
             置顶
