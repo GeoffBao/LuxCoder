@@ -84,6 +84,8 @@ import type {
   OrganizationSkillSyncResult,
   CommunitySkill,
   CommunitySkillInstallResult,
+  SkillHubSkill,
+  SkillHubInstallResult,
   WorkspaceCapabilities,
   WorkspaceMemorySummary,
   FileEntry,
@@ -872,6 +874,11 @@ export interface ElectronAPI {
   communityFetchManifest: () => Promise<CommunitySkill[]>
   /** 安装社区市场 Skill 到工作区 */
   communityInstallSkill: (workspaceSlug: string, skill: CommunitySkill) => Promise<CommunitySkillInstallResult>
+
+  /** 拉取 SkillHub 企业市场技能清单 */
+  skillhubFetchIndex: () => Promise<SkillHubSkill[]>
+  /** 从 SkillHub 安装技能到工作区 */
+  skillhubInstallSkill: (workspaceSlug: string, skill: SkillHubSkill) => Promise<SkillHubInstallResult>
 
   /** 读取 SKILL.md 全文内容 */
   readSkillContent: (workspaceSlug: string, skillSlug: string) => Promise<string>
@@ -2300,6 +2307,16 @@ const electronAPI: ElectronAPI = {
 
   communityInstallSkill: (workspaceSlug: string, skill: CommunitySkill) => {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.COMMUNITY_INSTALL_SKILL, workspaceSlug, skill)
+  },
+
+  // ── SkillHub 企业市场（内网） ───────────────────────────
+
+  skillhubFetchIndex: () => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.SKILLHUB_FETCH_INDEX)
+  },
+
+  skillhubInstallSkill: (workspaceSlug: string, skill: SkillHubSkill) => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.SKILLHUB_INSTALL_SKILL, workspaceSlug, skill)
   },
 
   readSkillContent: (workspaceSlug: string, skillSlug: string) => {

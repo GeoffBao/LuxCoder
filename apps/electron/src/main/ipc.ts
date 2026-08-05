@@ -78,6 +78,8 @@ import type {
   OrganizationSkill,
   CommunitySkill,
   CommunitySkillInstallResult,
+  SkillHubSkill,
+  SkillHubInstallResult,
   FileEntry,
   FileSearchResult,
   EnvironmentCheckResult,
@@ -336,6 +338,7 @@ import {
   orgListSkills,
 } from './lib/org-skill-service'
 import { fetchCommunityManifest, installCommunitySkill } from './lib/community-skill-service'
+import { fetchSkillHubIndex, installSkillHubSkill, reportSkillHubDownload } from './lib/skillhub-service'
 import { projectRepository } from './lib/project-repository'
 import { getAllToolInfos } from './lib/chat-tool-registry'
 import { updateToolState, updateToolCredentials, getToolCredentials, addCustomTool, deleteCustomTool } from './lib/chat-tool-config'
@@ -2946,6 +2949,29 @@ export function registerIpcHandlers(): void {
       const { getWorkspaceSkillsDir } = await import('./lib/config-paths')
       const dir = getWorkspaceSkillsDir(workspaceSlug)
       return installCommunitySkill(dir, skill)
+    }
+  )
+
+  // ── SkillHub 企业市场（内网） ─────────────────────────────
+
+  // 拉取 SkillHub 技能清单
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.SKILLHUB_FETCH_INDEX,
+    async (): Promise<SkillHubSkill[]> => {
+      return fetchSkillHubIndex()
+    }
+  )
+
+  // 从 SkillHub 安装技能到工作区
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.SKILLHUB_INSTALL_SKILL,
+    async (_, workspaceSlug: string, skill: SkillHubSkill): Promise<SkillHubInstallResult> => {
+      const { getWorkspaceSkillsDir } = await import('./lib/config-paths')
+      const dir = getWorkspaceSkillsDir(workspaceSlug)
+      const result = await installSkillHubSkill(dir, skill)
+      // 安装成功后异步上报下载统计（不阻塞）
+      void reportSkillHubDownload(skill.name)
+      return result
     }
   )
 

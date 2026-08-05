@@ -20,6 +20,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { AgentSkillsView } from '@/components/agent-skills/AgentSkillsView'
 import { CommunityMarketDialog } from '@/components/agent-skills/CommunityMarketDialog'
+import { SkillHubMarketDialog } from '@/components/agent-skills/SkillHubMarketDialog'
 import { ImportSkillDialog } from '@/components/agent-skills/ImportSkillDialog'
 import { OrgSkillImportDialog } from '@/components/agent-skills/OrgSkillImportDialog'
 import { agentSkillsTabAtom } from '@/atoms/active-view'
@@ -134,6 +135,7 @@ export function PluginPanelView({ tab, title }: PluginPanelViewProps): React.Rea
   const [categoryFilter, setCategoryFilter] = React.useState<CategoryFilter>('all')
   const [classifying, setClassifying] = React.useState(false)
   const [marketOpen, setMarketOpen] = React.useState(false)
+  const [skillhubOpen, setSkillhubOpen] = React.useState(false)
   const [importOpen, setImportOpen] = React.useState(false)
   const [orgImportOpen, setOrgImportOpen] = React.useState(false)
   const [addMcpRequest, setAddMcpRequest] = React.useState(0)
@@ -254,6 +256,14 @@ export function PluginPanelView({ tab, title }: PluginPanelViewProps): React.Rea
               <Store size={13} />
               <span>社区市场</span>
             </button>
+            <button
+              type="button"
+              onClick={() => setSkillhubOpen(true)}
+              className="flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 text-[12px] font-medium text-emerald-600 transition-colors hover:bg-emerald-500/20 dark:text-emerald-400"
+            >
+              <Building2 size={13} />
+              <span>SkillHub</span>
+            </button>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -325,6 +335,13 @@ export function PluginPanelView({ tab, title }: PluginPanelViewProps): React.Rea
             workspaceSlug={data.workspaceSlug}
             installedSkills={data.skills}
             onImported={() => { /* 安装后自动刷新（useAgentSkillsData 依赖 capabilitiesVersion） */ }}
+          />
+          <SkillHubMarketDialog
+            open={skillhubOpen}
+            onOpenChange={setSkillhubOpen}
+            workspaceSlug={data.workspaceSlug}
+            installedSkills={data.skills}
+            onImported={() => { /* 安装后自动刷新 */ }}
           />
           <ImportSkillDialog
             open={importOpen}

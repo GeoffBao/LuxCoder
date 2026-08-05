@@ -1185,6 +1185,31 @@ export interface CommunitySkillInstallResult {
   version: string
 }
 
+// ===== SkillHub 企业市场（内网） =====
+
+/** SkillHub 技能条目（Discovery.pull 兼容：name + files） */
+export interface SkillHubSkill {
+  name: string
+  files: string[]
+  description?: string
+  displayName?: string
+  employeeId?: string
+  downloads: number
+  stars: number
+}
+
+/** SkillHub 技能清单响应（GET /index.json） */
+export interface SkillHubIndex {
+  skills: SkillHubSkill[]
+}
+
+/** SkillHub 安装结果 */
+export interface SkillHubInstallResult {
+  slug: string
+  name: string
+  version: string
+}
+
 // ===== Skill 批量导入 =====
 
 /** 批量导入单个 Skill 的结果状态 */
@@ -1951,6 +1976,14 @@ export const AGENT_IPC_CHANNELS = {
   COMMUNITY_FETCH_MANIFEST: 'community:fetch-manifest',
   /** 安装社区市场 Skill 到工作区 */
   COMMUNITY_INSTALL_SKILL: 'community:install-skill',
+
+  // SkillHub 企业市场（内网）
+  /** 拉取 SkillHub 技能清单 */
+  SKILLHUB_FETCH_INDEX: 'skillhub:fetch-index',
+  /** 从 SkillHub 安装技能到工作区 */
+  SKILLHUB_INSTALL_SKILL: 'skillhub:install-skill',
+  /** 上报 SkillHub 下载次数 */
+  SKILLHUB_REPORT_DOWNLOAD: 'skillhub:report-download',
 
   // 流式事件（主进程 → 渲染进程推送）
   /** Agent 流式事件 */
