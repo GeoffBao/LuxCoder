@@ -27,7 +27,9 @@ import { TabContent } from './TabContent'
 import { AutomationFormView } from '@/components/automation/AutomationFormView'
 import { PlanningView } from '@/components/planning/PlanningView'
 import { AgentSkillsView } from '@/components/agent-skills/AgentSkillsView'
+import { PluginPanelView } from '@/components/agent-skills/PluginPanelView'
 import { WorkspaceContextView } from '@/components/agent-skills/WorkspaceContextView'
+import { agentSkillsTabAtom } from '@/atoms/active-view'
 import { RepoWikiView } from '@/components/repo-wiki/RepoWikiView'
 import { ExcalidrawView } from '@/components/excalidraw/ExcalidrawView'
 import { automationFormAtom } from '@/atoms/automation-atoms'
@@ -50,6 +52,7 @@ export function MainArea(): React.ReactElement {
   const activeTab = useAtomValue(activeTabAtom)
   const automationFormOpen = useAtomValue(automationFormAtom).open
   const activeView = useAtomValue(activeViewAtom)
+  const agentSkillsTab = useAtomValue(agentSkillsTabAtom)
   const setActiveView = useSetAtom(activeViewAtom)
   const appMode = useAtomValue(appModeAtom)
   const codeMainView = useAtomValue(codeMainViewAtom)
@@ -251,8 +254,11 @@ export function MainArea(): React.ReactElement {
                 <PlanningView />
               )
             ) : activeView === 'agent-skills' ? (
-              // Yoda 插件视图：专家 / Skills / MCP / API 合一，Home / Code 共享，全屏取代 TabBar + TabContent
-              <AgentSkillsView />
+              // 侧边栏常用插件入口：精简视图，隐藏 Yoda 标题与完整 Tab 栏，仅展示当前子模块
+              <PluginPanelView
+                tab={agentSkillsTab === 'mcp' ? 'mcp' : 'skills'}
+                title={agentSkillsTab === 'mcp' ? 'MCP 配置' : '技能管理'}
+              />
             ) : activeView === 'workspace-context' ? (
               // Yoda 记忆：已迁入设置面板；全屏视图保留兼容（历史 deep-link）
               <WorkspaceContextView />

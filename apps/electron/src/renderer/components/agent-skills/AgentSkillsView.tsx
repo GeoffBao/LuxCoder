@@ -82,7 +82,26 @@ version: "1.0.0"
 - 是否有需要用户确认或后续合并同类项的建议`
 }
 
-export function AgentSkillsView({ embedded = false }: { embedded?: boolean }): React.ReactElement {
+export interface AgentSkillsViewProps {
+  /** 嵌入设置面板时隐藏全屏标题栏 */
+  embedded?: boolean
+  /** 外部受控搜索词（PluginPanelView 传入，覆盖内部搜索框） */
+  externalQuery?: string
+  /** 外部来源筛选（PluginPanelView 传入）：all 全部 / custom 我的 / builtin 内置 / market 市场 */
+  sourceFilter?: 'all' | 'custom' | 'builtin' | 'market'
+  /** 外部状态筛选：all 全部 / enabled 启用 / disabled 停用 */
+  statusFilter?: 'all' | 'enabled' | 'disabled'
+  /** 隐藏自带工具条（tab 切换 + 搜索框 + 操作按钮），由外层自定义工具条 */
+  hideToolbar?: boolean
+}
+
+export function AgentSkillsView({
+  embedded = false,
+  externalQuery,
+  sourceFilter = 'all',
+  statusFilter = 'all',
+  hideToolbar = false,
+}: AgentSkillsViewProps): React.ReactElement {
   const data = useAgentSkillsData()
   const bumpCapabilities = useSetAtom(workspaceCapabilitiesVersionAtom)
   const setPendingPrompt = useSetAtom(agentPendingPromptAtom)
@@ -120,17 +139,27 @@ export function AgentSkillsView({ embedded = false }: { embedded?: boolean }): R
   const [isDeletingMcp, setIsDeletingMcp] = React.useState(false)
   const [classifyingSkills, setClassifyingSkills] = React.useState(false)
 
-  const q = search.trim().toLowerCase()
+  // 外部受控模式：externalQuery / sourceFilter / statusFilter 由 PluginPanelView 提供；
+  // 否则回退到内部搜索框（Settings 原行为不变）
+  const q = (externalQuery ?? search).trim().toLowerCase()
 
   const filteredSkills = React.useMemo(() => {
     return data.skills.filter((s) => {
-      if (!q) return true
-      return s.name.toLowerCase().includes(q) ||
-        s.slug.toLowerCase().includes(q) ||
-        (s.description ?? '').toLowerCase().includes(q) ||
-        (s.group ?? '').toLowerCase().includes(q)
+      // 搜索关键词
+      if (q && !(s.name.toLowerCase().includes(q)
+        || s.slug.toLowerCase().includes(q)
+        || (s.description ?? '').toLowerCase().includes(q)
+        || (s.group ?? '').toLowerCase().includes(q))) return false
+      // 来源筛选：custom=我的（非内置） / builtin=内置 / market=市场（预留，暂按非内置处理）
+      if (sourceFilter === 'custom' && data.defaultSkillSlugs.has(s.slug)) return false
+      if (sourceFilter === 'builtin' && !data.defaultSkillSlugs.has(s.slug)) return false
+      if (sourceFilter === 'market' && data.defaultSkillSlugs.has(s.slug)) return false
+      // 状态筛选
+      if (statusFilter === 'enabled' && !s.enabled) return false
+      if (statusFilter === 'disabled' && s.enabled) return false
+      return true
     })
-  }, [data.skills, q])
+  }, [data.skills, data.defaultSkillSlugs, q, sourceFilter, statusFilter])
 
   const customSkills = filteredSkills.filter((s) => !data.defaultSkillSlugs.has(s.slug))
   const builtinSkills = filteredSkills.filter((s) => data.defaultSkillSlugs.has(s.slug))
@@ -224,8 +253,9 @@ export function AgentSkillsView({ embedded = false }: { embedded?: boolean }): R
         </div>
       )}
 
-      {/* 工具条 */}
-      <div className={cn('titlebar-no-drag flex w-full items-center gap-3 shrink-0', embedded ? 'flex-wrap' : 'mx-auto max-w-6xl px-8 pb-4')}>
+      {/* 工具条（hideToolbar 时由外层 PluginPanelView 自定义工具条替代） */}
+      {!hideToolbar && (
+        <div className={cn('titlebar-no-drag flex w-full items-center gap-3 shrink-0', embedded ? 'flex-wrap' : 'mx-auto max-w-6xl px-8 pb-4')}>
         {/* 专家 / 专家团 / Skills / MCP / API 切换（Context 已升级为 Code 左侧模块） */}
         <div className="relative flex h-8 items-stretch rounded-xl bg-muted p-0.5">
           <div
@@ -340,7 +370,8 @@ export function AgentSkillsView({ embedded = false }: { embedded?: boolean }): R
             <span>添加服务器</span>
           </button>
         )}
-      </div>
+        </div>
+      )}
 
       {/* 内容 */}
       <div className={cn(embedded ? 'mt-4' : 'min-h-0 flex-1 overflow-y-auto scrollbar-thin')}>

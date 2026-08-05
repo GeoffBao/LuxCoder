@@ -11,7 +11,7 @@
 import * as React from 'react'
 import { useAtom, useSetAtom, useAtomValue, useStore } from 'jotai'
 import { toast } from 'sonner'
-import { Pin, PinOff, Settings, Plus, Trash2, Pencil, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MoreHorizontal, FolderOpen, GripVertical, Clock, CalendarDays, ChevronRight, GitBranch, Download, Loader2, RotateCw, Layers, LayoutDashboard, PenTool, Library, House } from 'lucide-react'
+import { Pin, PinOff, Settings, Plus, Trash2, Pencil, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MoreHorizontal, FolderOpen, GripVertical, Clock, CalendarDays, ChevronRight, GitBranch, Download, Loader2, RotateCw, Layers, LayoutDashboard, PenTool, Library, House, Puzzle, Star, Wrench } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { MarqueeText } from '@/components/ui/marquee-text'
@@ -723,6 +723,21 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   const [createGroupTargetSessionId, setCreateGroupTargetSessionId] = React.useState<string | null>(null)
   const [creatingSessionGroup, setCreatingSessionGroup] = React.useState(false)
 
+  // 常用插件分组展开/折叠
+  const [pluginGroupExpanded, setPluginGroupExpanded] = React.useState(true)
+  // Skill/MCP 计数通过 IPC 异步加载，首次渲染默认 0
+  const [pluginSkillCount, setPluginSkillCount] = React.useState(0)
+  const [pluginMcpCount, setPluginMcpCount] = React.useState(0)
+  React.useEffect(() => {
+    if (!workspaces?.length || !currentWorkspaceId) return
+    const ws = workspaces.find((w) => w.id === currentWorkspaceId)
+    if (!ws?.slug) return
+    window.electronAPI?.getWorkspaceCapabilities?.(ws.slug)?.then((caps: any) => {
+      setPluginSkillCount(caps?.skills?.length ?? 0)
+      setPluginMcpCount(caps?.mcpServers?.length ?? 0)
+    }).catch(() => {})
+  }, [currentWorkspaceId, workspaces])
+
   // 当前工作区根目录（Projects Tab 需要传给 SidebarProjectsTab）
   const [workspaceRoot, setWorkspaceRoot] = React.useState<string | null>(null)
 
@@ -1018,6 +1033,18 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     setSettingsTab('agent-plugins')
     setSettingsOpen(true)
   }, [setAgentSkillsTab, setSettingsOpen, setSettingsTab])
+
+  /** 打开 Skills 管理（侧边栏常用插件入口 → 主视图） */
+  const handleOpenAgentSkills = React.useCallback((): void => {
+    setAgentSkillsTab('skills')
+    setActiveView('agent-skills')
+  }, [setAgentSkillsTab, setActiveView])
+
+  /** 打开 MCP 管理（侧边栏常用插件入口 → 主视图） */
+  const handleOpenAgentMcp = React.useCallback((): void => {
+    setAgentSkillsTab('mcp')
+    setActiveView('agent-skills')
+  }, [setAgentSkillsTab, setActiveView])
 
   /** 打开/关闭 Yoda 知识库 视图（Home 模式知识库入口） */
   const handleOpenRepoWiki = React.useCallback((): void => {
@@ -3054,6 +3081,43 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
           />
         </div>
       )}
+
+      {/* 常用插件：Skills + MCP 入口，从设置-Yoda 提取到侧边栏二级菜单 */}
+      <div className="sidebar-module-zone px-3 pb-0.5">
+        <button
+          type="button"
+          onClick={() => setPluginGroupExpanded(!pluginGroupExpanded)}
+          className="sidebar-module-row w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-[9px] text-[13px] font-medium text-foreground/70 hover:text-foreground hover:bg-foreground/[0.04] transition-[background-color,color] duration-150 titlebar-no-drag"
+        >
+          <Puzzle size={16} className="sidebar-module-icon shrink-0 text-foreground/40" />
+          <span className="flex-1 text-left">常用插件</span>
+          <ChevronRight
+            size={13}
+            className={cn(
+              'shrink-0 text-foreground/30 transition-transform duration-200',
+              pluginGroupExpanded && 'rotate-90'
+            )}
+          />
+        </button>
+        {pluginGroupExpanded && (
+          <div className="ml-2.5 mt-0.5 flex flex-col gap-0.5">
+            <SidebarModule
+              icon={Star}
+              title="技能"
+              count={pluginSkillCount}
+              onClick={handleOpenAgentSkills}
+              ariaLabel={`技能，${pluginSkillCount} 个已安装`}
+            />
+            <SidebarModule
+              icon={Wrench}
+              title="MCP"
+              count={pluginMcpCount}
+              onClick={handleOpenAgentMcp}
+              ariaLabel={`MCP 服务器，${pluginMcpCount} 个已配置`}
+            />
+          </div>
+        )}
+      </div>
 
       {/* 插件与 Yoda 记忆已并入设置面板（设置 > Yoda 插件 / Yoda 记忆），Home / Code 共享；左栏不再单独露出 */}
 

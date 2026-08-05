@@ -1,5 +1,5 @@
 /**
- * ModeSwitcher - Home/Code 双模式切换（带滑动指示器）
+ * ModeSwitcher - pwork/cowork 双模式切换（带滑动指示器）
  *
  * 切换模式时自动恢复上一次在该模式下查看的对话/会话：
  * 1. 优先恢复上次选中的对话 ID
@@ -7,7 +7,7 @@
  * 3. 兜底打开最近的对话/会话（列表首项）
  * 4. 都没有则仅切换模式
  *
- * 顶栏 Work（cowork）已下线：看板 / 项目详情改由 Code 主区 codeMainViewAtom 承载。
+ * 顶栏 Work 已下线；pwork 承载主工作区，cowork 预留协作入口。
  */
 
 import * as React from 'react'
@@ -22,8 +22,8 @@ import { Code2, House } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const modes: { value: 'chat' | 'agent'; label: string; icon: React.ReactNode }[] = [
-  { value: 'chat', label: 'Home', icon: <House size={15} /> },
-  { value: 'agent', label: 'Code', icon: <Code2 size={15} /> },
+  { value: 'chat', label: 'pwork', icon: <House size={15} /> },
+  { value: 'agent', label: 'cowork', icon: <Code2 size={15} /> },
 ]
 
 const SLIDER_TRANSLATE = ['translate-x-0', 'translate-x-full'] as const

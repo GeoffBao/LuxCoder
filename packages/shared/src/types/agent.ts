@@ -1047,6 +1047,8 @@ export interface SkillImportSource {
   sourceWorkspaceName: string
   importedAt: string        // ISO 8601
   sourceVersion: string     // 导入时源 Skill 的 version，无则 '0.0.0'
+  /** 来源类型：workspace=其他工作区导入 / market=从 Skill 市场下载（默认 workspace，向后兼容） */
+  sourceKind?: 'workspace' | 'market'
   /** 导入时源 Skill 目录的内容哈希（用于本地修改检测） */
   sourceContentHash?: string
   /** 最近一次与源 Skill 同步的时间（ISO 8601）；为空则从未同步 */
