@@ -72,7 +72,9 @@ export function SkillCard({ skill, isBuiltin, updating, onOpen, onToggle, onUpda
           </span>
         ) : skill.importSource ? (
           <span className="truncate rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
-            来自 {skill.importSource.sourceWorkspaceName}
+            {skill.importSource.sourceType === 'organization'
+              ? `组织 ${skill.importSource.organizationName ?? '组织'}`
+              : `来自 ${skill.importSource.sourceWorkspaceName}`}
           </span>
         ) : (
           <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">

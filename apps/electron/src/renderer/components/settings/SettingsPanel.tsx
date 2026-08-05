@@ -26,6 +26,7 @@ import {
   Layers,
   Brain,
   Eye,
+  Building2,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -54,6 +55,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ChannelSettings } from "./ChannelSettings";
 import { VisionRelaySettings } from "./VisionRelaySettings";
+import { OrganizationSettings } from "./OrganizationSettings";
 import { GeneralSettings } from "./GeneralSettings";
 import { ProxySettings } from "./ProxySettings";
 import { AppearanceSettings } from "./AppearanceSettings";
@@ -98,6 +100,7 @@ const NAV_GROUPS: NavGroup[] = [
     tabs: [
       { id: "channels", label: "模型配置", icon: <Radio size={16} /> },
       { id: "vision-relay", label: "视觉助手", icon: <Eye size={16} /> },
+      { id: "organization", label: "企业组织技能", icon: <Building2 size={16} /> },
       { id: "agent-plugins", label: "Yoda 插件", icon: <Blocks size={16} /> },
       { id: "workspace-memory", label: "Yoda 记忆", icon: <Brain size={16} /> },
       { id: "prompts", label: "提示词管理", icon: <BookOpen size={16} /> },
@@ -136,6 +139,8 @@ function renderTabContent(tab: SettingsTab): React.ReactElement {
       return <GeneralSettings />;
     case "channels":
       return <ChannelSettings />;
+    case "organization":
+      return <OrganizationSettings />;
     case "vision-relay":
       return <VisionRelaySettings />;
     case "prompts":

@@ -1,0 +1,27 @@
+# LuxCoder Server — 本地/内网快速部署
+#
+# 用法：
+#   docker compose -f apps/server/docker-compose.yml up -d
+# 然后客户端连接 http://localhost:8787
+#
+# 生产环境务必设置 LUXCODER_SERVER_JWT_SECRET 为强随机值。
+
+services:
+  luxcoder-server:
+    build:
+      context: ../..
+      dockerfile: apps/server/Dockerfile
+    container_name: luxcoder-server
+    ports:
+      - "8787:8787"
+    environment:
+      PORT: 8787
+      LUXCODER_SERVER_DB: /data/luxcoder-server.db
+      LUXCODER_SERVER_SKILLS_DIR: /data/skills
+      LUXCODER_SERVER_JWT_SECRET: ${LUXCODER_SERVER_JWT_SECRET:-change-me-in-production}
+    volumes:
+      - luxcoder-server-data:/data
+    restart: unless-stopped
+
+volumes:
+  luxcoder-server-data:
