@@ -17,6 +17,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '要构建的 tag（默认使用最新推送的 v* tag；tag 推送偶发不触发时手动补跑）'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -29,11 +35,18 @@ jobs:
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
+        with:
+          # workflow_dispatch 时检出入参指定的 tag；push 触发时自动检出 tag
+          ref: ${{ github.event.inputs.tag != '' && github.event.inputs.tag || github.ref }}
 
       - name: 校验 tag 与应用版本一致
         shell: bash
         run: |
           tag="${GITHUB_REF_NAME}"
+          if [[ -n "${{ github.event.inputs.tag }}" ]]; then
+            # workflow_dispatch 手动补跑：以输入 tag 为准（注意需在触发前确认该 tag 已推送）
+            tag="${{ github.event.inputs.tag }}"
+          fi
           if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "发布 tag 必须是 vX.Y.Z 格式，实际为：$tag" >&2
             exit 1
