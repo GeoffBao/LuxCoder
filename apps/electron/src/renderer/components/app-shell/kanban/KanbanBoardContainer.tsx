@@ -398,12 +398,12 @@ export function KanbanBoardContainer({
           <div className="titlebar-no-drag flex items-center gap-1">
             <TeambitionConnectHint recognition={tbRecognition} onNavigateToMcp={navigateToMcpSettings} workspaceSlug={workspace?.slug} />
             <BoardListToggle value={mode} onChange={setMode} />
-            {onRefresh ? (
+            {onRefresh || onSync ? (
               <Button
                 variant="ghost"
                 size="icon-sm"
                 disabled={refreshing || syncing}
-                onClick={() => { void onRefresh() }}
+                onClick={() => { void (onSync ?? onRefresh)?.() }}
                 aria-label="一键更新所有（刷新本地 + 同步 TB）"
                 title="一键更新所有（刷新本地 + 同步 Teambition）"
                 className="relative"

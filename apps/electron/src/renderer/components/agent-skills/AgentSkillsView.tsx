@@ -33,7 +33,7 @@ import { ImportSkillDialog } from './ImportSkillDialog'
 import { OrgSkillImportDialog } from './OrgSkillImportDialog'
 import { CommunityMarketDialog } from './CommunityMarketDialog'
 import { TeambitionConfigDialog } from '@/components/settings/TeambitionConfigDialog'
-import { isTeambitionMcpEntry } from '@luxcoder/shared/teambition-mcp'
+import { findTeambitionMcpEntry, isTeambitionMcpEntry } from '@luxcoder/shared/teambition-mcp'
 import { EnhancedToolsPanel } from '@/components/settings/ToolSettings'
 import { AgentExpertsView } from '@/components/agent-experts/AgentExpertsView'
 import { groupSkills } from './skillGrouping'
@@ -218,9 +218,12 @@ export function AgentSkillsView({
   const builtinSkills = filteredSkills.filter((s) => data.defaultSkillSlugs.has(s.slug))
   const updateCount = data.skills.filter((s) => s.hasUpdate).length
 
+  // TB-Connect 是内置预制 MCP（在「LuxCoder 内置」区提供唯一入口），
+  // 其配置虽写入工作区 mcp.json（供注入器与看板同步读取），但不在「我的 MCP」区重复展示
   const userMcpEntries = React.useMemo(() => {
     return Object.entries(data.mcpConfig.servers ?? {})
       .filter(([name]) => name !== 'memos-cloud')
+      .filter(([name, entry]) => !isTeambitionMcpEntry(name, entry))
       .filter(([name]) => !q || name.toLowerCase().includes(q))
   }, [data.mcpConfig, q])
 
@@ -234,9 +237,11 @@ export function AgentSkillsView({
     )
   }, [data.builtinMcpServers, q])
 
-  // 不含搜索过滤的 MCP 总数（Tab 计数与空态判断用）
+  // 不含搜索过滤的 MCP 总数（Tab 计数与空态判断用）；与 userMcpEntries 一致剔除 Teambition 条目
   const mcpCount = React.useMemo(
-    () => Object.keys(data.mcpConfig.servers ?? {}).filter((n) => n !== 'memos-cloud').length + data.builtinMcpServers.length,
+    () => Object.entries(data.mcpConfig.servers ?? {})
+      .filter(([name, entry]) => name !== 'memos-cloud' && !isTeambitionMcpEntry(name, entry)).length
+      + data.builtinMcpServers.length,
     [data.mcpConfig, data.builtinMcpServers],
   )
   // API（增强工具）Tab 计数：已启用的增强工具数量（联网搜索 / Nano Banana / 自定义工具）
@@ -475,18 +480,13 @@ export function AgentSkillsView({
               builtinServers={builtinMcpServers}
               total={mcpCount}
               onOpen={(name, entry) => {
-                // TB-Connect（或自定义 TB 名）：未配置 Token 时打开配置引导；已配置则正常编辑
-                if (isTeambitionMcpEntry(name, entry) && !entry.enabled) {
-                  setTbExistingUrl(entry.url)
-                  setTbConfigOpen(true)
-                  return
-                }
                 setEditingMcp({ name, entry }); setMcpSheetOpen(true)
               }}
               onOpenBuiltin={(server) => {
-                // TB-Connect 内置预制：点击直接打开 Token 配置引导
+                // TB-Connect 内置预制：点击直接打开 Token 配置引导（回填当前已配置的 TB 条目 URL）
                 if (server.id === 'tb-connect') {
-                  setTbExistingUrl(undefined)
+                  const tb = findTeambitionMcpEntry(data.mcpConfig)
+                  setTbExistingUrl(tb?.entry.url)
                   setTbConfigOpen(true)
                   return
                 }
@@ -494,9 +494,11 @@ export function AgentSkillsView({
               }}
               onToggle={data.toggleMcp}
               onToggleBuiltin={(id, enabled) => {
-                // TB-Connect 是 external 预制：开关操作工作区 mcp.json 的 TB-Connect 条目
+                // TB-Connect 是 external 预制：开关操作工作区 mcp.json 中实际存在的 Teambition 条目
+                // （优先推荐名 TB-Connect，兼容历史自定义名如 TB-wxy）
                 if (id === 'tb-connect') {
-                  void data.toggleMcp('TB-Connect', enabled)
+                  const tb = findTeambitionMcpEntry(data.mcpConfig)
+                  if (tb) void data.toggleMcp(tb.name, enabled)
                   return
                 }
                 return data.toggleBuiltinMcp(id, enabled)
@@ -768,25 +770,16 @@ function McpTab({ userEntries, builtinServers, total, onOpen, onOpenBuiltin, onT
     <div className="flex flex-col gap-8">
       {userEntries.length > 0 && (
         <McpSection title="我的 MCP" count={userEntries.length}>
-          {userEntries.map(([name, entry]) => {
-            // TB-Connect（或自定义 TB 名）且未启用：显示「待配置」状态
-            const isTb = isTeambitionMcpEntry(name, entry)
-            const tbUnconfigured = isTb && !entry.enabled
-            return (
-              <McpCard
-                key={name}
-                name={name}
-                entry={entry}
-                description={isTb ? 'Teambition MCP — 同步你名下未关闭的问题到看板' : undefined}
-                targetLabel={isTb ? '点击配置 Token' : undefined}
-                statusLabel={tbUnconfigured ? '待配置 Token' : undefined}
-                statusTone={tbUnconfigured ? 'warning' : undefined}
-                onOpen={() => onOpen(name, entry)}
-                onToggle={(enabled) => onToggle(name, enabled)}
-                onRequestDelete={() => onRequestDelete(name)}
-              />
-            )
-          })}
+          {userEntries.map(([name, entry]) => (
+            <McpCard
+              key={name}
+              name={name}
+              entry={entry}
+              onOpen={() => onOpen(name, entry)}
+              onToggle={(enabled) => onToggle(name, enabled)}
+              onRequestDelete={() => onRequestDelete(name)}
+            />
+          ))}
         </McpSection>
       )}
 

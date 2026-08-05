@@ -181,6 +181,8 @@ export class TaskRepository {
           : { kind: 'workspace' as const },
         workflow: task.record?.workflow ?? 'todo',
         type: task.record?.type,
+        source: task.record?.source,
+        teambitionTaskId: task.record?.teambitionTaskId,
         revision: task.record?.revision,
         labelIds: task.record?.labelIds ?? [],
         orchestratorSessionId: task.record?.orchestratorSessionId,

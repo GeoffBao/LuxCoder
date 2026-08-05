@@ -10,7 +10,7 @@
  * 这样用户已自定义命名（TB-wxy、teambition-mcp 等）也能被识别，不会漏掉提示。
  */
 
-import type { McpServerEntry } from '../types/agent'
+import type { McpServerEntry } from './types/agent'
 
 /** Teambition MCP 推荐统一名（预制 MCP 骨架使用；用户可自行改名但仍会被宽松识别） */
 export const TB_MCP_PREFERRED_NAME = 'TB-Connect' as const

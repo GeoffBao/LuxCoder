@@ -63,6 +63,7 @@ import {
   resolveEffectiveCwd,
 } from './project-path-service'
 import { TaskRepository } from './task-repository'
+import { MockTeambitionAdapter } from './teambition-adapter'
 import { TaskRunner, type CreateSessionOptions, type RunOptions } from './task-runner'
 import {
   materializeTaskTransaction,
@@ -907,43 +908,76 @@ export function registerTaskHandlers(window: BrowserWindow): void {
   })
 
   ipcMain.handle(TEAMBITION_IPC_CHANNELS.SYNC_MY_OPEN_TASKS, async (_event, workspaceRoot: string, workspaceId: string) => {
-    // 1. 拉取 Teambition 名下未完成任务
-    const { tasks, needsReauth } = await (await getTeambitionService(workspaceRoot)).listMyOpenTasks()
+    const { adapter, isMock } = await getTeambitionAdapterInfo(workspaceRoot)
+    const service = new TeambitionService({
+      storagePath: join(workspaceRoot, 'teambition-bindings.json'),
+      gateway: adapter,
+    })
+    // 1. 拉取 Teambition 名下未完成任务（候选，不自动创建）
+    const { tasks, needsReauth } = await service.listMyOpenTasks()
     if (needsReauth) {
-      return { ok: false, needsReauth: true, created: 0, tasks }
+      return { ok: false, needsReauth: true, candidates: [], alreadySynced: [], created: [], skipped: [], tasks, mock: false }
+    }
+    if (isMock) {
+      return { ok: true, needsReauth: false, candidates: [], alreadySynced: [], created: [], skipped: [], tasks, mock: true }
     }
 
-    // 2. 将 TB 任务同步为本地看板 Task（去重：标题相同跳过；写 task.yaml + 建会话目录）
+    // 2. 计算候选与已同步：按 TB taskId 去重（本地已有同源任务视为已同步）
     const repository = new TaskRepository({ resolveWorkspaceRoot: () => workspaceRoot })
-    const existingSlugs = new Set<string>(repository.listTasks(workspaceId))
+    const summaries = repository.listTaskAggregateSummaries(workspaceId)
+    const syncedTbIds = new Set(
+      summaries
+        .filter((summary) => summary.source === 'teambition' && summary.teambitionTaskId)
+        .map((summary) => summary.teambitionTaskId as string),
+    )
+    const candidates = tasks.filter((task) => !syncedTbIds.has(task.id))
+    const alreadySynced = tasks.filter((task) => syncedTbIds.has(task.id))
+
+    return {
+      ok: true,
+      needsReauth: false,
+      candidates,
+      alreadySynced: alreadySynced.map((task) => task.title),
+      created: [],
+      skipped: [],
+      tasks,
+      mock: false,
+    }
+  })
+
+  // 手动创建选中的 TB 任务为本地看板 Task（不自动运行、不开会话窗口）
+  ipcMain.handle(TEAMBITION_IPC_CHANNELS.CREATE_SYNCED_TASKS, async (_event, workspaceRoot: string, workspaceId: string, selected: TeambitionRemoteTask[]) => {
+    const repository = new TaskRepository({ resolveWorkspaceRoot: () => workspaceRoot })
     const created: Array<{ taskId: string; slug: string; title: string }> = []
     const skipped: string[] = []
+    const failed: Array<{ title: string; reason: string }> = []
 
-    for (const task of tasks) {
+    for (const task of selected) {
       // 用 TB taskId 作为去重/唯一标识（slugify 中文会退化冲突，taskId 唯一）
       const shortId = task.id.replace(/[^a-zA-Z0-9]/g, '').slice(-8) || 'tb'
       const slug = `${slugify(task.title) || 'tb-task'}-${shortId}`
-      // 同 TB 任务已存在则跳过（避免重复同步）
-      if (existingSlugs.has(slug)) {
-        skipped.push(task.title)
-        continue
-      }
       try {
         const spec = buildMinimalTaskSpec({
           title: task.title,
           description: task.title,
-          projectId: task.projectId || undefined,
+          // 注意：TB 的 projectId 是 TB 侧 id，不是本地 Project slug；
+          // 直接透传会让看板按本地 Project scope 过滤时看不到任务（“任务全消失”根因）。
+          // 手动添加时归到 Workspace 范围，用户后续可在编辑里改归属。
+          source: 'teambition',
+          teambitionTaskId: task.id,
         })
+        // 关键：spec.id 必须等于去重 slug（含 TB taskId 后缀），否则 materialize
+        // 生成的目录 slug 与下次同步的去重键不一致 → 二次同步会重复创建
+        spec.id = slug
         const result = await materializeTaskFromSpec(workspaceRoot, workspaceId, spec)
-        existingSlugs.add(result.slug)
         created.push({ taskId: result.taskId, slug: result.slug, title: task.title })
       } catch (error) {
-        console.error(`[Teambition] 同步任务「${task.title}」失败:`, error)
-        skipped.push(task.title)
+        console.error(`[Teambition] 创建任务「${task.title}」失败:`, error)
+        failed.push({ title: task.title, reason: errorMessage(error) })
       }
     }
 
-    return { ok: true, needsReauth: false, created, skipped, tasks }
+    return { ok: true, created, skipped, failed }
   })
 
   ipcMain.handle(TEAMBITION_IPC_CHANNELS.RECOGNIZE, async (_event, workspaceRoot: string) => {
@@ -1054,8 +1088,20 @@ async function getTeambitionService(workspaceRoot: string): Promise<TeambitionSe
   return service
 }
 
+interface TeambitionAdapterInfo {
+  adapter: import('./teambition-adapter').TeambitionAdapter
+  isMock: boolean
+}
+
 async function getTeambitionAdapter(workspaceRoot: string): Promise<import('./teambition-adapter').TeambitionAdapter> {
-  if (teambitionAdapter) return teambitionAdapter
+  return (await getTeambitionAdapterInfo(workspaceRoot)).adapter
+}
+
+async function getTeambitionAdapterInfo(workspaceRoot: string): Promise<TeambitionAdapterInfo> {
+  // 真实 MCP adapter 可缓存；Mock 不缓存（用户配置 TB 后应能重试真实连接）
+  if (teambitionAdapter && !(teambitionAdapter instanceof MockTeambitionAdapter)) {
+    return { adapter: teambitionAdapter, isMock: false }
+  }
   try {
     // 宽松识别工作区 mcp.json 中的 Teambition MCP（TB-Connect 或自定义名/URL 匹配）
     const { getWorkspaceMcpConfig } = await import('./agent-workspace-manager')
@@ -1079,13 +1125,13 @@ async function getTeambitionAdapter(workspaceRoot: string): Promise<import('./te
         },
       })
       console.warn(`[Teambition] 已连接 TB MCP (${tb.name})`)
-      return teambitionAdapter
+      return { adapter: teambitionAdapter, isMock: false }
     }
 
     const { MockTeambitionAdapter } = await import('./teambition-adapter')
-    teambitionAdapter = new MockTeambitionAdapter()
+    const mock = new MockTeambitionAdapter()
     console.warn('[Teambition] 未找到已启用的 TB MCP 配置，使用本地 Mock 适配器')
-    return teambitionAdapter
+    return { adapter: mock, isMock: true }
   } catch (error) {
     throw new Error(`Teambition adapter 不可用: ${errorMessage(error)}`)
   }

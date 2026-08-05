@@ -18,6 +18,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import type { McpServerEntry } from '@luxcoder/shared'
+import { isTeambitionMcpEntry, TB_MCP_PREFERRED_NAME } from '@luxcoder/shared/teambition-mcp'
 
 interface TeambitionConfigDialogProps {
   open: boolean
@@ -72,17 +74,19 @@ export function TeambitionConfigDialog({
       const fullUrl = trimmed.startsWith('http')
         ? trimmed
         : `${GATEWAY_PREFIX}${trimmed}`
-      await window.electronAPI.saveWorkspaceMcpConfig(workspaceSlug, {
-        servers: {
-          ...config.servers,
-          'TB-Connect': {
-            type: 'http',
-            enabled: true,
-            url: fullUrl,
-            headers: {},
-          },
-        },
-      })
+      // 归一化：移除历史自定义名条目（如 TB-wxy），统一写入推荐名 TB-Connect，
+      // 避免 mcp.json 残留多个 Teambition 条目导致 Agent 注入重复的 TB server
+      const servers: Record<string, McpServerEntry> = {}
+      for (const [name, entry] of Object.entries(config.servers ?? {})) {
+        if (!isTeambitionMcpEntry(name, entry)) servers[name] = entry
+      }
+      servers[TB_MCP_PREFERRED_NAME] = {
+        type: 'http',
+        enabled: true,
+        url: fullUrl,
+        headers: {},
+      }
+      await window.electronAPI.saveWorkspaceMcpConfig(workspaceSlug, { servers })
       toast.success('TB-Connect 配置已保存并启用')
       onOpenChange(false)
       onSaved?.()

@@ -4,7 +4,7 @@ import type { TaskAggregateSummary } from '@luxcoder/shared/tasks'
 import { buildKanbanViewModel } from '@/components/app-shell/kanban/kanban-view-model'
 import { workflowForKanbanColumn } from '@/components/app-shell/kanban/status-column'
 import type { SpecNodeSummary } from '@/components/app-shell/kanban/subtask-merge'
-import { taskBoardWorkflowFilterAtom, taskBoardLabelFilterAtom, taskBoardIncludeUnlabeledAtom } from './task-board-filter-atoms'
+import { taskBoardWorkflowFilterAtom, taskBoardLabelFilterAtom, taskBoardIncludeUnlabeledAtom, taskBoardSourceFilterAtom } from './task-board-filter-atoms'
 import {
   type KanbanBoardMode,
   type KanbanItem,
@@ -61,6 +61,7 @@ export const kanbanItemsAtom = atom<KanbanItem[]>((get) => {
     filter: {
       scope: get(taskBoardScopeAtom),
       workflow: get(taskBoardWorkflowFilterAtom),
+      source: get(taskBoardSourceFilterAtom),
       labelIds: get(taskBoardLabelFilterAtom),
       includeUnlabeled: get(taskBoardIncludeUnlabeledAtom),
     },

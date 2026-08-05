@@ -157,6 +157,10 @@ export const TaskSpecSchema = z
     params: z.array(TaskParamSchema).optional(),
     /** 业务类型（activity/requirement/bug/task/checklist/hardware），用于看板列内二级分组 */
     type: z.enum(TASK_TYPES).optional(),
+    /** 任务来源：manual=手动创建，teambition=从 TB 同步；旧任务缺省视为 manual */
+    source: z.enum(['manual', 'teambition']).optional(),
+    /** 来源为 teambition 时的 TB 任务 ID（用于去重/回写） */
+    teambitionTaskId: z.string().min(1).optional(),
     token_budget: z.number().int().positive().optional(),
     max_parallel: z.number().int().positive().optional(),
     max_iterations: z.number().int().min(0).max(MAX_REPAIR_ATTEMPTS_CAP).optional(),

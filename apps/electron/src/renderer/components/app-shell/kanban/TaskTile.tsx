@@ -192,6 +192,11 @@ export function TaskTile({
                 <span className={cn('inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium leading-none', typeBadgeClass[itemType])}>
                   {TASK_TYPE_LABELS[itemType]}
                 </span>
+                {item.task?.source === 'teambition' && (
+                  <span className="inline-flex shrink-0 items-center rounded-md bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-medium leading-none text-sky-700 dark:text-sky-300" title="来自 Teambition 同步">
+                    TB
+                  </span>
+                )}
                 <h3 className="line-clamp-2 text-sm font-medium leading-5">{item.title}</h3>
               </div>
             </>

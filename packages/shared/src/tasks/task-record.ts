@@ -40,6 +40,10 @@ export const TaskRecordSchema = z.object({
   workflow: TaskWorkflowSchema,
   /** 业务类型：activity/requirement/bug/task/checklist/hardware；旧记录缺省 undefined，读取时用 record.type ?? 'task' 兜底 */
   type: z.enum(TASK_TYPES).optional(),
+  /** 任务来源：manual=手动创建，teambition=从 TB 同步；旧记录缺省 undefined，读取时视为 manual */
+  source: z.enum(['manual', 'teambition']).optional(),
+  /** 来源为 teambition 时的 TB 任务 ID（用于去重/回写） */
+  teambitionTaskId: z.string().min(1).optional(),
   labelIds: z.array(z.string().min(1)),
   orchestratorSessionId: z.string().min(1).optional(),
   archivedAt: z.number().int().nonnegative().optional(),
@@ -59,6 +63,10 @@ export interface TaskAggregateSummary {
   workflow: TaskWorkflow;
   /** 业务类型：activity/requirement/bug/task/checklist/hardware（旧任务缺省） */
   type?: TaskType;
+  /** 任务来源：manual/teambition（旧任务缺省视为 manual） */
+  source?: 'manual' | 'teambition';
+  /** 来源为 teambition 时的 TB 任务 ID */
+  teambitionTaskId?: string;
   revision?: number;
   labelIds: string[];
   orchestratorSessionId?: string;

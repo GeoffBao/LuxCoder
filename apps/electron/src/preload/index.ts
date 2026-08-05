@@ -325,13 +325,27 @@ export interface BrowserTeambitionTaskList {
   tasks: BrowserTeambitionTask[]
   needsReauth: boolean
 }
-/** 一键同步结果：created=新创建的本地任务 / skipped=跳过的重复任务 */
+/** 一键同步结果：candidates=可添加的 TB 候选 / alreadySynced=已同步过的任务标题 / created=新创建的本地任务 / skipped=跳过的重复任务 */
 export interface BrowserTeambitionSyncResult {
   ok: boolean
   needsReauth: boolean
   tasks: BrowserTeambitionTask[]
+  /** 可手动添加的候选任务（尚未创建为本地 Task） */
+  candidates: BrowserTeambitionTask[]
+  /** 已同步过的任务标题（按 TB taskId 去重） */
+  alreadySynced: string[]
   created: Array<{ taskId: string; slug: string; title: string }>
   skipped: string[]
+  /** 是否使用了本地 Mock 适配器（未配置/未启用 TB MCP 时） */
+  mock?: boolean
+}
+
+/** 手动创建选中 TB 任务的结果 */
+export interface BrowserTeambitionCreateResult {
+  ok: boolean
+  created: Array<{ taskId: string; slug: string; title: string }>
+  skipped: string[]
+  failed: Array<{ title: string; reason: string }>
 }
 /** Teambition MCP 识别结果（与 @luxcoder/shared teambition-mcp 一致） */
 export type BrowserTeambitionRecognition = import('@luxcoder/shared').TeambitionMcpRecognition
@@ -1519,8 +1533,10 @@ export interface ElectronAPI {
   teambition: {
     capabilities: (workspaceRoot: string) => Promise<BrowserTeambitionCapabilities>
     listTasks: (workspaceRoot: string, projectId: string) => Promise<BrowserTeambitionTaskList>
-    /** 一键同步用户名下未 close 任务到看板 */
+    /** 一键同步用户名下未 close 任务到看板（拉取候选，不自动创建） */
     syncMyOpenTasks: (workspaceRoot: string, workspaceId: string) => Promise<BrowserTeambitionSyncResult>
+    /** 手动创建选中的 TB 任务为本地看板 Task（不自动运行） */
+    createSyncedTasks: (workspaceRoot: string, workspaceId: string, selected: BrowserTeambitionTask[]) => Promise<BrowserTeambitionCreateResult>
     /** 识别当前工作区 Teambition MCP 配置状态 */
     recognize: (workspaceRoot: string) => Promise<BrowserTeambitionRecognition>
     claimTask: (workspaceRoot: string, input: BrowserTeambitionClaimInput) => Promise<BrowserTeambitionBinding>
@@ -3394,6 +3410,8 @@ const electronAPI: ElectronAPI = {
       invokeTyped<BrowserTeambitionTaskList>(TEAMBITION_IPC_CHANNELS.LIST_TASKS, workspaceRoot, projectId),
     syncMyOpenTasks: (workspaceRoot: string, workspaceId: string): Promise<BrowserTeambitionSyncResult> =>
       invokeTyped<BrowserTeambitionSyncResult>(TEAMBITION_IPC_CHANNELS.SYNC_MY_OPEN_TASKS, workspaceRoot, workspaceId),
+    createSyncedTasks: (workspaceRoot: string, workspaceId: string, selected: BrowserTeambitionTask[]): Promise<BrowserTeambitionCreateResult> =>
+      invokeTyped<BrowserTeambitionCreateResult>(TEAMBITION_IPC_CHANNELS.CREATE_SYNCED_TASKS, workspaceRoot, workspaceId, selected),
     recognize: (workspaceRoot: string): Promise<BrowserTeambitionRecognition> =>
       invokeTyped<BrowserTeambitionRecognition>(TEAMBITION_IPC_CHANNELS.RECOGNIZE, workspaceRoot),
     claimTask: (workspaceRoot: string, input: BrowserTeambitionClaimInput): Promise<BrowserTeambitionBinding> =>

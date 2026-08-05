@@ -7,6 +7,7 @@ import {
   taskBoardWorkflowFilterAtom,
   taskBoardLabelFilterAtom,
   taskBoardIncludeUnlabeledAtom,
+  taskBoardSourceFilterAtom,
   taskBoardFilterCountAtom,
   clearTaskBoardFiltersAtom,
 } from '@/atoms/task-board-filter-atoms'
@@ -30,8 +31,15 @@ const WORKFLOW_OPTIONS: Array<{ value: 'all' | TaskWorkflow; label: string }> = 
   { value: 'cancelled', label: '已取消' },
 ]
 
+const SOURCE_OPTIONS: Array<{ value: 'all' | 'manual' | 'teambition'; label: string }> = [
+  { value: 'all', label: '全部' },
+  { value: 'manual', label: '手动创建' },
+  { value: 'teambition', label: 'TB 同步' },
+]
+
 export function TaskBoardFilters(): React.ReactElement {
   const [workflowFilter, setWorkflowFilter] = useAtom(taskBoardWorkflowFilterAtom)
+  const [sourceFilter, setSourceFilter] = useAtom(taskBoardSourceFilterAtom)
   const [labelFilter, setLabelFilter] = useAtom(taskBoardLabelFilterAtom)
   const [includeUnlabeled, setIncludeUnlabeled] = useAtom(taskBoardIncludeUnlabeledAtom)
   const filterCount = useAtomValue(taskBoardFilterCountAtom)
@@ -39,6 +47,7 @@ export function TaskBoardFilters(): React.ReactElement {
   const labels = useAtomValue(workspaceLabelsAtom)
 
   const workflowLabel = WORKFLOW_OPTIONS.find((option) => option.value === workflowFilter)?.label
+  const sourceLabel = SOURCE_OPTIONS.find((option) => option.value === sourceFilter)?.label
 
   return (
     <div className="flex flex-wrap items-center gap-1">
@@ -65,6 +74,23 @@ export function TaskBoardFilters(): React.ReactElement {
                     key={option.value}
                     checked={workflowFilter === option.value}
                     onCheckedChange={() => setWorkflowFilter(option.value)}
+                    className="text-xs py-1"
+                  >
+                    {option.label}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuPortal>
+          </DropdownMenuSub>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className="text-xs py-1">来源</DropdownMenuSubTrigger>
+            <DropdownMenuPortal>
+              <DropdownMenuSubContent className="w-28 z-[9999] min-w-0 p-0.5">
+                {SOURCE_OPTIONS.map((option) => (
+                  <DropdownMenuCheckboxItem
+                    key={option.value}
+                    checked={sourceFilter === option.value}
+                    onCheckedChange={() => setSourceFilter(option.value)}
                     className="text-xs py-1"
                   >
                     {option.label}
@@ -129,6 +155,11 @@ export function TaskBoardFilters(): React.ReactElement {
       {workflowFilter !== 'all' && (
         <button type="button" onClick={() => setWorkflowFilter('all')} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[11px] text-primary">
           状态：{workflowLabel}<X className="h-3 w-3" />
+        </button>
+      )}
+      {sourceFilter !== 'all' && (
+        <button type="button" onClick={() => setSourceFilter('all')} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[11px] text-primary">
+          来源：{sourceLabel}<X className="h-3 w-3" />
         </button>
       )}
       {labelFilter.map((labelId) => {

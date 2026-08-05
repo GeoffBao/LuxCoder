@@ -138,6 +138,8 @@ export async function materializeTaskTransaction(
     revision: 1,
     workflow: 'todo',
     type: finalSpec.type,
+    source: finalSpec.source,
+    teambitionTaskId: finalSpec.teambitionTaskId,
     labelIds: [],
     createdAt: initialJournal.createdAt,
     updatedAt: initialJournal.createdAt,
