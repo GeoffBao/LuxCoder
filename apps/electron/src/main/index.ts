@@ -100,6 +100,7 @@ import { stopAllGenerations } from './lib/chat-service'
 import { configureUpdater, initAutoUpdater, cleanupUpdater } from './lib/updater/auto-updater'
 import { startWorkspaceWatcher, stopWorkspaceWatcher } from './lib/workspace-watcher'
 import { getIsQuitting, setQuitting } from './lib/app-lifecycle'
+import { getMainWindow as getStoredMainWindow, setMainWindow as setStoredMainWindow } from './lib/main-window-store'
 import {
   registerBridge,
   startAllBridges,
@@ -238,10 +239,66 @@ async function recoverEnabledDingTalkBots(): Promise<void> {
 }
 
 let mainWindow: BrowserWindow | null = null
+let startupSplashWindow: BrowserWindow | null = null
+
+/**
+ * 原生启动页不依赖 Renderer bundle 或运行时检测，避免冷启动期间出现空白窗口。
+ * dev 由 build:resources 复制到 dist/resources；打包版由 electron-builder extraResources 提供。
+ */
+function getStartupSplashPath(): string {
+  const resourcesDir = app.isPackaged ? process.resourcesPath : join(__dirname, 'resources')
+  return join(resourcesDir, 'startup-splash', 'index.html')
+}
+
+function dismissStartupSplash(): void {
+  if (startupSplashWindow && !startupSplashWindow.isDestroyed()) {
+    startupSplashWindow.destroy()
+  }
+  startupSplashWindow = null
+}
+
+function createStartupSplashWindow(): void {
+  if (startupSplashWindow && !startupSplashWindow.isDestroyed()) return
+
+  const savedState = getSettings().mainWindowState
+  const initialBounds = savedState
+    ? { width: savedState.width, height: savedState.height, x: savedState.x, y: savedState.y }
+    : { width: 1400, height: 900 }
+
+  startupSplashWindow = new BrowserWindow({
+    ...initialBounds,
+    show: false,
+    frame: false,
+    resizable: false,
+    skipTaskbar: true,
+    backgroundColor: '#1b3f2d',
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  })
+
+  const splash = startupSplashWindow
+  splash.setMenuBarVisibility(false)
+  splash.once('ready-to-show', () => {
+    if (splash.isDestroyed()) return
+    // 与主窗口使用相同的默认策略，首次启动时也不会出现窗口尺寸跳变。
+    if (savedState?.isMaximized ?? true) splash.maximize()
+    splash.show()
+  })
+  splash.once('closed', () => {
+    if (startupSplashWindow === splash) startupSplashWindow = null
+  })
+  splash.loadFile(getStartupSplashPath()).catch((error) => {
+    console.warn('[启动] 原生启动页加载失败，将继续启动主窗口:', error)
+    dismissStartupSplash()
+  })
+}
 
 /** 获取主窗口实例（供其他模块使用） */
 export function getMainWindow(): BrowserWindow | null {
-  return mainWindow
+  return getStoredMainWindow()
 }
 
 function installWindowsZoomInFallback(win: BrowserWindow): void {
@@ -382,6 +439,7 @@ function createWindow(): void {
     },
     ...titleBarOptions,
   })
+  setStoredMainWindow(mainWindow)
   registerTaskHandlers(mainWindow)
   void rehydrateIncompleteTaskRuns()
     .then(() => healOrphanedTaskRuns())
@@ -399,6 +457,34 @@ function createWindow(): void {
     mainWindow.loadFile(join(__dirname, 'renderer', 'index.html'))
   }
 
+  // 主 Renderer 无法加载或崩溃时，不能让启动页无限停留；切换为轻量错误页告知用户。
+  let hasShownRendererFailure = false
+  const showRendererFailure = (reason: string): void => {
+    if (!mainWindow || mainWindow.isDestroyed()) return
+
+    dismissStartupSplash()
+    if (hasShownRendererFailure) {
+      mainWindow.show()
+      return
+    }
+
+    hasShownRendererFailure = true
+    const message = encodeURIComponent(`LuxCoder 无法加载主界面\n\n${reason}\n\n请重试；若问题持续，请检查应用安装文件。`)
+    mainWindow.loadURL(`data:text/plain;charset=utf-8,${message}`).catch((error) => {
+      console.error('[启动] 降级错误页加载失败:', error)
+      mainWindow?.show()
+    })
+  }
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+    if (!isMainFrame || errorCode === -3) return
+    console.error(`[启动] 主 Renderer 加载失败 (${errorCode}): ${errorDescription} (${validatedURL})`)
+    showRendererFailure(errorDescription)
+  })
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    console.error(`[启动] 主 Renderer 进程异常退出: ${details.reason}`)
+    showRendererFailure(`Renderer 进程异常退出：${details.reason}`)
+  })
+
   // 窗口就绪后，按保存的状态决定是否最大化
   mainWindow.once('ready-to-show', () => {
     if (savedState?.isMaximized ?? true) {
@@ -407,6 +493,8 @@ function createWindow(): void {
     if (process.platform === 'darwin' && app.dock) {
       app.dock.show()
     }
+    // 仅在主窗口首帧已完成合成后移除原生启动页，避免冷启动时的空白与闪屏。
+    dismissStartupSplash()
     mainWindow?.show()
   })
 
@@ -476,6 +564,7 @@ function createWindow(): void {
   }
 
   mainWindow.on('closed', () => {
+    setStoredMainWindow(null)
     mainWindow = null
   })
 }
@@ -510,6 +599,9 @@ async function bootstrap(): Promise<void> {
 
   // 初始化 LuxCoder 版本号（供 User-Agent 等全局标识使用）
   setAppVersion(app.getVersion())
+
+  // 先显示不依赖 Renderer 的静态启动页；运行时检测耗时不会再变成用户可见的空白。
+  createStartupSplashWindow()
 
   // 注册自定义协议 luxcoder-file:// 用于内联预览本地文件。
   // 协议只接受主进程签发的 opaque token，不解析 renderer 提供的绝对路径。
