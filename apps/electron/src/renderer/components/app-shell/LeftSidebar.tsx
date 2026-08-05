@@ -11,7 +11,7 @@
 import * as React from 'react'
 import { useAtom, useSetAtom, useAtomValue, useStore } from 'jotai'
 import { toast } from 'sonner'
-import { Pin, PinOff, Settings, Plus, Trash2, Pencil, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MoreHorizontal, FolderOpen, GripVertical, Clock, CalendarDays, ChevronRight, GitBranch, Download, Loader2, RotateCw, Layers, LayoutDashboard, PenTool, Library, House, Puzzle, Star, Wrench } from 'lucide-react'
+import { Pin, PinOff, Settings, Plus, Trash2, Pencil, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MoreHorizontal, FolderOpen, GripVertical, Clock, CalendarDays, ChevronRight, GitBranch, Download, Loader2, RotateCw, Layers, LayoutDashboard, PenTool, Library, House, Puzzle, Star, Wrench, Boxes, Globe, FolderCog } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { MarqueeText } from '@/components/ui/marquee-text'
@@ -20,7 +20,7 @@ import { SidebarToggleButton } from './SidebarToggleButton'
 import { ModeSwitcher } from './ModeSwitcher'
 import { TabNavigationControls } from '@/components/tabs/TabNavigationControls'
 import { UserAvatar } from '@/components/chat/UserAvatar'
-import { activeViewAtom, agentSkillsTabAtom } from '@/atoms/active-view'
+import { activeViewAtom, agentSkillsTabAtom, toolsSectionAtom } from '@/atoms/active-view'
 import { automationFormAtom, automationsAtom } from '@/atoms/automation-atoms'
 import { appModeAtom, type AppMode } from '@/atoms/app-mode'
 import { settingsOpenAtom, settingsTabAtom } from '@/atoms/settings-tab'
@@ -610,6 +610,7 @@ function deleteSetEntry<T>(prev: Set<T>, value: T): Set<T> {
 export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.ReactElement {
   const [activeView, setActiveView] = useAtom(activeViewAtom)
   const setAgentSkillsTab = useSetAtom(agentSkillsTabAtom)
+  const setToolsSection = useSetAtom(toolsSectionAtom)
   const setAutomationForm = useSetAtom(automationFormAtom)
   const automations = useAtomValue(automationsAtom)
   const setAutomations = useSetAtom(automationsAtom)
@@ -727,6 +728,9 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
   // 常用插件分组展开/折叠
   const [pluginGroupExpanded, setPluginGroupExpanded] = React.useState(true)
+  // 工具集分组展开/折叠
+  const [toolGroupExpanded, setToolGroupExpanded] = React.useState(true)
+
   // Skill/MCP 计数通过 IPC 异步加载，首次渲染默认 0
   const [pluginSkillCount, setPluginSkillCount] = React.useState(0)
   const [pluginMcpCount, setPluginMcpCount] = React.useState(0)
@@ -3116,6 +3120,50 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               count={pluginMcpCount}
               onClick={handleOpenAgentMcp}
               ariaLabel={`MCP 服务器，${pluginMcpCount} 个已配置`}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* 工具集：二级菜单（网站工具 / 本地工具） */}
+      <div className="sidebar-module-zone px-3 pb-0.5">
+        <button
+          type="button"
+          onClick={() => setToolGroupExpanded(!toolGroupExpanded)}
+          className="sidebar-module-row w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-[9px] text-[13px] font-medium text-foreground/70 hover:text-foreground hover:bg-foreground/[0.04] transition-[background-color,color] duration-150 titlebar-no-drag"
+        >
+          <Boxes size={16} className="sidebar-module-icon shrink-0 text-foreground/40" />
+          <span className="flex-1 text-left">工具集</span>
+          <ChevronRight
+            size={13}
+            className={cn(
+              'shrink-0 text-foreground/30 transition-transform duration-200',
+              toolGroupExpanded && 'rotate-90'
+            )}
+          />
+        </button>
+        {toolGroupExpanded && (
+          <div className="ml-2.5 mt-0.5 flex flex-col gap-0.5">
+            <SidebarModule
+              icon={Globe}
+              title="网站工具"
+              active={activeView === 'tools'}
+              onClick={() => {
+                setAutomationForm({ open: false, draft: null })
+                setToolsSection('web')
+                setActiveView('tools')
+              }}
+              ariaLabel="网站工具"
+            />
+            <SidebarModule
+              icon={FolderCog}
+              title="本地工具"
+              onClick={() => {
+                setAutomationForm({ open: false, draft: null })
+                setToolsSection('local')
+                setActiveView('tools')
+              }}
+              ariaLabel="本地工具（预留）"
             />
           </div>
         )}

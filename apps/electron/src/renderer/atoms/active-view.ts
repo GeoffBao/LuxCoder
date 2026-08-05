@@ -19,6 +19,7 @@ export type ActiveView = 'conversations' | 'planning' | 'agent-skills'
   | 'excalidraw-gallery'
   | 'excalidraw-editor'
   | 'cowork-placeholder'
+  | 'tools'
 /** Yoda 插件视图的子页：专家/专家团平级置顶，随后是 Skills / MCP / API（增强工具）。Context 已迁入设置面板（Yoda 记忆）。 */
 export type AgentSkillsCapabilityTab = 'experts' | 'teams' | 'skills' | 'mcp' | 'api'
 
@@ -27,3 +28,7 @@ export const activeViewAtom = atom<ActiveView>('conversations')
 
 /** Agent 技能视图当前子页，用于外部入口直达 MCP 管理 */
 export const agentSkillsTabAtom = atom<AgentSkillsCapabilityTab>('experts')
+
+/** 工具集视图当前分区（网站 / 本地） */
+export type ToolsSection = 'web' | 'local'
+export const toolsSectionAtom = atom<ToolsSection>('web')
