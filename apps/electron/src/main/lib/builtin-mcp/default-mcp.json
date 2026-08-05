@@ -143,6 +143,20 @@
       "tools": [
         { "name": "create_task", "description": "创建一个 todo 状态的看板任务，不自动运行。" }
       ]
+    },
+    {
+      "id": "tb-connect",
+      "name": "TB_Connect",
+      "displayName": "TB-Connect（Teambition）",
+      "description": "连接企业 Teambition，看板可一键同步你名下未关闭的问题。需配置 userToken。",
+      "category": "integration",
+      "kind": "external",
+      "deletable": false,
+      "defaultEnabled": false,
+      "toggleable": true,
+      "tools": [
+        { "name": "SearchUserTasksV3", "description": "查询用户名下任务（一键同步未关闭问题用）。", "readOnly": true }
+      ]
     }
   ]
 }

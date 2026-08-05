@@ -137,6 +137,7 @@ export async function materializeTaskTransaction(
     slug: uniqueSlug,
     revision: 1,
     workflow: 'todo',
+    type: finalSpec.type,
     labelIds: [],
     createdAt: initialJournal.createdAt,
     updatedAt: initialJournal.createdAt,

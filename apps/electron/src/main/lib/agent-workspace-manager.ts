@@ -29,7 +29,7 @@ import { findAllGitRoots, normalizeGitRoot } from './git-diff-service'
 import { projectRepository } from './project-repository'
 import { listBuiltinMcpServers } from './builtin-mcp/catalog'
 import { RESERVED_BUILTIN_KEYS } from './builtin-mcp/baseline'
-import { inferMcpTransportType, normalizeMcpTransportType } from '@luxcoder/shared'
+import { inferMcpTransportType, normalizeMcpTransportType, isTeambitionMcpEntry } from '@luxcoder/shared'
 import type { AgentWorkspace, WorkspaceMcpConfig, SkillMeta, SkillImportSource, OtherWorkspaceSkillsGroup, WorkspaceCapabilities, SkillFileNode, SkillFileContent, WorkspaceMemorySummary, BulkImportSkillItemResult, BulkImportSkillsResult, BulkImportWorkspaceSelection, OrganizationConnection, OrganizationSkill } from '@luxcoder/shared'
 import { extractSkillZip, orgDownloadSkill, buildOrganizationImportSource } from './org-skill-service'
 
@@ -607,6 +607,7 @@ export function getWorkspaceMcpConfig(workspaceSlug: string): WorkspaceMcpConfig
   const mcpPath = getWorkspaceMcpPath(workspaceSlug)
 
   if (!existsSync(mcpPath)) {
+    // 无 mcp.json：TB-Connect 由内置 MCP 预制（default-mcp.json），无需写入工作区 mcp.json
     return { servers: {} }
   }
 

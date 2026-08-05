@@ -5,6 +5,7 @@
  * 适配: PermissionMode 类型改为从 PERMISSION_MODES 数组推断（替代 OSS 的 mode-types.ts 导入）
  */
 import { z } from 'zod';
+import { TASK_TYPES } from './task-record';
 
 // ---------------------------------------------------------------------------
 // 枚举常量
@@ -154,6 +155,8 @@ export const TaskSpecSchema = z
     skills: z.array(z.string().min(1)).optional(),
     defaults: TaskDefaultsSchema.optional(),
     params: z.array(TaskParamSchema).optional(),
+    /** 业务类型（activity/requirement/bug/task/checklist/hardware），用于看板列内二级分组 */
+    type: z.enum(TASK_TYPES).optional(),
     token_budget: z.number().int().positive().optional(),
     max_parallel: z.number().int().positive().optional(),
     max_iterations: z.number().int().min(0).max(MAX_REPAIR_ATTEMPTS_CAP).optional(),

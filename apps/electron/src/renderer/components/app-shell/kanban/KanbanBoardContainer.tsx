@@ -3,6 +3,10 @@ import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { LayoutDashboard, Plus, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import type { AgentSessionMeta, TaskDeleteImpact } from '@luxcoder/shared'
+import type { TeambitionMcpRecognition } from '@luxcoder/shared'
+import { agentSkillsTabAtom } from '@/atoms/active-view'
+import { activeViewAtom } from '@/atoms/active-view'
+import { TeambitionConnectHint } from './TeambitionConnectHint'
 import {
   agentModelIdAtom,
   agentSessionsAtom,
@@ -71,6 +75,9 @@ interface KanbanBoardContainerProps {
   onSessionCreated?: (session: AgentSessionMeta) => void
   onRefresh?: () => void | Promise<void>
   refreshing?: boolean
+  /** 外部同步（后续接入企业 bug 系统 MCP）；当前为占位 UI */
+  onSync?: () => void | Promise<void>
+  syncing?: boolean
 }
 
 export function KanbanBoardContainer({
@@ -80,6 +87,8 @@ export function KanbanBoardContainer({
   onSessionCreated,
   onRefresh,
   refreshing = false,
+  onSync,
+  syncing = false,
 }: KanbanBoardContainerProps): React.ReactElement {
   const items = useAtomValue(kanbanItemsAtom)
   const projects = useAtomValue(serverKanbanProjectsAtom)
@@ -119,6 +128,25 @@ export function KanbanBoardContainer({
   const [deleteImpact, setDeleteImpact] = React.useState<TaskDeleteImpact | null>(null)
   const [impactLoading, setImpactLoading] = React.useState(false)
   const [deleting, setDeleting] = React.useState(false)
+
+  // Teambition MCP 连接识别（preferred / custom / missing）
+  const [tbRecognition, setTbRecognition] = React.useState<TeambitionMcpRecognition | null>(null)
+  React.useEffect(() => {
+    if (!workspaceRoot) return
+    let cancelled = false
+    void window.electronAPI.teambition?.recognize?.(workspaceRoot)
+      .then((result) => { if (!cancelled) setTbRecognition(result) })
+      .catch(() => { if (!cancelled) setTbRecognition({ status: 'missing' }) })
+    return () => { cancelled = true }
+  }, [workspaceRoot])
+
+  // 跳转 MCP 设置（agent-skills 的 mcp tab）
+  const setAgentSkillsTab = useSetAtom(agentSkillsTabAtom)
+  const setActiveView = useSetAtom(activeViewAtom)
+  const navigateToMcpSettings = React.useCallback(() => {
+    setAgentSkillsTab('mcp')
+    setActiveView('agent-skills')
+  }, [setAgentSkillsTab, setActiveView])
 
   const visibleItems = mode === 'board' ? activeBoardItems(items, workflowFilter) : items
   const emptyState = resolveTaskBoardEmptyState({
@@ -368,10 +396,20 @@ export function KanbanBoardContainer({
             <TaskBoardFilters />
           </div>
           <div className="titlebar-no-drag flex items-center gap-1">
+            <TeambitionConnectHint recognition={tbRecognition} onNavigateToMcp={navigateToMcpSettings} workspaceSlug={workspace?.slug} />
             <BoardListToggle value={mode} onChange={setMode} />
             {onRefresh ? (
-              <Button variant="ghost" size="icon-sm" disabled={refreshing} onClick={() => { void onRefresh() }} aria-label="刷新 Project 看板" title="刷新">
-                <RefreshCw className={refreshing ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                disabled={refreshing || syncing}
+                onClick={() => { void onRefresh() }}
+                aria-label="一键更新所有（刷新本地 + 同步 TB）"
+                title="一键更新所有（刷新本地 + 同步 Teambition）"
+                className="relative"
+              >
+                <RefreshCw className={(refreshing || syncing) ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
+                <span className="absolute right-1 top-1 size-1.5 rounded-full bg-emerald-500" />
               </Button>
             ) : null}
           </div>

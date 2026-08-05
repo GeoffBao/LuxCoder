@@ -32,6 +32,8 @@ import { BuiltinMcpDetailSheet } from './BuiltinMcpDetailSheet'
 import { ImportSkillDialog } from './ImportSkillDialog'
 import { OrgSkillImportDialog } from './OrgSkillImportDialog'
 import { CommunityMarketDialog } from './CommunityMarketDialog'
+import { TeambitionConfigDialog } from '@/components/settings/TeambitionConfigDialog'
+import { isTeambitionMcpEntry } from '@luxcoder/shared/teambition-mcp'
 import { EnhancedToolsPanel } from '@/components/settings/ToolSettings'
 import { AgentExpertsView } from '@/components/agent-experts/AgentExpertsView'
 import { groupSkills } from './skillGrouping'
@@ -173,6 +175,8 @@ export function AgentSkillsView({
   const [showImport, setShowImport] = React.useState(false)
   const [showOrgImport, setShowOrgImport] = React.useState(false)
   const [showCommunityMarket, setShowCommunityMarket] = React.useState(false)
+  const [tbConfigOpen, setTbConfigOpen] = React.useState(false)
+  const [tbExistingUrl, setTbExistingUrl] = React.useState<string | undefined>(undefined)
   const [pendingDeleteSkill, setPendingDeleteSkill] = React.useState<SkillMeta | null>(null)
   const [pendingDeleteMcpName, setPendingDeleteMcpName] = React.useState<string | null>(null)
   const [isDeletingSkill, setIsDeletingSkill] = React.useState(false)
@@ -470,10 +474,33 @@ export function AgentSkillsView({
               userEntries={userMcpEntries}
               builtinServers={builtinMcpServers}
               total={mcpCount}
-              onOpen={(name, entry) => { setEditingMcp({ name, entry }); setMcpSheetOpen(true) }}
-              onOpenBuiltin={setSelectedBuiltinMcp}
+              onOpen={(name, entry) => {
+                // TB-Connect（或自定义 TB 名）：未配置 Token 时打开配置引导；已配置则正常编辑
+                if (isTeambitionMcpEntry(name, entry) && !entry.enabled) {
+                  setTbExistingUrl(entry.url)
+                  setTbConfigOpen(true)
+                  return
+                }
+                setEditingMcp({ name, entry }); setMcpSheetOpen(true)
+              }}
+              onOpenBuiltin={(server) => {
+                // TB-Connect 内置预制：点击直接打开 Token 配置引导
+                if (server.id === 'tb-connect') {
+                  setTbExistingUrl(undefined)
+                  setTbConfigOpen(true)
+                  return
+                }
+                setSelectedBuiltinMcp(server)
+              }}
               onToggle={data.toggleMcp}
-              onToggleBuiltin={data.toggleBuiltinMcp}
+              onToggleBuiltin={(id, enabled) => {
+                // TB-Connect 是 external 预制：开关操作工作区 mcp.json 的 TB-Connect 条目
+                if (id === 'tb-connect') {
+                  void data.toggleMcp('TB-Connect', enabled)
+                  return
+                }
+                return data.toggleBuiltinMcp(id, enabled)
+              }}
               onRequestDelete={setPendingDeleteMcpName}
               onAdd={() => { setEditingMcp(null); setMcpSheetOpen(true) }}
             />
@@ -539,6 +566,15 @@ export function AgentSkillsView({
         onOpenChange={(open) => { setMcpSheetOpen(open); if (!open) bumpCapabilities((v) => v + 1) }}
         onSaved={() => setMcpSheetOpen(false)}
         onChanged={() => bumpCapabilities((v) => v + 1)}
+      />
+
+      {/* TB-Connect 配置引导：MCP 列表中未启用的 TB 条目点击时打开 */}
+      <TeambitionConfigDialog
+        open={tbConfigOpen}
+        onOpenChange={setTbConfigOpen}
+        workspaceSlug={data.workspaceSlug}
+        existingUrl={tbExistingUrl}
+        onSaved={() => bumpCapabilities((v) => v + 1)}
       />
 
       <BuiltinMcpDetailSheet
@@ -732,40 +768,57 @@ function McpTab({ userEntries, builtinServers, total, onOpen, onOpenBuiltin, onT
     <div className="flex flex-col gap-8">
       {userEntries.length > 0 && (
         <McpSection title="我的 MCP" count={userEntries.length}>
-          {userEntries.map(([name, entry]) => (
-            <McpCard
-              key={name}
-              name={name}
-              entry={entry}
-              onOpen={() => onOpen(name, entry)}
-              onToggle={(enabled) => onToggle(name, enabled)}
-              onRequestDelete={() => onRequestDelete(name)}
-            />
-          ))}
+          {userEntries.map(([name, entry]) => {
+            // TB-Connect（或自定义 TB 名）且未启用：显示「待配置」状态
+            const isTb = isTeambitionMcpEntry(name, entry)
+            const tbUnconfigured = isTb && !entry.enabled
+            return (
+              <McpCard
+                key={name}
+                name={name}
+                entry={entry}
+                description={isTb ? 'Teambition MCP — 同步你名下未关闭的问题到看板' : undefined}
+                targetLabel={isTb ? '点击配置 Token' : undefined}
+                statusLabel={tbUnconfigured ? '待配置 Token' : undefined}
+                statusTone={tbUnconfigured ? 'warning' : undefined}
+                onOpen={() => onOpen(name, entry)}
+                onToggle={(enabled) => onToggle(name, enabled)}
+                onRequestDelete={() => onRequestDelete(name)}
+              />
+            )
+          })}
         </McpSection>
       )}
 
       {builtinServers.length > 0 && (
         <McpSection title="LuxCoder 内置" count={builtinServers.length}>
-          {builtinServers.map((server) => (
-            <McpCard
-              key={server.id}
-              name={server.displayName}
-              entry={{
-                type: 'stdio',
-                command: 'LuxCoder 运行时注入',
-                enabled: server.enabled,
-                isBuiltin: true,
-              }}
-              description={server.description}
-              targetLabel={server.availabilityReason ?? 'LuxCoder 运行时注入'}
-              statusLabel={getBuiltinMcpStatus(server).label}
-              statusTone={getBuiltinMcpStatus(server).tone}
-              readOnly
-              onOpen={() => onOpenBuiltin(server)}
-              onToggle={(enabled) => onToggleBuiltin(server.id, enabled)}
-            />
-          ))}
+          {builtinServers.map((server) => {
+            const isTbBuiltin = server.id === 'tb-connect'
+            return (
+              <McpCard
+                key={server.id}
+                name={server.displayName}
+                entry={{
+                  type: isTbBuiltin ? 'http' : 'stdio',
+                  command: isTbBuiltin ? undefined : 'LuxCoder 运行时注入',
+                  enabled: server.enabled,
+                  isBuiltin: true,
+                }}
+                description={server.description}
+                targetLabel={isTbBuiltin
+                  ? (server.available ? '已连接' : '点击配置 Token')
+                  : (server.availabilityReason ?? 'LuxCoder 运行时注入')}
+                statusLabel={getBuiltinMcpStatus(server).label}
+                statusTone={getBuiltinMcpStatus(server).tone}
+                readOnly
+                onOpen={() => onOpenBuiltin(server)}
+                // TB-Connect 已配置时提供开关（写入 mcp.json）；未配置时无开关，点击进入配置引导
+                onToggle={isTbBuiltin
+                  ? (server.available ? (enabled) => onToggleBuiltin(server.id, enabled) : undefined)
+                  : (enabled) => onToggleBuiltin(server.id, enabled)}
+              />
+            )
+          })}
         </McpSection>
       )}
     </div>

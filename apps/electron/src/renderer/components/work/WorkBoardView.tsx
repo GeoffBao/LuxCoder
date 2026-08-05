@@ -292,6 +292,26 @@ export function WorkBoardView(): React.ReactElement {
     }
   }
 
+  // C3: 一键更新所有 —— 刷新本地看板 + 同步 Teambition（用户名下未 close 问题）
+  const [syncing, setSyncing] = React.useState(false)
+  const handleSync = async (): Promise<void> => {
+    if (syncing) return
+    setSyncing(true)
+    try {
+      // 1. 先刷新本地数据
+      await refreshAll()
+      // 2. 同步 Teambition：拉取用户名下未 close 任务并写入看板
+      if (workspaceRoot) {
+        await window.electronAPI.teambition?.syncMyOpenTasks?.(workspaceRoot).catch(() => null)
+      }
+      toast.success('已一键更新：本地看板已刷新，Teambition 待办已同步')
+    } catch (cause) {
+      toast.error(`一键更新失败：${errorMessage(cause)}`)
+    } finally {
+      setSyncing(false)
+    }
+  }
+
   if (!workspace) {
     return (
       <div className="grid h-full place-items-center bg-background p-6">
@@ -329,6 +349,8 @@ export function WorkBoardView(): React.ReactElement {
             }}
             onRefresh={handleRefresh}
             refreshing={loading}
+            onSync={handleSync}
+            syncing={syncing}
             onTaskCreated={async (created) => {
               await refreshAll()
               if (!created?.ran || !created.sessionId) return

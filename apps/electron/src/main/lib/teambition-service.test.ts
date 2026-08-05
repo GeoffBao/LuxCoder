@@ -26,6 +26,7 @@ class MockGateway implements TeambitionGateway {
 
   async probeCapabilities(): Promise<TeambitionGatewayCapabilities> { return this.capabilities }
   async listClaimableTasks(): Promise<TeambitionRemoteTask[]> { return this.tasks }
+  async listMyOpenTasks(): Promise<TeambitionRemoteTask[]> { return this.tasks.filter((t) => t.status !== 'closed') }
   async claimTask(taskId: string, idempotencyKey: string): Promise<TeambitionRemoteTask> {
     if (this.failure) throw this.failure
     this.claims.push(idempotencyKey)

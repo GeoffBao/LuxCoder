@@ -29,6 +29,8 @@ export interface TeambitionClaimableTask extends TeambitionRemoteTask {
 export interface TeambitionGateway {
   probeCapabilities(): Promise<TeambitionGatewayCapabilities>
   listClaimableTasks(projectId: string): Promise<TeambitionRemoteTask[]>
+  /** 同步用户名下所有未 close 任务（不限项目）；供一键同步按钮使用 */
+  listMyOpenTasks(): Promise<TeambitionRemoteTask[]>
   claimTask(taskId: string, idempotencyKey: string): Promise<TeambitionRemoteTask>
   updateStatus(taskId: string, status: string, idempotencyKey: string): Promise<void>
   syncProgress(taskId: string, progress: number, idempotencyKey: string): Promise<void>
@@ -166,6 +168,33 @@ export class TeambitionService {
       throw cause
     }
   }
+
+  /** 同步用户名下所有未 close 任务（一键同步按钮）：跨项目拉取 + 过滤已绑定 */
+  async listMyOpenTasks(): Promise<{
+    tasks: TeambitionClaimableTask[]
+    needsReauth: boolean
+  }> {
+    const capabilities = await this.probeCapabilities()
+    if (!this.gateway || !capabilities.listTasks) {
+      return { tasks: [], needsReauth: capabilities.needsReauth }
+    }
+    try {
+      const boundTaskIds = new Set(this.readStore().bindings.map((binding) => binding.remoteTaskId))
+      const tasks = (await this.gateway.listMyOpenTasks())
+        .filter((task) => !boundTaskIds.has(task.id))
+        .map((task): TeambitionClaimableTask => ({
+          ...task,
+          syncState: task.updatedAt !== undefined && this.now() - task.updatedAt > this.staleAfterMs
+            ? 'stale'
+            : 'synced',
+        }))
+      return { tasks, needsReauth: false }
+    } catch (cause) {
+      if (cause instanceof TeambitionAuthenticationError) return { tasks: [], needsReauth: true }
+      throw cause
+    }
+  }
+
 
   async claimTask(input: ClaimTeambitionTaskInput): Promise<TeambitionBinding> {
     const store = this.readStore()

@@ -904,6 +904,17 @@ export function registerTaskHandlers(window: BrowserWindow): void {
     return (await getTeambitionService(workspaceRoot)).listClaimableTasks(projectId)
   })
 
+  ipcMain.handle(TEAMBITION_IPC_CHANNELS.SYNC_MY_OPEN_TASKS, async (_event, workspaceRoot: string) => {
+    return (await getTeambitionService(workspaceRoot)).listMyOpenTasks()
+  })
+
+  ipcMain.handle(TEAMBITION_IPC_CHANNELS.RECOGNIZE, async (_event, workspaceRoot: string) => {
+    const { getWorkspaceMcpConfig } = await import('./agent-workspace-manager')
+    const { recognizeTeambitionMcp } = await import('@luxcoder/shared')
+    const slug = basename(workspaceRoot)
+    return recognizeTeambitionMcp(getWorkspaceMcpConfig(slug))
+  })
+
   ipcMain.handle(TEAMBITION_IPC_CHANNELS.CLAIM_TASK, async (_event, workspaceRoot: string, input: ClaimTeambitionTaskInput) => {
     return (await getTeambitionService(workspaceRoot)).claimTask(input)
   })
@@ -999,20 +1010,50 @@ async function getTeambitionService(workspaceRoot: string): Promise<TeambitionSe
   if (existing) return existing
   const service = new TeambitionService({
     storagePath: join(workspaceRoot, 'teambition-bindings.json'),
-    gateway: await getTeambitionAdapter(),
+    gateway: await getTeambitionAdapter(workspaceRoot),
   })
   teambitionServices.set(workspaceRoot, service)
   return service
 }
 
-async function getTeambitionAdapter(): Promise<import('./teambition-adapter').TeambitionAdapter> {
+async function getTeambitionAdapter(workspaceRoot: string): Promise<import('./teambition-adapter').TeambitionAdapter> {
   if (teambitionAdapter) return teambitionAdapter
   try {
+    // 宽松识别工作区 mcp.json 中的 Teambition MCP（TB-Connect 或自定义名/URL 匹配）
+    const { getWorkspaceMcpConfig } = await import('./agent-workspace-manager')
+    const { findTeambitionMcpEntry } = await import('@luxcoder/shared')
+    const config = getWorkspaceMcpConfig(getWorkspaceSlugFromRoot(workspaceRoot))
+    const tb = findTeambitionMcpEntry(config)
+
+    if (tb && tb.entry.enabled !== false && tb.entry.url) {
+      const { McpTeambitionAdapter } = await import('./teambition-adapter')
+      const entry = tb.entry
+      // HTTP MCP：TB 网关 URL 直接来自用户配置；userToken 通过 headers 携带（若配置里有）
+      const headers = entry.headers ?? {}
+      teambitionAdapter = new McpTeambitionAdapter({
+        server: { ...entry, type: 'http', headers },
+        toolNames: {
+          listTasks: 'SearchUserTasksV3',
+          getTaskDetail: 'QueryTaskV3',
+          updateStatus: 'UpdateTaskStatusV3',
+          postComment: 'CreateTaskCommentV3',
+          listMyOpenTasks: 'SearchUserTasksV3',
+        },
+      })
+      console.warn(`[Teambition] 已连接 TB MCP (${tb.name})`)
+      return teambitionAdapter
+    }
+
     const { MockTeambitionAdapter } = await import('./teambition-adapter')
     teambitionAdapter = new MockTeambitionAdapter()
-    console.warn('[Teambition] 未配置已验证的 adapter factory，使用本地 Mock 适配器')
+    console.warn('[Teambition] 未找到已启用的 TB MCP 配置，使用本地 Mock 适配器')
     return teambitionAdapter
   } catch (error) {
     throw new Error(`Teambition adapter 不可用: ${errorMessage(error)}`)
   }
+}
+
+/** 从 workspaceRoot 提取 slug（agent-workspaces 根目录的最后一段） */
+function getWorkspaceSlugFromRoot(workspaceRoot: string): string {
+  return basename(workspaceRoot)
 }

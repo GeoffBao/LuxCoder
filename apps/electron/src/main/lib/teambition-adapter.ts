@@ -56,6 +56,8 @@ export interface TeambitionToolNames {
   postComment: string
   claimTask?: string
   syncProgress?: string
+  /** 用户名下未 close 任务查询工具（如 TB 的 SearchUserTasksV3）；一键同步使用 */
+  listMyOpenTasks?: string
 }
 
 export interface McpTeambitionAdapterConfig {
@@ -200,6 +202,25 @@ export class McpTeambitionAdapter implements TeambitionAdapter {
     return (await this.fetchTasks(projectId)).map((task) => mapTeambitionTask(task, projectId))
   }
 
+  async listMyOpenTasks(): Promise<TeambitionRemoteTask[]> {
+    const toolName = this.config.toolNames.listMyOpenTasks
+    if (!toolName) {
+      // 未配置用户任务查询工具时，回退到空列表（让一键同步走“本地刷新”路径）
+      return []
+    }
+    const client = await this.getClient()
+    const payload = extractToolPayload(await client.callTool({
+      name: toolName,
+      arguments: { roleTypes: 'executor,creator,involveMember' },
+    }))
+    const rawTasks = Array.isArray(payload)
+      ? payload as TeambitionTaskRaw[]
+      : payload && typeof payload === 'object' && Array.isArray((payload as { tasks?: unknown }).tasks)
+        ? (payload as { tasks: TeambitionTaskRaw[] }).tasks
+        : []
+    return rawTasks.map((task) => mapTeambitionTask(task))
+  }
+
   async claimTask(taskId: string, idempotencyKey: string): Promise<TeambitionRemoteTask> {
     const toolName = this.config.toolNames.claimTask
     if (!toolName) throw new TeambitionCapabilityError('Teambition MCP 未配置 claimTask 工具')
@@ -305,6 +326,13 @@ export class MockTeambitionAdapter implements TeambitionAdapter {
 
   async listClaimableTasks(projectId: string): Promise<TeambitionRemoteTask[]> {
     return (await this.fetchTasks(projectId)).map((task) => mapTeambitionTask(task, projectId))
+  }
+
+  async listMyOpenTasks(): Promise<TeambitionRemoteTask[]> {
+    // Mock：返回所有 mock 任务（未 close 模拟）
+    return [...this.tasks.values()]
+      .filter((task) => (task.mockPhase ?? 'todo') !== 'closed')
+      .map((task) => mapTeambitionTask(task))
   }
 
   async claimTask(taskId: string, _idempotencyKey: string): Promise<TeambitionRemoteTask> {

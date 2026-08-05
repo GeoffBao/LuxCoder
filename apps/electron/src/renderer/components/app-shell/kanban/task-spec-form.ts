@@ -8,6 +8,7 @@
 import { slugify } from '@luxcoder/shared/utils'
 import { MAX_REPAIR_ATTEMPTS_CAP, TaskSpecSchema } from '@luxcoder/shared/tasks/schema'
 import type { PermissionMode, TaskSpec } from '@luxcoder/shared/tasks/schema'
+import type { TaskType } from '@luxcoder/shared/tasks/task-record'
 
 let _uid = 0
 /** 单调递增的本地行 ID（不是 task node ID），供编辑器和转换函数共用以避免冲突。 */
@@ -70,6 +71,8 @@ export interface EditorSubtask {
 export interface SpecForm {
   title: string
   goal: string
+  /** 业务类型（对齐 workbuddy 二级分组）：activity/requirement/bug/task/checklist/hardware，持久化为 spec `type` */
+  type?: TaskType
   /** orchestrator 评估完成结果的可检查准则，持久化为 `acceptance_criteria`。 */
   acceptanceCriteria?: string
   /** FAIL verdict 后的最大修复次数，持久化为 spec 的 `max_iterations`。 */
@@ -178,6 +181,7 @@ export function buildSpec(form: SpecForm, modelToConnection: Map<string, string>
       ? { max_iterations: Math.min(MAX_REPAIR_ATTEMPTS_CAP, Math.max(0, Math.floor(form.maxRepairs))) }
       : {}),
     ...(project ? { project } : {}),
+    ...(form.type ? { type: form.type } : {}),
     ...(cwd ? { cwd } : {}),
     // 空选择不持久化为 []，使会话继续使用工作区默认值。
     ...(form.sourceSlugs?.length ? { sources: form.sourceSlugs } : {}),

@@ -20,8 +20,8 @@ export interface BuiltinMcpDefinition {
   displayName: string
   description: string
   category: BuiltinMcpCategory
-  /** internal=代码注入，不写入工作区 mcp.json */
-  kind: 'internal'
+  /** internal=代码注入，不写入工作区 mcp.json；external=预制外部 MCP，需用户配置（如 TB-Connect） */
+  kind: 'internal' | 'external'
   /** 是否允许用户删除（内置项恒为 false，删除护栏的事实源） */
   deletable: boolean
   /** 默认是否向 Agent 注入（如 mem/nano-banana 需用户手动开启） */

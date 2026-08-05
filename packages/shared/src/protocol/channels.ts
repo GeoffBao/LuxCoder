@@ -74,6 +74,10 @@ export const TEAMBITION_IPC_CHANNELS = {
   BIND_PROJECT:  'teambition:bindProject',
   LIST_BINDINGS: 'teambition:listBindings',
   RETRY_SYNC:    'teambition:retrySync',
+  /** 一键同步用户名下未 close 任务到看板 */
+  SYNC_MY_OPEN_TASKS: 'teambition:syncMyOpenTasks',
+  /** 识别当前工作区 Teambition MCP 配置状态（preferred/custom/missing） */
+  RECOGNIZE: 'teambition:recognize',
 } as const;
 
 export const SESSION_COMMAND_CHANNEL = SESSION_KANBAN_IPC_CHANNELS.COMMAND;

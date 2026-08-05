@@ -180,6 +180,7 @@ export class TaskRepository {
           ? { kind: 'project' as const, projectId }
           : { kind: 'workspace' as const },
         workflow: task.record?.workflow ?? 'todo',
+        type: task.record?.type,
         revision: task.record?.revision,
         labelIds: task.record?.labelIds ?? [],
         orchestratorSessionId: task.record?.orchestratorSessionId,

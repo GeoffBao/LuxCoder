@@ -28,6 +28,7 @@ function buildRecord(overrides: Partial<TaskRecord> = {}): TaskRecord {
     slug: 'demo-task',
     revision: 1,
     workflow: 'todo',
+    type: 'task',
     labelIds: [],
     createdAt: 1,
     updatedAt: 1,
