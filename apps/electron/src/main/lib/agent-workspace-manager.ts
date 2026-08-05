@@ -30,7 +30,7 @@ import { projectRepository } from './project-repository'
 import { listBuiltinMcpServers } from './builtin-mcp/catalog'
 import { RESERVED_BUILTIN_KEYS } from './builtin-mcp/baseline'
 import { inferMcpTransportType, normalizeMcpTransportType } from '@luxcoder/shared'
-import type { AgentWorkspace, CreateAgentWorkspaceInput, LocalProjectRootStatus, WorkspaceMcpConfig, SkillMeta, SkillImportSource, OtherWorkspaceSkillsGroup, WorkspaceCapabilities, SkillFileNode, SkillFileContent, WorkspaceMemorySummary, BulkImportSkillItemResult, BulkImportSkillsResult, BulkImportWorkspaceSelection, OrganizationConnection, OrganizationSkill } from '@luxcoder/shared'
+import type { AgentWorkspace, WorkspaceMcpConfig, SkillMeta, SkillImportSource, OtherWorkspaceSkillsGroup, WorkspaceCapabilities, SkillFileNode, SkillFileContent, WorkspaceMemorySummary, BulkImportSkillItemResult, BulkImportSkillsResult, BulkImportWorkspaceSelection, OrganizationConnection, OrganizationSkill } from '@luxcoder/shared'
 import { extractSkillZip, orgDownloadSkill, buildOrganizationImportSource } from './org-skill-service'
 
 interface AgentWorkspacesIndex {

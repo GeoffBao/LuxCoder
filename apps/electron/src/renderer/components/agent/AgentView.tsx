@@ -2828,7 +2828,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
           }}
         />
       ),
-    },
+    }] : []),
     { key: 'speech', node: <SpeechButton className={inputToolbarButtonClass} voiceInputId={agentVoiceInputId} /> },
     {
       key: 'attach-content',
@@ -2870,8 +2870,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
           onCompact={handleCompact}
         />
       ),
-    },
-  ], [
+    }], [
     planQuotaChannelId,
     planQuotaChannelUpdatedAt,
     isCodexFastModeAvailable,

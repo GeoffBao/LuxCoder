@@ -730,11 +730,6 @@ export function AgentMessages({ sessionId, sessionModelId, messagesLoaded, persi
     ...(attachedDirs ?? []),
   ].filter((path): path is string => Boolean(path))))
 
-  const messageBasePaths = React.useMemo(
-    () => [sessionPath, ...(attachedDirs ?? [])].filter((path): path is string => Boolean(path)),
-    [sessionPath, attachedDirs],
-  )
-
   return (
     <BasePathsProvider basePaths={messageBasePaths}>
     <div ref={historySelectionRootRef} className="relative flex min-h-0 flex-1 flex-col">
