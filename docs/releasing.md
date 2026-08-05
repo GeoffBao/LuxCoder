@@ -22,9 +22,14 @@
 2. 在 `release-notes/vX.Y.Z.md` 写本版用户向更新说明（相对上一 tag 的 Features / Fixes / 下载产物名），与 GitHub Release body 对齐。
 3. 提交：`chore: bump version to vX.Y.Z`（含 version + release notes；必要时同步本文件「下一次发布版本」指针）。
 4. 在干净的提交上创建带注释 tag：`git tag -a vX.Y.Z -m "release: vX.Y.Z"`。
-5. 推送提交与 tag：`git push origin main --follow-tags`（或先合入 PR，再在 main 上打 tag 并 push）。
+5. **先推送 main 提交，再单独推送 tag**（⚠️ 不要用 `--follow-tags` 与 main 一起推）：
+   ```bash
+   git push origin main
+   git push origin vX.Y.Z
+   ```
+   `--follow-tags` 会把所有本地 tag 一起推上去（误推历史/上游 tag），且 tag 与 commit 同批推送时 GitHub Actions 偶发漏触发（v0.6.3 曾因此不构建，只能靠手动 dispatch 补跑）。单独 `git push origin vX.Y.Z` 可保证触发。
 6. 若 electron-builder 生成的 Release body 为空或过简，用 `release-notes/vX.Y.Z.md` 内容更新 GitHub Release 描述。
 7. GitHub Actions 在构建前校验 tag 格式必须为 `vX.Y.Z`，且去掉 `v` 后必须等于 `apps/electron/package.json` 的版本；不一致时不会执行 macOS 或 Windows 构建。
-8. 在 GitHub Releases 确认 Release 不是 Draft，且 macOS arm64、Windows x64 的安装包和更新元数据均已上传。
+8. 在 GitHub Releases 确认 Release 不是 Draft，且 macOS arm64、Windows x64、Linux x64 的安装包和更新元数据均已上传。
 
 已发布的 tag 不得移动或复用；如需修复发布内容，递增 patch 版本后重新发布。
