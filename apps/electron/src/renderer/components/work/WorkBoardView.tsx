@@ -300,11 +300,19 @@ export function WorkBoardView(): React.ReactElement {
     try {
       // 1. 先刷新本地数据
       await refreshAll()
-      // 2. 同步 Teambition：拉取用户名下未 close 任务并写入看板
-      if (workspaceRoot) {
-        await window.electronAPI.teambition?.syncMyOpenTasks?.(workspaceRoot).catch(() => null)
+      // 2. 同步 Teambition：拉取名下未 close 任务并创建为本地看板任务
+      if (workspaceRoot && workspace) {
+        const result = await window.electronAPI.teambition?.syncMyOpenTasks?.(workspaceRoot, workspace.id)
+        if (result?.needsReauth) {
+          toast.warning('Teambition 需要重新授权，请先检查 TB-Connect 配置')
+        } else {
+          const created = result?.created?.length ?? 0
+          const skipped = result?.skipped?.length ?? 0
+          toast.success(`已一键更新：新增 ${created} 个 TB 待办，跳过 ${skipped} 个已存在`)
+        }
+        // 3. 刷新看板以展示新任务
+        await refreshAll()
       }
-      toast.success('已一键更新：本地看板已刷新，Teambition 待办已同步')
     } catch (cause) {
       toast.error(`一键更新失败：${errorMessage(cause)}`)
     } finally {

@@ -325,6 +325,14 @@ export interface BrowserTeambitionTaskList {
   tasks: BrowserTeambitionTask[]
   needsReauth: boolean
 }
+/** 一键同步结果：created=新创建的本地任务 / skipped=跳过的重复任务 */
+export interface BrowserTeambitionSyncResult {
+  ok: boolean
+  needsReauth: boolean
+  tasks: BrowserTeambitionTask[]
+  created: Array<{ taskId: string; slug: string; title: string }>
+  skipped: string[]
+}
 /** Teambition MCP 识别结果（与 @luxcoder/shared teambition-mcp 一致） */
 export type BrowserTeambitionRecognition = import('@luxcoder/shared').TeambitionMcpRecognition
 export interface BrowserTeambitionClaimInput {
@@ -1512,7 +1520,7 @@ export interface ElectronAPI {
     capabilities: (workspaceRoot: string) => Promise<BrowserTeambitionCapabilities>
     listTasks: (workspaceRoot: string, projectId: string) => Promise<BrowserTeambitionTaskList>
     /** 一键同步用户名下未 close 任务到看板 */
-    syncMyOpenTasks: (workspaceRoot: string) => Promise<BrowserTeambitionTaskList>
+    syncMyOpenTasks: (workspaceRoot: string, workspaceId: string) => Promise<BrowserTeambitionSyncResult>
     /** 识别当前工作区 Teambition MCP 配置状态 */
     recognize: (workspaceRoot: string) => Promise<BrowserTeambitionRecognition>
     claimTask: (workspaceRoot: string, input: BrowserTeambitionClaimInput) => Promise<BrowserTeambitionBinding>
@@ -3384,8 +3392,8 @@ const electronAPI: ElectronAPI = {
       invokeTyped<BrowserTeambitionCapabilities>(TEAMBITION_IPC_CHANNELS.CAPABILITIES, workspaceRoot),
     listTasks: (workspaceRoot: string, projectId: string): Promise<BrowserTeambitionTaskList> =>
       invokeTyped<BrowserTeambitionTaskList>(TEAMBITION_IPC_CHANNELS.LIST_TASKS, workspaceRoot, projectId),
-    syncMyOpenTasks: (workspaceRoot: string): Promise<BrowserTeambitionTaskList> =>
-      invokeTyped<BrowserTeambitionTaskList>(TEAMBITION_IPC_CHANNELS.SYNC_MY_OPEN_TASKS, workspaceRoot),
+    syncMyOpenTasks: (workspaceRoot: string, workspaceId: string): Promise<BrowserTeambitionSyncResult> =>
+      invokeTyped<BrowserTeambitionSyncResult>(TEAMBITION_IPC_CHANNELS.SYNC_MY_OPEN_TASKS, workspaceRoot, workspaceId),
     recognize: (workspaceRoot: string): Promise<BrowserTeambitionRecognition> =>
       invokeTyped<BrowserTeambitionRecognition>(TEAMBITION_IPC_CHANNELS.RECOGNIZE, workspaceRoot),
     claimTask: (workspaceRoot: string, input: BrowserTeambitionClaimInput): Promise<BrowserTeambitionBinding> =>

@@ -25,9 +25,11 @@ import type {
 } from '@luxcoder/shared'
 import type { TaskSpec } from '@luxcoder/shared/tasks/schema'
 import type { TaskMetadataPatch, TaskWorkflow } from '@luxcoder/shared/tasks/task-record'
+import { slugify } from '@luxcoder/shared/utils'
 import {
   buildGeneratorPrompt,
   buildRepairPrompt,
+  buildMinimalTaskSpec,
   extractYaml,
 } from '@luxcoder/shared/tasks'
 import {
@@ -904,8 +906,44 @@ export function registerTaskHandlers(window: BrowserWindow): void {
     return (await getTeambitionService(workspaceRoot)).listClaimableTasks(projectId)
   })
 
-  ipcMain.handle(TEAMBITION_IPC_CHANNELS.SYNC_MY_OPEN_TASKS, async (_event, workspaceRoot: string) => {
-    return (await getTeambitionService(workspaceRoot)).listMyOpenTasks()
+  ipcMain.handle(TEAMBITION_IPC_CHANNELS.SYNC_MY_OPEN_TASKS, async (_event, workspaceRoot: string, workspaceId: string) => {
+    // 1. 拉取 Teambition 名下未完成任务
+    const { tasks, needsReauth } = await (await getTeambitionService(workspaceRoot)).listMyOpenTasks()
+    if (needsReauth) {
+      return { ok: false, needsReauth: true, created: 0, tasks }
+    }
+
+    // 2. 将 TB 任务同步为本地看板 Task（去重：标题相同跳过；写 task.yaml + 建会话目录）
+    const repository = new TaskRepository({ resolveWorkspaceRoot: () => workspaceRoot })
+    const existingSlugs = new Set<string>(repository.listTasks(workspaceId))
+    const created: Array<{ taskId: string; slug: string; title: string }> = []
+    const skipped: string[] = []
+
+    for (const task of tasks) {
+      // 用 TB taskId 作为去重/唯一标识（slugify 中文会退化冲突，taskId 唯一）
+      const shortId = task.id.replace(/[^a-zA-Z0-9]/g, '').slice(-8) || 'tb'
+      const slug = `${slugify(task.title) || 'tb-task'}-${shortId}`
+      // 同 TB 任务已存在则跳过（避免重复同步）
+      if (existingSlugs.has(slug)) {
+        skipped.push(task.title)
+        continue
+      }
+      try {
+        const spec = buildMinimalTaskSpec({
+          title: task.title,
+          description: task.title,
+          projectId: task.projectId || undefined,
+        })
+        const result = await materializeTaskFromSpec(workspaceRoot, workspaceId, spec)
+        existingSlugs.add(result.slug)
+        created.push({ taskId: result.taskId, slug: result.slug, title: task.title })
+      } catch (error) {
+        console.error(`[Teambition] 同步任务「${task.title}」失败:`, error)
+        skipped.push(task.title)
+      }
+    }
+
+    return { ok: true, needsReauth: false, created, skipped, tasks }
   })
 
   ipcMain.handle(TEAMBITION_IPC_CHANNELS.RECOGNIZE, async (_event, workspaceRoot: string) => {

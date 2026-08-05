@@ -117,11 +117,13 @@ export function mapTeambitionTask(raw: TeambitionTaskRaw, fallbackProjectId = ''
   const id = textField(raw, 'id', '_id', 'taskId')
   const title = textField(raw, 'title', 'content', 'name')
   if (!id || !title) throw new Error('Teambition 任务缺少 id 或 title/content 字段')
+  // isDone → 看板状态：已完成 / 进行中（TB 的 done 对应看板已完成）
+  const isDone = raw.isDone === true
   return {
     id,
     title,
     projectId: textField(raw, 'projectId', '_projectId') ?? fallbackProjectId,
-    ...(textField(raw, 'status', 'taskflowstatusId') ? { status: textField(raw, 'status', 'taskflowstatusId') } : {}),
+    status: textField(raw, 'status', 'taskflowstatusId') ?? (isDone ? 'done' : 'doing'),
     ...(timestampField(raw, 'updatedAt', 'updated') !== undefined
       ? { updatedAt: timestampField(raw, 'updatedAt', 'updated') }
       : {}),
@@ -148,8 +150,12 @@ export class McpTeambitionAdapter implements TeambitionAdapter {
     if (!server.url) {
       throw new Error('TW MCP 配置缺少 url 字段')
     }
+
+    // 使用 Electron 主进程的 Node 原生 fetch 直连 TB 网关（不经代理；bun/undici 会被
+    // 企业 Squid 拦截，Node 原生 fetch 可正常直连内网 MCP）。
     const transport = new StreamableHTTPClientTransport(new URL(server.url), {
       requestInit: server.headers ? { headers: server.headers } : undefined,
+      fetch: globalThis.fetch,
     })
     const client = new Client({ name: 'luxcoder-work-mode', version: '1.0.0' })
     await client.connect(transport)
@@ -209,16 +215,38 @@ export class McpTeambitionAdapter implements TeambitionAdapter {
       return []
     }
     const client = await this.getClient()
-    const payload = extractToolPayload(await client.callTool({
-      name: toolName,
-      arguments: { roleTypes: 'executor,creator,involveMember' },
-    }))
-    const rawTasks = Array.isArray(payload)
-      ? payload as TeambitionTaskRaw[]
-      : payload && typeof payload === 'object' && Array.isArray((payload as { tasks?: unknown }).tasks)
-        ? (payload as { tasks: TeambitionTaskRaw[] }).tasks
-        : []
-    return rawTasks.map((task) => mapTeambitionTask(task))
+
+    // 分页拉取用户名下所有未完成（isDone=false）任务；TB SearchUserTasksV3 返回
+    // { code, count, nextPageToken, result: [...] }
+    const collected: TeambitionTaskRaw[] = []
+    let nextPageToken: string | undefined
+    for (let page = 0; page < 50; page++) {
+      const args: Record<string, unknown> = {
+        roleTypes: 'executor,creator,involveMember',
+        pageSize: 100,
+      }
+      if (nextPageToken) args.pageToken = nextPageToken
+
+      const payload = extractToolPayload(await client.callTool({ name: toolName, arguments: args }))
+      const rawTasks = Array.isArray(payload)
+        ? payload as TeambitionTaskRaw[]
+        : payload && typeof payload === 'object'
+          ? (payload as { result?: TeambitionTaskRaw[] }).result ?? []
+          : []
+      collected.push(...rawTasks)
+
+      // 下一页 token（TB 返回顶层 nextPageToken）
+      const next = payload && typeof payload === 'object'
+        ? (payload as { nextPageToken?: string }).nextPageToken
+        : undefined
+      if (!next) break
+      nextPageToken = next
+    }
+
+    // 过滤未完成（isDone !== true）且未归档的任务
+    return collected
+      .filter((task) => task.isDone !== true && task.isArchived !== true)
+      .map((task) => mapTeambitionTask(task))
   }
 
   async claimTask(taskId: string, idempotencyKey: string): Promise<TeambitionRemoteTask> {
