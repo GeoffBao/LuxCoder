@@ -520,12 +520,13 @@ function safeReplaceSkillDir(sourcePath: string, targetPath: string): boolean {
 }
 
 /** 防御性目录基名集合：复制 skill 时永远跳过这些目录，避免 .git 0444 文件、
- *  node_modules 文件爆炸等场景把启动期同步链路炸掉。 */
+ *  node_modules 文件爆炸等场景把启动期同步链路炸掉。
+ * 注意：dist 不在过滤列表中——它是 skill 可能自带的合法运行时产物（如
+ * dashi-ppt 的 project/dist），无条件过滤会破坏这类 skill。 */
 const SKILL_COPY_BLOCKLIST = new Set([
   '.git',
   '.DS_Store',
   'node_modules',
-  'dist',
   '.next',
   '.cache',
   '.turbo',
