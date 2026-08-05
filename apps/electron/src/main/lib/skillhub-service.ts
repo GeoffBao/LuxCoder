@@ -12,13 +12,26 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { SkillHubIndex, SkillHubInstallResult, SkillHubSkill } from '@luxcoder/shared'
+import { getEffectiveProxyUrl } from './proxy-settings-service'
+import { getFetchFn } from './proxy-fetch'
 
 /** SkillHub 服务器基址（可配置；无尾斜杠） */
 export const SKILLHUB_BASE_URL = process.env.LUXCODER_SKILLHUB_URL ?? 'http://10.115.48.254:8787'
 
+/**
+ * 获取带代理配置的 fetch：
+ * - 设置里启用代理（系统/手动）→ 走设置的代理
+ * - 未启用代理 → 直连（全局 fetch）
+ */
+async function getSkillHubFetch(): Promise<typeof globalThis.fetch> {
+  const proxyUrl = await getEffectiveProxyUrl()
+  return getFetchFn(proxyUrl)
+}
+
 /** 拉取 SkillHub 技能清单 */
 export async function fetchSkillHubIndex(): Promise<SkillHubSkill[]> {
-  const res = await fetch(`${SKILLHUB_BASE_URL}/index.json`, {
+  const fetchFn = await getSkillHubFetch()
+  const res = await fetchFn(`${SKILLHUB_BASE_URL}/index.json`, {
     headers: { Accept: 'application/json' },
   })
   if (!res.ok) {
@@ -26,16 +39,6 @@ export async function fetchSkillHubIndex(): Promise<SkillHubSkill[]> {
   }
   const data = (await res.json()) as SkillHubIndex
   return data.skills ?? []
-}
-
-/** 从 SkillHub 下载单个文件字节 */
-async function downloadSkillFile(skillName: string, filePath: string): Promise<Uint8Array> {
-  const url = `${SKILLHUB_BASE_URL}/${encodeURIComponent(skillName)}/${filePath.split('/').map(encodeURIComponent).join('/')}`
-  const res = await fetch(url)
-  if (!res.ok) {
-    throw new Error(`下载 SkillHub 文件失败 (${res.status}): ${skillName}/${filePath}`)
-  }
-  return new Uint8Array(await res.arrayBuffer())
 }
 
 /**
@@ -54,10 +57,11 @@ export async function installSkillHubSkill(
   mkdirSync(targetPath, { recursive: true })
 
   // 逐个下载清单中的文件
+  const fetchFn = await getSkillHubFetch()
   for (const relPath of skill.files) {
     const fileUrlPath = relPath.split('/').map(encodeURIComponent).join('/')
     const url = `${SKILLHUB_BASE_URL}/${encodeURIComponent(skill.name)}/${fileUrlPath}`
-    const res = await fetch(url)
+    const res = await fetchFn(url)
     if (!res.ok) {
       throw new Error(`下载 SkillHub 文件失败 (${res.status}): ${skill.name}/${relPath}`)
     }
@@ -101,7 +105,8 @@ export async function installSkillHubSkill(
 /** 上报下载次数（忽略失败，不阻塞安装） */
 export async function reportSkillHubDownload(skillName: string): Promise<void> {
   try {
-    await fetch(`${SKILLHUB_BASE_URL}/api/v1/skills/${encodeURIComponent(skillName)}/stats/download`, {
+    const fetchFn = await getSkillHubFetch()
+    await fetchFn(`${SKILLHUB_BASE_URL}/api/v1/skills/${encodeURIComponent(skillName)}/stats/download`, {
       method: 'POST',
     })
   } catch (err) {
