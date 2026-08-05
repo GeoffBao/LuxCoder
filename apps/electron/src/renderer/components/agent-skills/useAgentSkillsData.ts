@@ -120,7 +120,10 @@ export function useAgentSkillsData(): AgentSkillsData {
     if (!workspaceSlug || updatingSkill) return
     setUpdatingSkill(slug)
     try {
-      const updated = await window.electronAPI.updateSkillFromSource(workspaceSlug, slug)
+      const existing = skills.find((s) => s.slug === slug)
+      const updated = existing?.importSource?.sourceType === 'organization'
+        ? await window.electronAPI.orgUpdateSkill(workspaceSlug, slug)
+        : await window.electronAPI.updateSkillFromSource(workspaceSlug, slug)
       setSkills((prev) => prev.map((s) => (s.slug === slug ? updated : s)))
       bumpCapabilitiesVersion((v) => v + 1)
       toast.success(`已同步更新 Skill：${updated.name}`)
@@ -131,7 +134,7 @@ export function useAgentSkillsData(): AgentSkillsData {
     } finally {
       setUpdatingSkill(null)
     }
-  }, [workspaceSlug, updatingSkill, bumpCapabilitiesVersion])
+  }, [workspaceSlug, updatingSkill, bumpCapabilitiesVersion, skills])
 
   const toggleMcp = React.useCallback(async (name: string, enabled: boolean) => {
     try {

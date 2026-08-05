@@ -102,6 +102,27 @@ export interface VoiceDictationStateEvent {
   message?: string
 }
 
+/** 渲染进程请求切换听写时携带的来源输入框。 */
+export interface VoiceDictationToggleInput {
+  sourceInputId?: string
+}
+
+/** 主进程冻结的一次听写输出上下文。 */
+export interface VoiceDictationOutputContext {
+  /** 本次听写是否写入 LuxCoder 内部输入框。 */
+  routeToLuxCoderInput: boolean
+  /** 会话开始时选择的输出模式。 */
+  outputMode: VoiceDictationOutputMode
+}
+
+/** 主进程确认开始听写时，告知渲染进程本次输出是否应路由到 LuxCoder 输入框。 */
+export interface VoiceDictationShownEvent {
+  routeToLuxCoderInput: boolean
+  /** 主进程生成的冻结输出上下文 ID，后续 preview / commit / cancel 必须原样带回。 */
+  outputContextId: string
+  sourceInputId?: string
+}
+
 /** 外部应用听写状态条的实时显示数据。 */
 export interface VoiceDictationIndicatorEvent {
   state: 'recording' | 'stopping'
@@ -122,10 +143,14 @@ export interface VoiceDictationAudioChunkInput {
   data: ArrayBuffer
 }
 
-/** 将当前识别结果作为 Proma 输入框中的临时组合文本预览。 */
+/** 将当前识别结果作为 LuxCoder 输入框中的临时组合文本预览。 */
 export interface VoiceDictationPreviewInput {
   sessionId: string
   text: string
+  /** 本次听写会话冻结的 LuxCoder 输入目标；null 表示不路由到内部输入框。 */
+  targetInputId?: string | null
+  /** 主进程生成的冻结输出上下文 ID。 */
+  outputContextId?: string
 }
 
 /** 结束语音输入会话参数 */
@@ -134,18 +159,34 @@ export interface VoiceDictationStopInput {
   sessionId: string
   /** 跨 ASR 重连保持稳定的听写会话 ID */
   previewSessionId?: string
+  /** 取消预览时应清理的 LuxCoder 输入目标。 */
+  targetInputId?: string | null
+  /** 主进程生成的冻结输出上下文 ID。 */
+  outputContextId?: string
 }
 
 /** 输出语音输入文本参数 */
 export interface VoiceDictationCommitInput {
   sessionId: string
   text: string
+  /** 本次听写会话冻结的 LuxCoder 输入目标；null 表示不路由到内部输入框。 */
+  targetInputId?: string | null
+  /** 主进程生成的冻结输出上下文 ID。 */
+  outputContextId?: string
 }
 
 /** 主窗口接收的语音组合文本事件。 */
 export interface VoiceDictationTextEvent {
   sessionId: string
   text: string
+  /** 本次听写会话冻结的 LuxCoder 输入目标；null 表示交给全局 fallback 处理。 */
+  targetInputId?: string | null
+}
+
+/** 渲染进程确认最终听写文本是否被目标输入框消费。 */
+export interface VoiceDictationTextDeliveryInput {
+  sessionId: string
+  delivered: boolean
 }
 
 /** 调整语音输入浮窗尺寸参数 */
@@ -536,7 +577,7 @@ export const VOICE_DICTATION_IPC_CHANNELS = {
   STOP: 'voice-dictation:stop',
   /** 取消语音输入会话 */
   CANCEL: 'voice-dictation:cancel',
-  /** 同步 Proma 输入框中的临时识别文本 */
+  /** 同步 LuxCoder 输入框中的临时识别文本 */
   PREVIEW: 'voice-dictation:preview',
   /** 输出最终文本 */
   COMMIT: 'voice-dictation:commit',
@@ -560,6 +601,8 @@ export const VOICE_DICTATION_IPC_CHANNELS = {
   REPORT_TRANSCRIPT: 'voice-dictation:report-transcript',
   /** 主窗口插入文本 */
   INSERT_TEXT: 'voice-dictation:insert-text',
+  /** 主窗口确认最终文本是否已被输入目标消费。 */
+  ACK_INSERT_TEXT: 'voice-dictation:ack-insert-text',
   /** 主窗口更新临时组合文本 */
   PREVIEW_TEXT: 'voice-dictation:preview-text',
   /** 主窗口撤销临时组合文本 */

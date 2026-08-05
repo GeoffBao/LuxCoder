@@ -7,8 +7,9 @@
  */
 
 import { readFileSync, writeFileSync, existsSync, readdirSync, cpSync, mkdirSync, statSync, openSync, readSync, closeSync, realpathSync } from 'node:fs'
+import { cp as cpAsync, readFile as readFileAsync, writeFile as writeFileAsync } from 'node:fs/promises'
 import type { Dirent } from 'node:fs'
-import { rmSyncWithRetry, renameWithRetry } from './fs-retry'
+import { rmSyncWithRetry, renameIfDestinationAbsentWithRetry, renameWithRetry } from './fs-retry'
 import { writeJsonFileAtomic, readJsonFileSafe } from './safe-file'
 import { randomUUID } from 'node:crypto'
 import { join, resolve, relative, isAbsolute, dirname, basename } from 'node:path'
@@ -29,7 +30,8 @@ import { projectRepository } from './project-repository'
 import { listBuiltinMcpServers } from './builtin-mcp/catalog'
 import { RESERVED_BUILTIN_KEYS } from './builtin-mcp/baseline'
 import { inferMcpTransportType, normalizeMcpTransportType } from '@luxcoder/shared'
-import type { AgentWorkspace, WorkspaceMcpConfig, SkillMeta, SkillImportSource, OtherWorkspaceSkillsGroup, WorkspaceCapabilities, SkillFileNode, SkillFileContent, WorkspaceMemorySummary } from '@luxcoder/shared'
+import type { AgentWorkspace, WorkspaceMcpConfig, SkillMeta, SkillImportSource, OtherWorkspaceSkillsGroup, WorkspaceCapabilities, SkillFileNode, SkillFileContent, WorkspaceMemorySummary, BulkImportSkillItemResult, BulkImportSkillsResult, BulkImportWorkspaceSelection, OrganizationConnection, OrganizationSkill } from '@luxcoder/shared'
+import { extractSkillZip, orgDownloadSkill, buildOrganizationImportSource } from './org-skill-service'
 
 interface AgentWorkspacesIndex {
   version: number
@@ -762,7 +764,7 @@ function scanSkillsInDir(dir: string, enabled: boolean): SkillMeta[] {
               meta.importSource = { ...importSource, localModified: currentHash !== importSource.sourceContentHash }
             } catch { /* 无法读取时保持现有状态 */ }
           }
-          const sourceSkillDir = resolveSkillDir(importSource.sourceWorkspaceSlug, entry.name)
+          const sourceSkillDir = importSource.sourceWorkspaceSlug ? resolveSkillDir(importSource.sourceWorkspaceSlug, entry.name) : null
           if (sourceSkillDir) {
             const currentSourceVersion = parseSkillVersion(sourceSkillDir)
             meta.hasUpdate = !importSource.detached && isNewerVersion(currentSourceVersion, importSource.sourceVersion)
@@ -850,16 +852,49 @@ export function getOtherWorkspaceSkills(currentSlug: string): OtherWorkspaceSkil
   return result
 }
 
+class SkillAlreadyExistsError extends Error {
+  readonly code = 'SKILL_ALREADY_EXISTS' as const
+
+  constructor(skillSlug: string) {
+    super(`当前项目已存在同名 Skill: ${skillSlug}`)
+    this.name = 'SkillAlreadyExistsError'
+  }
+}
+
+// Async copying allows IPC requests to interleave. Serialize commits for a target
+// Skill so duplicate imports remain skips rather than replacing each other.
+const pendingSkillImports = new Map<string, Promise<void>>()
+
+async function withSkillImportLock<T>(targetPath: string, operation: () => Promise<T>): Promise<T> {
+  const previous = pendingSkillImports.get(targetPath) ?? Promise.resolve()
+  let release!: () => void
+  const current = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  pendingSkillImports.set(targetPath, current)
+
+  await previous
+  try {
+    return await operation()
+  } finally {
+    release()
+    if (pendingSkillImports.get(targetPath) === current) {
+      pendingSkillImports.delete(targetPath)
+    }
+  }
+}
+
 /**
  * 从其他工作区导入 Skill 到当前工作区。
  *
  * 复制目录并记录来源元数据（.source.json），支持后续版本检测和同步更新。
+ * 导入过程在临时目录中完成，成功后再原子移动到目标目录，避免失败留下残缺 Skill。
  */
-export function importSkillFromWorkspace(
+export async function importSkillFromWorkspace(
   targetSlug: string,
   sourceSlug: string,
   skillSlug: string,
-): SkillMeta {
+): Promise<SkillMeta> {
   const sourcePath = resolveSkillDir(sourceSlug, skillSlug)
 
   if (!sourcePath) {
@@ -872,32 +907,87 @@ export function importSkillFromWorkspace(
     throw new Error(`源 Skill 缺少 SKILL.md: ${skillSlug}`)
   }
 
-  const targetPath = join(getWorkspaceSkillsDir(targetSlug), skillSlug)
+  const targetSkillsDir = getWorkspaceSkillsDir(targetSlug)
+  const targetPath = join(targetSkillsDir, skillSlug)
   const targetInactivePath = join(getInactiveSkillsDir(targetSlug), skillSlug)
 
-  if (existsSync(targetPath) || existsSync(targetInactivePath)) {
-    throw new Error(`当前工作区已存在同名 Skill: ${skillSlug}`)
+  return withSkillImportLock(targetPath, async () => {
+    if (existsSync(targetPath) || existsSync(targetInactivePath)) {
+      throw new SkillAlreadyExistsError(skillSlug)
+    }
+
+    const sourceWorkspace = listAgentWorkspaces().find((w) => w.slug === sourceSlug)
+    const importSource: SkillImportSource = {
+      sourceWorkspaceSlug: sourceSlug,
+      sourceWorkspaceName: sourceWorkspace?.name ?? sourceSlug,
+      importedAt: new Date().toISOString(),
+      sourceVersion: parseSkillVersion(sourcePath),
+      sourceContentHash: computeSkillContentHash(sourcePath),
+    }
+    const tempPath = join(targetSkillsDir, `.${skillSlug}.importing-${randomUUID()}`)
+
+    try {
+      await cpAsync(sourcePath, tempPath, { recursive: true })
+
+      // 先在临时目录写入来源元数据并解析内容，确保目标目录完整后再移动。
+      await writeFileAsync(join(tempPath, SOURCE_META_FILE), JSON.stringify(importSource, null, 2), 'utf-8')
+      const content = await readFileAsync(join(tempPath, 'SKILL.md'), 'utf-8')
+      const meta = parseSkillFrontmatter(content, skillSlug, true)
+      meta.importSource = importSource
+
+      if (existsSync(targetInactivePath) || !renameIfDestinationAbsentWithRetry(tempPath, targetPath)) {
+        throw new SkillAlreadyExistsError(skillSlug)
+      }
+      console.log(`[Agent 工作区] 已从 ${sourceSlug} 导入 Skill: ${targetSlug}/${skillSlug}`)
+      return meta
+    } catch (error) {
+      if (existsSync(tempPath)) {
+        try {
+          rmSyncWithRetry(tempPath, { recursive: true, force: true })
+        } catch (cleanupError) {
+          console.warn(`[Agent 工作区] 清理 Skill 临时目录失败: ${tempPath}`, cleanupError)
+        }
+      }
+      throw error
+    }
+  })
+}
+
+// ===== Skill 批量导入 =====
+
+/** 从其他工作区批量导入多个 Skill 到目标工作区（复用单 skill 导入逻辑） */
+export async function batchImportSkillsFromWorkspaces(
+  targetSlug: string,
+  selections: BulkImportWorkspaceSelection[],
+): Promise<BulkImportSkillsResult> {
+  const items: BulkImportSkillItemResult[] = []
+  for (const { sourceSlug, skillSlug } of selections) {
+    try {
+      const imported = await importSkillFromWorkspace(targetSlug, sourceSlug, skillSlug)
+      items.push({ slug: skillSlug, name: imported.name, status: 'imported' })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '未知错误'
+      items.push({
+        slug: skillSlug,
+        name: skillSlug,
+        status: error instanceof SkillAlreadyExistsError ? 'skipped' : 'failed',
+        reason: message,
+      })
+    }
   }
+  return summarizeBulkImport(items)
+}
 
-  cpSync(sourcePath, targetPath, { recursive: true })
-
-  // 写入来源元数据
-  const sourceWorkspace = listAgentWorkspaces().find((w) => w.slug === sourceSlug)
-  const importSource: SkillImportSource = {
-    sourceWorkspaceSlug: sourceSlug,
-    sourceWorkspaceName: sourceWorkspace?.name ?? sourceSlug,
-    importedAt: new Date().toISOString(),
-    sourceVersion: parseSkillVersion(sourcePath),
-    sourceContentHash: computeSkillContentHash(sourcePath),
+function summarizeBulkImport(items: BulkImportSkillItemResult[]): BulkImportSkillsResult {
+  let imported = 0
+  let skipped = 0
+  let failed = 0
+  for (const item of items) {
+    if (item.status === 'imported') imported += 1
+    else if (item.status === 'skipped') skipped += 1
+    else failed += 1
   }
-  writeSkillImportSource(targetPath, importSource)
-
-  console.log(`[Agent 工作区] 已从 ${sourceSlug} 导入 Skill: ${targetSlug}/${skillSlug}`)
-
-  const content = readFileSync(join(targetPath, 'SKILL.md'), 'utf-8')
-  const meta = parseSkillFrontmatter(content, skillSlug, true)
-  meta.importSource = importSource
-  return meta
+  return { imported, skipped, failed, items }
 }
 
 /**
@@ -925,6 +1015,9 @@ export function updateSkillFromSource(
 
   const existingSource = readSkillImportSource(targetPath)
   if (!existingSource) {
+    throw new Error(`Skill ${skillSlug} 不是从其他工作区导入的，无法从源更新`)
+  }
+  if (!existingSource.sourceWorkspaceSlug) {
     throw new Error(`Skill ${skillSlug} 不是从其他工作区导入的，无法从源更新`)
   }
 
@@ -1715,4 +1808,154 @@ export function cleanupStaleWorkspaceAttachedPaths(): number {
   }
 
   return count
+}
+
+// ===== 企业版组织 Skills 导入/更新 =====
+
+/**
+ * 从组织导入 Skill 到工作区。
+ * 目标已存在同名 Skill（active 或 inactive）时抛错。
+ */
+export async function importSkillFromOrganization(
+  targetSlug: string,
+  conn: OrganizationConnection,
+  orgId: string,
+  orgName: string,
+  skill: OrganizationSkill,
+): Promise<SkillMeta> {
+  const targetPath = join(getWorkspaceSkillsDir(targetSlug), skill.slug)
+  const inactivePath = join(getInactiveSkillsDir(targetSlug), skill.slug)
+  if (existsSync(targetPath) || existsSync(inactivePath)) {
+    throw new Error(`当前工作区已存在同名 Skill: ${skill.slug}`)
+  }
+  const zip = await orgDownloadSkill(conn, orgId, skill.slug)
+  const files = await extractSkillZip(zip)
+  if (!files['SKILL.md']) {
+    throw new Error('组织 Skill 包缺少 SKILL.md')
+  }
+  mkdirSync(targetPath, { recursive: true })
+  for (const [name, content] of Object.entries(files)) {
+    const filePath = join(targetPath, name)
+    mkdirSync(dirname(filePath), { recursive: true })
+    writeFileSync(filePath, content)
+  }
+  const source = buildOrganizationImportSource({
+    organizationId: orgId,
+    organizationName: orgName,
+    organizationServerUrl: conn.serverUrl,
+    organizationSkillSlug: skill.slug,
+    version: skill.version,
+    contentHash: computeSkillContentHash(targetPath),
+  })
+  writeSkillImportSource(targetPath, source)
+  const content = readFileSync(join(targetPath, 'SKILL.md'), 'utf-8')
+  const meta = parseSkillFrontmatter(content, skill.slug, true)
+  meta.importSource = source
+  console.log(`[Agent 工作区] 已从组织导入 Skill: ${targetSlug}/${skill.slug} (v${skill.version})`)
+  return meta
+}
+
+/**
+ * 从组织源同步更新已导入的 Skill（覆盖更新）。
+ * 仅处理 sourceType === 'organization' 的 Skill；workspace 源走 updateSkillFromSource。
+ */
+export async function updateSkillFromOrganizationSource(
+  targetSlug: string,
+  skillSlug: string,
+  conn: OrganizationConnection,
+): Promise<SkillMeta> {
+  const activeDir = getWorkspaceSkillsDir(targetSlug)
+  const inactiveDir = getInactiveSkillsDir(targetSlug)
+  const targetPath = existsSync(join(activeDir, skillSlug))
+    ? join(activeDir, skillSlug)
+    : existsSync(join(inactiveDir, skillSlug))
+      ? join(inactiveDir, skillSlug)
+      : null
+  if (!targetPath) {
+    throw new Error(`当前工作区中不存在 Skill: ${skillSlug}`)
+  }
+  const existingSource = readSkillImportSource(targetPath)
+  if (!existingSource || existingSource.sourceType !== 'organization') {
+    throw new Error(`Skill ${skillSlug} 不是从组织导入的，无法从组织源更新`)
+  }
+  const orgId = existingSource.organizationId
+  if (!orgId) {
+    throw new Error('Skill 来源缺少组织 ID，无法更新')
+  }
+  const orgSkillSlug = existingSource.organizationSkillSlug ?? skillSlug
+
+  // 服务端校验：Skill 是否仍存在、版本是否有更新
+  let serverSkill: OrganizationSkill
+  try {
+    serverSkill = await orgGetSkillForUpdate(conn, orgId, orgSkillSlug)
+  } catch (err) {
+    if ((err as { status?: number }).status === 404) {
+      throw new Error(`组织源中的 Skill 已撤销: ${orgSkillSlug}`)
+    }
+    throw err
+  }
+
+  // 版本相同且本地未修改 → 无需更新
+  if (serverSkill.version === existingSource.sourceVersion && !existingSource.localModified) {
+    return parseSkillFrontmatter(readFileSync(join(targetPath, 'SKILL.md'), 'utf-8'), skillSlug, targetPath === join(activeDir, skillSlug))
+  }
+
+  // 本地有修改时需调用方决策；这里默认覆盖更新（调用方可通过 UI 提示后再调）
+  const zip = await orgDownloadSkill(conn, orgId, orgSkillSlug)
+
+  // 原子替换：先解压到临时目录，成功后再替换旧目录
+  const parentDir = join(targetPath, '..')
+  const tmpPath = join(parentDir, `.${skillSlug}.updating`)
+  if (existsSync(tmpPath)) rmSyncWithRetry(tmpPath, { recursive: true, force: true })
+  mkdirSync(tmpPath, { recursive: true })
+  const files = await extractSkillZip(zip)
+  if (!files['SKILL.md']) {
+    rmSyncWithRetry(tmpPath, { recursive: true, force: true })
+    throw new Error('组织 Skill 包缺少 SKILL.md')
+  }
+  for (const [name, content] of Object.entries(files)) {
+    const filePath = join(tmpPath, name)
+    mkdirSync(dirname(filePath), { recursive: true })
+    writeFileSync(filePath, content)
+  }
+  rmSyncWithRetry(targetPath, { recursive: true, force: true })
+  renameWithRetry(tmpPath, targetPath)
+
+  // 更新来源元数据（保留 importedAt 与 detached）
+  const updatedSource: SkillImportSource = {
+    ...existingSource,
+    importedAt: existingSource.importedAt,
+    sourceVersion: serverSkill.version,
+    syncedAt: new Date().toISOString(),
+    sourceContentHash: computeSkillContentHash(targetPath),
+    localModified: false,
+    sourceRemoved: false,
+  }
+  writeSkillImportSource(targetPath, updatedSource)
+
+  const enabled = targetPath === join(activeDir, skillSlug)
+  const content = readFileSync(join(targetPath, 'SKILL.md'), 'utf-8')
+  const meta = parseSkillFrontmatter(content, skillSlug, enabled)
+  meta.importSource = updatedSource
+  meta.hasUpdate = false
+  console.log(`[Agent 工作区] 已从组织源更新 Skill: ${targetSlug}/${skillSlug} (v${serverSkill.version})`)
+  return meta
+}
+
+/** 获取组织 Skill 信息（用于更新前校验） */
+async function orgGetSkillForUpdate(
+  conn: OrganizationConnection,
+  orgId: string,
+  slug: string,
+): Promise<OrganizationSkill> {
+  const { orgGetSkill } = await import('./org-skill-service')
+  const detail = await orgGetSkill(conn, orgId, slug)
+  return {
+    id: detail.id,
+    slug: detail.slug,
+    name: detail.name,
+    description: detail.description,
+    version: detail.version,
+    updatedAt: detail.updatedAt,
+  }
 }

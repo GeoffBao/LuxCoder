@@ -1041,10 +1041,23 @@ export interface WorkspaceMcpConfig {
 
 // ===== Skill 元数据 =====
 
-/** 从其他工作区导入的 Skill 来源元数据 */
+/** 导入来源类型：工作区本地 or 企业版组织分发 */
+export type SkillImportSourceType = 'workspace' | 'organization'
+
+/** 从其他工作区/组织导入的 Skill 来源元数据 */
 export interface SkillImportSource {
-  sourceWorkspaceSlug: string
-  sourceWorkspaceName: string
+  /** 来源类型；缺省按 workspace 处理（兼容旧数据） */
+  sourceType?: SkillImportSourceType
+  /** workspace 源：来源工作区 slug */
+  sourceWorkspaceSlug?: string
+  sourceWorkspaceName?: string
+  /** organization 源：组织 ID 与名称 */
+  organizationId?: string
+  organizationName?: string
+  /** organization 源：服务端地址（用于刷新/更新） */
+  organizationServerUrl?: string
+  /** organization 源：远程 Skill 的 slug */
+  organizationSkillSlug?: string
   importedAt: string        // ISO 8601
   sourceVersion: string     // 导入时源 Skill 的 version，无则 '0.0.0'
   /** 来源类型：workspace=其他工作区导入 / market=从 Skill 市场下载（默认 workspace，向后兼容） */
@@ -1082,6 +1095,124 @@ export interface OtherWorkspaceSkillsGroup {
   workspaceName: string
   workspaceSlug: string
   skills: SkillMeta[]
+}
+
+// ===== 企业版组织 Skills 分发 =====
+
+/** 组织连接配置（~/.luxcoder/org-settings.json） */
+export interface OrganizationConnection {
+  serverUrl: string
+  /** 认证方式：企业账号（JWT）或 API Key */
+  authType: 'account' | 'apikey'
+  /** account 模式：登录邮箱 */
+  email?: string
+  /** account 模式：JWT；apikey 模式：API Key（lx_ 前缀） */
+  token: string
+  /** 会话过期时间（ISO 8601）；为空则永不过期（单进程内存态） */
+  tokenExpiresAt?: string
+  connectedAt?: string
+}
+
+/** 组织信息 */
+export interface OrganizationInfo {
+  id: string
+  name: string
+  slug: string
+  inviteCode?: string
+}
+
+/** 我的组织成员关系 */
+export interface OrganizationMembership {
+  orgId: string
+  orgName: string
+  role: 'admin' | 'member'
+}
+
+/** 组织成员 */
+export interface OrganizationMember {
+  id: string
+  userId: string
+  email: string
+  displayName: string
+  role: 'admin' | 'member'
+}
+
+/** 组织 Skill（服务端列表返回） */
+export interface OrganizationSkill {
+  id: string
+  slug: string
+  name: string
+  description: string
+  version: string
+  updatedAt: string
+}
+
+/** 组织 Skill 详情（含版本历史） */
+export interface OrganizationSkillDetail extends OrganizationSkill {
+  versions: Array<{ version: string; contentHash: string; createdAt: string }>
+}
+
+/** 组织 Skills 同步结果 */
+export interface OrganizationSkillSyncResult {
+  slug: string
+  version: string
+  updated: boolean
+  /** 本地已有该 Skill（覆盖更新）或首次导入 */
+  imported: boolean
+  /** 本地快照有修改时由调用方决策：覆盖(true) / 保留(false) / Detach */
+  localModified?: boolean
+}
+
+// ===== 社区市场（n-skills） =====
+
+/** 社区市场 Skill 条目 */
+export interface CommunitySkill {
+  name: string
+  description: string
+  displayName?: string
+  category?: string
+  license?: string
+  authorName?: string
+  homepage?: string
+  /** 仓库内 skill 目录相对路径 */
+  path: string
+}
+
+/** 社区市场安装结果 */
+export interface CommunitySkillInstallResult {
+  slug: string
+  name: string
+  version: string
+}
+
+// ===== Skill 批量导入 =====
+
+/** 批量导入单个 Skill 的结果状态 */
+export type BulkImportSkillStatus = 'imported' | 'skipped' | 'failed'
+
+/** 批量导入单个 Skill 的条目结果 */
+export interface BulkImportSkillItemResult {
+  /** Skill 目录名 / slug（与源目录名保持一致） */
+  slug: string
+  /** SKILL.md 中的名称；解析失败时回退为 slug */
+  name: string
+  status: BulkImportSkillStatus
+  /** skipped / failed 时的原因说明 */
+  reason?: string
+}
+
+/** 批量导入 Skill 汇总结果（供 UI 展示 成功/跳过/失败 汇总） */
+export interface BulkImportSkillsResult {
+  imported: number
+  skipped: number
+  failed: number
+  items: BulkImportSkillItemResult[]
+}
+
+/** 从其他工作区批量导入的选中项 */
+export interface BulkImportWorkspaceSelection {
+  sourceSlug: string
+  skillSlug: string
 }
 
 /** Skill 目录下的文件/子目录节点（递归树） */
@@ -1762,6 +1893,8 @@ export const AGENT_IPC_CHANNELS = {
   GET_DEFAULT_SKILL_SLUGS: 'agent:get-default-skill-slugs',
   /** 从其他工作区导入 Skill 到当前工作区 */
   IMPORT_SKILL_FROM_WORKSPACE: 'agent:import-skill-from-workspace',
+  /** 从其他工作区批量导入多个 Skill 到当前工作区 */
+  BATCH_IMPORT_SKILLS_FROM_WORKSPACES: 'agent:batch-import-skills-from-workspaces',
   /** 从源工作区同步更新已导入的 Skill */
   UPDATE_SKILL_FROM_SOURCE: 'agent:update-skill-from-source',
   /** 读取 SKILL.md 全文内容 */
@@ -1792,6 +1925,32 @@ export const AGENT_IPC_CHANNELS = {
   READ_WORKSPACE_AUTO_MEMORY_FILE: 'agent:read-workspace-auto-memory-file',
   /** 写入工作区 auto memory 文件 */
   WRITE_WORKSPACE_AUTO_MEMORY_FILE: 'agent:write-workspace-auto-memory-file',
+
+  // 企业版组织 Skills 分发
+  /** 获取组织连接配置 */
+  ORG_GET_CONNECTION: 'org:get-connection',
+  /** 保存组织连接配置（登录/登出） */
+  ORG_SET_CONNECTION: 'org:set-connection',
+  /** 获取我的组织与角色 */
+  ORG_ME: 'org:me',
+  /** 列出组织 Skills */
+  ORG_LIST_SKILLS: 'org:list-skills',
+  /** 下载并导入组织 Skill 到工作区 */
+  ORG_IMPORT_SKILL: 'org:import-skill',
+  /** 从组织源更新已导入 Skill */
+  ORG_UPDATE_SKILL: 'org:update-skill',
+  /** 列出组织成员 */
+  ORG_LIST_MEMBERS: 'org:list-members',
+  /** 创建组织（用于注册流程引导） */
+  ORG_CREATE: 'org:create',
+  /** 凭邀请码加入组织 */
+  ORG_JOIN: 'org:join',
+
+  // 社区市场（n-skills）
+  /** 拉取社区市场清单 */
+  COMMUNITY_FETCH_MANIFEST: 'community:fetch-manifest',
+  /** 安装社区市场 Skill 到工作区 */
+  COMMUNITY_INSTALL_SKILL: 'community:install-skill',
 
   // 流式事件（主进程 → 渲染进程推送）
   /** Agent 流式事件 */
