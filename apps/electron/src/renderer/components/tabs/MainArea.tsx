@@ -32,6 +32,7 @@ import { WorkspaceContextView } from '@/components/agent-skills/WorkspaceContext
 import { agentSkillsTabAtom } from '@/atoms/active-view'
 import { RepoWikiView } from '@/components/repo-wiki/RepoWikiView'
 import { ExcalidrawView } from '@/components/excalidraw/ExcalidrawView'
+import { CoworkPlaceholderView } from '@/components/app-shell/CoworkPlaceholderView'
 import { automationFormAtom } from '@/atoms/automation-atoms'
 import { activeViewAtom } from '@/atoms/active-view'
 import { interfaceVariantAtom } from '@/atoms/theme'
@@ -267,6 +268,8 @@ export function MainArea(): React.ReactElement {
               <RepoWikiView />
             ) : activeView === 'excalidraw-gallery' || activeView === 'excalidraw-editor' ? (
               <ExcalidrawView />
+            ) : activeView === 'cowork-placeholder' ? (
+              <CoworkPlaceholderView />
             ) : (
               <>
                 <TabBar />

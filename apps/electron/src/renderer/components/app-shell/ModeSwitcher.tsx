@@ -11,8 +11,9 @@
  */
 
 import * as React from 'react'
-import { useAtom, useAtomValue } from 'jotai'
+import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { appModeAtom, type AppMode } from '@/atoms/app-mode'
+import { activeViewAtom } from '@/atoms/active-view'
 import { conversationsAtom, currentConversationIdAtom } from '@/atoms/chat-atoms'
 import { agentSessionsAtom, currentAgentSessionIdAtom } from '@/atoms/agent-atoms'
 import { tabsAtom } from '@/atoms/tab-atoms'
@@ -31,6 +32,7 @@ const SLIDER_TRANSLATE = ['translate-x-0', 'translate-x-full'] as const
 
 export function ModeSwitcher(): React.ReactElement {
   const [mode, setMode] = useAtom(appModeAtom)
+  const setActiveView = useSetAtom(activeViewAtom)
   const openSession = useOpenSession()
   const conversations = useAtomValue(conversationsAtom)
   const agentSessions = useAtomValue(agentSessionsAtom)
@@ -75,11 +77,16 @@ export function ModeSwitcher(): React.ReactElement {
 
   const handleModeSwitch = React.useCallback((targetId: 'pwork' | 'cowork') => {
     setActiveTabId(targetId)
-    // pwork / cowork 当前都走 agent 编程模式；cowork 占位待后续开发
+    // 统一走 agent 编程模式；cowork 显示协作占位页，pwork 回到会话主区
     if (mode !== 'agent') setMode('agent')
+    if (targetId === 'cowork') {
+      setActiveView('cowork-placeholder')
+      return
+    }
+    setActiveView('conversations')
     // 恢复最近 agent 会话
     restoreSession('agent')
-  }, [mode, setMode, restoreSession])
+  }, [mode, setMode, restoreSession, setActiveView])
 
   return (
     <div className="pt-2 titlebar-drag-region select-none">
