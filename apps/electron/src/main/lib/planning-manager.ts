@@ -21,6 +21,8 @@ import type {
   PlanningReminderOrigin,
   PlanningReminderTargetType,
   PlanningTag,
+  PlanningSyncProfile,
+  SavePlanningSyncProfileInput,
   Todo,
   TodoListQuery,
   TodoSessionLink,
@@ -62,6 +64,33 @@ type ReminderRow = {
   status: 'pending' | 'acknowledged' | 'completed'; origin: PlanningReminderOrigin; acknowledged_at: number | null; last_notified_at: number | null; created_at: number; updated_at: number
 }
 type TodoSessionLinkRow = { todo_id: string; session_id: string; first_touched_at: number; last_touched_at: number }
+type SyncProfileRow = { id: string; entity: 'calendar' | 'reminder'; target_id: string; target_title: string; source_title: string; enabled: number; created_at: number; updated_at: number }
+type SyncOutboxRow = { id: string; profile_id: string; target_id: string | null; operation: 'upsert' | 'delete'; proma_entity_id: string; native_start_at: number | null; attempts: number; next_attempt_at: number; last_error: string | null; revision: number; created_at: number; updated_at: number }
+type SyncBindingRow = { profile_id: string; target_id: string | null; proma_entity_id: string; calendar_item_identifier: string | null; calendar_item_external_identifier: string | null; last_synced_hash: string | null; last_synced_at: number | null }
+type SyncCleanupRow = { id: string; entity: 'calendar' | 'reminder'; target_id: string; proma_entity_id: string; calendar_item_identifier: string | null; native_start_at: number | null; attempts: number; next_attempt_at: number; last_error: string | null; created_at: number; updated_at: number }
+
+export interface PlanningSyncOutboxItem {
+  id: string
+  profile: PlanningSyncProfile
+  operation: 'upsert' | 'delete'
+  promaEntityId: string
+  attempts: number
+  /** 防止执行中的旧操作确认/重试覆盖随后写入的本地变更。 */
+  revision: number
+  calendarItemIdentifier?: string
+  /** Calendar 删除的 crash-recovery 查找锚点。 */
+  nativeStartAt?: number
+}
+
+export interface PlanningSyncCleanupItem {
+  id: string
+  entity: 'calendar' | 'reminder'
+  targetId: string
+  promaEntityId: string
+  calendarItemIdentifier?: string
+  nativeStartAt?: number
+  attempts: number
+}
 
 let database: SqliteDatabase | null = null
 
@@ -78,80 +107,173 @@ function withPlanningTransaction<T>(work: () => T): T {
   }
 }
 
+const PLANNING_SCHEMA_VERSION = 4
+
+/**
+ * Planning 在 v0.16.9 前没有 user_version；因此 migration 1 必须幂等地重建既有 schema，
+ * 再把已有用户安全带入后续版本。以后只允许追加顺序 migration，避免隐式建表掩盖升级错误。
+ */
+function migrateDatabase(db: SqliteDatabase): void {
+  const versionRow = db.prepare('PRAGMA user_version').get() as { user_version?: number } | undefined
+  let version = versionRow?.user_version ?? 0
+  if (version > PLANNING_SCHEMA_VERSION) throw new Error('任务/日程数据版本高于当前 LuxCoder，无法安全打开')
+
+  db.exec('BEGIN IMMEDIATE')
+  try {
+    if (version < 1) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS planning_groups (
+          id TEXT PRIMARY KEY, name TEXT NOT NULL COLLATE NOCASE UNIQUE CHECK(length(name) BETWEEN 1 AND 100), color TEXT,
+          sort_order INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS calendar_groups (
+          id TEXT PRIMARY KEY, name TEXT NOT NULL COLLATE NOCASE UNIQUE CHECK(length(name) BETWEEN 1 AND 100), color TEXT,
+          sort_order INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS tags (
+          id TEXT PRIMARY KEY, name TEXT NOT NULL COLLATE NOCASE UNIQUE CHECK(length(name) BETWEEN 1 AND 100), color TEXT,
+          created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS todos (
+          id TEXT PRIMARY KEY, title TEXT NOT NULL CHECK(length(title) BETWEEN 1 AND 500), notes TEXT,
+          status TEXT NOT NULL CHECK(status IN ('open', 'completed')), priority TEXT NOT NULL CHECK(priority IN ('low', 'medium', 'high')),
+          due_at INTEGER, group_id TEXT REFERENCES planning_groups(id) ON DELETE SET NULL, workspace_id TEXT, project_id TEXT,
+          created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, completed_at INTEGER
+        );
+        CREATE TABLE IF NOT EXISTS calendar_events (
+          id TEXT PRIMARY KEY, title TEXT NOT NULL CHECK(length(title) BETWEEN 1 AND 500), notes TEXT, start_at INTEGER NOT NULL, end_at INTEGER,
+          all_day INTEGER NOT NULL DEFAULT 0 CHECK(all_day IN (0, 1)), calendar_group_id TEXT REFERENCES calendar_groups(id) ON DELETE SET NULL,
+          workspace_id TEXT, project_id TEXT, todo_id TEXT REFERENCES todos(id) ON DELETE SET NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+          CHECK(end_at IS NULL OR end_at >= start_at)
+        );
+        CREATE TABLE IF NOT EXISTS todo_tags (
+          todo_id TEXT NOT NULL REFERENCES todos(id) ON DELETE CASCADE, tag_id TEXT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+          PRIMARY KEY(todo_id, tag_id)
+        );
+        CREATE TABLE IF NOT EXISTS calendar_event_tags (
+          calendar_event_id TEXT NOT NULL REFERENCES calendar_events(id) ON DELETE CASCADE, tag_id TEXT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+          PRIMARY KEY(calendar_event_id, tag_id)
+        );
+        CREATE TABLE IF NOT EXISTS planning_reminders (
+          id TEXT PRIMARY KEY, target_type TEXT NOT NULL CHECK(target_type IN ('todo', 'calendar_event')), target_id TEXT NOT NULL,
+          trigger_at INTEGER NOT NULL, snoozed_until INTEGER, status TEXT NOT NULL CHECK(status IN ('pending', 'acknowledged', 'completed')),
+          origin TEXT NOT NULL DEFAULT 'manual' CHECK(origin IN ('manual', 'todo_due_at')),
+          acknowledged_at INTEGER, last_notified_at INTEGER, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS todo_session_links (
+          todo_id TEXT NOT NULL REFERENCES todos(id) ON DELETE CASCADE,
+          session_id TEXT NOT NULL,
+          first_touched_at INTEGER NOT NULL,
+          last_touched_at INTEGER NOT NULL,
+          PRIMARY KEY(todo_id, session_id)
+        );
+        CREATE INDEX IF NOT EXISTS todos_status_due_at_idx ON todos(status, due_at);
+        CREATE INDEX IF NOT EXISTS todos_group_id_idx ON todos(group_id);
+        CREATE INDEX IF NOT EXISTS calendar_events_start_at_idx ON calendar_events(start_at);
+        CREATE INDEX IF NOT EXISTS calendar_events_calendar_group_id_idx ON calendar_events(calendar_group_id);
+        CREATE INDEX IF NOT EXISTS calendar_events_todo_id_idx ON calendar_events(todo_id);
+        CREATE INDEX IF NOT EXISTS calendar_events_project_id_idx ON calendar_events(project_id);
+        CREATE INDEX IF NOT EXISTS planning_reminders_due_idx ON planning_reminders(status, snoozed_until, trigger_at);
+        CREATE INDEX IF NOT EXISTS planning_reminders_target_idx ON planning_reminders(target_type, target_id);
+        CREATE INDEX IF NOT EXISTS todo_session_links_recent_idx ON todo_session_links(todo_id, last_touched_at DESC);
+      `)
+      // LuxCoder 扩展列 project_id（Todo/日程关联 craft Project）；已存在的旧库
+      // （CREATE TABLE IF NOT EXISTS 不会补列）需要显式迁移。
+      const todoColumns = db.prepare('PRAGMA table_info(todos)').all() as Array<{ name: string }>
+      if (!todoColumns.some((column) => column.name === 'project_id')) {
+        db.exec('ALTER TABLE todos ADD COLUMN project_id TEXT')
+      }
+      const calendarEventColumns = db.prepare('PRAGMA table_info(calendar_events)').all() as Array<{ name: string }>
+      if (!calendarEventColumns.some((column) => column.name === 'project_id')) {
+        db.exec('ALTER TABLE calendar_events ADD COLUMN project_id TEXT')
+      }
+      db.exec('PRAGMA user_version = 1')
+      version = 1
+    }
+    if (version < 2) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS planning_sync_profiles (
+          id TEXT PRIMARY KEY,
+          entity TEXT NOT NULL UNIQUE CHECK(entity IN ('calendar', 'reminder')),
+          target_id TEXT NOT NULL,
+          target_title TEXT NOT NULL,
+          source_title TEXT NOT NULL,
+          enabled INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN (0, 1)),
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS planning_sync_bindings (
+          profile_id TEXT NOT NULL REFERENCES planning_sync_profiles(id) ON DELETE CASCADE,
+          proma_entity_id TEXT NOT NULL,
+          calendar_item_identifier TEXT,
+          calendar_item_external_identifier TEXT,
+          last_synced_hash TEXT,
+          last_synced_at INTEGER,
+          PRIMARY KEY(profile_id, proma_entity_id)
+        );
+        CREATE TABLE IF NOT EXISTS planning_sync_outbox (
+          id TEXT PRIMARY KEY,
+          profile_id TEXT NOT NULL REFERENCES planning_sync_profiles(id) ON DELETE CASCADE,
+          operation TEXT NOT NULL CHECK(operation IN ('upsert', 'delete')),
+          proma_entity_id TEXT NOT NULL,
+          attempts INTEGER NOT NULL DEFAULT 0,
+          next_attempt_at INTEGER NOT NULL,
+          last_error TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          UNIQUE(profile_id, proma_entity_id)
+        );
+        CREATE INDEX IF NOT EXISTS planning_sync_outbox_due_idx ON planning_sync_outbox(profile_id, next_attempt_at, created_at);
+      `)
+      db.exec('PRAGMA user_version = 2')
+    }
+    if (version < 3) {
+      db.exec('ALTER TABLE planning_sync_outbox ADD COLUMN revision INTEGER NOT NULL DEFAULT 1')
+      db.exec('PRAGMA user_version = 3')
+      version = 3
+    }
+    if (version < 4) {
+      // 目标切换期间 profile 会指向新目标，因此执行和 binding 都必须持久化旧目标快照。
+      db.exec(`
+        ALTER TABLE planning_sync_outbox ADD COLUMN target_id TEXT;
+        ALTER TABLE planning_sync_outbox ADD COLUMN native_start_at INTEGER;
+        ALTER TABLE planning_sync_bindings ADD COLUMN target_id TEXT;
+        UPDATE planning_sync_outbox SET target_id=(SELECT target_id FROM planning_sync_profiles WHERE id=planning_sync_outbox.profile_id) WHERE target_id IS NULL;
+        UPDATE planning_sync_bindings SET target_id=(SELECT target_id FROM planning_sync_profiles WHERE id=planning_sync_bindings.profile_id) WHERE target_id IS NULL;
+        CREATE TABLE IF NOT EXISTS planning_sync_cleanup (
+          id TEXT PRIMARY KEY,
+          entity TEXT NOT NULL CHECK(entity IN ('calendar', 'reminder')),
+          target_id TEXT NOT NULL,
+          proma_entity_id TEXT NOT NULL,
+          calendar_item_identifier TEXT,
+          native_start_at INTEGER,
+          attempts INTEGER NOT NULL DEFAULT 0,
+          next_attempt_at INTEGER NOT NULL,
+          last_error TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          UNIQUE(entity, target_id, proma_entity_id)
+        );
+        CREATE INDEX IF NOT EXISTS planning_sync_cleanup_due_idx ON planning_sync_cleanup(next_attempt_at, created_at);
+      `)
+      db.exec('PRAGMA user_version = 4')
+    }
+    db.exec('COMMIT')
+  } catch (error) {
+    try { db.exec('ROLLBACK') } catch { /* migration transaction already rolled back */ }
+    throw error
+  }
+}
+
 function getDatabase(): SqliteDatabase {
   if (database) return database
   const { DatabaseSync } = require('node:sqlite') as SqliteModule
   const db = new DatabaseSync(getPlanningDatabasePath())
-  db.exec(`
-    PRAGMA journal_mode = WAL;
-    PRAGMA foreign_keys = ON;
-    CREATE TABLE IF NOT EXISTS planning_groups (
-      id TEXT PRIMARY KEY, name TEXT NOT NULL COLLATE NOCASE UNIQUE CHECK(length(name) BETWEEN 1 AND 100), color TEXT,
-      sort_order INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS calendar_groups (
-      id TEXT PRIMARY KEY, name TEXT NOT NULL COLLATE NOCASE UNIQUE CHECK(length(name) BETWEEN 1 AND 100), color TEXT,
-      sort_order INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS tags (
-      id TEXT PRIMARY KEY, name TEXT NOT NULL COLLATE NOCASE UNIQUE CHECK(length(name) BETWEEN 1 AND 100), color TEXT,
-      created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS todos (
-      id TEXT PRIMARY KEY, title TEXT NOT NULL CHECK(length(title) BETWEEN 1 AND 500), notes TEXT,
-      status TEXT NOT NULL CHECK(status IN ('open', 'completed')), priority TEXT NOT NULL CHECK(priority IN ('low', 'medium', 'high')),
-      due_at INTEGER, group_id TEXT REFERENCES planning_groups(id) ON DELETE SET NULL, workspace_id TEXT, project_id TEXT,
-      created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, completed_at INTEGER
-    );
-    CREATE TABLE IF NOT EXISTS calendar_events (
-      id TEXT PRIMARY KEY, title TEXT NOT NULL CHECK(length(title) BETWEEN 1 AND 500), notes TEXT, start_at INTEGER NOT NULL, end_at INTEGER,
-      all_day INTEGER NOT NULL DEFAULT 0 CHECK(all_day IN (0, 1)), calendar_group_id TEXT REFERENCES calendar_groups(id) ON DELETE SET NULL,
-      workspace_id TEXT, project_id TEXT, todo_id TEXT REFERENCES todos(id) ON DELETE SET NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
-      CHECK(end_at IS NULL OR end_at >= start_at)
-    );
-    CREATE TABLE IF NOT EXISTS todo_tags (
-      todo_id TEXT NOT NULL REFERENCES todos(id) ON DELETE CASCADE, tag_id TEXT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
-      PRIMARY KEY(todo_id, tag_id)
-    );
-    CREATE TABLE IF NOT EXISTS calendar_event_tags (
-      calendar_event_id TEXT NOT NULL REFERENCES calendar_events(id) ON DELETE CASCADE, tag_id TEXT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
-      PRIMARY KEY(calendar_event_id, tag_id)
-    );
-    CREATE TABLE IF NOT EXISTS planning_reminders (
-      id TEXT PRIMARY KEY, target_type TEXT NOT NULL CHECK(target_type IN ('todo', 'calendar_event')), target_id TEXT NOT NULL,
-      trigger_at INTEGER NOT NULL, snoozed_until INTEGER, status TEXT NOT NULL CHECK(status IN ('pending', 'acknowledged', 'completed')),
-      origin TEXT NOT NULL DEFAULT 'manual' CHECK(origin IN ('manual', 'todo_due_at')),
-      acknowledged_at INTEGER, last_notified_at INTEGER, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS todo_session_links (
-      todo_id TEXT NOT NULL REFERENCES todos(id) ON DELETE CASCADE,
-      session_id TEXT NOT NULL,
-      first_touched_at INTEGER NOT NULL,
-      last_touched_at INTEGER NOT NULL,
-      PRIMARY KEY(todo_id, session_id)
-    );
-  `)
-  // todos.project_id / calendar_events.project_id 是后续新增列；已存在的旧库
-  // （CREATE TABLE IF NOT EXISTS 不会补列）需要显式迁移。
-  const todoColumns = db.prepare(`PRAGMA table_info(todos)`).all() as Array<{ name: string }>
-  if (!todoColumns.some((column) => column.name === 'project_id')) {
-    db.exec('ALTER TABLE todos ADD COLUMN project_id TEXT')
-  }
-  const calendarEventColumns = db.prepare(`PRAGMA table_info(calendar_events)`).all() as Array<{ name: string }>
-  if (!calendarEventColumns.some((column) => column.name === 'project_id')) {
-    db.exec('ALTER TABLE calendar_events ADD COLUMN project_id TEXT')
-  }
-  db.exec(`
-    CREATE INDEX IF NOT EXISTS todos_status_due_at_idx ON todos(status, due_at);
-    CREATE INDEX IF NOT EXISTS todos_group_id_idx ON todos(group_id);
-    CREATE INDEX IF NOT EXISTS calendar_events_start_at_idx ON calendar_events(start_at);
-    CREATE INDEX IF NOT EXISTS calendar_events_calendar_group_id_idx ON calendar_events(calendar_group_id);
-    CREATE INDEX IF NOT EXISTS calendar_events_todo_id_idx ON calendar_events(todo_id);
-    CREATE INDEX IF NOT EXISTS calendar_events_project_id_idx ON calendar_events(project_id);
-    CREATE INDEX IF NOT EXISTS planning_reminders_due_idx ON planning_reminders(status, snoozed_until, trigger_at);
-    CREATE INDEX IF NOT EXISTS planning_reminders_target_idx ON planning_reminders(target_type, target_id);
-    CREATE INDEX IF NOT EXISTS todo_session_links_recent_idx ON todo_session_links(todo_id, last_touched_at DESC);
-  `)
+  db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;')
+  migrateDatabase(db)
+  database = db
+  return db
+}
   database = db
   return db
 }
@@ -375,6 +497,177 @@ export function deletePlanningTag(id: string): boolean {
   const result = getDatabase().prepare('DELETE FROM tags WHERE id = :id').run({ id }) as { changes?: number }; return (result.changes ?? 0) > 0
 }
 
+function syncProfileFromRow(row: SyncProfileRow): PlanningSyncProfile {
+  return {
+    id: row.id,
+    entity: row.entity,
+    targetId: row.target_id,
+    targetTitle: row.target_title,
+    sourceTitle: row.source_title,
+    enabled: row.enabled === 1,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
+/** 同步配置只保存用户明确选择的受管目标；绝不默认导入系统其他 Calendar/List。 */
+export function listPlanningSyncProfiles(): PlanningSyncProfile[] {
+  const rows = getDatabase().prepare('SELECT * FROM planning_sync_profiles ORDER BY entity').all() as SyncProfileRow[]
+  return rows.map(syncProfileFromRow)
+}
+
+function syncEntityForPlanningTarget(targetType: PlanningReminderTargetType): 'calendar' | 'reminder' {
+  return targetType === 'todo' ? 'reminder' : 'calendar'
+}
+
+/** 业务数据与待同步操作在同一事务写入，保证崩溃后仍可恢复发布。 */
+function enqueuePlanningSync(targetType: PlanningReminderTargetType, promaEntityId: string, operation: 'upsert' | 'delete', now = Date.now(), nativeStartAt?: number): void {
+  const entity = syncEntityForPlanningTarget(targetType)
+  const profiles = getDatabase().prepare(`SELECT * FROM planning_sync_profiles WHERE entity=:entity AND enabled=1`).all({ entity }) as SyncProfileRow[]
+  for (const profile of profiles) {
+    getDatabase().prepare(`
+      INSERT INTO planning_sync_outbox (id, profile_id, target_id, operation, proma_entity_id, native_start_at, attempts, next_attempt_at, created_at, updated_at)
+      VALUES (:id, :profileId, :targetId, :operation, :promaEntityId, :nativeStartAt, 0, :now, :now, :now)
+      ON CONFLICT(profile_id, proma_entity_id) DO UPDATE SET
+        target_id=excluded.target_id, operation=excluded.operation, native_start_at=excluded.native_start_at,
+        attempts=0, next_attempt_at=excluded.next_attempt_at, last_error=NULL,
+        revision=planning_sync_outbox.revision+1, updated_at=excluded.updated_at
+    `).run({ id: randomUUID(), profileId: profile.id, targetId: profile.target_id, operation, promaEntityId, nativeStartAt: nativeStartAt ?? null, now })
+  }
+}
+
+/** 清理任务独立于 outbox，保证切换受管目标时可同时“删旧、写新”。 */
+function enqueuePlanningSyncCleanup(input: Pick<PlanningSyncCleanupItem, 'entity' | 'targetId' | 'promaEntityId' | 'calendarItemIdentifier' | 'nativeStartAt'>, now = Date.now()): void {
+  getDatabase().prepare(`
+    INSERT INTO planning_sync_cleanup (id, entity, target_id, proma_entity_id, calendar_item_identifier, native_start_at, attempts, next_attempt_at, created_at, updated_at)
+    VALUES (:id, :entity, :targetId, :promaEntityId, :calendarItemIdentifier, :nativeStartAt, 0, :now, :now, :now)
+    ON CONFLICT(entity, target_id, proma_entity_id) DO UPDATE SET
+      calendar_item_identifier=COALESCE(excluded.calendar_item_identifier, planning_sync_cleanup.calendar_item_identifier),
+      native_start_at=COALESCE(excluded.native_start_at, planning_sync_cleanup.native_start_at),
+      next_attempt_at=excluded.next_attempt_at, last_error=NULL, updated_at=excluded.updated_at
+  `).run({ id: randomUUID(), ...input, calendarItemIdentifier: input.calendarItemIdentifier ?? null, nativeStartAt: input.nativeStartAt ?? null, now })
+}
+
+function enqueueAllPlanningItems(profile: PlanningSyncProfile): void {
+  const now = Date.now()
+  // 首次连接不要把历史会议或已完成 Todo 无差别倒入用户的系统集合；窗口外绑定项仍会由后续更新单独发布。
+  const rows = profile.entity === 'calendar'
+    ? getDatabase().prepare('SELECT id FROM calendar_events WHERE COALESCE(end_at,start_at)>=:from AND start_at<=:to').all({ from: now - 30 * 24 * 60 * 60 * 1_000, to: now + 18 * 30 * 24 * 60 * 60 * 1_000 }) as Array<{ id: string }>
+    : getDatabase().prepare(`SELECT id FROM todos WHERE status='open'`).all() as Array<{ id: string }>
+  for (const row of rows) enqueuePlanningSync(profile.entity === 'calendar' ? 'calendar_event' : 'todo', row.id, 'upsert', now)
+}
+
+export function savePlanningSyncProfile(input: SavePlanningSyncProfileInput): PlanningSyncProfile {
+  const targetId = assertText(input.target.id, '同步目标', 1_000)
+  const targetTitle = assertText(input.target.title, '同步目标名称', 500)
+  const sourceTitle = input.target.sourceTitle.trim().slice(0, 500)
+  const existing = getDatabase().prepare('SELECT * FROM planning_sync_profiles WHERE entity=:entity').get({ entity: input.entity }) as SyncProfileRow | undefined
+  const now = Math.max(Date.now(), (existing?.updated_at ?? 0) + 1)
+  const profile: PlanningSyncProfile = {
+    id: existing?.id ?? randomUUID(), entity: input.entity, targetId, targetTitle, sourceTitle,
+    enabled: input.enabled ?? (existing ? existing.enabled === 1 : true), createdAt: existing?.created_at ?? now, updatedAt: now,
+  }
+  withPlanningTransaction(() => {
+    const targetChanged = Boolean(existing && existing.target_id !== targetId)
+    if (targetChanged && existing) {
+      // 先冻结旧队列并为每个 locator 建独立 cleanup，再切换 profile；旧项绝不会被遗留。
+      const bindings = getDatabase().prepare('SELECT * FROM planning_sync_bindings WHERE profile_id=:profileId').all({ profileId: profile.id }) as SyncBindingRow[]
+      for (const binding of bindings) enqueuePlanningSyncCleanup({
+        entity: existing.entity,
+        targetId: binding.target_id ?? existing.target_id,
+        promaEntityId: binding.proma_entity_id,
+        calendarItemIdentifier: binding.calendar_item_identifier ?? undefined,
+      }, now)
+      // binding 尚未落库前进程可能已在 EventKit 成功写入；旧 outbox 中的 marker 是仅存恢复证据。
+      const pendingUpserts = getDatabase().prepare("SELECT * FROM planning_sync_outbox WHERE profile_id=:profileId AND operation='upsert'").all({ profileId: profile.id }) as SyncOutboxRow[]
+      for (const pending of pendingUpserts) enqueuePlanningSyncCleanup({
+        entity: existing.entity,
+        targetId: pending.target_id ?? existing.target_id,
+        promaEntityId: pending.proma_entity_id,
+        nativeStartAt: pending.native_start_at ?? undefined,
+      }, now)
+      getDatabase().prepare('DELETE FROM planning_sync_outbox WHERE profile_id=:profileId').run({ profileId: profile.id })
+      getDatabase().prepare('DELETE FROM planning_sync_bindings WHERE profile_id=:profileId').run({ profileId: profile.id })
+    }
+    getDatabase().prepare(`
+      INSERT INTO planning_sync_profiles (id, entity, target_id, target_title, source_title, enabled, created_at, updated_at)
+      VALUES (:id, :entity, :targetId, :targetTitle, :sourceTitle, :enabled, :createdAt, :updatedAt)
+      ON CONFLICT(entity) DO UPDATE SET
+        target_id=excluded.target_id, target_title=excluded.target_title, source_title=excluded.source_title,
+        enabled=excluded.enabled, updated_at=excluded.updated_at
+    `).run({ ...profile, targetId: profile.targetId, targetTitle: profile.targetTitle, sourceTitle: profile.sourceTitle, enabled: profile.enabled ? 1 : 0, createdAt: profile.createdAt, updatedAt: profile.updatedAt })
+    if (profile.enabled && (!existing || targetChanged || existing.enabled !== 1)) enqueueAllPlanningItems(profile)
+  })
+  return profile
+}
+
+export function listDuePlanningSyncOutbox(now = Date.now(), limit = 25): PlanningSyncOutboxItem[] {
+  const rows = getDatabase().prepare(`
+    SELECT outbox.*, profiles.entity, COALESCE(outbox.target_id, profiles.target_id) AS execution_target_id, profiles.target_title, profiles.source_title, profiles.enabled, profiles.created_at AS profile_created_at, profiles.updated_at AS profile_updated_at,
+      bindings.calendar_item_identifier
+    FROM planning_sync_outbox AS outbox
+    JOIN planning_sync_profiles AS profiles ON profiles.id=outbox.profile_id
+    LEFT JOIN planning_sync_bindings AS bindings ON bindings.profile_id=outbox.profile_id AND bindings.proma_entity_id=outbox.proma_entity_id AND bindings.target_id=COALESCE(outbox.target_id, profiles.target_id)
+    WHERE profiles.enabled=1 AND outbox.next_attempt_at<=:now
+    ORDER BY outbox.created_at
+    LIMIT :limit
+  `).all({ now, limit }) as Array<SyncOutboxRow & SyncProfileRow & { execution_target_id: string; profile_created_at: number; profile_updated_at: number; calendar_item_identifier: string | null }>
+  return rows.map((row) => ({
+    id: row.id,
+    profile: { id: row.profile_id, entity: row.entity, targetId: row.execution_target_id, targetTitle: row.target_title, sourceTitle: row.source_title, enabled: row.enabled === 1, createdAt: row.profile_created_at, updatedAt: row.profile_updated_at },
+    operation: row.operation,
+    promaEntityId: row.proma_entity_id,
+    attempts: row.attempts,
+    revision: row.revision,
+    calendarItemIdentifier: row.calendar_item_identifier ?? undefined,
+    nativeStartAt: row.native_start_at ?? undefined,
+  }))
+}
+
+export function listDuePlanningSyncCleanup(now = Date.now(), limit = 25): PlanningSyncCleanupItem[] {
+  const rows = getDatabase().prepare('SELECT * FROM planning_sync_cleanup WHERE next_attempt_at<=:now ORDER BY created_at LIMIT :limit').all({ now, limit }) as SyncCleanupRow[]
+  return rows.map((row) => ({ id: row.id, entity: row.entity, targetId: row.target_id, promaEntityId: row.proma_entity_id, calendarItemIdentifier: row.calendar_item_identifier ?? undefined, nativeStartAt: row.native_start_at ?? undefined, attempts: row.attempts }))
+}
+
+export function completePlanningSyncCleanup(item: PlanningSyncCleanupItem): void {
+  getDatabase().prepare('DELETE FROM planning_sync_cleanup WHERE id=:id').run({ id: item.id })
+}
+
+export function failPlanningSyncCleanup(item: PlanningSyncCleanupItem, error: string): void {
+  const attempts = item.attempts + 1; const now = Date.now(); const nextAttemptAt = now + Math.min(60 * 60 * 1_000, 5_000 * 2 ** Math.min(attempts - 1, 10))
+  getDatabase().prepare('UPDATE planning_sync_cleanup SET attempts=:attempts,next_attempt_at=:nextAttemptAt,last_error=:error,updated_at=:now WHERE id=:id').run({ id: item.id, attempts, nextAttemptAt, error: error.slice(0, 1_000), now })
+}
+
+export function completePlanningSyncOutbox(item: PlanningSyncOutboxItem, nativeIdentifiers?: { calendarItemIdentifier?: string; calendarItemExternalIdentifier?: string }): void {
+  withPlanningTransaction(() => {
+    const now = Date.now()
+    const currentProfile = getDatabase().prepare('SELECT target_id FROM planning_sync_profiles WHERE id=:profileId').get({ profileId: item.profile.id }) as { target_id: string } | undefined
+    const isCurrentTarget = currentProfile?.target_id === item.profile.targetId
+    if (item.operation === 'delete' && isCurrentTarget) {
+      getDatabase().prepare('DELETE FROM planning_sync_bindings WHERE profile_id=:profileId AND target_id=:targetId AND proma_entity_id=:promaEntityId').run({ profileId: item.profile.id, targetId: item.profile.targetId, promaEntityId: item.promaEntityId })
+    } else if (nativeIdentifiers?.calendarItemIdentifier && isCurrentTarget) {
+      getDatabase().prepare(`
+        INSERT INTO planning_sync_bindings (profile_id, target_id, proma_entity_id, calendar_item_identifier, calendar_item_external_identifier, last_synced_at)
+        VALUES (:profileId, :targetId, :promaEntityId, :calendarItemIdentifier, :calendarItemExternalIdentifier, :now)
+        ON CONFLICT(profile_id, proma_entity_id) DO UPDATE SET
+          target_id=excluded.target_id, calendar_item_identifier=excluded.calendar_item_identifier,
+          calendar_item_external_identifier=excluded.calendar_item_external_identifier, last_synced_at=excluded.last_synced_at
+      `).run({ profileId: item.profile.id, targetId: item.profile.targetId, promaEntityId: item.promaEntityId, calendarItemIdentifier: nativeIdentifiers.calendarItemIdentifier, calendarItemExternalIdentifier: nativeIdentifiers.calendarItemExternalIdentifier ?? null, now })
+    } else if (nativeIdentifiers?.calendarItemIdentifier) {
+      // 目标切换与 native 写入并发时，将刚创建的旧项移入独立清理队列，不能任其孤儿化。
+      enqueuePlanningSyncCleanup({ entity: item.profile.entity, targetId: item.profile.targetId, promaEntityId: item.promaEntityId, calendarItemIdentifier: nativeIdentifiers.calendarItemIdentifier, nativeStartAt: item.nativeStartAt }, now)
+    }
+    getDatabase().prepare('DELETE FROM planning_sync_outbox WHERE id=:id AND revision=:revision').run({ id: item.id, revision: item.revision })
+  })
+}
+
+export function failPlanningSyncOutbox(item: PlanningSyncOutboxItem, error: string): void {
+  const attempts = item.attempts + 1
+  const delay = Math.min(60 * 60 * 1_000, 5_000 * 2 ** Math.min(attempts - 1, 10))
+  const now = Date.now()
+  getDatabase().prepare('UPDATE planning_sync_outbox SET attempts=:attempts,next_attempt_at=:nextAttemptAt,last_error=:error,updated_at=:now WHERE id=:id AND revision=:revision').run({ id: item.id, revision: item.revision, attempts, nextAttemptAt: now + delay, error: error.slice(0, 1_000), now })
+}
+
 export function listTodos(query: TodoListQuery = {}): Todo[] {
   const where: string[] = []; const params: Record<string, unknown> = {}; const limit = normalizeLimit(query.limit)
   if (query.status) { where.push('status = :status'); params.status = query.status }
@@ -417,6 +710,7 @@ export function createTodo(input: CreateTodoInput): Todo {
     if (input.reminders) createReminders('todo', todo.id, input.reminders, 'manual')
     else if (todo.dueAt) createReminders('todo', todo.id, [{ triggerAt: todo.dueAt }], 'todo_due_at')
     if (input.sessionId) touchTodoSession(todo.id, input.sessionId)
+    enqueuePlanningSync('todo', todo.id, 'upsert', now)
   })
   return getTodo(todo.id)!
 }
@@ -450,12 +744,15 @@ export function updateTodo(input: UpdateTodoInput): Todo | undefined {
     if (input.tagIds !== undefined) replaceTags('todo', old.id, input.tagIds)
     if (input.dueAt !== undefined && old.dueAt !== updated.dueAt) syncTodoDueAtReminder(old.id, updated.dueAt, updated.updatedAt)
     if (status === 'completed' && old.status !== 'completed') setTodoRemindersCompleted(old.id, updated.updatedAt)
+    enqueuePlanningSync('todo', old.id, 'upsert', updated.updatedAt)
   })
   return getTodo(old.id)
 }
 export function deleteTodo(id: string): boolean {
+  if (!getTodo(id)) return false
   return withPlanningTransaction(() => {
     const db = getDatabase()
+    enqueuePlanningSync('todo', id, 'delete')
     db.prepare(`DELETE FROM planning_reminders WHERE target_type='todo' AND target_id=:id`).run({ id })
     const result = db.prepare('DELETE FROM todos WHERE id=:id').run({ id }) as { changes?: number }
     return (result.changes ?? 0) > 0
@@ -490,6 +787,7 @@ export function createCalendarEvent(input: CreateCalendarEventInput): CalendarEv
     getDatabase().prepare(`INSERT INTO calendar_events (id,title,notes,start_at,end_at,all_day,calendar_group_id,workspace_id,project_id,todo_id,created_at,updated_at) VALUES (:id,:title,:notes,:startAt,:endAt,:allDay,:groupId,:workspaceId,:projectId,:todoId,:createdAt,:updatedAt)`).run({ id: event.id, title: event.title, notes: event.notes ?? null, startAt: event.startAt, endAt: event.endAt ?? null, allDay: event.allDay ? 1 : 0, groupId: event.groupId ?? null, workspaceId: event.workspaceId ?? null, projectId: event.projectId ?? null, todoId: event.todoId ?? null, createdAt: event.createdAt, updatedAt: event.updatedAt })
     if (input.tagIds !== undefined) replaceTags('calendar_event', event.id, input.tagIds)
     if (input.reminders) createReminders('calendar_event', event.id, input.reminders)
+    enqueuePlanningSync('calendar_event', event.id, 'upsert', now)
   })
   return getCalendarEvent(event.id)!
 }
@@ -522,12 +820,16 @@ export function updateCalendarEvent(input: UpdateCalendarEventInput): CalendarEv
     const result = getDatabase().prepare(`UPDATE calendar_events SET title=:title,notes=:notes,start_at=:startAt,end_at=:endAt,all_day=:allDay,calendar_group_id=:groupId,workspace_id=:workspaceId,project_id=:projectId,todo_id=:todoId,updated_at=:updatedAt WHERE id=:id${input.expectedUpdatedAt === undefined ? '' : ' AND updated_at=:expectedUpdatedAt'}`).run(params) as { changes?: number }
     if ((result.changes ?? 0) === 0) throw new Error(PLANNING_CONFLICT_ERROR)
     if (input.tagIds !== undefined) replaceTags('calendar_event', old.id, input.tagIds)
+    enqueuePlanningSync('calendar_event', old.id, 'upsert', updated.updatedAt)
   })
   return getCalendarEvent(old.id)
 }
 export function deleteCalendarEvent(id: string): boolean {
+  const event = getCalendarEvent(id)
+  if (!event) return false
   return withPlanningTransaction(() => {
     const db = getDatabase()
+    enqueuePlanningSync('calendar_event', id, 'delete', Date.now(), event.startAt)
     db.prepare(`DELETE FROM planning_reminders WHERE target_type='calendar_event' AND target_id=:id`).run({ id })
     const result = db.prepare('DELETE FROM calendar_events WHERE id=:id').run({ id }) as { changes?: number }
     return (result.changes ?? 0) > 0
@@ -570,7 +872,19 @@ export function listActivePlanningReminders(): ActivePlanningReminder[] {
 }
 /** 返回新增到期提醒并标记已通知，避免每个 30 秒轮询周期重复播放声音。 */
 export function claimDuePlanningReminders(now = Date.now()): ActivePlanningReminder[] {
-  const rows = getDatabase().prepare(`SELECT * FROM planning_reminders WHERE status='pending' AND COALESCE(snoozed_until,trigger_at) <= :now AND last_notified_at IS NULL ORDER BY COALESCE(snoozed_until,trigger_at)`).all({ now }) as ReminderRow[]
+  // Todo 已成功发布到受管 Reminders List 时，让系统 Reminder 成为默认截止提醒的唯一系统通知来源，避免双弹窗。
+  const rows = getDatabase().prepare(`
+    SELECT * FROM planning_reminders
+    WHERE status='pending' AND COALESCE(snoozed_until,trigger_at) <= :now AND last_notified_at IS NULL
+      AND NOT (
+        origin='todo_due_at' AND target_type='todo' AND EXISTS (
+          SELECT 1 FROM planning_sync_profiles AS profiles
+          JOIN planning_sync_bindings AS bindings ON bindings.profile_id=profiles.id AND bindings.proma_entity_id=planning_reminders.target_id
+          WHERE profiles.entity='reminder' AND profiles.enabled=1
+        )
+      )
+    ORDER BY COALESCE(snoozed_until,trigger_at)
+  `).all({ now }) as ReminderRow[]
   const result: ActivePlanningReminder[] = []
   for (const row of rows) { getDatabase().prepare('UPDATE planning_reminders SET last_notified_at=:now,updated_at=:now WHERE id=:id').run({ id: row.id, now }); const target = row.target_type === 'todo' ? getTodo(row.target_id) : getCalendarEvent(row.target_id); if (target) result.push({ ...reminderFromRow({ ...row, last_notified_at: now, updated_at: now }), targetTitle: target.title, group: target.group, tags: target.tags }) }
   return result
