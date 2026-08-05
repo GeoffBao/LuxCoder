@@ -36,7 +36,7 @@ import { EnhancedToolsPanel } from '@/components/settings/ToolSettings'
 import { AgentExpertsView } from '@/components/agent-experts/AgentExpertsView'
 import { groupSkills } from './skillGrouping'
 
-function buildSkillClassificationPrompt(input: {
+export function buildSkillClassificationPrompt(input: {
   workspaceName: string
   skillsDir: string
   skills: SkillMeta[]
@@ -93,8 +93,26 @@ export interface AgentSkillsViewProps {
   sourceFilter?: 'all' | 'custom' | 'builtin' | 'market'
   /** 外部状态筛选：all 全部 / enabled 启用 / disabled 停用 */
   statusFilter?: 'all' | 'enabled' | 'disabled'
-  /** 隐藏自带工具条（tab 切换 + 搜索框 + 操作按钮），由外层自定义工具条 */
+  /** 外部分类筛选（PluginPanelView 传入）：按 Skill 的 group 动态分类，all 全部 / 具体分类名 / ungrouped 未分组 */
+  categoryFilter?: 'all' | 'ungrouped' | string
+  /** 隐藏 tab 切换条（专家/专家团/Skills/MCP/API），保留工具条操作按钮（社区市场/AI分类/导入等） */
+  hideTabBar?: boolean
+  /** 隐藏工具条内搜索框（由外层 PluginPanelView 提供搜索） */
+  hideSearch?: boolean
+  /** 隐藏整个工具条（tab 切换 + 搜索 + 操作按钮），由外层自定义工具条 */
   hideToolbar?: boolean
+  /** 外部触发：打开社区市场（hideToolbar 时由 PluginPanelView 顶部按钮调用） */
+  onOpenCommunityMarket?: () => void
+  /** 外部触发：AI 分类（hideToolbar 时由 PluginPanelView 顶部按钮调用） */
+  onClassifySkills?: () => void
+  /** 外部触发：从其他工作区导入（hideToolbar 时由 PluginPanelView 顶部按钮调用） */
+  onOpenImport?: () => void
+  /** 外部触发：从企业组织导入（hideToolbar 时由 PluginPanelView 顶部按钮调用） */
+  onOpenOrgImport?: () => void
+  /** 外部触发：新增 MCP 服务器（hideToolbar 时由 PluginPanelView 顶部按钮调用） */
+  onAddMcp?: () => void
+  /** 外部新增 MCP 请求计数：每次递增时打开新增 MCP 弹窗（与 createRequestToken 模式一致） */
+  addMcpRequestToken?: number
 }
 
 export function AgentSkillsView({
@@ -102,7 +120,16 @@ export function AgentSkillsView({
   externalQuery,
   sourceFilter = 'all',
   statusFilter = 'all',
+  categoryFilter = 'all',
+  hideTabBar = false,
+  hideSearch = false,
   hideToolbar = false,
+  onOpenCommunityMarket,
+  onClassifySkills,
+  onOpenImport,
+  onOpenOrgImport,
+  onAddMcp,
+  addMcpRequestToken = 0,
 }: AgentSkillsViewProps): React.ReactElement {
   const data = useAgentSkillsData()
   const bumpCapabilities = useSetAtom(workspaceCapabilitiesVersionAtom)
@@ -117,6 +144,15 @@ export function AgentSkillsView({
   const [expertsCount, setExpertsCount] = React.useState(0)
   const [teamsCount, setTeamsCount] = React.useState(0)
   const [createExpertRequest, setCreateExpertRequest] = React.useState(0)
+
+  // 外部新增 MCP 请求：token 递增时打开新增 MCP 弹窗（PluginPanelView 顶部按钮触发）
+  React.useEffect(() => {
+    if (addMcpRequestToken > 0) {
+      setEditingMcp(null)
+      setMcpSheetOpen(true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addMcpRequestToken])
 
   // 加载专家/专家团数量（侧栏入口移除后，插件视图自身维护角标数据）
   React.useEffect(() => {
@@ -158,12 +194,21 @@ export function AgentSkillsView({
       if (sourceFilter === 'custom' && data.defaultSkillSlugs.has(s.slug)) return false
       if (sourceFilter === 'builtin' && !data.defaultSkillSlugs.has(s.slug)) return false
       if (sourceFilter === 'market' && data.defaultSkillSlugs.has(s.slug)) return false
+      // 分类筛选：按 group 动态分类
+      if (categoryFilter !== 'all') {
+        const g = (s.group ?? '').trim()
+        if (categoryFilter === 'ungrouped') {
+          if (g) return false
+        } else if (g !== categoryFilter) {
+          return false
+        }
+      }
       // 状态筛选
       if (statusFilter === 'enabled' && !s.enabled) return false
       if (statusFilter === 'disabled' && s.enabled) return false
       return true
     })
-  }, [data.skills, data.defaultSkillSlugs, q, sourceFilter, statusFilter])
+  }, [data.skills, data.defaultSkillSlugs, q, sourceFilter, statusFilter, categoryFilter])
 
   const customSkills = filteredSkills.filter((s) => !data.defaultSkillSlugs.has(s.slug))
   const builtinSkills = filteredSkills.filter((s) => data.defaultSkillSlugs.has(s.slug))
@@ -257,11 +302,12 @@ export function AgentSkillsView({
         </div>
       )}
 
-      {/* 工具条（hideToolbar 时由外层 PluginPanelView 自定义工具条替代） */}
+      {/* 工具条：hideToolbar 时整个隐藏（由外层 PluginPanelView 自定义工具条）；否则 tab 切换条可单独隐藏（hideTabBar），操作按钮始终保留 */}
       {!hideToolbar && (
         <div className={cn('titlebar-no-drag flex w-full items-center gap-3 shrink-0', embedded ? 'flex-wrap' : 'mx-auto max-w-6xl px-8 pb-4')}>
-        {/* 专家 / 专家团 / Skills / MCP / API 切换（Context 已升级为 Code 左侧模块） */}
-        <div className="relative flex h-8 items-stretch rounded-xl bg-muted p-0.5">
+        {/* 专家 / 专家团 / Skills / MCP / API 切换（Context 已升级为 Code 左侧模块；hideTabBar 时隐藏） */}
+        {!hideTabBar && (
+          <div className="relative flex h-8 items-stretch rounded-xl bg-muted p-0.5">
           <div
             className={cn(
               'absolute bottom-0.5 top-0.5 w-[calc(20%-2px)] rounded-lg bg-background shadow-sm transition-transform duration-base ease-out',
@@ -292,9 +338,10 @@ export function AgentSkillsView({
             </button>
           ))}
         </div>
+        )}
 
-        {/* 搜索框（API 占位 Tab 无搜索逻辑，隐藏） */}
-        {tab !== 'api' && (
+        {/* 搜索框（API 占位 Tab 无搜索逻辑，隐藏；hideSearch/hideTabBar 时由外层 PluginPanelView 提供搜索） */}
+        {tab !== 'api' && !hideSearch && !hideTabBar && (
           <div className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-lg border border-border/60 bg-content-area px-3 transition-colors focus-within:border-primary/40">
             <Search size={14} className="shrink-0 text-foreground/40" />
             <input
@@ -322,7 +369,7 @@ export function AgentSkillsView({
         {tab === 'skills' && (
           <button
             type="button"
-            onClick={() => setShowCommunityMarket(true)}
+            onClick={() => (onOpenCommunityMarket ? onOpenCommunityMarket() : setShowCommunityMarket(true))}
             className="flex h-8 flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 text-[13px] font-medium text-emerald-600 shadow-sm transition-colors hover:bg-emerald-500/20 dark:text-emerald-400"
           >
             <Store size={14} />
@@ -337,7 +384,7 @@ export function AgentSkillsView({
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  onClick={() => void handleClassifySkills()}
+                  onClick={() => (onClassifySkills ? onClassifySkills() : void handleClassifySkills())}
                   disabled={classifyingSkills || data.skills.length === 0}
                   className="flex h-8 flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-border/60 bg-content-area px-3 text-[13px] font-medium text-foreground/80 shadow-sm transition-colors hover:bg-foreground/[0.04] disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -349,7 +396,7 @@ export function AgentSkillsView({
             </Tooltip>
             <button
               type="button"
-              onClick={() => setShowImport(true)}
+              onClick={() => (onOpenImport ? onOpenImport() : setShowImport(true))}
               className="flex h-8 flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-border/60 bg-content-area px-3 text-[13px] font-medium text-foreground/80 shadow-sm transition-colors hover:bg-foreground/[0.04]"
             >
               <Plus size={14} />
@@ -357,7 +404,7 @@ export function AgentSkillsView({
             </button>
             <button
               type="button"
-              onClick={() => setShowOrgImport(true)}
+              onClick={() => (onOpenOrgImport ? onOpenOrgImport() : setShowOrgImport(true))}
               className="flex h-8 flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 text-[13px] font-medium text-indigo-600 shadow-sm transition-colors hover:bg-indigo-500/20 dark:text-indigo-400"
             >
               <Building2 size={14} />
@@ -370,7 +417,7 @@ export function AgentSkillsView({
         {tab === 'mcp' && (
           <button
             type="button"
-            onClick={() => { setEditingMcp(null); setMcpSheetOpen(true) }}
+            onClick={() => (onAddMcp ? onAddMcp() : (setEditingMcp(null), setMcpSheetOpen(true)))}
             className="flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3 text-[13px] font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
           >
             <Plus size={14} />

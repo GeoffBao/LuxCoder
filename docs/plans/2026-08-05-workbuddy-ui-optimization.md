@@ -30,23 +30,26 @@
 
 ## A. 侧边栏重构（LeftSidebar）
 
-### A1. ModeSwitcher 重命名 ✅ 已完成
+### A1. ModeSwitcher 重命名 ✅ 已完成（方向修正 2026-08-05）
 
-| 改动前 | 改动后 |
-|--------|--------|
-| `Home` (🏠) | `pwork` (🏠) |
-| `Code` (💻) | `cowork` (💻) |
+| 改动前 | 改动后 | 内部值 |
+|--------|--------|--------|
+| `Home` (🏠) | `pwork` (🏠) | **`agent`**（编程模式） |
+| `Code` (💻) | `cowork` (💻) | 占位（待开发） |
 
-- **pwork**: 合并后的主工作区，承载 Chat+Agent 融合的侧边栏、会话、看板——**本次核心改造目标**
+**⚠️ 方向修正记录**：
+- 最初实现把 `pwork` 映射为 `chat`（对话模式）、`cowork` 映射为 `agent` —— **与用户需求相反**
+- 用户澄清：**pwork 必须是 Agent 模式**，cowork 是占位；pwork 要补全原先 chat/Home 的菜单
+- 正确方向：`pwork → agent`（编程工作区 + 融合 chat 菜单），`cowork → 占位页`
+- **pwork**: Agent 模式主工作区，承载看板、会话、常用插件 + **融合 chat 的对话列表/置顶/Excalidraw/知识库菜单**——**本次核心改造目标**
 - **cowork**: 点击后进入空白功能页（"协作功能开发中"），内部仍走 Agent 模式，侧边栏预留协作菜单入口
 - **文件**: `ModeSwitcher.tsx` — ✅ 已完成
 
-### A2. 废弃 Chat 模式，统一为 Agent 模式
+### A2. 废弃 Chat 模式，统一为 Agent 模式（方向修正后重述）
 
-- 移除 `LeftSidebar.tsx` 中 `mode === 'chat'` 的 13 处条件分支
+- **pwork = Agent 模式**（ModeSwitcher 内部值 `'agent'`），同时**补全原先 chat/Home 的菜单**
+- 将 `LeftSidebar.tsx` 中 chat 专属区块（置顶对话、对话列表、Excalidraw、知识库）从 `mode === 'chat'` 条件中释放，改为在 **agent 模式（pwork）**下同样可见
 - Chat 对话列表（`conversationsAtom`）融合进 Agent 会话列表的同一分组
-- Chat 置顶功能复用到 Agent 会话置顶
-- **仅作用于 pwork 模式**，cowork 侧边栏留白
 - **文件**: `LeftSidebar.tsx`
 - **风险**: 🟡 中，~400 行
 

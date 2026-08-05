@@ -12,7 +12,7 @@
 
 import * as React from 'react'
 import { useAtom, useAtomValue } from 'jotai'
-import { appModeAtom } from '@/atoms/app-mode'
+import { appModeAtom, type AppMode } from '@/atoms/app-mode'
 import { conversationsAtom, currentConversationIdAtom } from '@/atoms/chat-atoms'
 import { agentSessionsAtom, currentAgentSessionIdAtom } from '@/atoms/agent-atoms'
 import { tabsAtom } from '@/atoms/tab-atoms'
@@ -21,9 +21,10 @@ import { normalizeAppModeForUi } from '@/components/app-shell/code-main-view-mod
 import { Code2, House } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const modes: { value: 'chat' | 'agent'; label: string; icon: React.ReactNode }[] = [
-  { value: 'chat', label: 'pwork', icon: <House size={15} /> },
-  { value: 'agent', label: 'cowork', icon: <Code2 size={15} /> },
+const modes: { id: 'pwork' | 'cowork'; value: AppMode; label: string; icon: React.ReactNode }[] = [
+  // pwork = Agent 编程模式（主工作区，融合 chat 菜单）；cowork 占位暂复用 agent（后续补占位页）
+  { id: 'pwork', value: 'agent', label: 'pwork', icon: <Code2 size={15} /> },
+  { id: 'cowork', value: 'agent', label: 'cowork', icon: <House size={15} /> },
 ]
 
 const SLIDER_TRANSLATE = ['translate-x-0', 'translate-x-full'] as const
@@ -37,12 +38,12 @@ export function ModeSwitcher(): React.ReactElement {
   const currentAgentSessionId = useAtomValue(currentAgentSessionIdAtom)
   const tabs = useAtomValue(tabsAtom)
 
-  // 遗留 cowork 高亮到 Code，直到 AppShell 迁移 effect 落盘
+  // 当前高亮的是 pwork 还是 cowork（两者内部都走 agent 模式，仅用于 slider/高亮区分）
+  const [activeTabId, setActiveTabId] = React.useState<'pwork' | 'cowork'>('pwork')
   const uiMode = normalizeAppModeForUi(mode)
-  const modeIndex = modes.findIndex((m) => m.value === uiMode)
+  const modeIndex = modes.findIndex((m) => m.id === activeTabId)
   const sliderTranslate = SLIDER_TRANSLATE[modeIndex] ?? 'translate-x-0'
 
-  /** 尝试恢复目标模式下的上一个对话/会话，按优先级 fallback */
   const restoreSession = React.useCallback((targetMode: 'chat' | 'agent') => {
     const isChatMode = targetMode === 'chat'
     const sessions = isChatMode ? conversations : agentSessions
@@ -72,10 +73,13 @@ export function ModeSwitcher(): React.ReactElement {
     setMode(targetMode)
   }, [openSession, conversations, agentSessions, currentConversationId, currentAgentSessionId, tabs, setMode])
 
-  const handleModeSwitch = React.useCallback((targetMode: 'chat' | 'agent') => {
-    if (targetMode === uiMode) return
-    restoreSession(targetMode)
-  }, [uiMode, restoreSession])
+  const handleModeSwitch = React.useCallback((targetId: 'pwork' | 'cowork') => {
+    setActiveTabId(targetId)
+    // pwork / cowork 当前都走 agent 编程模式；cowork 占位待后续开发
+    if (mode !== 'agent') setMode('agent')
+    // 恢复最近 agent 会话
+    restoreSession('agent')
+  }, [mode, setMode, restoreSession])
 
   return (
     <div className="pt-2 titlebar-drag-region select-none">
@@ -85,20 +89,18 @@ export function ModeSwitcher(): React.ReactElement {
         {/* 滑动背景指示器（双模式各占一半） */}
         <div
           className={cn(
-            // 轨道 p-1（4px）内边距：宽度需减去 4px（非 2px），否则 translate-x-full 平移到右侧时
-            // 会正好贴住轨道右边缘（0px 间距），与左侧 Chat 态的 4px 间距不对称
             'mode-slider pointer-events-none absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-lg bg-background shadow-sm transition-transform duration-base ease-out',
             sliderTranslate
           )}
         />
-        {modes.map(({ value, label, icon }) => (
+        {modes.map(({ id, label, icon }) => (
           <button
-            key={value}
+            key={id}
             type="button"
-            onClick={() => handleModeSwitch(value)}
+            onClick={() => handleModeSwitch(id)}
             className={cn(
               'mode-btn titlebar-no-drag relative z-[1] h-8 flex-1 flex items-center justify-center gap-1.5 rounded-lg px-3 py-0 text-sm font-medium transition-colors duration-200 select-none',
-              uiMode === value
+              activeTabId === id
                 ? 'mode-btn-selected text-foreground'
                 : 'text-muted-foreground hover:text-foreground'
             )}

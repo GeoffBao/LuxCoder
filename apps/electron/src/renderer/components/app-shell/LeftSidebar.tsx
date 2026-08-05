@@ -2758,9 +2758,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
           {/* 插件与 Yoda 记忆已并入设置面板（设置 > Yoda 插件 / Yoda 记忆），Home / Code 共享；左栏不再单独露出 */}
 
-          {/* Excalidraw 画板：仅 Home 模式可见 */}
-          {mode === 'chat' && (
-            <Tooltip>
+          {/* Excalidraw 画板：通用创作工具，pwork（agent 模式）可见 */}
+          <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   type="button"
@@ -2790,11 +2789,9 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               </TooltipTrigger>
               <TooltipContent side="right">Excalidraw 画板{excalidrawCount > 0 ? `（${excalidrawCount} 个画布）` : ''}</TooltipContent>
             </Tooltip>
-          )}
 
-          {/* Yoda 知识库：Home 模式 LLM 知识库入口（待开发） */}
-          {mode === 'chat' && (
-            <Tooltip>
+          {/* Yoda 知识库：LLM 知识库入口，pwork（agent 模式）可见 */}
+          <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   type="button"
@@ -2812,7 +2809,6 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               </TooltipTrigger>
               <TooltipContent side="right">Yoda 知识库（待开发）</TooltipContent>
             </Tooltip>
-          )}
 
         </div>
 
@@ -3127,32 +3123,28 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
       {/* 插件与 Yoda 记忆已并入设置面板（设置 > Yoda 插件 / Yoda 记忆），Home / Code 共享；左栏不再单独露出 */}
 
-      {/* Excalidraw 画板：手绘风格白板，仅 Home 模式可见（通用创作工具） */}
-      {mode === 'chat' && (
-        <div className="sidebar-module-zone px-3 pb-0.5">
-          <SidebarModule
-            icon={PenTool}
-            title="Excalidraw 画板"
-            count={excalidrawCount}
-            active={activeView === 'excalidraw-gallery' || activeView === 'excalidraw-editor'}
-            onClick={handleOpenExcalidraw}
-            ariaLabel={`Excalidraw 画板，${excalidrawCount} 个画布`}
-          />
-        </div>
-      )}
+      {/* Excalidraw 画板：手绘风格白板，通用创作工具，pwork（agent 模式）可见 */}
+      <div className="sidebar-module-zone px-3 pb-0.5">
+        <SidebarModule
+          icon={PenTool}
+          title="Excalidraw 画板"
+          count={excalidrawCount}
+          active={activeView === 'excalidraw-gallery' || activeView === 'excalidraw-editor'}
+          onClick={handleOpenExcalidraw}
+          ariaLabel={`Excalidraw 画板，${excalidrawCount} 个画布`}
+        />
+      </div>
 
-      {/* Yoda 知识库：LLM 知识库（Karpathy raw→wiki 范式，待开发），Home 模式入口 */}
-      {mode === 'chat' && (
-        <div className="sidebar-module-zone px-3 pb-0.5">
-          <SidebarModule
-            icon={Library}
-            title="Yoda 知识库"
-            active={activeView === 'repo-wiki'}
-            onClick={handleOpenRepoWiki}
-            ariaLabel="Yoda 知识库（待开发）"
-          />
-        </div>
-      )}
+      {/* Yoda 知识库：LLM 知识库（Karpathy raw→wiki 范式，待开发），pwork 入口 */}
+      <div className="sidebar-module-zone px-3 pb-0.5">
+        <SidebarModule
+          icon={Library}
+          title="Yoda 知识库"
+          active={activeView === 'repo-wiki'}
+          onClick={handleOpenRepoWiki}
+          ariaLabel="Yoda 知识库（待开发）"
+        />
+      </div>
 
       {/* 项目中心入口已移除：Project 导航改由下方 Sessions | Projects Tab 承担 */}
 
@@ -3370,6 +3362,38 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         </div>
       ) : mode === 'agent' && agentGroupBy === 'date' ? (
         <div className="flex-1 overflow-y-auto px-3 pb-3 scrollbar-thin min-h-0 titlebar-no-drag">
+          {/* 融合：pwork（agent 模式）下先展示 chat 对话列表（对话），再展示 Agent 会话工作区分组 */}
+          {conversationGroups.length > 0 && (
+            <div className="sidebar-workspace-list pt-2 pb-1">
+              <div className="px-1.5 pt-1 pb-1 text-[11px] font-medium text-foreground/40 select-none">对话</div>
+              <div className="flex flex-col gap-0.5">
+                {conversationGroups.map((group) => (
+                  <div key={group.label} className="mb-0.5">
+                    <div className="px-1.5 pt-1 pb-0.5 text-[11px] font-medium text-foreground/40 select-none">
+                      {group.label}
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      {group.items.map((conv) => (
+                        <ConversationItem
+                          key={conv.id}
+                          conversation={conv}
+                          active={conv.id === activeSessionId}
+                          streaming={streamingIds.has(conv.id)}
+                          showPinIcon={!!conv.pinned}
+                          relativeTimeNow={relativeTimeNow}
+                          onSelect={handleSelectConversation}
+                          onRequestDelete={handleRequestDelete}
+                          onRename={handleRename}
+                          onTogglePin={handleTogglePin}
+                          onToggleArchive={handleToggleArchive}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {/* 分组方式：日期（默认）——活跃 / 已归档 / 全部统一走这套渲染，
               具体显示哪些会话由 agentProjectGroups 内部按 agentStatusFilter 过滤决定 */}
           <div className="sidebar-workspace-list pt-2">
