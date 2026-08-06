@@ -3970,6 +3970,23 @@ export function registerIpcHandlers(): void {
     }
   )
 
+  // 为内联 HTML 预览注册文件所在目录 URL（相对路径资源自动解析）
+  ipcMain.handle(
+    'file:prepare-html-preview',
+    async (_, filePath: string, access?: FileAccessOptions | string[]): Promise<{ tmpUrl: string } | null> => {
+      const { prepareHtmlPreview, resolveFilePath } = await import('./lib/file-preview-service')
+      const options = normalizeFileAccessOptions(access)
+      const allowedBasePaths = getAllowedCandidateBasePaths(options)
+      const resolved = resolveFilePath(filePath, allowedBasePaths)
+      if (!resolved || !isPathAllowed(resolved, options)) {
+        console.warn('[IPC] file:prepare-html-preview 拒绝越界路径:', resolved ?? filePath)
+        return null
+      }
+      const result = await prepareHtmlPreview(resolved)
+      return result ? { tmpUrl: result.tmpUrl } : null
+    }
+  )
+
   // DOCX 转 HTML（内联预览使用 mammoth）
   ipcMain.handle(
     'file:docx-to-html',
