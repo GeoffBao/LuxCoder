@@ -7,8 +7,9 @@
  */
 
 import { randomUUID } from 'node:crypto'
-import { existsSync, realpathSync, statSync } from 'node:fs'
-import { resolve, sep } from 'node:path'
+import { createReadStream, existsSync, realpathSync, statSync } from 'node:fs'
+import { extname, resolve, sep } from 'node:path'
+import { Readable } from 'node:stream'
 import { pathToFileURL } from 'node:url'
 import { net } from 'electron'
 
@@ -47,6 +48,90 @@ function realpathExisting(path: string): string {
 
 function isInsideDirectory(target: string, root: string): boolean {
   return target === root || target.startsWith(root.endsWith(sep) ? root : root + sep)
+}
+
+// ─── Range 支持（视频 seek / PDF 分页加载） ───
+
+/** 常见扩展名 → MIME，Range 分支无法依赖 net.fetch 自动推断时使用 */
+const MIME_BY_EXT: Record<string, string> = {
+  '.mp4': 'video/mp4',
+  '.m4v': 'video/mp4',
+  '.webm': 'video/webm',
+  '.mov': 'video/quicktime',
+  '.ogv': 'video/ogg',
+  '.ogg': 'video/ogg',
+  '.mp3': 'audio/mpeg',
+  '.m4a': 'audio/mp4',
+  '.wav': 'audio/wav',
+  '.flac': 'audio/flac',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
+  '.bmp': 'image/bmp',
+  '.ico': 'image/x-icon',
+  '.avif': 'image/avif',
+  '.html': 'text/html',
+  '.htm': 'text/html',
+  '.css': 'text/css',
+  '.js': 'text/javascript',
+  '.mjs': 'text/javascript',
+  '.json': 'application/json',
+  '.txt': 'text/plain',
+  '.md': 'text/markdown',
+  '.markdown': 'text/markdown',
+  '.pdf': 'application/pdf',
+  '.xml': 'application/xml',
+  '.wasm': 'application/wasm',
+}
+
+const RANGE_RE = /^bytes=(\d*)-(\d*)$/
+
+/**
+ * 处理 HTTP Range 请求：解析 bytes= 语法，用文件流返回 206 分段响应。
+ * 无法解析 / 请求超出文件范围时返回 null（调用方回落到全量响应）。
+ */
+function createRangeResponse(target: string, rangeHeader: string, size: number): Response | null {
+  const match = RANGE_RE.exec(rangeHeader.trim())
+  if (!match) return null
+
+  let start: number
+  let end: number
+  if (match[1] === '' && match[2] !== '') {
+    // 后缀形式 bytes=-N：取最后 N 字节
+    const suffix = Number(match[2])
+    if (!Number.isFinite(suffix) || suffix <= 0) return null
+    start = Math.max(0, size - suffix)
+    end = size - 1
+  } else {
+    start = match[1] === '' ? 0 : Number(match[1])
+    const hasEnd = match[2] !== ''
+    end = hasEnd ? Number(match[2]) : size - 1
+    if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end < 0) return null
+    if (hasEnd && end < start) return null
+  }
+
+  // 起始位置超出文件范围 → 416（suffix 分支 size=0 时也会命中）
+  if (start >= size) {
+    return new Response(null, {
+      status: 416,
+      headers: { 'Content-Range': `bytes */${size}` },
+    })
+  }
+
+  end = Math.min(end, size - 1)
+  const stream = createReadStream(target, { start, end })
+  return new Response(Readable.toWeb(stream) as unknown as ReadableStream, {
+    status: 206,
+    headers: {
+      'Content-Type': MIME_BY_EXT[extname(target).toLowerCase()] ?? 'application/octet-stream',
+      'Content-Length': String(end - start + 1),
+      'Content-Range': `bytes ${start}-${end}/${size}`,
+      'Accept-Ranges': 'bytes',
+    },
+  })
 }
 
 function registerEntry(path: string, isDirectory: boolean): string {
@@ -100,6 +185,21 @@ export function handlePromaFileRequest(request: Request): Promise<Response> | Re
     }
   } else if (url.pathname && url.pathname !== '/') {
     return new Response('Not Found', { status: 404 })
+  }
+
+  // 有 Range 请求时走分段响应（视频 seek / PDF 分页）；
+  // 无 Range 保持 net.fetch 全量，MIME 由 Chromium 自动推断，对现有预览零影响。
+  const rangeHeader = request.headers.get('range')
+  if (rangeHeader) {
+    try {
+      const st = statSync(target)
+      if (st.isFile()) {
+        const rangeResponse = createRangeResponse(target, rangeHeader, st.size)
+        if (rangeResponse) return rangeResponse
+      }
+    } catch {
+      // stat 失败（文件不存在等）回落到 net.fetch，由它决定 404
+    }
   }
 
   return net.fetch(pathToFileURL(target).toString())

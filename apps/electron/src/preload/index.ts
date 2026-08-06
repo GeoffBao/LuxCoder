@@ -1123,6 +1123,9 @@ export interface ElectronAPI {
   /** 为内联 PDF 预览生成临时 HTML 文件，返回文件路径 */
   preparePdfPreview: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions) => Promise<{ tmpHtmlUrl: string } | null>
 
+  /** 为内联 HTML 预览注册文件所在目录 URL（相对路径资源自动解析） */
+  prepareHtmlPreview: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions) => Promise<{ tmpUrl: string } | null>
+
   /** 读取文件为 base64（带路径校验，供内联图片预览等） */
   readBinaryBase64: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions, maxSize?: number) => Promise<string | null>
 
@@ -2677,6 +2680,10 @@ const electronAPI: ElectronAPI = {
 
   preparePdfPreview: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions) => {
     return ipcRenderer.invoke('file:prepare-pdf-preview', filePath, access) as Promise<{ tmpHtmlUrl: string } | null>
+  },
+
+  prepareHtmlPreview: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions) => {
+    return ipcRenderer.invoke('file:prepare-html-preview', filePath, access) as Promise<{ tmpUrl: string } | null>
   },
 
   readBinaryBase64: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions, maxSize?: number) => {

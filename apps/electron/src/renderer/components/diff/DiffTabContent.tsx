@@ -62,6 +62,8 @@ const DOCX_EXTS = new Set(['.docx'])
 const OFFICE_PREVIEW_EXTS = new Set(['.xlsx', '.pptx'])
 const LEGACY_OFFICE_EXTS = new Set(['.doc', '.xls', '.ppt'])
 const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp', '.ico'])
+const HTML_EXTS = new Set(['.html', '.htm'])
+const VIDEO_EXTS = new Set(['.mp4', '.webm', '.mov', '.m4v', '.ogv', '.ogg'])
 const FILE_FIND_SHORTCUT_OPTIONS = { exclusive: true }
 
 /**
@@ -77,6 +79,8 @@ type CacheEntry = {
   newContent: string
   /** 非文本文件预览数据 */
   pdfSrc?: string
+  htmlUrl?: string
+  videoUrl?: string
   imageDataUrl?: string
   imagePath?: string
   docxHtml?: string
@@ -260,6 +264,8 @@ export function DiffTabContent({ filePath, dirPath, sessionId, gitRoot, previewO
   const isOfficePreview = previewOnly && OFFICE_PREVIEW_EXTS.has(ext)
   const isLegacyOffice = previewOnly && LEGACY_OFFICE_EXTS.has(ext)
   const isImage = previewOnly && IMAGE_EXTS.has(ext)
+  const isHtml = previewOnly && HTML_EXTS.has(ext)
+  const isVideo = previewOnly && VIDEO_EXTS.has(ext)
   const markdownEditorCacheKey = React.useMemo(
     () => createMarkdownEditorCacheKey({ filePath, dirPath, gitRoot, basePaths }),
     [basePaths, dirPath, filePath, gitRoot],
@@ -322,6 +328,9 @@ export function DiffTabContent({ filePath, dirPath, sessionId, gitRoot, previewO
   const [pdfSrc, setPdfSrc] = React.useState('')
   const [pdfZoom, setPdfZoom] = React.useState(100)
   const pdfIframeRef = React.useRef<HTMLIFrameElement>(null)
+  const [htmlUrl, setHtmlUrl] = React.useState('')
+  const htmlIframeRef = React.useRef<HTMLIFrameElement>(null)
+  const [videoUrl, setVideoUrl] = React.useState('')
   const [imagePath, setImagePath] = React.useState('')
   const [imageDataUrl, setImageDataUrl] = React.useState('')
   // 默认 25%：预览面板空间有限，先展示缩略全貌，用户可手动放大查看细节
@@ -351,6 +360,8 @@ export function DiffTabContent({ filePath, dirPath, sessionId, gitRoot, previewO
     !isDocx &&
     !isOfficePreview &&
     !isLegacyOffice &&
+    !isHtml &&
+    !isVideo &&
     newContent.length > 0 &&
     newContent.length <= MAX_PREVIEW_CHARS
   const previewWrapLabel = codeWrap
@@ -609,6 +620,8 @@ export function DiffTabContent({ filePath, dirPath, sessionId, gitRoot, previewO
     setOfficeText('')
     setPdfSrc('')
     setPdfZoom(100)
+    setHtmlUrl('')
+    setVideoUrl('')
     setImagePath('')
     setImageDataUrl('')
     setImageZoom(0.25)
@@ -771,6 +784,8 @@ export function DiffTabContent({ filePath, dirPath, sessionId, gitRoot, previewO
       setOfficeText(cached.officeText ?? '')
       setPdfSrc(cached.pdfSrc ?? '')
       setPdfZoom(100)
+      setHtmlUrl(cached.htmlUrl ?? '')
+      setVideoUrl(cached.videoUrl ?? '')
       setImagePath(cached.imagePath ?? '')
       setImageDataUrl(cached.imageDataUrl ?? '')
       setImageZoom(0.25)
@@ -791,6 +806,8 @@ export function DiffTabContent({ filePath, dirPath, sessionId, gitRoot, previewO
         setOfficeText('')
         setPdfSrc('')
         setPdfZoom(100)
+        setHtmlUrl('')
+        setVideoUrl('')
         setImagePath('')
         setImageDataUrl('')
         setImageZoom(0.25)
@@ -818,6 +835,22 @@ export function DiffTabContent({ filePath, dirPath, sessionId, gitRoot, previewO
               const src = result?.tmpHtmlUrl ?? ''
               setPdfSrc(src)
               cacheSet(cacheKey, { oldContent: '', newContent: '', pdfSrc: src })
+              return
+            }
+            if (isHtml) {
+              const result = await window.electronAPI.prepareHtmlPreview(filePath, fileAccess)
+              if (cancelled) return
+              const url = result?.tmpUrl ?? ''
+              setHtmlUrl(url)
+              cacheSet(cacheKey, { oldContent: '', newContent: '', htmlUrl: url })
+              return
+            }
+            if (isVideo) {
+              const resolved = await window.electronAPI.resolveFilePath(filePath, fileAccess)
+              if (cancelled) return
+              const url = resolved?.url ?? ''
+              setVideoUrl(url)
+              cacheSet(cacheKey, { oldContent: '', newContent: '', videoUrl: url })
               return
             }
             if (isImage) {
@@ -889,7 +922,7 @@ export function DiffTabContent({ filePath, dirPath, sessionId, gitRoot, previewO
     load()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filePath, dirPath, gitRoot, previewOnly, previewContentVersion, fileAccess, isPdf, isDocx, isOfficePreview, isLegacyOffice, isImage, sessionId, ext, getContentCacheKey])
+  }, [filePath, dirPath, gitRoot, previewOnly, previewContentVersion, fileAccess, isPdf, isHtml, isVideo, isDocx, isOfficePreview, isLegacyOffice, isImage, sessionId, ext, getContentCacheKey])
 
   // refreshVersion 触发的静默刷新：仅 diff 模式、内容有变化时才更新 state
   const prevRefreshRef = React.useRef(-1)
@@ -949,6 +982,10 @@ export function DiffTabContent({ filePath, dirPath, sessionId, gitRoot, previewO
       message = `暂不支持 ${ext.toUpperCase().slice(1)} 格式内联预览`
     } else if (isPdf && !pdfSrc) {
       message = 'PDF 文件过大，无法在此预览'
+    } else if (isHtml && !htmlUrl) {
+      message = '无法加载 HTML 预览'
+    } else if (isVideo && !videoUrl) {
+      message = '无法加载视频预览'
     } else if (isDocx && !docxHtml) {
       message = '无法加载 DOCX 预览'
     } else if (isOfficePreview && !officeHtml) {
@@ -960,7 +997,7 @@ export function DiffTabContent({ filePath, dirPath, sessionId, gitRoot, previewO
       toastedPreviewFailRef.current = key
       toast.warning(message)
     }
-  }, [previewOnly, loading, filePath, ext, isLegacyOffice, isPdf, pdfSrc, isDocx, docxHtml, isOfficePreview, officeHtml, isImage, imageDataUrl])
+  }, [previewOnly, loading, filePath, ext, isLegacyOffice, isPdf, pdfSrc, isHtml, htmlUrl, isVideo, videoUrl, isDocx, docxHtml, isOfficePreview, officeHtml, isImage, imageDataUrl])
 
   // scrollPosition persistent: module-level Map scoped by session, file path, and resolution context
   // content changes (refreshVersion bump) → delete stored position;
@@ -1587,7 +1624,7 @@ export function DiffTabContent({ filePath, dirPath, sessionId, gitRoot, previewO
           open={findOpen}
           rootRef={scrollContainerRef}
           contentKey={findContentKey}
-          unsupportedReason={isPdf ? '暂不支持 PDF 搜索' : undefined}
+          unsupportedReason={isPdf ? '暂不支持 PDF 搜索' : isHtml ? '暂不支持 HTML 页面内搜索' : undefined}
           onOpenChange={setFindOpen}
         />
         <MarkdownToc
@@ -1709,7 +1746,29 @@ export function DiffTabContent({ filePath, dirPath, sessionId, gitRoot, previewO
                   dangerouslySetInnerHTML={{ __html: officeHtml }}
                 />
               ) : null
-            ) : isLegacyOffice ? null : isMarkdown ? (
+            ) : isLegacyOffice ? null : isVideo ? (
+              videoUrl ? (
+                <div className="flex h-full items-center justify-center p-4">
+                  <video
+                    src={videoUrl}
+                    controls
+                    className="max-h-full max-w-full rounded-md shadow-sm"
+                  />
+                </div>
+              ) : null
+            ) : isHtml ? (
+              htmlUrl ? (
+                <iframe
+                  ref={htmlIframeRef}
+                  src={htmlUrl}
+                  className="w-full h-full border-0"
+                  title={filePath.split('/').pop() || 'HTML'}
+                  // 允许脚本运行（现代页面需要），但禁止 top-navigation/下载等，
+                  // 防止页面把主应用导航走；luxcoder-file:// 目录越界仍被协议拒绝。
+                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals"
+                />
+              ) : null
+            ) : isMarkdown ? (
               activeMarkdownEditing && markdownSourceMode ? (
                 <textarea
                   ref={sourceTextareaRef}
