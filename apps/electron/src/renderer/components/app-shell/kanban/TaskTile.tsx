@@ -1,6 +1,6 @@
 import { useDraggable } from '@dnd-kit/core'
 import { useAtomValue } from 'jotai'
-import { Archive, ArchiveRestore, ChevronDown, Clock, Link2, MessageSquare, MoreHorizontal, Pencil, Play, Tag, Trash2 } from 'lucide-react'
+import { Archive, ArchiveRestore, ChevronDown, Clock, Link2, MessageSquare, MoreHorizontal, Pencil, RotateCcw, Tag, Trash2 } from 'lucide-react'
 import * as React from 'react'
 import { cn } from '@/lib/utils'
 import { StatusBadge } from './StatusBadge'
@@ -80,12 +80,14 @@ export function TaskTile({
   const hasRunning = item.isProcessing || item.subtasks.some((subtask) => subtask.runState === 'running')
   const live = hasRunning || isLiveStatus(item.session.sessionStatus)
   const progressTotal = item.subtaskTotal ?? item.taskRun?.totalNodes ?? item.subtasks.length
-  const dagAttention = resolveDagAttention(item.subtasks, progressTotal)
+  const dagAttention = resolveDagAttention(item.subtasks, progressTotal, item.taskRunFailureReason)
   const showDoneAttention = shouldShowDoneColumnAttention(item.columnId, dagAttention)
+  // 任务实际执行失败（run log 有失败节点原因）——用于失败标注与「重新执行」按钮
+  const hasFailedRun = Boolean(item.taskRunFailureReason)
   const canRun = Boolean(onRunTask)
     && Boolean(item.task?.taskSlug ?? item.session.taskSlug)
     && !hasRunning
-    && item.subtasks.some((subtask) => subtask.runState === 'pending')
+    && (item.subtasks.some((subtask) => subtask.runState === 'pending') || hasFailedRun)
   // 对齐 craft：编辑不要求已绑定 task spec，任何卡片都能打开编辑器（没有 taskSlug
   // 时编辑器从当前标题/模型起草新表单，保存即"升级"成正式任务）。
   const canEdit = Boolean(onEdit) && item.hasSession !== false
@@ -208,17 +210,20 @@ export function TaskTile({
         {canRun && (
           <button
             type="button"
-            title="运行任务"
-            aria-label="运行任务"
+            title={hasFailedRun ? '重新执行任务' : '运行任务'}
+            aria-label={hasFailedRun ? '重新执行任务' : '运行任务'}
             data-no-dnd
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation()
               onRunTask?.(item)
             }}
-            className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground shadow-sm"
+            className={cn(
+              'grid h-7 w-7 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground shadow-sm',
+              hasFailedRun && 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+            )}
           >
-            <Play className="h-3.5 w-3.5 fill-current" />
+            <RotateCcw className="h-3.5 w-3.5" />
           </button>
         )}
         {hasCardMenu && (
@@ -324,17 +329,24 @@ export function TaskTile({
         )}
         {viewModel.showSessionStatus && <StatusBadge status={item.session.sessionStatus} live={live} />}
         {showDoneAttention && dagAttention && (
-          <span
-            title="列在「已完成」，但任务 DAG 尚未全部成功结束"
-            className={cn(
-              'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium',
-              dagAttention.kind === 'has-failed' && 'bg-destructive/10 text-destructive',
-              dagAttention.kind === 'needs-review' && 'bg-violet-500/10 text-violet-700 dark:text-violet-300',
-              dagAttention.kind === 'incomplete' && 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+          <div className="flex min-w-0 flex-col gap-1">
+            <span
+              title={dagAttention.kind === 'has-failed' ? `任务执行失败${dagAttention.reason ? `：${dagAttention.reason}` : ''}` : '列在「已完成/待验收」，但任务 DAG 尚未全部成功结束'}
+              className={cn(
+                'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium',
+                dagAttention.kind === 'has-failed' && 'bg-destructive/10 text-destructive',
+                dagAttention.kind === 'needs-review' && 'bg-violet-500/10 text-violet-700 dark:text-violet-300',
+                dagAttention.kind === 'incomplete' && 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+              )}
+            >
+              {dagAttention.label}
+            </span>
+            {dagAttention.kind === 'has-failed' && dagAttention.reason && (
+              <span className="line-clamp-2 break-all text-[10px] leading-4 text-destructive/80">
+                {dagAttention.reason}
+              </span>
             )}
-          >
-            {dagAttention.label}
-          </span>
+          </div>
         )}
       </div>
 

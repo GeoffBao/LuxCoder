@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, mock, test } from 'b
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import * as os from 'node:os'
 import { join } from 'node:path'
+import JSZip from 'jszip'
 import { mockElectronModule } from './__tests__/electron-mock'
 
 type AgentWorkspaceManager = typeof import('./agent-workspace-manager')
@@ -280,5 +281,107 @@ describe('Agent 工作区 Skill 批量导入', () => {
     expect(result.skipped).toBe(0)
     expect(existsSync(join(targetSkillsDir, 'malformed'))).toBe(false)
     expect(readdirSync(targetSkillsDir).some((name) => name.startsWith('.malformed.importing-'))).toBe(false)
+  })
+})
+
+describe('本地 Skill 导入（zip / 文件夹）', () => {
+  const skillMd = (name: string): string => `---\nname: ${name}\nversion: 1.0.0\n---\n\n# ${name}\n`
+
+  test('Given 源文件夹含 SKILL.md When 本地导入 Then 复制到目标工作区并记录 local 来源', async () => {
+    const workspace = manager.createAgentWorkspace('本地导入测试')
+    const srcRoot = mkdtempSync(join(os.tmpdir(), 'luxcoder-skill-src-'))
+    const srcSkill = join(srcRoot, 'my-local-skill')
+    mkdirSync(join(srcSkill, 'references'), { recursive: true })
+    writeFileSync(join(srcSkill, 'SKILL.md'), skillMd('我的本地技能'), 'utf-8')
+    writeFileSync(join(srcSkill, 'references', 'guide.md'), '参考', 'utf-8')
+
+    const result = await manager.importSkillsFromLocal(workspace.slug, srcRoot)
+    expect(result.imported).toBe(1)
+    expect(result.failed).toBe(0)
+    const targetDir = join(configPaths.getWorkspaceSkillsDir(workspace.slug), 'my-local-skill')
+    expect(existsSync(join(targetDir, 'SKILL.md'))).toBe(true)
+    expect(existsSync(join(targetDir, 'references', 'guide.md'))).toBe(true)
+    const source = JSON.parse(readFileSync(join(targetDir, '.source.json'), 'utf-8')) as { sourceType: string; localPath: string }
+    expect(source.sourceType).toBe('local')
+    expect(source.localPath).toBe(srcRoot)
+
+    rmSync(srcRoot, { recursive: true, force: true })
+  })
+
+  test('Given 源根含多个 Skill 目录 When 本地导入 Then 全部导入', async () => {
+    const workspace = manager.createAgentWorkspace('本地多技能导入')
+    const srcRoot = mkdtempSync(join(os.tmpdir(), 'luxcoder-skill-src-'))
+    for (const slug of ['skill-a', 'skill-b']) {
+      const dir = join(srcRoot, slug)
+      mkdirSync(dir, { recursive: true })
+      writeFileSync(join(dir, 'SKILL.md'), skillMd(slug), 'utf-8')
+    }
+
+    const result = await manager.importSkillsFromLocal(workspace.slug, srcRoot)
+    expect(result.imported).toBe(2)
+    expect(existsSync(join(configPaths.getWorkspaceSkillsDir(workspace.slug), 'skill-a', 'SKILL.md'))).toBe(true)
+    expect(existsSync(join(configPaths.getWorkspaceSkillsDir(workspace.slug), 'skill-b', 'SKILL.md'))).toBe(true)
+
+    rmSync(srcRoot, { recursive: true, force: true })
+  })
+
+  test('Given zip 压缩包含 SKILL.md When 本地导入 Then 解压并导入', async () => {
+    const workspace = manager.createAgentWorkspace('本地 zip 导入')
+    const zip = new JSZip()
+    zip.file('packed-skill/SKILL.md', skillMd('打包技能'))
+    zip.file('packed-skill/references/ref.md', 'ref')
+    const zipPath = join(os.tmpdir(), `skill-${Date.now()}-${Math.random().toString(36).slice(2)}.zip`)
+    writeFileSync(zipPath, await zip.generateAsync({ type: 'nodebuffer' }))
+
+    const result = await manager.importSkillsFromLocal(workspace.slug, zipPath)
+    expect(result.imported).toBe(1)
+    const targetDir = join(configPaths.getWorkspaceSkillsDir(workspace.slug), 'packed-skill')
+    expect(existsSync(join(targetDir, 'SKILL.md'))).toBe(true)
+    expect(existsSync(join(targetDir, 'references', 'ref.md'))).toBe(true)
+
+    rmSync(zipPath, { force: true })
+  })
+
+  test('Given 同名 Skill 已存在 When 本地导入 Then 跳过且不覆盖', async () => {
+    const workspace = manager.createAgentWorkspace('本地导入冲突')
+    const srcRoot = mkdtempSync(join(os.tmpdir(), 'luxcoder-skill-src-'))
+    const srcSkill = join(srcRoot, 'same-skill')
+    mkdirSync(srcSkill, { recursive: true })
+    writeFileSync(join(srcSkill, 'SKILL.md'), skillMd('同名技能'), 'utf-8')
+    writeWorkspaceSkill(workspace.slug, 'same-skill', '已存在')
+
+    const result = await manager.importSkillsFromLocal(workspace.slug, srcRoot)
+    expect(result.imported).toBe(0)
+    expect(result.skipped).toBe(1)
+    const content = readFileSync(join(configPaths.getWorkspaceSkillsDir(workspace.slug), 'same-skill', 'SKILL.md'), 'utf-8')
+    expect(content).toContain('已存在')
+
+    rmSync(srcRoot, { recursive: true, force: true })
+  })
+
+  test('Given 源无 SKILL.md When 本地导入 Then 报错提示', async () => {
+    const workspace = manager.createAgentWorkspace('本地导入空源')
+    const srcRoot = mkdtempSync(join(os.tmpdir(), 'luxcoder-skill-src-'))
+    writeFileSync(join(srcRoot, 'readme.txt'), 'no skill', 'utf-8')
+
+    await expect(manager.importSkillsFromLocal(workspace.slug, srcRoot)).rejects.toThrow('未在所选位置找到 SKILL.md')
+
+    rmSync(srcRoot, { recursive: true, force: true })
+  })
+
+  test('Given zip 含盘符绝对路径条目 When 本地导入 Then 拒绝写入（路径穿越防护）', async () => {
+    const workspace = manager.createAgentWorkspace('本地导入盘符防护')
+    const zip = new JSZip()
+    // 盘符绝对路径应被拒绝，不允许写出目标目录
+    zip.file('C:/evil/packed-skill/SKILL.md', skillMd('恶意技能'))
+    const zipPath = join(os.tmpdir(), `skill-evil-${Date.now()}-${Math.random().toString(36).slice(2)}.zip`)
+    writeFileSync(zipPath, await zip.generateAsync({ type: 'nodebuffer' }))
+
+    await expect(manager.importSkillsFromLocal(workspace.slug, zipPath)).rejects.toThrow('非法路径')
+    // 确认目标工作区没有被写入任何 Skill
+    const targetDir = join(configPaths.getWorkspaceSkillsDir(workspace.slug), 'evil')
+    expect(existsSync(targetDir)).toBe(false)
+
+    rmSync(zipPath, { force: true })
   })
 })

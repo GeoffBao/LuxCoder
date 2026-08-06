@@ -12,6 +12,7 @@ import {
   SESSION_GROUP_IPC_CHANNELS,
   TASK_IPC_CHANNELS,
   TEAMBITION_IPC_CHANNELS,
+  TEAMBITION_BOARD_IPC_CHANNELS,
 } from '@luxcoder/shared/channels'
 import type {
   CreateProjectInput,
@@ -26,6 +27,7 @@ import type {
 import type { TaskSpec } from '@luxcoder/shared/tasks/schema'
 import type { TaskMetadataPatch, TaskWorkflow } from '@luxcoder/shared/tasks/task-record'
 import { slugify } from '@luxcoder/shared/utils'
+import { resolveSkillMatches } from '@luxcoder/shared/teambition-defect'
 import {
   buildGeneratorPrompt,
   buildRepairPrompt,
@@ -49,9 +51,10 @@ import { isAgentSessionActive } from './agent-service'
 import {
   getAgentWorkspace,
   getWorkspaceDefaultWorkingDirectoryAtRoot,
+  getWorkspaceSkills,
   listAgentWorkspaces,
 } from './agent-workspace-manager'
-import { getAgentWorkspacePath, getExpertsDir } from './config-paths'
+import { getAgentWorkspacePath, getAgentSessionWorkspacePath, getExpertsDir } from './config-paths'
 import { getExpert } from './expert-service'
 import { loadExpertWorkspaceBinding } from './expert-binding-service'
 import { projectRepository } from './project-repository'
@@ -75,6 +78,7 @@ import {
   type TaskWorkingDirectoryResult,
 } from './task-working-directory'
 import { TeambitionService, type ClaimTeambitionTaskInput, type TeambitionRemoteTask } from './teambition-service'
+import { TeambitionBoardService, type TeambitionBoardGateway } from './teambition-board-service'
 import { WorkspaceLabelService, assertValidWorkspaceLabelIds } from './workspace-label-service'
 
 const GENERATE_TIMEOUT_MS = 180_000
@@ -141,8 +145,9 @@ export async function materializeTaskFromSpec(
   workspaceRoot: string,
   workspaceId: string,
   spec: TaskSpec,
+  options?: { skipWorkspaceDefault?: boolean },
 ): Promise<{ slug: string; taskId: string; orchestratorSessionId: string }> {
-  const seed = buildTaskSessionSeed(spec, workspaceRoot)
+  const seed = buildTaskSessionSeed(spec, workspaceRoot, options)
   return materializeTaskTransaction({
     workspaceRoot,
     workspaceId,
@@ -261,10 +266,12 @@ interface AdoptableTaskSpec {
 export function resolveTaskWorkingDirectoryResult(
   workspaceRoot: string,
   spec: Pick<AdoptableTaskSpec, 'cwd' | 'project'>,
+  options?: { skipWorkspaceDefault?: boolean },
 ): TaskWorkingDirectoryResult {
   return resolveTaskWorkingDirectoryWithPolicy({
     explicitCwd: spec.cwd,
     projectId: spec.project,
+    skipWorkspaceDefault: options?.skipWorkspaceDefault,
     workspaceDefaultCwd: getWorkspaceDefaultWorkingDirectoryAtRoot(workspaceRoot),
     resolveProjectCwd: (projectId) => {
       const result = projectRepository.resolveEffectiveCwdForProject(workspaceRoot, projectId)
@@ -284,8 +291,9 @@ export function resolveTaskWorkingDirectoryResult(
 export function resolveTaskWorkingDirectory(
   workspaceRoot: string,
   spec: Pick<AdoptableTaskSpec, 'cwd' | 'project'>,
+  options?: { skipWorkspaceDefault?: boolean },
 ): string | undefined {
-  const result = resolveTaskWorkingDirectoryResult(workspaceRoot, spec)
+  const result = resolveTaskWorkingDirectoryResult(workspaceRoot, spec, options)
   return result.status === 'resolved' ? result.cwd : undefined
 }
 
@@ -324,9 +332,10 @@ function mapTaskPermissionMode(mode: string | undefined): AgentSessionMeta['perm
 export function buildTaskSessionSeed(
   spec: AdoptableTaskSpec,
   workspaceRoot?: string,
+  options?: { skipWorkspaceDefault?: boolean },
 ): Pick<AgentSessionMeta, 'workingDirectory' | 'modelId' | 'channelId' | 'permissionMode'> {
   const workingDirectory = workspaceRoot
-    ? resolveTaskWorkingDirectory(workspaceRoot, spec)
+    ? resolveTaskWorkingDirectory(workspaceRoot, spec, options)
     : spec.cwd?.trim() || undefined
   const permissionMode = mapTaskPermissionMode(spec.defaults?.permissionMode)
   return {
@@ -946,32 +955,90 @@ export function registerTaskHandlers(window: BrowserWindow): void {
   })
 
   // 手动创建选中的 TB 任务为本地看板 Task（不自动运行、不开会话窗口）
-  ipcMain.handle(TEAMBITION_IPC_CHANNELS.CREATE_SYNCED_TASKS, async (_event, workspaceRoot: string, workspaceId: string, selected: TeambitionRemoteTask[]) => {
-    const repository = new TaskRepository({ resolveWorkspaceRoot: () => workspaceRoot })
+  ipcMain.handle(TEAMBITION_IPC_CHANNELS.CREATE_SYNCED_TASKS, async (_event, workspaceRoot: string, workspaceId: string, selected: TeambitionRemoteTask[], options?: { expertId?: string; projectId?: string; workingDirectory?: string }) => {
+    const repo = new TaskRepository({ resolveWorkspaceRoot: () => workspaceRoot })
     const created: Array<{ taskId: string; slug: string; title: string }> = []
     const skipped: string[] = []
     const failed: Array<{ title: string; reason: string }> = []
+    const expertId = options?.expertId
+    const projectId = options?.projectId
+    const workingDirectory = options?.workingDirectory
+
+    // 工作区 Skills（用于把适配的技能写进任务 spec，执行时会话自动带技能上下文）
+    const workspaceSlug = workspaceIdFor(workspaceRoot)
+    const workspaceSkills = getWorkspaceSkills(workspaceSlug)
+
+    // 去重：本地已有相同 TB 任务（teambitionTaskId 相同）则跳过，避免反复加入重复创建
+    const existingTbTaskIds = collectLocalTbTaskIds(workspaceRoot, workspaceId)
 
     for (const task of selected) {
+      if (existingTbTaskIds.has(task.id)) {
+        skipped.push(task.id)
+        continue
+      }
       // 用 TB taskId 作为去重/唯一标识（slugify 中文会退化冲突，taskId 唯一）
       const shortId = task.id.replace(/[^a-zA-Z0-9]/g, '').slice(-8) || 'tb'
       const slug = `${slugify(task.title) || 'tb-task'}-${shortId}`
       try {
+        const localType = normalizeTeambitionTaskType(task.type)
+        // 技能匹配：基于标题/类型（列表已含信息），把适配技能写入 spec.skills
+        const skillMatches = resolveSkillMatches(
+          {
+            content: task.title,
+            type: localType,
+          },
+          workspaceSkills.map((skill) => ({ slug: skill.slug, name: skill.name, description: skill.description, enabled: skill.enabled })),
+        )
+        // 内容：标题 + 编号 + 项目 + 类型组合，作为任务 goal 与首节点 prompt（执行时会话自带完整上下文）
+        // 缺陷类任务：明确「分析该缺陷」意图，让 Agent 第一步就进入问题分析而非泛泛执行
+        const isBug = localType === 'bug'
+        const taskDescription = [
+          isBug ? '请分析以下 TB 缺陷问题，定位根因并输出分析结论：' : '请处理以下 TB 任务：',
+          `【TB 任务】${task.title}`,
+          task.uniqueId ? `编号：${task.uniqueId}` : '',
+          task.projectId ? `TB 项目 ID：${task.projectId}` : '',
+          `类型：${localType}`,
+          `来源：Teambition（taskId=${task.id}）`,
+          `适配技能：${skillMatches.length > 0 ? skillMatches.map((match) => match.name).join('、') : '无（按通用任务处理）'}`,
+        ].filter(Boolean).join('\n')
         const spec = buildMinimalTaskSpec({
           title: task.title,
-          description: task.title,
-          // 注意：TB 的 projectId 是 TB 侧 id，不是本地 Project slug；
-          // 直接透传会让看板按本地 Project scope 过滤时看不到任务（“任务全消失”根因）。
-          // 手动添加时归到 Workspace 范围，用户后续可在编辑里改归属。
+          description: taskDescription,
+          // 加入本地任务时按当前看板默认填充：项目归属 + 工作目录；
+          // 未选中项目则不传（归到 Workspace 范围，用户后续可在编辑里改归属）
+          projectId,
+          workingDirectory,
           source: 'teambition',
           teambitionTaskId: task.id,
           // TB 任务类型（缺陷/需求/任务等）映射到本地 TaskType，避免全部落成默认“任务”
-          type: normalizeTeambitionTaskType(task.type),
+          type: localType,
+          // 适配的技能写入 spec.skills（执行时会话自动加载）
+          skills: skillMatches.map((match) => match.slug),
+          // 自动选 Agent 结果：写入 defaults.expertId（无则用默认，不传）
+          ...(expertId ? { expertId } : {}),
         })
         // 关键：spec.id 必须等于去重 slug（含 TB taskId 后缀），否则 materialize
         // 生成的目录 slug 与下次同步的去重键不一致 → 二次同步会重复创建
         spec.id = slug
-        const result = await materializeTaskFromSpec(workspaceRoot, workspaceId, spec)
+        // TB 加入本地任务：未绑定项目时跳过 workspace 默认目录回退，
+        // 并把任务 cwd 指向其会话自己的工作目录（临时会话），而不是首页/工作区默认目录
+        const result = await materializeTaskFromSpec(workspaceRoot, workspaceId, spec, {
+          skipWorkspaceDefault: !projectId,
+        })
+        if (!projectId) {
+          const ws = getAgentWorkspace(workspaceId)
+          if (ws) {
+            const sessionCwd = getAgentSessionWorkspacePath(ws.slug, result.orchestratorSessionId)
+            // 补写 task.yaml cwd，保证 TaskRunner 运行时能解析出有效工作目录
+            const loaded = repo.getTaskAggregateById(workspaceId, result.taskId)
+            if (loaded?.spec) {
+              const patched = { ...loaded.spec, cwd: sessionCwd }
+              repo.updateTaskSpec(workspaceId, result.taskId, patched)
+            }
+            // 同步会话工作目录（Agent 会话运行时同目录）
+            updateAgentSessionMeta(result.orchestratorSessionId, { workingDirectory: sessionCwd })
+          }
+        }
         created.push({ taskId: result.taskId, slug: result.slug, title: task.title })
       } catch (error) {
         console.error(`[Teambition] 创建任务「${task.title}」失败:`, error)
@@ -980,6 +1047,21 @@ export function registerTaskHandlers(window: BrowserWindow): void {
     }
 
     return { ok: true, created, skipped, failed }
+  })
+
+  // 本地 Agent 看板中已存在的 TB 任务 ID 集合（按 teambitionTaskId 收集）
+  const collectLocalTbTaskIds = (workspaceRoot: string, workspaceId: string): Set<string> => {
+    const repository = new TaskRepository({ resolveWorkspaceRoot: () => workspaceRoot })
+    const ids = new Set<string>()
+    for (const aggregate of repository.listTaskAggregates(workspaceId)) {
+      const tbTaskId = aggregate.spec?.teambitionTaskId ?? aggregate.record?.teambitionTaskId
+      if (tbTaskId) ids.add(tbTaskId)
+    }
+    return ids
+  }
+
+  ipcMain.handle(TEAMBITION_BOARD_IPC_CHANNELS.LIST_LOCAL_TB_TASK_IDS, async (_event, workspaceRoot: string, workspaceId: string) => {
+    return [...collectLocalTbTaskIds(workspaceRoot, workspaceId)]
   })
 
   ipcMain.handle(TEAMBITION_IPC_CHANNELS.RECOGNIZE, async (_event, workspaceRoot: string) => {
@@ -1015,6 +1097,63 @@ export function registerTaskHandlers(window: BrowserWindow): void {
 
   ipcMain.handle(TEAMBITION_IPC_CHANNELS.RETRY_SYNC, async (_event, workspaceRoot: string, bindingId: string) => {
     return (await getTeambitionService(workspaceRoot)).retryPendingSync(bindingId)
+  })
+
+  // ===== TB 缺陷看板（研发三区视图 / 状态流转 / 写回） =====
+  const boardService = (workspaceRoot: string) => getTeambitionBoardService(workspaceRoot)
+
+  ipcMain.handle(TEAMBITION_BOARD_IPC_CHANNELS.GET_CURRENT_USER, async (_event, workspaceRoot: string) => {
+    return (await boardService(workspaceRoot)).getCurrentUserId()
+  })
+
+  ipcMain.handle(TEAMBITION_BOARD_IPC_CHANNELS.LIST_MY_DEFECTS, async (_event, workspaceRoot: string, roleTypes?: string) => {
+    return (await boardService(workspaceRoot)).listMyDefects(roleTypes)
+  })
+
+  ipcMain.handle(TEAMBITION_BOARD_IPC_CHANNELS.LIST_PROJECT_DEFECTS, async (_event, workspaceRoot: string, projectId: string) => {
+    return (await boardService(workspaceRoot)).listProjectDefects(projectId)
+  })
+
+  ipcMain.handle(TEAMBITION_BOARD_IPC_CHANNELS.GET_WORKFLOW, async (_event, workspaceRoot: string, taskId: string, projectId?: string) => {
+    return (await boardService(workspaceRoot)).getTaskWorkflow(taskId, projectId)
+  })
+
+  ipcMain.handle(TEAMBITION_BOARD_IPC_CHANNELS.GET_WORKFLOWS_BATCH, async (_event, workspaceRoot: string, taskIds: string[], projectId?: string) => {
+    return (await boardService(workspaceRoot)).listWorkflowsForTasks(taskIds, projectId)
+  })
+
+  ipcMain.handle(TEAMBITION_BOARD_IPC_CHANNELS.LIST_TRANSITIONS, async (_event, workspaceRoot: string, taskId: string) => {
+    return (await boardService(workspaceRoot)).listTransitions(taskId)
+  })
+
+  ipcMain.handle(TEAMBITION_BOARD_IPC_CHANNELS.GET_TASK_DETAIL, async (_event, workspaceRoot: string, taskId: string) => {
+    return (await boardService(workspaceRoot)).getTaskDetail(taskId)
+  })
+
+  ipcMain.handle(TEAMBITION_BOARD_IPC_CHANNELS.CLAIM_TASK, async (_event, workspaceRoot: string, taskId: string) => {
+    return (await boardService(workspaceRoot)).claimTask(taskId)
+  })
+
+  ipcMain.handle(TEAMBITION_BOARD_IPC_CHANNELS.UPDATE_STATUS, async (
+    _event,
+    workspaceRoot: string,
+    taskId: string,
+    targetTfsId: string,
+    note?: string,
+  ) => {
+    return (await boardService(workspaceRoot)).updateStatus(taskId, targetTfsId, note)
+  })
+
+  ipcMain.handle(TEAMBITION_BOARD_IPC_CHANNELS.POST_COMMENT, async (_event, workspaceRoot: string, taskId: string, text: string) => {
+    return (await boardService(workspaceRoot)).postComment(taskId, text)
+  })
+
+  ipcMain.handle(TEAMBITION_BOARD_IPC_CHANNELS.IS_MOCK, async (_event, workspaceRoot: string) => {
+    return (await boardService(workspaceRoot)).isMock()
+  })
+
+  ipcMain.handle(TEAMBITION_BOARD_IPC_CHANNELS.CLEAR_CACHE, async (_event, workspaceRoot: string) => {
+    ;(await boardService(workspaceRoot)).clearCache()
   })
 }
 
@@ -1078,6 +1217,58 @@ async function generateTaskForSession(
 
 let teambitionAdapter: import('./teambition-adapter').TeambitionAdapter | undefined
 const teambitionServices = new Map<string, TeambitionService>()
+
+const teambitionBoardServices = new Map<string, TeambitionBoardService>()
+
+async function getTeambitionBoardService(workspaceRoot: string): Promise<TeambitionBoardService> {
+  const existing = teambitionBoardServices.get(workspaceRoot)
+  if (existing) return existing
+  const service = new TeambitionBoardService({
+    gateway: await getTeambitionBoardAdapter(workspaceRoot),
+  })
+  teambitionBoardServices.set(workspaceRoot, service)
+  return service
+}
+
+/** 构造看板网关：优先真实 TB MCP，未配置则 Mock 兜底。 */
+async function getTeambitionBoardAdapter(workspaceRoot: string): Promise<TeambitionBoardGateway> {
+  try {
+    const { getWorkspaceMcpConfig } = await import('./agent-workspace-manager')
+    const { findTeambitionMcpEntry } = await import('@luxcoder/shared')
+    const config = getWorkspaceMcpConfig(getWorkspaceSlugFromRoot(workspaceRoot))
+    const tb = findTeambitionMcpEntry(config)
+
+    if (tb && tb.entry.enabled !== false && tb.entry.url) {
+      const { McpTeambitionBoardAdapter } = await import('./teambition-board-adapter')
+      const entry = tb.entry
+      const headers = entry.headers ?? {}
+      const adapter = new McpTeambitionBoardAdapter({
+        server: { ...entry, type: 'http', headers },
+        toolNames: {
+          getCurrentUser: 'GetUsersMe',
+          listMyOpenTasks: 'SearchUserTasksV3',
+          listProjectTasks: 'SearchProjectTasksV3',
+          getScenarioFields: 'GetScenarioFieldsMCP',
+          queryTaskTfs: 'QueryTaskTfs',
+          listTaskActivities: 'ListTaskActivitiesV3',
+          updateExecutor: 'UpdateTaskExecutorV3',
+          updateStatus: 'UpdateTaskStatusV3',
+          postComment: 'CreateTaskCommentV3',
+          getTaskDetail: 'QueryTaskV3',
+          listProjectCustomFields: 'SearchProjectCustomFiledsV3',
+        },
+      })
+      console.warn(`[TbBoard] 已连接真实 TB MCP (${tb.name})`)
+      return adapter
+    }
+  } catch (error) {
+    console.warn(`[TbBoard] 构造 TB 看板 adapter 失败，使用 Mock 兜底: ${errorMessage(error)}`)
+  }
+
+  const { MockTeambitionBoardAdapter } = await import('./teambition-board-adapter')
+  console.warn('[TbBoard] 未找到已启用的 TB MCP 配置，使用 Mock 兜底（仅开发/断连降级，不会写回真实 TB）')
+  return new MockTeambitionBoardAdapter()
+}
 
 async function getTeambitionService(workspaceRoot: string): Promise<TeambitionService> {
   const existing = teambitionServices.get(workspaceRoot)

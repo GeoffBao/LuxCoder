@@ -307,6 +307,7 @@ import {
   deleteWorkspaceSkill,
   importSkillFromWorkspace,
   batchImportSkillsFromWorkspaces,
+  importSkillsFromLocal,
   updateSkillFromSource,
   importSkillFromOrganization,
   updateSkillFromOrganizationSource,
@@ -2804,6 +2805,32 @@ export function registerIpcHandlers(): void {
     AGENT_IPC_CHANNELS.BATCH_IMPORT_SKILLS_FROM_WORKSPACES,
     async (_, targetSlug: string, selections: BulkImportWorkspaceSelection[]): Promise<BulkImportSkillsResult> => {
       return batchImportSkillsFromWorkspaces(targetSlug, selections)
+    }
+  )
+
+  // 选择本地 Skill 导入源（zip 压缩包或文件夹）
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.PICK_LOCAL_SKILL_SOURCE,
+    async (): Promise<{ kind: 'zip' | 'folder'; path: string } | null> => {
+      const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+      if (!win) return null
+      const result = await dialog.showOpenDialog(win, {
+        title: '选择本地 Skill（zip 压缩包或文件夹）',
+        properties: ['openFile', 'openDirectory'],
+        filters: [{ name: 'Skill 压缩包', extensions: ['zip'] }],
+      })
+      if (result.canceled || result.filePaths.length === 0) return null
+      const picked = result.filePaths[0]!
+      const isFile = statSync(picked).isFile()
+      return { kind: isFile ? 'zip' : 'folder', path: picked }
+    }
+  )
+
+  // 从本地 zip / 文件夹导入 Skill 到目标工作区
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.IMPORT_SKILLS_FROM_LOCAL,
+    async (_, targetSlug: string, sourcePath: string): Promise<BulkImportSkillsResult> => {
+      return importSkillsFromLocal(targetSlug, sourcePath)
     }
   )
 

@@ -54,7 +54,7 @@ export type RunLogEntry = { seq?: number } & (
   | { t: string; kind: 'node-spawned'; nodeId: string; sessionId: string }
   | { t: string; kind: 'node-finished'; nodeId: string; sessionId: string; state: NodeRunState; reason?: string }
   | { t: string; kind: 'node-retry'; nodeId: string; attempt: number; reason: string }
-  | { t: string; kind: 'run-paused' | 'run-resumed' | 'run-stopped' | 'run-completed' | 'run-failed' | 'run-verifying' }
+  | { t: string; kind: 'run-paused' | 'run-resumed' | 'run-stopped' | 'run-completed' | 'run-failed' | 'run-verifying'; reason?: string }
   | { t: string; kind: 'verdict'; result: 'pass' | 'fail' | 'unparsed'; reason?: string; nodes?: string[] }
   | { t: string; kind: 'budget-breach'; metric: 'tokens' | 'parallel' | 'iterations'; value: number; limit: number }
 );
@@ -114,6 +114,7 @@ const RunLogPayloadSchema = z.discriminatedUnion('kind', [
   z.object({
     t: z.string(),
     kind: z.enum(['run-paused', 'run-resumed', 'run-stopped', 'run-completed', 'run-failed', 'run-verifying']),
+    reason: z.string().optional(),
   }),
   z.object({
     t: z.string(),

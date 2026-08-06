@@ -6,7 +6,7 @@
  */
 
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import { PROJECT_IPC_CHANNELS, TASK_IPC_CHANNELS, SESSION_COMMAND_CHANNEL, SESSION_GROUP_IPC_CHANNELS, TEAMBITION_IPC_CHANNELS, EXPERT_IPC_CHANNELS } from '@luxcoder/shared/channels'
+import { PROJECT_IPC_CHANNELS, TASK_IPC_CHANNELS, SESSION_COMMAND_CHANNEL, SESSION_GROUP_IPC_CHANNELS, TEAMBITION_IPC_CHANNELS, TEAMBITION_BOARD_IPC_CHANNELS, EXPERT_IPC_CHANNELS } from '@luxcoder/shared/channels'
 import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS, PLANNING_IPC_CHANNELS, CODECLAW_IPC_CHANNELS } from '@luxcoder/shared'
 import type { TaskAggregateSummary, TaskMetadataPatch, TaskWorkflow } from '@luxcoder/shared/tasks'
 import type { StartTodoAgentInput, StartTodoAgentResult, TodoAgentSessionActivation, PlanningWorkspaceScope } from '@luxcoder/shared'
@@ -317,6 +317,78 @@ export interface BrowserTeambitionTask {
   syncState?: 'synced' | 'stale'
   /** TB 任务编号（uniqueId） */
   uniqueId?: number
+}
+
+/** TB 缺陷看板：缺陷任务视图模型（与 @luxcoder/shared/teambition-defect 对齐） */
+export interface BrowserTbDefectItem {
+  taskId: string
+  uniqueId?: number
+  content: string
+  projectId: string
+  tfsId: string
+  tfsName?: string
+  executorId?: string
+  involveMembers: string[]
+  priority?: number
+  progress?: number
+  dueDate?: string
+  startDate?: string
+  accomplishTime?: string
+  type?: 'bug' | 'requirement' | 'task' | 'checklist' | 'hardware' | 'activity'
+  transitions?: BrowserTbStatusTransition[]
+}
+
+export interface BrowserTbStatusTransition {
+  fromName: string
+  toName: string
+  note?: string
+  at: number
+  by?: string
+}
+
+export interface BrowserTbWorkflow {
+  taskflowId: string
+  statuses: Array<{
+    id: string
+    name: string
+    kind: 'start' | 'unset' | 'end'
+    pos: number
+    rejectStatusIds: string[]
+  }>
+}
+
+/** TB 任务详情（备注/描述/附件/自定义字段）与信息完整性检测 */
+export interface BrowserTbTaskDetail {
+  taskId: string
+  uniqueId?: number
+  content: string
+  projectId: string
+  tfsName?: string
+  note?: string
+  description?: string
+  attachments: Array<{ resourceId: string; name: string; size?: number }>
+  fields: Array<{ name: string; value: string }>
+  executorId?: string
+  involveMembers: string[]
+  priority?: number
+  progress?: number
+  dueDate?: string
+  startDate?: string
+  created?: string
+}
+
+export interface BrowserTbCompletenessItem {
+  key: 'log' | 'steps' | 'time' | 'probability' | 'description'
+  label: string
+  ok: boolean
+  hint: string
+}
+
+export interface BrowserTbCompletenessResult {
+  complete: boolean
+  satisfied: number
+  total: number
+  items: BrowserTbCompletenessItem[]
 }
 export interface BrowserTeambitionBinding {
   id: string
@@ -873,6 +945,12 @@ export interface ElectronAPI {
 
   /** 从其他工作区批量导入多个 Skill */
   batchImportSkillsFromWorkspaces: (targetSlug: string, selections: import('@luxcoder/shared').BulkImportWorkspaceSelection[]) => Promise<import('@luxcoder/shared').BulkImportSkillsResult>
+
+  /** 选择本地 Skill 导入源（zip 压缩包或文件夹） */
+  pickLocalSkillSource: () => Promise<{ kind: 'zip' | 'folder'; path: string } | null>
+
+  /** 从本地 zip / 文件夹导入 Skill 到目标工作区 */
+  importSkillsFromLocal: (targetSlug: string, sourcePath: string) => Promise<import('@luxcoder/shared').BulkImportSkillsResult>
 
   /** 从源工作区同步更新已导入的 Skill */
   updateSkillFromSource: (targetSlug: string, skillSlug: string) => Promise<SkillMeta>
@@ -1547,7 +1625,7 @@ export interface ElectronAPI {
     /** 一键同步用户名下未 close 任务到看板（拉取候选，不自动创建） */
     syncMyOpenTasks: (workspaceRoot: string, workspaceId: string) => Promise<BrowserTeambitionSyncResult>
     /** 手动创建选中的 TB 任务为本地看板 Task（不自动运行） */
-    createSyncedTasks: (workspaceRoot: string, workspaceId: string, selected: BrowserTeambitionTask[]) => Promise<BrowserTeambitionCreateResult>
+    createSyncedTasks: (workspaceRoot: string, workspaceId: string, selected: BrowserTeambitionTask[], options?: { expertId?: string; projectId?: string; workingDirectory?: string }) => Promise<BrowserTeambitionCreateResult>
     /** 识别当前工作区 Teambition MCP 配置状态 */
     recognize: (workspaceRoot: string) => Promise<BrowserTeambitionRecognition>
     claimTask: (workspaceRoot: string, input: BrowserTeambitionClaimInput) => Promise<BrowserTeambitionBinding>
@@ -1557,6 +1635,23 @@ export interface ElectronAPI {
     updateStatus: (workspaceRoot: string, bindingId: string, status: string) => Promise<BrowserTeambitionBinding>
     syncProgress: (workspaceRoot: string, bindingId: string, progress: number) => Promise<BrowserTeambitionBinding>
     retrySync: (workspaceRoot: string, bindingId: string) => Promise<BrowserTeambitionBinding>
+  }
+  /** TB 缺陷看板：研发三区视图 / 状态流转 / 写回 */
+  teambitionBoard: {
+    getCurrentUser: (workspaceRoot: string) => Promise<string>
+    listMyDefects: (workspaceRoot: string, roleTypes?: string) => Promise<BrowserTbDefectItem[]>
+    listProjectDefects: (workspaceRoot: string, projectId: string) => Promise<BrowserTbDefectItem[]>
+    getWorkflow: (workspaceRoot: string, taskId: string, projectId?: string) => Promise<BrowserTbWorkflow | undefined>
+    getWorkflowsBatch: (workspaceRoot: string, taskIds: string[], projectId?: string) => Promise<Record<string, BrowserTbWorkflow | undefined>>
+    listLocalTbTaskIds: (workspaceRoot: string, workspaceId: string) => Promise<string[]>
+    listTransitions: (workspaceRoot: string, taskId: string) => Promise<BrowserTbStatusTransition[]>
+    getTaskDetail: (workspaceRoot: string, taskId: string) => Promise<BrowserTbTaskDetail>
+    claimTask: (workspaceRoot: string, taskId: string) => Promise<void>
+    updateStatus: (workspaceRoot: string, taskId: string, targetTfsId: string, note?: string) => Promise<void>
+    postComment: (workspaceRoot: string, taskId: string, text: string) => Promise<void>
+    /** 是否 Mock 网关（无真实 TB 配置时本地兜底，UI 展示「演示数据」角标） */
+    isMock: (workspaceRoot: string) => Promise<boolean>
+    clearCache: (workspaceRoot: string) => Promise<void>
   }
 
   // ===== Projects / Tasks Conductor =====
@@ -2294,6 +2389,18 @@ const electronAPI: ElectronAPI = {
       AGENT_IPC_CHANNELS.BATCH_IMPORT_SKILLS_FROM_WORKSPACES,
       targetSlug,
       selections,
+    )
+  },
+
+  pickLocalSkillSource: () => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.PICK_LOCAL_SKILL_SOURCE)
+  },
+
+  importSkillsFromLocal: (targetSlug: string, sourcePath: string) => {
+    return ipcRenderer.invoke(
+      AGENT_IPC_CHANNELS.IMPORT_SKILLS_FROM_LOCAL,
+      targetSlug,
+      sourcePath,
     )
   },
 
@@ -3432,8 +3539,8 @@ const electronAPI: ElectronAPI = {
       invokeTyped<BrowserTeambitionTaskList>(TEAMBITION_IPC_CHANNELS.LIST_TASKS, workspaceRoot, projectId),
     syncMyOpenTasks: (workspaceRoot: string, workspaceId: string): Promise<BrowserTeambitionSyncResult> =>
       invokeTyped<BrowserTeambitionSyncResult>(TEAMBITION_IPC_CHANNELS.SYNC_MY_OPEN_TASKS, workspaceRoot, workspaceId),
-    createSyncedTasks: (workspaceRoot: string, workspaceId: string, selected: BrowserTeambitionTask[]): Promise<BrowserTeambitionCreateResult> =>
-      invokeTyped<BrowserTeambitionCreateResult>(TEAMBITION_IPC_CHANNELS.CREATE_SYNCED_TASKS, workspaceRoot, workspaceId, selected),
+    createSyncedTasks: (workspaceRoot: string, workspaceId: string, selected: BrowserTeambitionTask[], options?: { expertId?: string; projectId?: string; workingDirectory?: string }): Promise<BrowserTeambitionCreateResult> =>
+      invokeTyped<BrowserTeambitionCreateResult>(TEAMBITION_IPC_CHANNELS.CREATE_SYNCED_TASKS, workspaceRoot, workspaceId, selected, options),
     recognize: (workspaceRoot: string): Promise<BrowserTeambitionRecognition> =>
       invokeTyped<BrowserTeambitionRecognition>(TEAMBITION_IPC_CHANNELS.RECOGNIZE, workspaceRoot),
     claimTask: (workspaceRoot: string, input: BrowserTeambitionClaimInput): Promise<BrowserTeambitionBinding> =>
@@ -3450,6 +3557,34 @@ const electronAPI: ElectronAPI = {
       invokeTyped<BrowserTeambitionBinding>(TEAMBITION_IPC_CHANNELS.SYNC_PROGRESS, workspaceRoot, bindingId, progress),
     retrySync: (workspaceRoot: string, bindingId: string): Promise<BrowserTeambitionBinding> =>
       invokeTyped<BrowserTeambitionBinding>(TEAMBITION_IPC_CHANNELS.RETRY_SYNC, workspaceRoot, bindingId),
+  },
+  teambitionBoard: {
+    getCurrentUser: (workspaceRoot: string): Promise<string> =>
+      invokeTyped<string>(TEAMBITION_BOARD_IPC_CHANNELS.GET_CURRENT_USER, workspaceRoot),
+    listMyDefects: (workspaceRoot: string, roleTypes?: string): Promise<BrowserTbDefectItem[]> =>
+      invokeTyped<BrowserTbDefectItem[]>(TEAMBITION_BOARD_IPC_CHANNELS.LIST_MY_DEFECTS, workspaceRoot, roleTypes),
+    listProjectDefects: (workspaceRoot: string, projectId: string): Promise<BrowserTbDefectItem[]> =>
+      invokeTyped<BrowserTbDefectItem[]>(TEAMBITION_BOARD_IPC_CHANNELS.LIST_PROJECT_DEFECTS, workspaceRoot, projectId),
+    getWorkflow: (workspaceRoot: string, taskId: string, projectId?: string): Promise<BrowserTbWorkflow | undefined> =>
+      invokeTyped<BrowserTbWorkflow | undefined>(TEAMBITION_BOARD_IPC_CHANNELS.GET_WORKFLOW, workspaceRoot, taskId, projectId),
+    getWorkflowsBatch: (workspaceRoot: string, taskIds: string[], projectId?: string): Promise<Record<string, BrowserTbWorkflow | undefined>> =>
+      invokeTyped<Record<string, BrowserTbWorkflow | undefined>>(TEAMBITION_BOARD_IPC_CHANNELS.GET_WORKFLOWS_BATCH, workspaceRoot, taskIds, projectId),
+    listLocalTbTaskIds: (workspaceRoot: string, workspaceId: string): Promise<string[]> =>
+      invokeTyped<string[]>(TEAMBITION_BOARD_IPC_CHANNELS.LIST_LOCAL_TB_TASK_IDS, workspaceRoot, workspaceId),
+    listTransitions: (workspaceRoot: string, taskId: string): Promise<BrowserTbStatusTransition[]> =>
+      invokeTyped<BrowserTbStatusTransition[]>(TEAMBITION_BOARD_IPC_CHANNELS.LIST_TRANSITIONS, workspaceRoot, taskId),
+    getTaskDetail: (workspaceRoot: string, taskId: string): Promise<BrowserTbTaskDetail> =>
+      invokeTyped<BrowserTbTaskDetail>(TEAMBITION_BOARD_IPC_CHANNELS.GET_TASK_DETAIL, workspaceRoot, taskId),
+    claimTask: (workspaceRoot: string, taskId: string): Promise<void> =>
+      invokeTyped<void>(TEAMBITION_BOARD_IPC_CHANNELS.CLAIM_TASK, workspaceRoot, taskId),
+    updateStatus: (workspaceRoot: string, taskId: string, targetTfsId: string, note?: string): Promise<void> =>
+      invokeTyped<void>(TEAMBITION_BOARD_IPC_CHANNELS.UPDATE_STATUS, workspaceRoot, taskId, targetTfsId, note),
+    postComment: (workspaceRoot: string, taskId: string, text: string): Promise<void> =>
+      invokeTyped<void>(TEAMBITION_BOARD_IPC_CHANNELS.POST_COMMENT, workspaceRoot, taskId, text),
+    isMock: (workspaceRoot: string): Promise<boolean> =>
+      invokeTyped<boolean>(TEAMBITION_BOARD_IPC_CHANNELS.IS_MOCK, workspaceRoot),
+    clearCache: (workspaceRoot: string): Promise<void> =>
+      invokeTyped<void>(TEAMBITION_BOARD_IPC_CHANNELS.CLEAR_CACHE, workspaceRoot),
   },
 
   // ===== Projects / Tasks Conductor =====

@@ -7,11 +7,12 @@
 
 import * as React from 'react'
 import { toast } from 'sonner'
-import { Check, Loader2, Sparkles } from 'lucide-react'
+import { Check, Loader2, Sparkles, FolderOpen, FileArchive, X, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SettingsCard } from '@/components/settings/primitives'
+import { SectionTabs } from '@/components/ui/section-tabs'
 import { cn } from '@/lib/utils'
 import type { BulkImportSkillsResult, OtherWorkspaceSkillsGroup, SkillMeta } from '@luxcoder/shared'
 
@@ -39,6 +40,22 @@ export function ImportSkillDialog({
   installedSkills,
   onImported,
 }: ImportSkillDialogProps): React.ReactElement {
+  // 导入方式：从其他项目 / 从本地文件
+  const [tab, setTab] = React.useState<'workspace' | 'local'>('workspace')
+  const [localSource, setLocalSource] = React.useState<{ kind: 'zip' | 'folder'; path: string } | null>(null)
+  const [localImporting, setLocalImporting] = React.useState(false)
+  const [localResult, setLocalResult] = React.useState<BulkImportSkillsResult | null>(null)
+  const localOperationRef = React.useRef(0)
+
+  // 对话框关闭时重置本地导入状态
+  React.useEffect(() => {
+    if (open) return
+    localOperationRef.current += 1
+    setLocalImporting(false)
+    setLocalResult(null)
+    setLocalSource(null)
+  }, [open])
+
   const [otherWorkspaces, setOtherWorkspaces] = React.useState<OtherWorkspaceSkillsGroup[]>([])
   const [selectedWorkspaceSlug, setSelectedWorkspaceSlug] = React.useState('')
   const [selectedKeys, setSelectedKeys] = React.useState<Set<string>>(new Set())
@@ -202,17 +219,73 @@ export function ImportSkillDialog({
     }
   }
 
+  // ── 从本地 zip / 文件夹导入 ────────────────────────────
+
+  const handlePickLocalSource = async (): Promise<void> => {
+    const picked = await window.electronAPI.pickLocalSkillSource()
+    if (!picked) return
+    setLocalSource(picked)
+    setLocalResult(null)
+  }
+
+  const handleLocalImport = async (): Promise<void> => {
+    if (!workspaceSlug || !localSource || localImporting) return
+    const operationId = ++localOperationRef.current
+    setLocalImporting(true)
+    try {
+      const result = await window.electronAPI.importSkillsFromLocal(workspaceSlug, localSource.path)
+      if (operationId !== localOperationRef.current) return
+      setLocalResult(result)
+      if (result.imported > 0) {
+        onImported()
+        const detail =
+          result.skipped > 0 || result.failed > 0
+            ? `（跳过 ${result.skipped} 个${result.failed > 0 ? `、失败 ${result.failed} 个` : ''}）`
+            : ''
+        toast.success(`已从本地导入 ${result.imported} 个 Skill${detail}`, {
+          description: getFailureDescription(result),
+        })
+      } else if (result.failed > 0) {
+        toast.error(`本地导入失败 ${result.failed} 个${result.skipped > 0 ? `，跳过 ${result.skipped} 个` : ''}`, {
+          description: getFailureDescription(result),
+        })
+      } else {
+        toast.info(`没有新导入的 Skill，已跳过 ${result.skipped} 个同名项`)
+      }
+    } catch (error) {
+      if (operationId !== localOperationRef.current) return
+      console.error('[Agent 技能] 本地导入失败:', error)
+      toast.error('本地导入失败', { description: error instanceof Error ? error.message : '未知错误' })
+    } finally {
+      if (operationId === localOperationRef.current) setLocalImporting(false)
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="max-w-2xl gap-0 overflow-hidden p-0">
         <DialogHeader className="px-6 pb-4 pt-6">
-          <DialogTitle>从其他项目批量导入 Skill</DialogTitle>
+          <DialogTitle>导入 Skill</DialogTitle>
           <DialogDescription>
-            从其他项目勾选多个 Skill 导入到当前项目。已安装的同名 Skill 会自动过滤。
+            从其他项目批量导入，或从本地 zip 压缩包 / 文件夹导入到当前项目。已安装的同名 Skill 会自动跳过。
           </DialogDescription>
         </DialogHeader>
 
+        {/* 导入方式切换：从其他项目 / 从本地文件 */}
+        <div className="px-6 pb-4">
+          <SectionTabs
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: 'workspace', label: '从其他项目' },
+              { value: 'local', label: '从本地文件' },
+            ]}
+          />
+        </div>
+
         <div className="max-h-[60vh] space-y-4 overflow-y-auto px-6 pb-6">
+          {tab === 'workspace' ? (
+            <>
           {loadingWorkspaces ? (
             <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
               <Loader2 size={15} className="animate-spin" />
@@ -301,18 +374,114 @@ export function ImportSkillDialog({
               </div>
             </>
           ) : null}
+            </>
+          ) : (
+            /* 从本地文件导入：zip 压缩包或文件夹 */
+            <div className="space-y-4">
+              <SettingsCard divided={false} className="p-4">
+                <div className="flex flex-col gap-3">
+                  <div className="text-sm font-medium text-foreground">选择本地 Skill 源</div>
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    支持 .zip 压缩包或文件夹，包内任意含 SKILL.md 的目录都会识别为一个 Skill（单 / 多 Skill 均可）；
+                    与当前项目同名的 Skill 会自动跳过。
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => void handlePickLocalSource()} disabled={localImporting}>
+                      <FolderOpen size={13} className="mr-1.5" />
+                      选择 zip 或文件夹
+                    </Button>
+                    {localSource && (
+                      <>
+                        <span
+                          className="flex min-w-0 flex-1 items-center gap-1.5 truncate rounded-md bg-muted/50 px-2.5 py-1.5 text-xs text-foreground/80"
+                          title={localSource.path}
+                        >
+                          {localSource.kind === 'zip'
+                            ? <FileArchive size={13} className="shrink-0 text-foreground/50" />
+                            : <FolderOpen size={13} className="shrink-0 text-foreground/50" />}
+                          <span className="truncate">{localSource.path}</span>
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="清除选择"
+                          onClick={() => {
+                            setLocalSource(null)
+                            setLocalResult(null)
+                          }}
+                        >
+                          <X size={13} />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </SettingsCard>
+
+              {localResult ? (
+                <SettingsCard divided={false} className="p-4">
+                  <div className="mb-2 flex items-center gap-2 text-sm font-medium text-foreground">
+                    <Upload size={13} className="text-foreground/50" />
+                    导入结果（成功 {localResult.imported} · 跳过 {localResult.skipped} · 失败 {localResult.failed}）
+                  </div>
+                  {localResult.items.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {localResult.items.map((item) => (
+                        <div key={item.slug} className="flex items-center gap-2 text-xs">
+                          <span
+                            className={cn(
+                              'shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-medium',
+                              item.status === 'imported' && 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+                              item.status === 'skipped' && 'bg-foreground/[0.06] text-foreground/60',
+                              item.status === 'failed' && 'bg-destructive/10 text-destructive',
+                            )}
+                          >
+                            {item.status === 'imported' ? '已导入' : item.status === 'skipped' ? '已跳过' : '失败'}
+                          </span>
+                          <span className="truncate font-medium text-foreground/85">{item.name}</span>
+                          {item.reason ? <span className="truncate text-muted-foreground">{item.reason}</span> : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-muted-foreground">未识别到任何 Skill</div>
+                  )}
+                </SettingsCard>
+              ) : null}
+            </div>
+          )}
         </div>
 
         <div className="sticky bottom-0 flex items-center justify-between gap-3 border-t border-border/60 bg-background/95 px-6 py-4">
-          <span className="text-xs text-muted-foreground">
-            {loadingWorkspaces
-              ? '正在加载其他项目 Skill...'
-              : '勾选要导入的 Skill，已安装的同名 Skill 会自动过滤'}
-          </span>
-          <Button size="sm" onClick={() => void handleImport()} disabled={loadingWorkspaces || importing || selectedCount === 0}>
-            {importing ? <Loader2 size={13} className="animate-spin" /> : null}
-            {importing ? '导入中...' : `一键导入所选（${selectedCount}）`}
-          </Button>
+          {tab === 'workspace' ? (
+            <>
+              <span className="text-xs text-muted-foreground">
+                {loadingWorkspaces
+                  ? '正在加载其他项目 Skill...'
+                  : '勾选要导入的 Skill，已安装的同名 Skill 会自动过滤'}
+              </span>
+              <Button size="sm" onClick={() => void handleImport()} disabled={loadingWorkspaces || importing || selectedCount === 0}>
+                {importing ? <Loader2 size={13} className="animate-spin" /> : null}
+                {importing ? '导入中...' : `一键导入所选（${selectedCount}）`}
+              </Button>
+            </>
+          ) : (
+            <>
+              <span className="text-xs text-muted-foreground">
+                {localSource
+                  ? `已选择：${localSource.kind === 'zip' ? '压缩包' : '文件夹'}`
+                  : '选择 zip 压缩包或文件夹后再导入'}
+              </span>
+              <Button
+                size="sm"
+                onClick={() => void handleLocalImport()}
+                disabled={!localSource || localImporting}
+              >
+                {localImporting ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} className="mr-1" />}
+                {localImporting ? '导入中...' : '导入本地 Skill'}
+              </Button>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>

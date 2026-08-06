@@ -11,6 +11,7 @@
     "./protocol": "./src/protocol/channels.ts",
     "./types": "./src/types/index.ts",
     "./teambition-mcp": "./src/teambition-mcp.ts",
+    "./teambition-defect": "./src/teambition-defect/index.ts",
     "./config": "./src/config/index.ts",
     "./utils": "./src/utils/index.ts",
     "./channels": "./src/channels.ts",

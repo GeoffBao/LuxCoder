@@ -625,7 +625,7 @@ class ActiveRun {
       const s = this.state.get(n.id)!.state;
       return s === 'done' || s === 'skipped';
     });
-    if (!allGood) { this.finish('failed'); return; }
+    if (!allGood) { this.finish('failed', '任务节点未全部成功完成'); return; }
     if (this.opts.verifyOnComplete && this.opts.orchestratorSessionId) {
       this.enterVerifying();
     } else {
@@ -639,9 +639,12 @@ class ActiveRun {
     void this.sendVerification();
   }
 
-  private finish(status: RunStatus): void {
+  private finish(status: RunStatus, reason?: string): void {
     this.runStatus = status;
-    this.log({ kind: status === 'completed' ? 'run-completed' : 'run-failed' });
+    this.log({
+      kind: status === 'completed' ? 'run-completed' : 'run-failed',
+      ...(status !== 'completed' && reason ? { reason } : {}),
+    });
     transitionTaskWorkflow(this.deps.workspaceRoot, this.slug, 'settled')
     const orchestrator = this.opts.orchestratorSessionId;
     if (orchestrator) {
@@ -699,7 +702,7 @@ class ActiveRun {
 
   private async sendToOrchestrator(orchestrator: string, message: string): Promise<void> {
     try { await this.deps.host.sendMessage(orchestrator, message); }
-    catch { this.verdictOff?.(); this.verdictOff = undefined; this.finish('failed'); }
+    catch { this.verdictOff?.(); this.verdictOff = undefined; this.finish('failed', '无法向编排器发送验收指令'); }
   }
 
   private handleVerdict(text: string): void {
@@ -712,16 +715,16 @@ class ActiveRun {
 
     if (verdict.result === 'unparsed') {
       if (this.unparsedReAsks < MAX_UNPARSED_REASKS) { this.unparsedReAsks += 1; void this.reAskVerdict(); return; }
-      this.finish('failed'); return;
+      this.finish('failed', '验收判定连续无法解析（verdict 未输出 PASS/FAIL）'); return;
     }
 
     if (this.repairsUsed >= this.maxRepairs) {
       this.log({ kind: 'budget-breach', metric: 'iterations', value: this.repairsUsed, limit: this.maxRepairs });
-      this.finish('failed'); return;
+      this.finish('failed', `自动修复已达上限（${this.maxRepairs} 次），验收仍未通过`); return;
     }
     if (this.isOverBudget()) {
       this.log({ kind: 'budget-breach', metric: 'tokens', value: this.tokensUsed, limit: this.spec.token_budget! });
-      this.finish('failed'); return;
+      this.finish('failed', `超出 token 预算（${this.spec.token_budget}），任务终止`); return;
     }
     this.repairsUsed += 1;
     this.repairForVerdict(verdict.reason, verdict.nodes);

@@ -43,6 +43,8 @@ export interface ResolveTaskWorkingDirectoryInput {
   explicitCwd?: string
   projectId?: string
   workspaceDefaultCwd?: string
+  /** 为 true 时跳过 workspace 默认工作目录回退（未绑定项目时保持会话自己的工作目录） */
+  skipWorkspaceDefault?: boolean
   resolveProjectCwd?: (projectId: string) => ProjectWorkingDirectoryResult | null
   fs?: TaskWorkingDirectoryFs
 }
@@ -95,7 +97,7 @@ export function resolveTaskWorkingDirectory(input: ResolveTaskWorkingDirectoryIn
     return validateCandidate(project.cwd, 'project', fs)
   }
 
-  const workspaceDefaultCwd = input.workspaceDefaultCwd?.trim()
+  const workspaceDefaultCwd = input.skipWorkspaceDefault ? undefined : input.workspaceDefaultCwd?.trim()
   if (workspaceDefaultCwd) return validateCandidate(workspaceDefaultCwd, 'workspace', fs)
 
   return { status: 'blocked', reason: 'missing-cwd' }
