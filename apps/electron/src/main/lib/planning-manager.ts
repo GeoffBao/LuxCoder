@@ -274,9 +274,6 @@ function getDatabase(): SqliteDatabase {
   database = db
   return db
 }
-  database = db
-  return db
-}
 
 function assertText(value: string, field: string, max: number): string {
   const text = value.trim()
