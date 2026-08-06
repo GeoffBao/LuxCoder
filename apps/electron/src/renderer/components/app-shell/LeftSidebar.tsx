@@ -11,7 +11,7 @@
 import * as React from 'react'
 import { useAtom, useSetAtom, useAtomValue, useStore } from 'jotai'
 import { toast } from 'sonner'
-import { Pin, PinOff, Settings, Plus, Trash2, Pencil, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MoreHorizontal, FolderOpen, GripVertical, Clock, CalendarDays, ChevronRight, GitBranch, Download, Loader2, RotateCw, Layers, LayoutDashboard, PenTool, Library, House, Puzzle, Boxes } from 'lucide-react'
+import { Pin, PinOff, Settings, Plus, Trash2, Pencil, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MoreHorizontal, FolderOpen, GripVertical, Clock, CalendarDays, ChevronRight, GitBranch, Download, Loader2, RotateCw, Layers, LayoutDashboard, PenTool, Library, Puzzle, Boxes } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { MarqueeText } from '@/components/ui/marquee-text'
@@ -2614,27 +2614,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
         <div className="my-3 h-px w-8 bg-border/70" />
 
-        {/* 模式切换 */}
+        {/* 主入口：Code 模式（悬停查看工作区）——Home 模式切换入口已下线，主入口固定 Code */}
         <div className="flex flex-col items-center gap-1.5">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                aria-label="切换到 Home 模式"
-                onClick={() => handleRailModeSwitch('chat')}
-                className={cn(
-                  'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag',
-                  mode === 'chat'
-                    ? 'bg-primary/10 text-foreground shadow-[0_1px_2px_0_rgba(0,0,0,0.05)]'
-                    : 'text-foreground/45 hover:bg-foreground/[0.06] hover:text-foreground/75'
-                )}
-              >
-                <House size={17} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">Home 模式</TooltipContent>
-          </Tooltip>
-
           <CollapsedWorkspacePopover>
             <button
               type="button"

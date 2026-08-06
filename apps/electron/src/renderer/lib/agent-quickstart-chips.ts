@@ -5,7 +5,6 @@
  * chip 点击行为按 action.type 区分：
  * - insertPrompt：把引导文案写入输入框，用户续写后自己发送
  * - invokeSkill：写入 `/skillSlug ` 触发已有的 Skill 提及渲染（默认内置 Skill，见 apps/electron/default-skills/）
- * - navigate：跳转到已有的应用内页面（目前只有 Work 看板）
  */
 
 import type { LucideIcon } from 'lucide-react'
@@ -16,7 +15,6 @@ import {
   Search,
   Timer,
   Eraser,
-  LayoutGrid,
   Code2,
   GitPullRequest,
   Bug,
@@ -40,7 +38,6 @@ export type QuickstartCategory = 'office' | 'dev' | 'design'
 export type QuickstartChipAction =
   | { type: 'insertPrompt'; text: string }
   | { type: 'invokeSkill'; skillSlug: string }
-  | { type: 'navigate'; target: 'work-board' }
 
 export interface QuickstartChip {
   id: string
@@ -68,7 +65,6 @@ export const QUICKSTART_CHIPS: Record<QuickstartCategory, QuickstartChip[]> = {
     { id: 'office-search', label: '网络搜索', icon: Search, action: { type: 'invokeSkill', skillSlug: 'open-web-search' } },
     { id: 'office-automation', label: '自动化任务', icon: Timer, action: { type: 'invokeSkill', skillSlug: 'automation' } },
     { id: 'office-session-clean', label: '会话清洗', icon: Eraser, action: { type: 'invokeSkill', skillSlug: 'session-cleaner' } },
-    { id: 'office-work-board', label: '项目看板', icon: LayoutGrid, action: { type: 'navigate', target: 'work-board' } },
   ],
   dev: [
     { id: 'dev-daily', label: '日常开发', icon: Code2, action: { type: 'insertPrompt', text: '帮我实现：' } },

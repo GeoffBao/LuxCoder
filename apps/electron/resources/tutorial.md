@@ -1,6 +1,6 @@
 # LuxCoder 使用指南
 
-最后更新：2026 年 8 月 2 日
+最后更新：2026 年 8 月 6 日
 
 ---
 
@@ -10,32 +10,17 @@
 
 LuxCoder 是一个本地优先的 AI 工作台，面向研发、产品、测试、研究、运营、管理和知识工作场景。它既可以帮助你讨论和表达，也可以在可信环境中读取文件、调用工具、执行命令并交付可追踪的结果。
 
-当前有两个顶层工作模式：
+**主入口是 Code 模式（默认）。** Code 既是可执行、可追踪、可交付的工作入口，也承载问答、阅读、分析和写作等知识工作——不限于写代码，办公和知识工作同样可以使用 Code。
 
-| 模式 | 核心定位 | 典型场景 |
-|------|----------|----------|
-| **Home** | 思考、阅读、分析和表达 | 问答、翻译、写作、附件阅读、多模型比较、方案讨论、轻量技术问题 |
-| **Code** | 执行、交付和持续推进 | 读写文件、运行命令、浏览器/MCP、项目上下文、任务编排、自动化、代码与文档产出 |
-
-### Home 还是 Code？
-
-不要按“是否是程序员”来区分，而要看任务是否需要接触本地环境和持续执行：
-
-| 需求 | 推荐模式 |
+| 适合在 Code 中完成 | 说明 |
 |------|----------|
-| 问答、解释、翻译、头脑风暴 | Home |
-| 阅读附件并总结、改写或比较回答 | Home |
-| 只做研究和分析，不保存本地产物 | 通常 Home |
-| 讨论代码方案，但暂时不打开工程 | Home |
-| 读取或修改本地文件 | Code |
-| 运行 Shell、Git、构建或测试 | Code |
-| 绑定 Workspace / Project | Code |
-| 调用浏览器、MCP 或外部工具并持续操作 | Code |
-| 生成并保存可复查的项目文件 | Code |
-| 使用 Project 看板、正式 Task、Automation 或协作子会话 | Code |
-| 研究后生成报告、保存资料并持续迭代 | Code |
+| 读写文件、运行命令、构建和测试 | 修改本地工程或产出可复查文件 |
+| 绑定 Workspace / Project | 使用项目上下文、资料和 Project Knowledge |
+| 调用浏览器、MCP 或外部工具 | 持续操作外部系统 |
+| Project 看板、正式 Task、Automation | 组织、编排和追踪工作 |
+| 问答、翻译、写作、附件阅读 | 知识工作同样可以在 Code 中完成 |
 
-一句话：**Home 是默认的思考与表达入口；Code 是可执行、可追踪、可交付的工作入口。Code 不限于写代码，办公和知识工作同样可以使用 Code。**
+一句话：**Code 是主入口，也是默认入口。它把思考、执行、交付和持续沉淀放在同一个工作台。**
 
 ![Code 模式界面](https://github.com/GeoffBao/LuxCoder/releases/download/tutorial-assets/code-mode-empty-state.png)
 
@@ -55,14 +40,11 @@ Project 看板和 Task 不再是独立顶层模式，而是 Code 内的工作区
 - **ChatGPT 订阅登录**：通过 Codex OAuth 使用支持的 ChatGPT 订阅能力；
 - **Claude Pro / Max 订阅登录**：通过浏览器授权使用 Claude 订阅能力。
 
-订阅登录渠道当前主要用于 Code。API Key 渠道能否在 Home 使用，取决于协议、模型和渠道配置；如果某个渠道不支持 Home，界面会提示切换到 Code。
+订阅登录渠道当前用于 Code。API Key 渠道能否在 Code 中使用，取决于协议、模型和渠道配置。
 
-### 第二步：选择工作模式
+### 第二步：开始使用 Code
 
-- 想讨论、阅读、分析、写作或比较多个模型：选择 **Home**；
-- 想修改文件、运行命令、绑定工程、生成文件或执行多步骤工作：选择 **Code**。
-
-如果 Home 判断当前请求需要工具执行，可能会显示“切换到 Code”建议。迁移会保留原对话历史，把建议提示预填到 Code 输入区，**不会未经确认自动继续执行**。
+应用默认进入 **Code**。讨论、阅读、分析、写作、修改文件、运行命令、绑定工程、生成文件或执行多步骤工作，都可以直接开始。
 
 ### 第三步：确认 Workspace
 
@@ -127,7 +109,7 @@ Claude Pro / Max 订阅渠道是特殊情况：应用会透明使用与订阅凭
 
 Workspace 是顶层隔离容器，负责：
 
-- Home / Code 共享的能力配置；
+- Code 会话、Project 与未归类会话的能力配置；
 - Code 会话和未归类会话；
 - Skills、MCP、专家绑定和标签；
 - Yoda 记忆（Workspace `CLAUDE.md` 与 auto-memory）；
@@ -189,40 +171,24 @@ Project 不复制 Workspace 的 Skills/MCP。它引用 Workspace 能力，并在
 | 某个 Project 的架构、命令、技术决策 | Project → 知识 |
 | Project 的参考规范、样例和必要设计资料 | Project → 资料 / `assets/` |
 | 真实代码和工程文件 | Project `workingDirectory` |
-| Workspace 级手绘画布 | Home → Excalidraw 画板 |
+| Workspace 级手绘画布 | Code → Excalidraw 画板 |
 
 不要把临时过程、项目专属事实和可复用 SOP 全部写进同一份记忆。它们分别属于 Session Context、Project Knowledge、Yoda 记忆或 Yoda 插件中的 Skill。
 
 ---
 
-## 5. Home 模式
+## 5. 思考、阅读与知识工作
 
-![Home 模式界面](https://github.com/GeoffBao/LuxCoder/releases/download/tutorial-assets/chat-mode-empty-state.png)
+原 Home 模式的问答、阅读、分析和写作能力已并入 Code 主入口，不需要单独切换。你可以在 Code 中完成：
 
-Home 面向日常工作、知识处理和轻量创作。它默认不要求绑定本地工程，也不会因为一次普通问答就修改你的代码仓库。
-
-### 主要能力
-
-- 多模型渠道与模型切换；
-- 同一问题并排比较多个模型；
+- 多模型渠道与模型切换，同一问题并排比较多个模型；
 - 图片、PDF、Office、代码和文本附件；
 - Markdown、Mermaid、KaTeX 和代码高亮；
 - 思考模式与上下文长度控制；
-- Home 提示词管理；
-- 已配置的 Home/API 工具；
-- 清空上下文或插入上下文分割；
-- 将对话迁移到 Code 继续执行。
+- 提示词管理；
+- 清空上下文或插入上下文分割。
 
-### 适合 Home 的例子
-
-- 阅读一份合同、论文或会议纪要并总结；
-- 翻译、改写、润色和写作；
-- 比较多个模型对同一方案的回答；
-- 讨论代码设计但暂时不打开工程；
-- 对一个问题做研究并直接在对话中得到结论；
-- 处理不需要写回本地文件的轻量技术问题。
-
-如果任务开始需要保存报告、批量修改文件、调用浏览器、运行命令或持续维护，就切换到 Code。
+当任务需要保存报告、批量修改文件、调用浏览器、运行命令或持续维护时，在同一个 Code 工作台继续即可。
 
 ---
 
@@ -312,7 +278,7 @@ Code 会话的右侧面板按当前 Session 展示两类主要文件来源：
 
 ### Excalidraw 画板
 
-Home 左栏的 **Excalidraw 画板**用于创建、编辑、重命名、删除和导出手绘画布，支持自动保存和 Cmd/Ctrl+S 手动保存。
+Code 左栏的 **Excalidraw 画板**用于创建、编辑、重命名、删除和导出手绘画布，支持自动保存和 Cmd/Ctrl+S 手动保存。
 
 当前画布按 **Workspace** 存储在 `excalidraw/`，还没有 Project 归属字段。因此它是 Workspace 级创作资产：可以在同一 Workspace 中使用，但不会自动出现在某个 Project 的右侧 Files 面板或 Project → 资料中。需要让某个项目使用画布时，可以导出后放入 Project assets，或在项目资料中保存引用。
 
@@ -407,7 +373,7 @@ LuxCoder collaboration 子会话：
 
 ## 11. Yoda 插件：专家、Skills、MCP 与 API
 
-打开 **设置 → 模型与工具 → Yoda 插件**。Yoda 插件是 Home 与 Code 共享的能力配置中心，不是某个单独模型，也不等于一个额外的 Agent 会话。
+打开 **设置 → 模型与工具 → Yoda 插件**。Yoda 插件是 Code 的能力配置中心，不是某个单独模型，也不等于一个额外的 Agent 会话。
 
 ### 专家
 
@@ -467,7 +433,7 @@ Brave Search 是独立的 MCP Server，不等同于应用内 Tavily 联网搜索
 - 用户画像和跨会话稳定经验；
 - Workspace 默认工作目录。
 
-Yoda 记忆适合保存跨 Home/Code、跨 Project 都成立的规则、偏好、能力约束和稳定经验。它不应变成所有项目过程的流水账。
+Yoda 记忆适合保存跨 Project、跨会话都成立的规则、偏好、能力约束和稳定经验。它不应变成所有项目过程的流水账。
 
 ### Project Knowledge
 
@@ -495,7 +461,7 @@ Yoda 记忆适合保存跨 Home/Code、跨 Project 都成立的规则、偏好�
 
 ## 13. Yoda 知识库（Preview）
 
-Home 左栏的 **Yoda 知识库**是 Workspace 级知识库入口，设计目标是聚合 Home 与 Code 产出的计划、规范、Project Knowledge 和其他知识产物，供未来跨 Project 检索。
+Code 左栏的 **Yoda 知识库**是 Workspace 级知识库入口，设计目标是聚合 Code 产出的计划、规范、Project Knowledge 和其他知识产物，供未来跨 Project 检索。
 
 **当前版本仍是占位/规划页面，不提供真正的索引、搜索或 Agent 查询能力。** 当前尚未实现：
 
@@ -553,7 +519,7 @@ Home 左栏的 **Yoda 知识库**是 Workspace 级知识库入口，设计目标
 | **模型配置** | API 渠道、订阅登录、模型管理 |
 | **Yoda 插件** | 专家、专家团、Skills、MCP、API/增强工具 |
 | **Yoda 记忆** | Workspace `CLAUDE.md`、auto-memory 和默认工作目录 |
-| **提示词管理** | Home 提示词配置 |
+| **提示词管理** | Code 提示词配置 |
 | **语音输入** | 语音输入配置 |
 | **代理设置** | 网络代理 |
 | **工作区** | Workspace 创建、切换、重命名和删除 |
@@ -568,11 +534,11 @@ Home 左栏的 **Yoda 知识库**是 Workspace 级知识库入口，设计目标
 
 ## 16. 最佳实践
 
-### 先按环境边界选择模式
+### 在 Code 中按环境组织工作
 
-- 先在 Home 讨论、阅读和形成结论；
-- 需要本地文件、工具、Project 或可保存产物时进入 Code；
-- 程序员可以先在 Home 讨论方案，再迁移到 Code 实施；
+- 讨论、阅读和分析与执行、交付都在 Code 完成；
+- 需要本地文件、工具、Project 或可保存产物时，绑定 Workspace / Project 后再发起任务；
+- 程序员可以直接在 Code 中讨论方案并实施；
 - 产品、运营、研究和管理用户也可以在 Code 中处理资料、报告和长期工作流。
 
 ### 给任务明确边界
@@ -624,9 +590,9 @@ Home 左栏的 **Yoda 知识库**是 Workspace 级知识库入口，设计目标
 
 ## 17. 常见问题排查
 
-### Home 和 Code 的区别是什么？
+### 如何区分 Code 内的日常对话与正式任务？
 
-Home 适合思考、阅读、分析和表达；Code 适合接触工作区、文件、工具和持续执行。两者不是“非程序员 vs 程序员”的区别。需要保存本地结果、修改文件或运行命令时，优先选择 Code。
+Code 会话适合思考、阅读、分析和表达，也适合接触工作区、文件、工具和持续执行。当任务需要保存本地结果、修改文件、运行命令或长期维护时，绑定 Workspace / Project 并配合正式 Task、Automation 使用；一次性问答或研究直接在当前 Code 会话完成即可。
 
 ### Code 找不到项目代码
 
@@ -638,7 +604,7 @@ Home 适合思考、阅读、分析和表达；Code 适合接触工作区、文�
 
 ### Project Knowledge 和 Yoda 记忆有什么区别？
 
-Project Knowledge 保存单个 Project 的工程事实；Yoda 记忆保存跨 Home/Code、跨 Project 的稳定规则和用户偏好。不要把所有项目内容都写进 Workspace 级 Yoda 记忆。
+Project Knowledge 保存单个 Project 的工程事实；Yoda 记忆保存跨 Project、跨会话的稳定规则和用户偏好。不要把所有项目内容都写进 Workspace 级 Yoda 记忆。
 
 ### Yoda 知识库为什么没有搜索？
 
@@ -687,4 +653,4 @@ Project 可以设置默认专家，正式 Project Task 也可以单独选择专�
 
 如有疑问，可以直接在 Code 中问：
 
-> 请根据当前 LuxCoder 功能告诉我应该用 Home、Code、Project Task、collaboration 还是 Automation，并说明原因。
+> 请根据当前 LuxCoder 功能告诉我应该用 Code 会话、Project Task、collaboration 还是 Automation，并说明原因。
