@@ -168,6 +168,13 @@ interface RichTextInputProps {
 export interface RichTextInputHandle {
   /** 在光标处插入文件引用（右侧文件面板拖入时调用） */
   insertFileMentions: (items: FilePanelDragItem[]) => void
+  /**
+   * 清空当前内容并插入一个 Skill 引用 mention（首屏快捷入口 chip 调用 Skill 时使用）。
+   * 必须走真正的 mention 节点，而不是拼一段 `/slug ` 纯文本——否则既不会渲染成
+   * skill-mention-chip，也不会被 htmlToMarkdown 序列化成 `/skill:slug`，
+   * 发送/排队时就不会被识别为 Skill 引用。
+   */
+  insertSkillMention: (skillSlug: string, label: string) => void
   /** 聚焦并将光标移到文末（快捷入口 chip 写入引导文案后调用） */
   focusEnd: () => void
 }
@@ -825,6 +832,21 @@ export const RichTextInput = forwardRef<RichTextInputHandle, RichTextInputProps>
           .insertContent(' ')
       }
       chain.run()
+    },
+    insertSkillMention(skillSlug: string, label: string): void {
+      if (!editor) return
+      editor.chain().focus()
+        .clearContent()
+        .insertContent({
+          type: 'mention',
+          attrs: {
+            id: skillSlug,
+            label,
+            mentionSuggestionChar: '/',
+          },
+        })
+        .insertContent(' ')
+        .run()
     },
     focusEnd(): void {
       editor?.commands.focus('end')

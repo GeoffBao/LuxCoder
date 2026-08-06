@@ -21,6 +21,7 @@ import {
 import { projectContextBrowseRequestAtom } from '@/atoms/project-context-picker'
 import { serverKanbanProjectsAtom } from '@/atoms/project-atoms'
 import { CreateProjectDialog } from '@/components/work/CreateProjectDialog'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import type { KanbanProject } from '@/components/app-shell/kanban/types'
 import {
@@ -322,40 +323,33 @@ export function ProjectContextPicker({
 
   const triggerLabel = selectedName ?? '选择/新建项目'
 
+  // Popover（而非手写 fixed 遮罩 + absolute 定位）：composer 在首屏居中态和
+  // 底部固定态之间位置差异很大，固定往上弹会在首屏把面板顶进问候语/chips
+  // 区域甚至被裁剪；Radix 的 collision-aware 定位会在空间不足时自动翻转方向。
   return (
-    <div className={cn('relative', className)}>
-      <button
-        type="button"
-        disabled={busy}
-        onClick={() => setOpen((value) => !value)}
-        className={cn(
-          'inline-flex h-7 max-w-[200px] items-center gap-1 rounded-md px-1.5 text-[12px] text-foreground/70 outline-none hover:bg-foreground/[0.05] hover:text-foreground',
-          busy && 'opacity-60',
-        )}
-        aria-expanded={open}
-        aria-haspopup="listbox"
-        aria-label="选择/新建项目"
-        title={selectedName ?? '选择或新建项目'}
-      >
-        <FolderKanban size={12} className="shrink-0 text-foreground/40" />
-        <span className="truncate">{triggerLabel}</span>
-        <ChevronDown size={11} className="shrink-0 text-foreground/35" />
-      </button>
-      {open ? (
-        <>
-          <button
-            type="button"
-            className="fixed inset-0 z-40 cursor-default"
-            aria-label="关闭项目选择器"
-            onClick={() => setOpen(false)}
-          />
-          <div className="absolute bottom-[calc(100%+6px)] left-0 z-50">
-            {panel}
-          </div>
-        </>
-      ) : null}
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          disabled={busy}
+          className={cn(
+            'inline-flex h-7 max-w-[200px] items-center gap-1 rounded-md px-1.5 text-[12px] text-foreground/70 outline-none hover:bg-foreground/[0.05] hover:text-foreground',
+            busy && 'opacity-60',
+            className,
+          )}
+          aria-label="选择/新建项目"
+          title={selectedName ?? '选择或新建项目'}
+        >
+          <FolderKanban size={12} className="shrink-0 text-foreground/40" />
+          <span className="truncate">{triggerLabel}</span>
+          <ChevronDown size={11} className="shrink-0 text-foreground/35" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="top" align="start" sideOffset={6} className="w-auto border-none bg-transparent p-0 shadow-none">
+        {panel}
+      </PopoverContent>
       {createDialog}
-    </div>
+    </Popover>
   )
 }
 
