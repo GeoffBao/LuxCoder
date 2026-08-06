@@ -200,7 +200,7 @@ export function GlobalShortcuts(): null {
     'new-session',
     useCallback(() => {
       if (appMode === 'agent') {
-        createAgent({ draft: true })
+        createAgent({ draft: true, recallDraft: true })
       } else {
         createChat({ draft: true })
       }

@@ -4,7 +4,7 @@
  * 从 LeftSidebar 提取，供 WelcomeView 模式切换和侧边栏共同使用。
  */
 
-import { useAtomValue, useSetAtom } from 'jotai'
+import { useAtomValue, useSetAtom, useStore } from 'jotai'
 import { toast } from 'sonner'
 import type { AgentSessionMeta } from '@luxcoder/shared'
 import {
@@ -13,6 +13,7 @@ import {
 } from '@/atoms/chat-atoms'
 import {
   agentSessionsAtom,
+  agentSessionDraftsAtom,
   agentChannelIdAtom,
   agentModelIdAtom,
   agentSessionChannelMapAtom,
@@ -23,6 +24,7 @@ import { activeViewAtom } from '@/atoms/active-view'
 import { promptConfigAtom, selectedPromptIdAtom } from '@/atoms/system-prompt-atoms'
 import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
 import {
+  findRecallableDraftSession,
   resolveCreateAgentWorkspaceId,
   shouldMarkDraft,
   type CreateAgentSessionFlowInput,
@@ -39,6 +41,7 @@ interface CreateSessionActions {
 }
 
 export function useCreateSession(): CreateSessionActions {
+  const store = useStore()
   const openSession = useOpenSession()
   const setActiveView = useSetAtom(activeViewAtom)
   const setDraftSessionIds = useSetAtom(draftSessionIdsAtom)
@@ -87,6 +90,30 @@ export function useCreateSession(): CreateSessionActions {
     const channelId = input.channelId ?? agentChannelId ?? undefined
     const modelId = input.modelId ?? agentModelId ?? undefined
     const workspaceId = resolveCreateAgentWorkspaceId(input, currentWorkspaceId)
+
+    // 仅显式开启 recallDraft 的空白新会话入口（无 projectId、未强制新建）才回到草稿：
+    // 若当前工作区已有输入过内容但未发送的草稿会话，直接回到它，而不是新建一个空会话
+    // 把刚才的内容"顶没"。程序化创建会话（如搜索建会话、Skills 分类）不传 recallDraft，
+    // 行为不变，避免误把生成的 prompt 发进不相关的旧草稿。
+    if (input.recallDraft && shouldMarkDraft(input) && !input.projectId && !input.forceNew) {
+      const recallable = findRecallableDraftSession({
+        candidates: store.get(agentSessionsAtom),
+        draftSessionIds: store.get(draftSessionIdsAtom),
+        draftTexts: store.get(agentSessionDraftsAtom),
+        workspaceId,
+      })
+      if (recallable) {
+        openSession('agent', recallable.id, recallable.title)
+        setActiveView('conversations')
+        toast.info('已回到上次未发送的草稿', {
+          action: {
+            label: '新建',
+            onClick: () => { void createAgent({ ...input, forceNew: true }) },
+          },
+        })
+        return recallable.id
+      }
+    }
 
     try {
       if (workspaceId && workspaceId !== currentWorkspaceId) {
