@@ -1,11 +1,11 @@
 ---
 name: staged-review-and-fix
-description: Reviews current git changes (staged and/or unstaged), identifies issues (bugs, style, security, logic), and applies targeted fixes. Use when the user asks to review "this commit", "git status", "staged changes", "当前改动", "审核这笔提交", or to review and fix the pending changes.
+description: 审核当前 git 改动（暂存或未暂存），识别问题（Bug、风格、安全、逻辑）并针对性修复。当用户要求审核"这笔提交"、"git status"、"staged changes"、"当前改动"、"审核这笔提交"、"检查我的改动"，或需要 review 并修复待处理改动时使用。触发词：代码审核、code review、git 改动、暂存改动、审核提交、staged changes、审查 diff
 group: 代码质量
-version: 1.0.0
+version: 1.0.1
 ---
 
-# Staged Changes Review and Fix
+# 审核当前改动并修复
 
 针对 `git status` 下的当前改动（暂存或未暂存）做代码审核，发现问题并针对性修复。
 

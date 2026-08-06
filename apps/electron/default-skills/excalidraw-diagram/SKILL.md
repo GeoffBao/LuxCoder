@@ -1,22 +1,22 @@
 ---
 name: excalidraw-diagram
-description: "Generate Excalidraw diagrams as editable files on disk with handwritten visual style (fontFamily: 5). Use only when the user explicitly asks for Excalidraw, an Excalidraw file, or an editable diagram artifact to save/open outside chat. Do not use for generic inline requests like 'visualize it', '可视化一下', or screenshot-style UI summaries; prefer the app's built-in visual-preview or Mermaid rendering for those."
+description: "生成 Excalidraw 图表，以手写视觉风格（fontFamily: 5）的可编辑文件保存到磁盘。仅当用户明确要求 Excalidraw、Excalidraw 文件、或要在聊天之外保存/打开的可编辑图表产物时使用。不要用于'可视化一下'、'visualize it' 等通用内联请求或截图式 UI 摘要；此类场景请优先使用应用内置的 visual-preview 或 Mermaid 渲染。"
 group: 可视化图表
-version: 1.0.0
+version: 1.0.1
 ---
 
 # Excalidraw Diagram Generator
 
-Create Excalidraw diagrams from text content with multiple output formats. **All diagrams are automatically saved to `~/Documents/Excalidraw`**.
+从文本内容生成 Excalidraw 图表，支持多种输出格式。**所有图表自动保存到 `~/Documents/Excalidraw`**。
 
-## When NOT to Use This Skill
+## 何时不使用此技能
 
-- Do not use this skill for generic inline requests such as `visualize it`, `show this visually`, `可视化一下`, or screenshot-style answer cards
-- Do not use this skill just because the user wants "a diagram" in chat
-- Prefer the app's built-in `visual-preview` for screenshot/UI-style inline visuals
-- Prefer built-in Mermaid rendering for relationship, flow, and architecture diagrams that can stay inline in chat
-- If the target UI/theme is dark amber / terminal-like, avoid pastel pink or pale lavender fills. Use dark panels with high-contrast amber, off-white, or muted-gold text instead.
-- Use this skill only when the user explicitly wants **Excalidraw** or an **editable file saved on disk**
+- 不要将此技能用于通用内联请求，如 `visualize it`、`show this visually`、"可视化一下" 或截图式答案卡片
+- 不要仅仅因为用户想在聊天中获得"一张图表"就使用此技能
+- 对于截图/UI 风格的内联视觉内容，优先使用应用内置的 `visual-preview`
+- 对于可以保留在聊天中的关系、流程与架构图，优先使用内置的 Mermaid 渲染
+- 如果目标 UI/主题是深琥珀色 / 终端风格，请避免使用粉彩粉或淡紫填充。改用深色面板 + 高对比琥珀色、米白或哑光金色文字。
+- **仅当用户明确想要 Excalidraw 或将可编辑文件保存到磁盘时**，才使用此技能
 
 ## Output Modes
 
@@ -28,19 +28,19 @@ Create Excalidraw diagrams from text content with multiple output formats. **All
 | `标准Excalidraw`、`standard excalidraw` | **Standard** | `.excalidraw` | 在 excalidraw.com 打开/编辑/分享 |
 | `Excalidraw动画`、`动画图`、`animate` | **Animated** | `.excalidraw` | 拖到 excalidraw-animate 生成动画 |
 
-## Workflow
+## 工作流程
 
-1. **Detect output mode** from trigger words (see Output Modes table above)
-2. Analyze content - identify concepts, relationships, hierarchy
-3. Choose diagram type (see Diagram Types below)
-4. Generate Excalidraw JSON (add animation order if Animated mode)
-5. Output in correct format based on mode
-6. **Automatically save to `~/Documents/Excalidraw`**
-7. Notify user with file path and usage instructions
+1. **检测输出模式** — 根据触发词判断（见上方"输出模式"表）
+2. 分析内容 — 识别概念、关系与层级
+3. 选择图表类型（见下方"图表类型"）
+4. 生成 Excalidraw JSON（Animated 模式需添加动画顺序）
+5. 根据模式以正确格式输出
+6. **自动保存到 `~/Documents/Excalidraw`**
+7. 告知用户文件路径与使用方法
 
 ## Output Formats
 
-### Mode 1: Obsidian Format (Default)
+### 模式 1：Obsidian 格式（默认）
 
 **严格按照以下结构输出，不得有任何修改：**
 
@@ -70,7 +70,7 @@ tags: [excalidraw]
 - **文件扩展名**：`.md`
 - **保存路径**：`~/Documents/Excalidraw/[filename].md`
 
-### Mode 2: Standard Excalidraw Format
+### 模式 2：标准 Excalidraw 格式
 
 直接输出纯 JSON 文件，可在 excalidraw.com 打开：
 
@@ -94,7 +94,7 @@ tags: [excalidraw]
 - **文件扩展名**：`.excalidraw`
 - **保存路径**：`~/Documents/Excalidraw/[filename].excalidraw`
 
-### Mode 3: Animated Excalidraw Format
+### 模式 3：Excalidraw 动画格式
 
 与 Standard 格式相同，但每个元素添加 `customData.animate` 字段控制动画顺序：
 
@@ -128,7 +128,7 @@ tags: [excalidraw]
 
 ---
 
-## Diagram Types & Selection Guide
+## 图表类型与选择指南
 
 选择合适的图表形式，以提升理解力与视觉吸引力。
 
@@ -143,9 +143,9 @@ tags: [excalidraw]
 | **矩阵图** | Matrix | 双维度分类、任务优先级、定位 | 建立 X 与 Y 两个维度，坐标平面安置 |
 | **自由布局** | Freeform | 内容零散、灵感记录、初步信息收集 | 无需结构限制，自由放置图块与箭头 |
 
-## Design Rules
+## 设计规则
 
-### Text & Format
+### 文本与格式
 - **默认手写风格**：所有文本元素使用 `fontFamily: 5`（Excalifont）
 - **所有文本元素必须使用** `fontFamily: 5`（Excalifont 手写字体）
 - **文本中的双引号替换规则**：`"` 替换为 `『』`
@@ -162,7 +162,7 @@ tags: [excalidraw]
   - 居中公式：`x = centerX - estimatedWidth / 2`
   - 示例：文字 "Hello"（5字符, fontSize 20）居中于 x=300 → `estimatedWidth = 5 * 20 * 0.5 = 50` → `x = 300 - 25 = 275`
 
-### Layout & Design
+### 布局与设计
 - **画布范围**：建议所有元素在 0-1200 x 0-800 区域内
 - **最小形状尺寸**：带文字的矩形/椭圆不小于 120x60px
 - **元素间距**：最小 20-30px 间距，防止重叠
@@ -170,7 +170,7 @@ tags: [excalidraw]
 - **图形元素**：适当使用矩形框、圆形、箭头等元素来组织信息
 - **禁止 Emoji**：不要在图表文本中使用任何 Emoji 符号，如需视觉标记请使用简单图形（圆形、方形、箭头）或颜色区分
 
-### Color Palette
+### 调色板
 
 **文字颜色（strokeColor for text）：**
 
@@ -207,7 +207,7 @@ tags: [excalidraw]
 - 浅色填充上用深色变体文字（如浅绿底用 `#15803d`，不用 `#22c55e`）
 - 避免浅灰色文字（`#b0b0b0`、`#999`）出现在白底上
 
-## JSON Structure
+## JSON 结构
 
 **Obsidian 模式：**
 ```json
@@ -233,9 +233,9 @@ tags: [excalidraw]
 }
 ```
 
-## Element Template
+## 元素模板
 
-Each element requires these fields (do NOT add extra fields like `frameId`, `index`, `versionNonce`, `rawText` -- they may cause issues on excalidraw.com. `boundElements` must be `null` not `[]`, `updated` must be `1` not timestamps):
+每个元素都需要以下字段（**不要**添加 `frameId`、`index`、`versionNonce`、`rawText` 等额外字段——它们可能在 excalidraw.com 上引发问题。`boundElements` 必须为 `null` 而非 `[]`，`updated` 必须为 `1` 而非时间戳）：
 
 ```json
 {
@@ -263,9 +263,9 @@ Each element requires these fields (do NOT add extra fields like `frameId`, `ind
 }
 ```
 
-`strokeStyle` values: `"solid"`（实线，默认）| `"dashed"`（虚线）| `"dotted"`（点线）。虚线适合表示可选路径、异步流、弱关联等。
+`strokeStyle` 取值：`"solid"`（实线，默认）| `"dashed"`（虚线）| `"dotted"`（点线）。虚线适合表示可选路径、异步流、弱关联等。
 
-Text elements add:
+文本元素额外添加：
 ```json
 {
   "text": "显示文本",
@@ -295,14 +295,14 @@ Text elements add:
 }
 ```
 
-## Implementation Notes
+## 实现说明
 
-### Auto-save & File Generation Workflow
+### 自动保存与文件生成工作流程
 
 当生成 Excalidraw 图表时，**必须自动执行以下步骤**：
 
 #### 1. 选择合适的图表类型
-- 根据用户提供的内容特性，参考上方 「Diagram Types & Selection Guide」 表
+- 根据用户提供的内容特性，参考上方 「图表类型与选择指南」 表
 - 分析内容的核心诉求，选择最合适的可视化形式
 
 #### 2. 生成有意义的文件名
@@ -360,7 +360,7 @@ tags: [excalidraw]
 - 图表的设计选择说明（选择了什么类型的图表、为什么）
 - 是否需要调整或修改
 
-### Example Output Messages
+### 示例输出消息
 
 **Obsidian 模式：**
 ```
@@ -401,7 +401,7 @@ Excalidraw 动画图已生成！
 4. 点击 Export 导出 SVG 或 WebM
 ```
 
-## Common Mistakes to Avoid
+## 需避免的常见错误
 
 - **文字偏移** — 独立 text 元素的 `x` 是左边缘，不是中心。必须用居中公式手动计算，否则文字会偏到一边
 - **元素重叠** — y 坐标相近的元素容易堆叠。放置新元素前检查与周围元素是否有至少 20px 间距

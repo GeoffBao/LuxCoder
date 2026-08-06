@@ -1,84 +1,84 @@
 ---
 name: pdf
-description: "Use this skill whenever the user mentions a PDF file or asks to produce/edit one. For read-only tasks such as reading, summarizing, extracting plain text, or answering questions from a PDF, follow this skill's read-only routing rules: use the built-in Read tool first, do not write code or scripts, and prefer markitdown for PDFs over 100 pages. Use PDF processing libraries/scripts only for modification tasks such as merging, splitting, rotating, watermarking, filling forms, encrypting/decrypting, extracting images, OCR, or creating PDFs."
+description: "只要用户提到 PDF 文件，或要求生成/编辑 PDF，就使用本 Skill。对于只读任务（阅读、总结、提取纯文本、或回答 PDF 相关问题），遵循本 Skill 的只读路由规则：优先使用内置 Read 工具，不要编写代码或脚本；超过 100 页的 PDF 优先使用 markitdown。仅在需要修改的场景（合并、拆分、旋转、水印、表单填写、加密/解密、图片提取、OCR、创建 PDF）才使用 PDF 处理库/脚本。"
 license: Proprietary. LICENSE.txt has complete terms
-version: "1.0.5"
+version: "1.0.6"
 ---
 
-# PDF Processing Guide
+# PDF 处理指南
 
-## Overview
+## 概述
 
-This guide defines how to handle PDF files. Read-only tasks must be handled with built-in tools first. Python libraries and scripts are fallback tools for PDF modification, OCR, form filling, or other operations that cannot be completed by direct reading.
+本指南定义了如何处理 PDF 文件。只读任务必须优先使用内置工具处理。Python 库和脚本是用于 PDF 修改、OCR、表单填写或其他无法通过直接读取完成的操作时的回退工具。
 
-## Read-Only Routing Rules
+## 只读路由规则
 
-Use this section for requests like "read this PDF", "summarize this PDF", "answer questions from this PDF", or "extract the main points".
+本节适用于"读取这个 PDF"、"总结这个 PDF"、"回答这个 PDF 的问题"或"提取主要内容"等请求。
 
-1. Prefer the built-in Read tool on the PDF path.
-   - Do not write Python, JavaScript, shell scripts, or temporary extraction files for simple reading.
-   - Do not use the Python examples below for read-only tasks unless the built-in Read tool fails or the user explicitly asks for a generated file.
+1. 优先对 PDF 路径使用内置 Read 工具。
+   - 简单读取时，不要编写 Python、JavaScript、shell 脚本或临时提取文件。
+   - 除非内置 Read 工具失败，或用户明确要求生成文件，否则不要将下面的 Python 示例用于只读任务。
 
-2. If the PDF has more than 100 pages, prefer markitdown before Python libraries.
-   - First check whether a global `markitdown` command is available.
-   - If global `markitdown` exists, use it directly.
-   - If global `markitdown` is missing, install it globally for the user, then use it.
-   - Do not create wrapper scripts around markitdown.
-   - If installation fails because of network, permissions, or missing Python tooling, say so briefly and fall back to the built-in Read tool or ask which page range to inspect.
+2. 如果 PDF 超过 100 页，优先使用 markitdown 而不是 Python 库。
+   - 首先检查全局 `markitdown` 命令是否可用。
+   - 如果全局 `markitdown` 存在，直接使用它。
+   - 如果全局 `markitdown` 缺失，先为用户全局安装，然后再使用。
+   - 不要围绕 markitdown 创建包装脚本。
+   - 如果因网络、权限或缺少 Python 工具链导致安装失败，简要说明情况，然后回退到内置 Read 工具，或询问要检查的页码范围。
 
-3. Only move to PDF processing libraries or scripts when the task needs document transformation, complex table extraction, OCR, form filling, image extraction, or PDF generation.
+3. 仅当任务需要文档转换、复杂表格提取、OCR、表单填写、图片提取或 PDF 生成时，才转向 PDF 处理库或脚本。
 
-### Page Count Check
+### 页数检查
 
-Use the cheapest available command. Try `pdfinfo` first:
+使用成本最低的可用命令。先尝试 `pdfinfo`：
 
 ```bash
 pdfinfo input.pdf | grep '^Pages:'
 ```
 
-If `pdfinfo` is unavailable, use the built-in Read tool and infer whether the document is long from the tool result. Avoid writing a custom page-count script just to decide the reading path.
+如果 `pdfinfo` 不可用，使用内置 Read 工具，并根据工具结果推断文档是否较长。避免仅为了决定读取路径而编写自定义页数统计脚本。
 
-### markitdown for Long PDFs
+### 长 PDF 使用 markitdown
 
-For PDFs over 100 pages, first check for a globally available markitdown command:
+对于超过 100 页的 PDF，首先检查是否有全局可用的 markitdown 命令：
 
 ```bash
 command -v markitdown
 ```
 
-If it exists, convert to Markdown directly:
+如果存在，直接转换为 Markdown：
 
 ```bash
 markitdown input.pdf
 ```
 
-If `markitdown` is not installed, install it globally before converting. Prefer direct `pip` installation because it is usually faster and has fewer network/toolchain dependencies than Homebrew-based flows.
+如果 `markitdown` 未安装，请在转换前全局安装。优先使用 `pip` 直接安装，因为它通常比基于 Homebrew 的流程更快，且网络/工具链依赖更少。
 
-Before installing, quickly verify the package source/version if tooling is available:
+安装前，如果工具可用，快速验证包来源/版本：
 
 ```bash
 python3 -m pip index versions markitdown
 ```
 
-Then install:
+然后安装：
 
 ```bash
 python3 -m pip install --user "markitdown[all]"
 ```
 
-After installation, run `markitdown input.pdf`. If the command is not on PATH, try `python3 -m markitdown input.pdf` or use the user's Python user-base bin path.
+安装后，运行 `markitdown input.pdf`。如果命令不在 PATH 中，尝试 `python3 -m markitdown input.pdf`，或使用用户的 Python user-base bin 路径。
 
-If the output is too long for the response, inspect or summarize relevant sections instead of dumping the full text. When saving a converted Markdown file is useful, ask only if the user did not already request a file output.
+如果输出对响应来说太长，请检查或总结相关部分，而不是倾倒全文。当保存转换后的 Markdown 文件有用时，仅在用户尚未请求文件输出的情况下询问。
 
-## Modification and Advanced Processing
+## 修改与高级处理
 
-Use the sections below when the user asks to modify PDFs, create PDFs, fill forms, extract images, OCR scanned pages, or perform precise table extraction that the built-in Read tool cannot handle.
+当用户要求修改 PDF、创建 PDF、填写表单、提取图片、OCR 扫描页面，或执行内置 Read 工具无法处理的精确表格提取时，使用以下各节。
 
-## Python Libraries
+## Python 库
 
-### pypdf - Basic Operations
+### pypdf - 基本操作
 
-#### Merge PDFs
+#### 合并 PDF
 ```python
 from pypdf import PdfWriter, PdfReader
 
@@ -92,7 +92,7 @@ with open("merged.pdf", "wb") as output:
     writer.write(output)
 ```
 
-#### Split PDF
+#### 拆分 PDF
 ```python
 reader = PdfReader("input.pdf")
 for i, page in enumerate(reader.pages):
@@ -102,7 +102,7 @@ for i, page in enumerate(reader.pages):
         writer.write(output)
 ```
 
-#### Extract Metadata
+#### 提取元数据
 ```python
 reader = PdfReader("document.pdf")
 meta = reader.metadata
@@ -112,7 +112,7 @@ print(f"Subject: {meta.subject}")
 print(f"Creator: {meta.creator}")
 ```
 
-#### Rotate Pages
+#### 旋转页面
 ```python
 reader = PdfReader("input.pdf")
 writer = PdfWriter()
@@ -125,9 +125,9 @@ with open("rotated.pdf", "wb") as output:
     writer.write(output)
 ```
 
-### pdfplumber - Text and Table Extraction
+### pdfplumber - 文本与表格提取
 
-#### Extract Text with Layout
+#### 保留布局提取文本
 ```python
 import pdfplumber
 
@@ -137,7 +137,7 @@ with pdfplumber.open("document.pdf") as pdf:
         print(text)
 ```
 
-#### Extract Tables
+#### 提取表格
 ```python
 with pdfplumber.open("document.pdf") as pdf:
     for i, page in enumerate(pdf.pages):
@@ -148,7 +148,7 @@ with pdfplumber.open("document.pdf") as pdf:
                 print(row)
 ```
 
-#### Advanced Table Extraction
+#### 高级表格提取
 ```python
 import pandas as pd
 
@@ -167,9 +167,9 @@ if all_tables:
     combined_df.to_excel("extracted_tables.xlsx", index=False)
 ```
 
-### reportlab - Create PDFs
+### reportlab - 创建 PDF
 
-#### Basic PDF Creation
+#### 基本 PDF 创建
 ```python
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
@@ -188,7 +188,7 @@ c.line(100, height - 140, 400, height - 140)
 c.save()
 ```
 
-#### Create PDF with Multiple Pages
+#### 创建多页 PDF
 ```python
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
@@ -215,11 +215,11 @@ story.append(Paragraph("Content for page 2", styles['Normal']))
 doc.build(story)
 ```
 
-#### Subscripts and Superscripts
+#### 下标与上标
 
-**IMPORTANT**: Never use Unicode subscript/superscript characters (₀₁₂₃₄₅₆₇₈₉, ⁰¹²³⁴⁵⁶⁷⁸⁹) in ReportLab PDFs. The built-in fonts do not include these glyphs, causing them to render as solid black boxes.
+**重要**：切勿在 ReportLab PDF 中使用 Unicode 下标/上标字符（₀₁₂₃₄₅₆₇₈₉、⁰¹²³⁴⁵⁶⁷⁸⁹）。内置字体不包含这些字形，会导致它们渲染为实心黑框。
 
-Instead, use ReportLab's XML markup tags in Paragraph objects:
+相反，请在 Paragraph 对象中使用 ReportLab 的 XML 标记标签：
 ```python
 from reportlab.platypus import Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
@@ -233,9 +233,9 @@ chemical = Paragraph("H<sub>2</sub>O", styles['Normal'])
 squared = Paragraph("x<super>2</super> + y<super>2</super>", styles['Normal'])
 ```
 
-For canvas-drawn text (not Paragraph objects), manually adjust font the size and position rather than using Unicode subscripts/superscripts.
+对于 canvas 绘制的文本（非 Paragraph 对象），请手动调整字体大小和位置，而不是使用 Unicode 下标/上标。
 
-## Command-Line Tools
+## 命令行工具
 
 ### pdftotext (poppler-utils)
 ```bash
@@ -265,7 +265,7 @@ qpdf input.pdf output.pdf --rotate=+90:1  # Rotate page 1 by 90 degrees
 qpdf --password=mypassword --decrypt encrypted.pdf decrypted.pdf
 ```
 
-### pdftk (if available)
+### pdftk（如可用）
 ```bash
 # Merge
 pdftk file1.pdf file2.pdf cat output merged.pdf
@@ -277,9 +277,9 @@ pdftk input.pdf burst
 pdftk input.pdf rotate 1east output rotated.pdf
 ```
 
-## Common Tasks
+## 常见任务
 
-### Extract Text from Scanned PDFs
+### 从扫描 PDF 提取文本
 ```python
 # Requires: pip install pytesseract pdf2image
 import pytesseract
@@ -298,7 +298,7 @@ for i, image in enumerate(images):
 print(text)
 ```
 
-### Add Watermark
+### 添加水印
 ```python
 from pypdf import PdfReader, PdfWriter
 
@@ -317,7 +317,7 @@ with open("watermarked.pdf", "wb") as output:
     writer.write(output)
 ```
 
-### Extract Images
+### 提取图片
 ```bash
 # Using pdfimages (poppler-utils)
 pdfimages -j input.pdf output_prefix
@@ -325,7 +325,7 @@ pdfimages -j input.pdf output_prefix
 # This extracts all images as output_prefix-000.jpg, output_prefix-001.jpg, etc.
 ```
 
-### Password Protection
+### 密码保护
 ```python
 from pypdf import PdfReader, PdfWriter
 
@@ -342,24 +342,24 @@ with open("encrypted.pdf", "wb") as output:
     writer.write(output)
 ```
 
-## Quick Reference
+## 快速参考
 
-| Task | Best Tool | Command/Code |
+| 任务 | 最佳工具 | 命令/代码 |
 |------|-----------|--------------|
-| Merge PDFs | pypdf | `writer.add_page(page)` |
-| Split PDFs | pypdf | One page per file |
-| Read or summarize PDFs | Built-in Read tool | Use Read first; no scripts |
-| Long PDF text extraction (>100 pages) | markitdown | `markitdown input.pdf` |
-| Extract text after Read fails | pdfplumber | `page.extract_text()` |
-| Extract tables after Read fails | pdfplumber | `page.extract_tables()` |
-| Create PDFs | reportlab | Canvas or Platypus |
-| Command line merge | qpdf | `qpdf --empty --pages ...` |
-| OCR scanned PDFs | pytesseract | Convert to image first |
-| Fill PDF forms | pdf-lib or pypdf (see FORMS.md) | See FORMS.md |
+| 合并 PDF | pypdf | `writer.add_page(page)` |
+| 拆分 PDF | pypdf | 每页一个文件 |
+| 读取或总结 PDF | 内置 Read 工具 | 先用 Read；不写脚本 |
+| 长 PDF 文本提取（>100 页） | markitdown | `markitdown input.pdf` |
+| Read 失败后提取文本 | pdfplumber | `page.extract_text()` |
+| Read 失败后提取表格 | pdfplumber | `page.extract_tables()` |
+| 创建 PDF | reportlab | Canvas 或 Platypus |
+| 命令行合并 | qpdf | `qpdf --empty --pages ...` |
+| OCR 扫描 PDF | pytesseract | 先转换为图片 |
+| 填写 PDF 表单 | pdf-lib 或 pypdf（见 FORMS.md） | 见 FORMS.md |
 
-## Next Steps
+## 后续步骤
 
-- For advanced pypdfium2 usage, see REFERENCE.md
-- For JavaScript libraries (pdf-lib), see REFERENCE.md
-- If you need to fill out a PDF form, follow the instructions in FORMS.md
-- For troubleshooting guides, see REFERENCE.md
+- 高级 pypdfium2 用法，见 REFERENCE.md
+- JavaScript 库（pdf-lib），见 REFERENCE.md
+- 如需填写 PDF 表单，请按照 FORMS.md 中的说明操作
+- 故障排查指南，见 REFERENCE.md

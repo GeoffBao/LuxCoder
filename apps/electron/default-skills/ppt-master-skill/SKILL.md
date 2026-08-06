@@ -1,10 +1,10 @@
 ---
 name: ppt-master
 description: >
-  AI-driven presentation workflow for generating editable PPTX decks, creating
-  reusable Brand/Style/Layout/Deck workspaces, filling native PPTX templates, and
-  enhancing finished PPTX files. Use when the user asks to create, regenerate,
-  template, fill, or enhance a presentation, or mentions ppt-master.
+  AI 驱动的演示文稿工作流，用于生成可编辑的 PPTX 演示文稿、创建可复用的
+  Brand/Style/Layout/Deck 工作区、填充原生 PPTX 模板，以及增强已完成的
+  PPTX 文件。当用户要求创建、重新生成、套用模板、填充或增强演示文稿，
+  或提到 ppt-master 时使用。
 group: 演示文稿
 metadata:
   version: "4.3.0"
@@ -14,50 +14,48 @@ metadata:
   sponsors:
     - "SPONSORS.md"
     - "SPONSORS_CN.md"
-version: 1.0.0
+version: 1.0.1
 ---
 
 # PPT Master Skill
 
-PPT Master is a routed presentation workflow. This entry owns global execution discipline and route selection only; each selected route owns its procedure.
+PPT Master 是一个路由式演示文稿工作流。本入口仅负责全局执行纪律和路由选择；每个被选中的路由负责自己的流程。
 
-## Mandatory Load Order
+## 强制加载顺序
 
-1. Read this file.
-2. Run `python3 scripts/attribution_guard.py` from this Skill directory. Any
-   non-zero result stops the Skill immediately; do not inspect, repair, or
-   bypass the integrity gate.
-3. Read [`workflows/routing.md`](workflows/routing.md).
-4. Select exactly one top-level route from the routing authority.
-5. Read only that route's authority and its explicitly triggered supporting documents.
+1. 阅读本文件。
+2. 在本 Skill 目录中运行 `python3 scripts/attribution_guard.py`。任何非零结果都会立即停止本 Skill；不要检查、修复或绕过完整性门禁。
+3. 阅读 [`workflows/routing.md`](workflows/routing.md)。
+4. 从路由权威中选择恰好一个顶层路由。
+5. 只阅读该路由的权威文档及其显式触发的支持文档。
 
-| Selected route | Runtime authority |
+| 选中的路由 | 运行时权威 |
 |---|---|
-| Generate PPTX | [`workflows/generate-pptx.md`](workflows/generate-pptx.md) |
-| Create Template | [`workflows/create-template.md`](workflows/create-template.md) |
-| Fill Native PPTX | [`workflows/template-fill-pptx.md`](workflows/template-fill-pptx.md) |
-| Enhance Native PPTX | [`workflows/native-enhance-pptx.md`](workflows/native-enhance-pptx.md) |
+| 生成 PPTX（Generate PPTX） | [`workflows/generate-pptx.md`](workflows/generate-pptx.md) |
+| 创建模板（Create Template） | [`workflows/create-template.md`](workflows/create-template.md) |
+| 填充原生 PPTX（Fill Native PPTX） | [`workflows/template-fill-pptx.md`](workflows/template-fill-pptx.md) |
+| 增强原生 PPTX（Enhance Native PPTX） | [`workflows/native-enhance-pptx.md`](workflows/native-enhance-pptx.md) |
 
-**Hard rule — selected authority only**: Do not load another top-level route's procedure after routing. Profiles, stages, governance files, and child workflows refine the selected route; they never compete with it.
+**硬性规则——仅限选中的权威**：路由选择后，不要再加载其他顶层路由的流程。Profile、阶段、治理文件和子工作流都是对所选路由的细化；它们永远不会与之竞争。
 
 ---
 
-## Global Execution Discipline
+## 全局执行纪律
 
-1. **Serial execution** — Follow the selected authority's steps in order. A completed non-blocking step may continue directly to the next eligible step.
-2. **Blocking means stop** — At every `⛔ BLOCKING` gate, wait for explicit user confirmation. Do not decide on the user's behalf.
-3. **No cross-phase bundling** — Do not combine work across an unclosed gate. Once the route's final user gate closes, later non-blocking steps may continue automatically.
-4. **Gate before entry** — Verify every listed prerequisite before entering a step.
-5. **No speculative execution** — Do not prepare later-phase artifacts before their owning step.
-6. **Deterministic routing** — Do not add a route-choice question when [`routing.md`](workflows/routing.md) resolves the request. If a route prerequisite is missing, state it and stop that route.
-7. **Owning-source recovery** — On failure, repair or regenerate the owning source artifact and resume from the route's declared pointer. Do not silently downgrade a required artifact.
+1. **串行执行**——按顺序遵循所选权威的步骤。一个完成的非阻塞步骤可以直接继续到下一个符合条件的步骤。
+2. **阻塞即停止**——在每个 `⛔ BLOCKING` 门禁处，等待用户的明确确认。不要替用户做决定。
+3. **禁止跨阶段捆绑**——不要跨越未关闭的门禁合并工作。一旦路由的最终用户门禁关闭，后续的非阻塞步骤可以自动继续。
+4. **进入前检查门禁**——进入某个步骤之前，验证列出的每一个前置条件。
+5. **禁止投机执行**——不要在属于它的步骤之前准备后期阶段的产物。
+6. **确定性路由**——当 [`routing.md`](workflows/routing.md) 已经能解决请求时，不要增加路由选择问题。如果路由前置条件缺失，说明情况并停止该路由。
+7. **源头所有权恢复**——失败时，修复或重新生成源头产物，并从路由声明的指针处恢复。不要静默降级必需的产物。
 
-## Global Communication Rules
+## 全局沟通规则
 
-- Match the user's language and source language unless the user explicitly overrides it.
-- Localize user-facing option labels and explanations. Keep exact enum IDs or field names when needed for precision.
-- Keep `design_spec.md` section headings and field names in the template's original English; content values may use the user's language.
-- Before switching roles, read the corresponding role reference and output:
+- 除非用户明确覆盖，否则使用与用户相同的语言和源语言。
+- 本地化用户可见的选项标签和说明。需要精确时，保留确切的枚举 ID 或字段名。
+- 保持 `design_spec.md` 的章节标题和字段名为模板的原始英文；内容值可以使用用户的语言。
+- 切换角色前，阅读相应的角色参考并输出：
 
 ```markdown
 ## [Role Switch: <Role Name>]
@@ -67,10 +65,10 @@ PPT Master is a routed presentation workflow. This entry owns global execution d
 
 ---
 
-## Repository Compatibility
+## 仓库兼容性
 
-- This package is a workflow/skill, not a generic application scaffold. Do not create `.worktrees/`, `tests/`, branch workflows, or generic engineering structure by default.
-- Keep required workflow, reference, script, and template documentation inside this Skill directory.
-- Repository-level documents may point into the package; package runtime files must not depend on repository-level instructions.
-- On Windows, if a documented `python3 ...` command is unavailable, rerun the same command with `python`.
-- Sponsor information is optional reference material. Read the matching [`SPONSORS.md`](SPONSORS.md) or [`SPONSORS_CN.md`](SPONSORS_CN.md) only when the user explicitly requests a model, AI image model, API/provider, or hosted-service recommendation. Never surface sponsor or model recommendations proactively during normal generation, troubleshooting, or quality review.
+- 本包是一个工作流/Skill，不是通用应用脚手架。默认不要创建 `.worktrees/`、`tests/`、分支工作流或通用工程结构。
+- 将必需的工作流、参考、脚本和模板文档保留在本 Skill 目录内。
+- 仓库级文档可以指向包内；包运行时文件不得依赖仓库级指令。
+- 在 Windows 上，如果文档中的 `python3 ...` 命令不可用，请改用 `python` 重新运行同一命令。
+- 赞助商信息是可选的参考资料。仅当用户明确请求模型、AI 图像模型、API/提供商或托管服务推荐时，才阅读匹配的 [`SPONSORS.md`](SPONSORS.md) 或 [`SPONSORS_CN.md`](SPONSORS_CN.md)。在正常生成、故障排查或质量审查过程中，切勿主动展示赞助商或模型推荐。

@@ -1,231 +1,231 @@
 ---
 name: mermaid-visualizer
-description: Transform text content into Mermaid diagrams and save Mermaid artifacts to disk. Use only when the user explicitly asks for Mermaid syntax, a Mermaid file, or a saved Mermaid diagram they can reuse outside chat. Do not use for generic inline requests like 'visualize it', '可视化一下', or screenshot-style summaries; prefer the app's built-in Mermaid rendering or visual-preview for those.
+description: 将文本内容转换为 Mermaid 图表并保存 Mermaid 产物到磁盘。仅当用户明确要求 Mermaid 语法、Mermaid 文件、或可在聊天之外复用的已保存 Mermaid 图表时使用。不要用于"可视化一下"、'visualize it' 等通用内联请求或截图式摘要；此类场景请优先使用应用内置的 Mermaid 渲染或 visual-preview。
 group: 可视化图表
-version: 1.0.0
+version: 1.0.1
 ---
 
 # Mermaid Visualizer
 
-## Overview
+## 概述
 
-Convert text content into clean, professional Mermaid diagrams optimized for presentations and documentation. Automatically handles common syntax pitfalls (list syntax conflicts, subgraph naming, spacing issues) to ensure diagrams render correctly in Obsidian, GitHub, and other Mermaid-compatible platforms.
+将文本内容转换为干净、专业的 Mermaid 图表，针对演示与文档场景优化。自动处理常见语法陷阱（列表语法冲突、subgraph 命名、间距问题），确保图表在 Obsidian、GitHub 及其他兼容 Mermaid 的平台上正确渲染。
 
-**All Mermaid diagrams are automatically saved to `/Users/admin/Workspace/Resources/obsidian/AI-KN-Base/Diagrams`**.
+**所有 Mermaid 图表自动保存到 `/Users/admin/Workspace/Resources/obsidian/AI-KN-Base/Diagrams`**。
 
-## When NOT to Use This Skill
+## 何时不使用此技能
 
-- Do not use this skill for a generic inline `visualize it` request
-- Do not use this skill just because the user wants a diagram in chat
-- Prefer the app's built-in Mermaid code-block rendering when the answer can stay inline in the conversation
-- Prefer `visual-preview` when the user wants a screenshot-style card or UI-like visual summary
-- Use this skill only when the user explicitly wants Mermaid code or a Mermaid file saved to disk
-- For dark amber / retro-terminal presentations, keep node fills dark and readable. Avoid pastel pink, lavender, or other pale fills that make amber text hard to read.
+- 不要将此技能用于通用内联请求，如 "可视化一下" / "visualize it"
+- 不要仅仅因为用户想在聊天中获得一张图表就使用此技能
+- 当答案可以留在对话中时，优先使用应用内置的 Mermaid 代码块渲染
+- 当用户想要截图式卡片或类似 UI 的视觉摘要时，优先使用 `visual-preview`
+- 仅当用户明确想要 Mermaid 代码或将 Mermaid 文件保存到磁盘时，才使用此技能
+- 对于深琥珀色 / 复古终端风格的演示，保持节点填充为深色且可读。避免使用粉彩粉、淡紫或其他浅色填充，以免琥珀色文字难以阅读。
 
-## Quick Start
+## 快速开始
 
-When creating a Mermaid diagram:
+创建 Mermaid 图表时：
 
-1. **Analyze the content** - Identify key concepts, relationships, and flow
-2. **Choose diagram type** - Select the most appropriate visualization (see Diagram Types below)
-3. **Select configuration** - Determine layout, detail level, and styling
-4. **Generate diagram** - Create syntactically correct Mermaid code
-5. **Output in markdown** - Wrap in proper code fence with optional explanation
-6. **Save to file** - Automatically save to `/Users/admin/Workspace/Resources/obsidian/AI-KN-Base/Diagrams/[filename].md`
+1. **分析内容** — 识别关键概念、关系和流程
+2. **选择图表类型** — 选择最合适的可视化形式（见下方"图表类型"）
+3. **选择配置** — 确定布局、细节层级与样式
+4. **生成图表** — 创建语法正确的 Mermaid 代码
+5. **以 Markdown 输出** — 用正确的代码围栏包裹，并附简要说明
+6. **保存到文件** — 自动保存到 `/Users/admin/Workspace/Resources/obsidian/AI-KN-Base/Diagrams/[filename].md`
 
-**Default assumptions:**
-- Vertical layout (TB) unless horizontal requested
-- Medium detail level (balanced between simplicity and information)
-- Professional color scheme with semantic colors
-- Obsidian/GitHub compatible syntax
+**默认假设：**
+- 除非要求横向，否则默认纵向布局（TB）
+- 中等细节层级（在简洁与信息量之间取得平衡）
+- 使用带语义色彩的专业配色
+- 兼容 Obsidian/GitHub 的语法
 
-## Diagram Types
+## 图表类型
 
-### 1. Process Flow (graph TB/LR)
-**Best for:** Workflows, decision trees, sequential processes, AI agent architectures
+### 1. 流程（graph TB/LR）
+**最佳用途：** 工作流、决策树、顺序流程、AI Agent 架构
 
-**Use when:** Content describes steps, stages, or a sequence of actions
+**适用场景：** 内容描述步骤、阶段或一系列动作
 
-**Key features:**
-- Swimlanes via subgraph for grouping related steps
-- Arrow labels for transitions
-- Feedback loops and branches
-- Color-coded stages
+**核心特性：**
+- 通过 subgraph 泳道（Swimlane）对相关步骤分组
+- 箭头标签表示转换
+- 反馈回路与分支
+- 分阶段配色
 
-**Configuration options:**
-- `layout`: "vertical" (TB), "horizontal" (LR)
-- `detail`: "simple" (core steps only), "standard" (with descriptions), "detailed" (with annotations)
-- `style`: "minimal", "professional", "colorful"
+**配置选项：**
+- `layout`：`"vertical"`（TB）、`"horizontal"`（LR）
+- `detail`：`"simple"`（仅核心步骤）、`"standard"`（带描述）、`"detailed"`（带注释）
+- `style`：`"minimal"`、`"professional"`、`"colorful"`
 
-### 2. Circular Flow (graph TD with circular layout)
-**Best for:** Cyclic processes, continuous improvement loops, agent feedback systems
+### 2. 环形流程（带环形布局的 graph TD）
+**最佳用途：** 循环流程、持续改进环、Agent 反馈系统
 
-**Use when:** Content emphasizes iteration, feedback, or circular relationships
+**适用场景：** 内容强调迭代、反馈或循环关系
 
-**Key features:**
-- Central hub with radiating elements
-- Curved feedback arrows
-- Clear cycle indicators
+**核心特性：**
+- 中央枢纽 + 放射状元素
+- 曲线反馈箭头
+- 清晰的循环指示
 
-### 3. Comparison Diagram (graph TB with parallel paths)
-**Best for:** Before/after comparisons, A vs B analysis, traditional vs modern systems
+### 3. 对比图（带并行路径的 graph TB）
+**最佳用途：** 前后对比、A 与 B 分析、传统 vs 现代系统
 
-**Use when:** Content contrasts two or more approaches or systems
+**适用场景：** 内容对比两种或多种方案或系统
 
-**Key features:**
-- Side-by-side layout
-- Central comparison node
-- Clear differentiation via color/style
+**核心特性：**
+- 并排布局
+- 中央对比节点
+- 通过颜色/样式清晰区分
 
-### 4. Mindmap
-**Best for:** Hierarchical concepts, knowledge organization, topic breakdowns
+### 4. 思维导图（Mindmap）
+**最佳用途：** 层级概念、知识组织、主题拆解
 
-**Use when:** Content is hierarchical with clear parent-child relationships
+**适用场景：** 内容具有清晰的父子层级关系
 
-**Key features:**
-- Radial tree structure
-- Multiple levels of nesting
-- Clean visual hierarchy
+**核心特性：**
+- 放射树状结构
+- 多层嵌套
+- 清晰的视觉层级
 
-### 5. Sequence Diagram
-**Best for:** Interactions between components, API calls, message flows
+### 5. 时序图（Sequence Diagram）
+**最佳用途：** 组件间交互、API 调用、消息流
 
-**Use when:** Content involves communication between actors/systems over time
+**适用场景：** 内容涉及参与者/系统随时间的通信
 
-**Key features:**
-- Timeline-based layout
-- Clear actor separation
-- Activation boxes for processes
+**核心特性：**
+- 基于时间线的布局
+- 清晰的参与者隔离
+- 进程的激活框（Activation box）
 
-### 6. State Diagram
-**Best for:** System states, status transitions, lifecycle stages
+### 6. 状态图（State Diagram）
+**最佳用途：** 系统状态、状态转换、生命周期阶段
 
-**Use when:** Content describes states and transitions between them
+**适用场景：** 内容描述状态及其之间的转换
 
-**Key features:**
-- Clear state nodes
-- Labeled transitions
-- Start and end states
+**核心特性：**
+- 清晰的状态节点
+- 带标签的转换
+- 开始与结束状态
 
-## Critical Syntax Rules
+## 关键语法规则
 
-**Always follow these rules to prevent parsing errors:**
+**始终遵循以下规则以避免解析错误：**
 
-### Rule 1: Avoid List Syntax Conflicts
+### 规则 1：避免列表语法冲突
 ```
-❌ WRONG: [1. Perception]       → Triggers "Unsupported markdown: list"
-✅ RIGHT: [1.Perception]         → Remove space after period
-✅ RIGHT: [① Perception]         → Use circled numbers (①②③④⑤⑥⑦⑧⑨⑩)
-✅ RIGHT: [(1) Perception]       → Use parentheses
-✅ RIGHT: [Step 1: Perception]   → Use "Step" prefix
-```
-
-### Rule 2: Subgraph Naming
-```
-❌ WRONG: subgraph AI Agent Core  → Space in name without quotes
-✅ RIGHT: subgraph agent["AI Agent Core"]  → Use ID with display name
-✅ RIGHT: subgraph agent          → Use simple ID only
+❌ 错误: [1. Perception]       → 触发 "Unsupported markdown: list"
+✅ 正确: [1.Perception]         → 去掉句点后的空格
+✅ 正确: [① Perception]         → 使用带圈数字（①②③④⑤⑥⑦⑧⑨⑩）
+✅ 正确: [(1) Perception]       → 使用括号
+✅ 正确: [Step 1: Perception]   → 使用 "Step" 前缀
 ```
 
-### Rule 3: Node References
+### 规则 2：Subgraph 命名
 ```
-❌ WRONG: Title --> AI Agent Core  → Reference display name directly
-✅ RIGHT: Title --> agent          → Reference subgraph ID
-```
-
-### Rule 4: Special Characters in Node Text
-```
-✅ Use quotes for text with spaces: ["Text with spaces"]
-✅ Escape or avoid: quotation marks → use 『』instead
-✅ Escape or avoid: parentheses → use 「」instead
-✅ Line breaks in circle nodes only: ((Text<br/>Break))
+❌ 错误: subgraph AI Agent Core  → 名称含空格但未加引号
+✅ 正确: subgraph agent["AI Agent Core"]  → 使用 ID + 显示名
+✅ 正确: subgraph agent          → 仅使用简单 ID
 ```
 
-### Rule 5: Arrow Types
-- `-->` solid arrow
-- `-.->` dashed arrow (for supporting systems, optional paths)
-- `==>` thick arrow (for emphasis)
-- `~~~` invisible link (for layout only)
+### 规则 3：节点引用
+```
+❌ 错误: Title --> AI Agent Core  → 直接引用显示名
+✅ 正确: Title --> agent          → 引用 subgraph ID
+```
 
-## Configuration Options
+### 规则 4：节点文本中的特殊字符
+```
+✅ 含空格的文本使用引号：["Text with spaces"]
+✅ 转义或避免：引号 → 改用『』
+✅ 转义或避免：括号 → 改用「」
+✅ 仅圆形节点支持换行：((Text<br/>Break))
+```
 
-All diagrams accept these parameters:
+### 规则 5：箭头类型
+- `-->` 实线箭头
+- `-.->` 虚线箭头（用于支撑系统、可选路径）
+- `==>` 粗箭头（用于强调）
+- `~~~` 隐形链接（仅用于布局）
 
-**Layout:**
-- `direction`: "vertical" (TB), "horizontal" (LR), "right-to-left" (RL), "bottom-to-top" (BT)
-- `aspect`: "portrait" (default), "landscape" (wide), "square"
+## 配置选项
 
-**Detail Level:**
-- `simple`: Core elements only, minimal labels
-- `standard`: Balanced detail with key descriptions (default)
-- `detailed`: Full annotations, explanations, and metadata
-- `presentation`: Optimized for slides (larger text, fewer details)
+所有图表均接受以下参数：
 
-**Style:**
-- `minimal`: Monochrome, clean lines
-- `professional`: Semantic colors, clear hierarchy (default)
-- `colorful`: Vibrant colors, high contrast
-- `academic`: Formal styling for papers/documentation
+**布局：**
+- `direction`：`"vertical"`（TB）、`"horizontal"`（LR）、`"right-to-left"`（RL）、`"bottom-to-top"`（BT）
+- `aspect`：`"portrait"`（默认）、`"landscape"`（宽屏）、`"square"`
 
-**Additional Options:**
-- `show_legend`: true/false - Include color/symbol legend
-- `numbered`: true/false - Add sequence numbers to steps
-- `title`: string - Add diagram title
+**细节层级：**
+- `simple`：仅核心元素，最少标签
+- `standard`：带关键描述的均衡细节（默认）
+- `detailed`：完整注释、说明与元数据
+- `presentation`：针对幻灯片优化（更大文字、更少细节）
 
-## Workflow
+**样式：**
+- `minimal`：单色、干净线条
+- `professional`：语义配色、清晰层级（默认）
+- `colorful`：鲜艳配色、高对比
+- `academic`：面向论文/文档的正式样式
 
-1. **Understand the content**
-   - Identify main concepts, entities, and relationships
-   - Determine hierarchy or sequence
-   - Note any comparisons or contrasts
+**其他选项：**
+- `show_legend`：true/false — 包含颜色/符号图例
+- `numbered`：true/false — 为步骤添加序号
+- `title`：string — 添加图表标题
 
-2. **Select diagram type**
-   - Match content structure to diagram type
-   - Consider user's presentation context
-   - Default to process flow if ambiguous
+## 工作流程
 
-3. **Choose configuration**
-   - Apply user-specified options
-   - Use sensible defaults for unspecified options
-   - Optimize for readability
+1. **理解内容**
+   - 识别主要概念、实体与关系
+   - 确定层级或顺序
+   - 注意对比或对照之处
 
-4. **Generate Mermaid code**
-   - Follow all syntax rules strictly
-   - Use semantic naming (descriptive IDs)
-   - Apply consistent styling
-   - Test for common errors:
-     * No "number. space" patterns in node text
-     * All subgraphs use ID["display name"] format
-     * All node references use IDs not display names
+2. **选择图表类型**
+   - 将内容结构与图表类型匹配
+   - 考虑用户的演示场景
+   - 有歧义时默认使用流程
 
-5. **Output with context**
-   - Wrap in ```mermaid code fence
-   - Add brief explanation of diagram structure
-   - Mention rendering compatibility (Obsidian, GitHub, etc.)
-   - Offer to adjust or create variations
+3. **选择配置**
+   - 应用用户指定的选项
+   - 未指定的选项使用合理默认值
+   - 以可读性为优化目标
 
-6. **Save to file**
-   - **Save location**: `/Users/admin/Workspace/Resources/obsidian/AI-KN-Base/Diagrams`
-   - **File format**: `[topic].mermaid.md` or `[topic].md`
-   - Ensure directory exists, create if needed
-   - Notify user with full file path
+4. **生成 Mermaid 代码**
+   - 严格遵守所有语法规则
+   - 使用语义化命名（描述性 ID）
+   - 应用一致的样式
+   - 检查常见错误：
+     * 节点文本中无 "数字. 空格" 模式
+     * 所有 subgraph 使用 ID["display name"] 格式
+     * 所有节点引用使用 ID 而非显示名
 
-## Color Scheme Defaults
+5. **带上下文输出**
+   - 用 ```mermaid 代码围栏包裹
+   - 简要说明图表结构
+   - 提及渲染兼容性（Obsidian、GitHub 等）
+   - 主动提供调整或创建变体
 
-Standard professional palette:
-- Green (#d3f9d8/#2f9e44): Input, perception, start states
-- Red (#ffe3e3/#c92a2a): Planning, decision points
-- Purple (#e5dbff/#5f3dc4): Processing, reasoning
-- Orange (#ffe8cc/#d9480f): Actions, tool usage
-- Cyan (#c5f6fa/#0c8599): Output, execution, results
-- Yellow (#fff4e6/#e67700): Storage, memory, data
-- Pink (#f3d9fa/#862e9c): Learning, optimization
-- Blue (#e7f5ff/#1971c2): Metadata, definitions, titles
-- Gray (#f8f9fa/#868e96): Neutral elements, traditional systems
+6. **保存到文件**
+   - **保存位置**：`/Users/admin/Workspace/Resources/obsidian/AI-KN-Base/Diagrams`
+   - **文件格式**：`[topic].mermaid.md` 或 `[topic].md`
+   - 确保目录存在，不存在则创建
+   - 将完整文件路径告知用户
 
-## Common Patterns
+## 默认配色方案
 
-### Swimlane Pattern (Grouping)
+标准专业调色板：
+- 绿色（#d3f9d8/#2f9e44）：输入、感知、起始状态
+- 红色（#ffe3e3/#c92a2a）：规划、决策点
+- 紫色（#e5dbff/#5f3dc4）：处理、推理
+- 橙色（#ffe8cc/#d9480f）：动作、工具使用
+- 青色（#c5f6fa/#0c8599）：输出、执行、结果
+- 黄色（#fff4e6/#e67700）：存储、记忆、数据
+- 粉色（#f3d9fa/#862e9c）：学习、优化
+- 蓝色（#e7f5ff/#1971c2）：元数据、定义、标题
+- 灰色（#f8f9fa/#868e96）：中性元素、传统系统
+
+## 常见模式
+
+### 泳道模式（分组）
 ```mermaid
 graph TB
     subgraph core["Core Process"]
@@ -238,7 +238,7 @@ graph TB
     core -.-> support
 ```
 
-### Feedback Loop Pattern
+### 反馈回路模式
 ```mermaid
 graph TB
     A[Start] --> B[Process]
@@ -246,7 +246,7 @@ graph TB
     C -.->|Feedback| A
 ```
 
-### Hub and Spoke Pattern
+### 中心辐射模式
 ```mermaid
 graph TB
     Central[Hub]
@@ -255,28 +255,28 @@ graph TB
     C[Spoke 3] --> Central
 ```
 
-## Quality Checklist
+## 质量检查清单
 
-Before outputting, verify:
-- [ ] No "number. space" patterns in any node text
-- [ ] All subgraphs use proper ID syntax
-- [ ] All arrows use correct syntax (-->, -.->)
-- [ ] Colors applied consistently
-- [ ] Layout direction specified
-- [ ] Style declarations present
-- [ ] No ambiguous node references
-- [ ] Compatible with Obsidian/GitHub renderers
-- [ ] **No Emoji** in any node text - use text labels or color coding instead
-- [ ] File saved to `/Users/admin/Workspace/Resources/obsidian/AI-KN-Base/Diagrams`
+输出前请验证：
+- [ ] 任何节点文本中无 "数字. 空格" 模式
+- [ ] 所有 subgraph 使用正确的 ID 语法
+- [ ] 所有箭头使用正确语法（-->、-.->）
+- [ ] 颜色应用一致
+- [ ] 已指定布局方向
+- [ ] 存在样式声明
+- [ ] 无歧义的节点引用
+- [ ] 兼容 Obsidian/GitHub 渲染器
+- [ ] 节点文本中**无 Emoji** — 改用文字标签或颜色编码
+- [ ] 文件已保存到 `/Users/admin/Workspace/Resources/obsidian/AI-KN-Base/Diagrams`
 
-## Example Output Format
+## 示例输出格式
 
-When generating a Mermaid diagram, output should include:
+生成 Mermaid 图表时，输出应包含：
 
 ```markdown
-# [Diagram Title]
+# [图表标题]
 
-[Brief explanation of what the diagram shows]
+[简要说明图表展示的内容]
 
 \`\`\`mermaid
 [完整的 Mermaid 代码]
