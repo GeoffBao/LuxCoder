@@ -14,12 +14,13 @@
  */
 
 import * as React from 'react'
-import { unstable_batchedUpdates } from 'react-dom'
+import { unstable_batchedUpdates, flushSync } from 'react-dom'
 import { useAtom, useAtomValue, useSetAtom, useStore } from 'jotai'
 import { toast } from 'sonner'
 import { Box, CornerDownLeft, Square, Settings, X, Copy, Check, Brain, Sparkles, ChevronDown, ListTodo, Paperclip } from 'lucide-react'
 import { AgentMessages } from './AgentMessages'
 import { AgentHeader } from './AgentHeader'
+import { AgentNewSessionHero } from './AgentNewSessionHero'
 import { AgentMessageQueue } from './AgentMessageQueue'
 import { ContextUsageBadge } from './ContextUsageBadge'
 import { PermissionBanner } from './PermissionBanner'
@@ -129,6 +130,8 @@ import {
   restoreQueuedMessageToFront,
 } from '@/lib/agent-message-queue'
 import type { AgentQueuedAttachment, AgentQueuedMessage, QueueDropPlacement } from '@/lib/agent-message-queue'
+import type { QuickstartChip } from '@/lib/agent-quickstart-chips'
+import { codeMainViewAtom } from '@/atoms/project-atoms'
 
 /** 稳定的空 SDKMessage 数组引用，避免 ?? [] 每次创建新引用 */
 const EMPTY_SDK_MESSAGES: SDKMessage[] = []
@@ -489,6 +492,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
   const agentChannelIds = useAtomValue(agentChannelIdsAtom)
   const [agentRuntime, setAgentRuntime] = useAtom(agentRuntimeAtom)
   const setSettingsOpen = useSetAtom(settingsOpenAtom)
+  const setCodeMainView = useSetAtom(codeMainViewAtom)
   const setDraftSessionIds = useSetAtom(draftSessionIdsAtom)
   const draftSessionIds = useAtomValue(draftSessionIdsAtom)
   const isDraftSession = draftSessionIds.has(sessionId)
@@ -2066,6 +2070,24 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
   const isEmptySession = messagesLoaded && persistedSDKMessages.length === 0 && liveMessages.length === 0
   const canPrepareDraftGitContext = isDraftSession || isEmptySession
 
+  // 首屏 Hero（居中标题+Tab+chips+输入框）是否可见。不直接用 isEmptySession 分支，
+  // 是因为首条消息发出后 isEmptySession 要等 liveMessages 异步到达才会变 false——
+  // 用 heroVisible + View Transition 把这次跨渲染的布局切换包成一次平滑动画，
+  // 而不是等数据到达后直接跳变。
+  const [heroVisible, setHeroVisible] = React.useState(isEmptySession)
+  const prevIsEmptySessionRef = React.useRef(isEmptySession)
+  React.useEffect(() => {
+    if (prevIsEmptySessionRef.current === isEmptySession) return
+    prevIsEmptySessionRef.current = isEmptySession
+    if (typeof document.startViewTransition === 'function') {
+      document.startViewTransition(() => {
+        flushSync(() => setHeroVisible(isEmptySession))
+      })
+    } else {
+      setHeroVisible(isEmptySession)
+    }
+  }, [isEmptySession])
+
   const handleDraftGitContextChange = React.useCallback((selection: DraftGitContextSelection | null): void => {
     setDraftGitContextSelection(selection)
   }, [])
@@ -2917,6 +2939,18 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     </Tooltip>
   )
 
+  // 首屏快捷入口 chip 点击：按 action 类型分别写入引导文案 / 触发 Skill 提及 / 跳转看板
+  const handleQuickstartChip = React.useCallback((chip: QuickstartChip): void => {
+    const { action } = chip
+    if (action.type === 'navigate') {
+      if (action.target === 'work-board') setCodeMainView('work')
+      return
+    }
+    const text = action.type === 'insertPrompt' ? action.text : `/${action.skillSlug} `
+    setInputContent(text)
+    requestAnimationFrame(() => richTextInputRef.current?.focusEnd())
+  }, [setCodeMainView, setInputContent])
+
   const sendButton = (
     <Button
       type="button"
@@ -2979,6 +3013,151 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
   // 冷启动重开旧 draft 会话时，内存态 draftSessionIds 已丢失（不跨进程持久化）；
   // isEmptySession 已在发送逻辑前提前派生，供 Project/Git 选择器和首发准备共用。
 
+  // composer 卡片本体（不含外层定位/间距 wrapper）——首屏居中态与常规底部固定态共用，
+  // 外层 wrapper 各自决定尺寸/间距，都带 agent-hero-composer class 供 View Transition 匹配。
+  const composerCardNode = (
+    <div
+      className={cn(
+        'agent-composer-polished rounded-[20px] border-[0.5px] border-border bg-background/70 transition-[border-color,box-shadow,background-color] duration-base ease-out',
+        (isPlanMode || isPermissionPlanMode) && !isDragOver && 'plan-mode-border',
+        isDragOver && 'border-[2px] border-dashed border-[#2ecc71] bg-[#2ecc71]/[0.03]'
+      )}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {(isPlanMode || isPermissionPlanMode) && !isDragOver && <PlanModeDashedBorder />}
+      {/* 项目选择器 + Git 分支/Worktree 上下文合并成一行（对齐 Codex 的
+          「项目 | Local/Worktree | 分支」一行式布局），而不是各占一整行。 */}
+      <div className="px-3 pt-2.5 pb-2 flex flex-wrap items-center gap-2 text-xs">
+        <DraftProjectPicker
+          sessionId={sessionId}
+          projectId={sessionMeta?.projectId}
+          isDraft={isDraftSession || isEmptySession}
+        />
+        <DraftGitContextPicker
+          sessionId={sessionId}
+          projectId={sessionMeta?.projectId}
+          isDraft={isDraftSession || isEmptySession}
+          onSelectionChange={handleDraftGitContextChange}
+        />
+      </div>
+      {/* 无 Agent 渠道或无可用模型提示 */}
+      {(!agentChannelId || !hasAvailableModel) && (
+        <div className="flex items-center gap-2 px-4 py-2 text-sm text-amber-600 dark:text-amber-400">
+          <Settings size={14} />
+          <span>{!agentChannelId ? '请在设置中选择 Agent 供应商' : '暂无可用模型，请在设置中启用 Agent 渠道并配置模型'}</span>
+          <button
+            type="button"
+            className="text-xs underline underline-offset-2 hover:text-foreground transition-colors"
+            onClick={() => setSettingsOpen(true)}
+          >
+            前往设置
+          </button>
+        </div>
+      )}
+
+      {/* 附件 + 引用选中文本 Chip（同排并排） */}
+      {(pendingFiles.length > 0 || currentQuotedSelection) && (
+        <div className="flex flex-wrap gap-2 px-3 pt-2.5 pb-1.5">
+          {pendingFiles.map((file) => (
+              <AttachmentPreviewItem
+                key={file.id}
+                filename={file.filename}
+                mediaType={file.mediaType}
+                previewUrl={file.previewUrl}
+                onRemove={() => handleRemoveFile(file.id)}
+                onClick={file.filename.startsWith('clipboard-') ? () => handleClipboardPreview(file) : undefined}
+                onEditComplete={(editedDataUrl) => handleAttachmentEditComplete(file.id, editedDataUrl)}
+                imageSiblings={imageSiblingsForPending}
+                siblingIndex={pendingImageFiles.findIndex((f) => f.id === file.id)}
+              />
+            ))}
+          {currentQuotedSelection && (
+            <QuotedSelectionChip
+              text={currentQuotedSelection.text}
+              filePath={currentQuotedSelection.filePath}
+              sourceLabel={currentQuotedSelection.sourceLabel}
+              onRemove={handleRemoveQuotedSelection}
+            />
+          )}
+        </div>
+      )}
+
+      <AgentMessageQueue
+        items={queuedMessages}
+        canSendNow={canSendQueuedNow}
+        onSendNow={handleSendQueuedNow}
+        onRecall={handleRecallQueuedMessage}
+        onRemove={handleRemoveQueuedMessage}
+        onMove={handleMoveQueuedMessage}
+      />
+
+      {/* Agent 建议提示 */}
+      {suggestion && !streaming && (
+        <div className="px-3 pt-2.5 pb-1.5">
+          <button
+            type="button"
+            className="group flex items-start gap-2 w-full rounded-lg border border-dashed border-primary/30 bg-primary/[0.03] px-3 py-2.5 text-left text-sm transition-colors hover:border-primary/50 hover:bg-primary/[0.06]"
+            onClick={() => handleSend(suggestion)}
+          >
+            <Sparkles className="size-4 shrink-0 mt-0.5 text-primary/60 group-hover:text-primary/80" />
+            <span className="flex-1 min-w-0 text-foreground/80 group-hover:text-foreground line-clamp-3">{suggestion}</span>
+            <X
+              className="size-3.5 shrink-0 mt-0.5 text-muted-foreground/40 hover:text-foreground transition-colors"
+              onClick={(e) => {
+                e.stopPropagation()
+                setPromptSuggestions((prev) => {
+                  if (!prev.has(sessionId)) return prev
+                  const map = new Map(prev)
+                  map.delete(sessionId)
+                  return map
+                })
+              }}
+            />
+          </button>
+        </div>
+      )}
+
+      <RichTextInput
+        ref={richTextInputRef}
+        value={inputContent}
+        onChange={setInputContent}
+        onSubmit={handleSend}
+        minHeight={64}
+        fontSize={16}
+        onPasteFiles={handlePasteFiles}
+        onPasteLongText={handlePasteLongText}
+        voiceInputId={agentVoiceInputId}
+        longTextPasteThreshold={longTextPasteAsAttachmentEnabled ? LONG_TEXT_ATTACHMENT_THRESHOLD : undefined}
+        placeholder={
+          agentChannelId && hasAvailableModel
+            ? sendWithCmdEnter
+              ? '输入消息...（@ 引用文件，/ 调用 Skill，# 使用 MCP，& 引用会话，～ 引用待办/日程；⌘/Ctrl+Enter 发送）'
+              : '输入消息...（@ 引用文件，/ 调用 Skill，# 使用 MCP，& 引用会话，～ 引用待办/日程；Enter 发送）'
+            : !agentChannelId
+              ? '请先在设置中选择 Agent 供应商'
+              : '暂无可用模型，请先在设置中启用渠道'
+        }
+        disabled={!agentChannelId || !hasAvailableModel}
+        autoFocusTrigger={sessionId}
+        collapsible
+        enableMentions
+        workspacePath={sessionPath}
+        workspaceSlug={workspaceSlug}
+        sessionId={sessionId}
+        attachedDirs={workspaceMentionPaths}
+        sessionAttachedDirs={sessionMentionPaths}
+        htmlValue={inputHtmlContent}
+        onHtmlChange={setInputHtmlContent}
+        sendWithCmdEnter={sendWithCmdEnter}
+      />
+
+      {/* Footer 工具栏 — 容器变窄时尾部按钮自动折叠进「更多」Popover */}
+      <InputToolbarOverflow className="agent-input-toolbar" items={inputToolbarItems} trailing={inputTrailingNode} />
+    </div>
+  )
+
   return (
     <>
     <AgentSessionProvider sessionId={sessionId}>
@@ -2987,180 +3166,56 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         {/* key 保证会话切换时重置标题编辑态 */}
         <AgentHeader key={sessionId} sessionId={sessionId} />
 
-        {/* 消息区域 */}
-        <AgentMessages
-          sessionId={sessionId}
-          sessionModelId={agentModelId || undefined}
-          messagesLoaded={messagesLoaded}
-          persistedSDKMessages={persistedSDKMessages}
-          streaming={streaming}
-          streamState={streamState}
-          liveMessages={liveMessages}
-          sessionPath={sessionPath}
-          fileRoots={sessionFileRoots}
-          attachedDirs={allAttachedDirs}
-          stoppedByUser={stoppedByUser}
-          onRetry={handleRetry}
-          onRetryInNewSession={handleRetryInNewSession}
-          onFork={handleFork}
-          onRewind={handleRewindRequest}
-          onCompact={handleCompact}
-        />
-
-        {/* 权限请求横幅 */}
-        <PermissionBanner sessionId={sessionId} />
-
-        {/* AskUserQuestion 交互式问答横幅 */}
-        <AskUserBanner sessionId={sessionId} />
-
-
-        {/* ExitPlanMode 计划审批横幅 */}
-        <ExitPlanModeBanner sessionId={sessionId} />
-
-        {/* 输入区域 — 交互横幅显示时隐藏，由横幅替代 */}
-        {!hasBannerOverlay && (
-        <div className="px-2.5 pb-2.5 md:px-3 md:pb-3" data-input-mode="agent">
-          <div
-            className={cn(
-              'agent-composer-polished rounded-[20px] border-[0.5px] border-border bg-background/70 transition-[border-color,box-shadow,background-color] duration-base ease-out',
-              (isPlanMode || isPermissionPlanMode) && !isDragOver && 'plan-mode-border',
-              isDragOver && 'border-[2px] border-dashed border-[#2ecc71] bg-[#2ecc71]/[0.03]'
-            )}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-          >
-            {(isPlanMode || isPermissionPlanMode) && !isDragOver && <PlanModeDashedBorder />}
-            {/* 项目选择器 + Git 分支/Worktree 上下文合并成一行（对齐 Codex 的
-                「项目 | Local/Worktree | 分支」一行式布局），而不是各占一整行。 */}
-            <div className="px-3 pt-2.5 pb-2 flex flex-wrap items-center gap-2 text-xs">
-              <DraftProjectPicker
-                sessionId={sessionId}
-                projectId={sessionMeta?.projectId}
-                isDraft={isDraftSession || isEmptySession}
-              />
-              <DraftGitContextPicker
-                sessionId={sessionId}
-                projectId={sessionMeta?.projectId}
-                isDraft={isDraftSession || isEmptySession}
-                onSelectionChange={handleDraftGitContextChange}
-              />
-            </div>
-            {/* 无 Agent 渠道或无可用模型提示 */}
-            {(!agentChannelId || !hasAvailableModel) && (
-              <div className="flex items-center gap-2 px-4 py-2 text-sm text-amber-600 dark:text-amber-400">
-                <Settings size={14} />
-                <span>{!agentChannelId ? '请在设置中选择 Agent 供应商' : '暂无可用模型，请在设置中启用 Agent 渠道并配置模型'}</span>
-                <button
-                  type="button"
-                  className="text-xs underline underline-offset-2 hover:text-foreground transition-colors"
-                  onClick={() => setSettingsOpen(true)}
-                >
-                  前往设置
-                </button>
+        {heroVisible ? (
+          /* 首屏：吉祥物+问候语+场景 Tab+快捷 chips+居中输入框。发送第一条消息后
+             heroVisible 翻转为 false，composer 平滑过渡到下方常规底部固定布局
+             （agent-hero-composer 的 view-transition-name，见 index.css）。 */
+          <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center gap-8 px-4 py-10">
+            <AgentNewSessionHero onPickChip={handleQuickstartChip} />
+            {!hasBannerOverlay && (
+              <div className="agent-hero-composer w-full max-w-[820px]" data-input-mode="agent">
+                {composerCardNode}
               </div>
             )}
-
-            {/* 附件 + 引用选中文本 Chip（同排并排） */}
-            {(pendingFiles.length > 0 || currentQuotedSelection) && (
-              <div className="flex flex-wrap gap-2 px-3 pt-2.5 pb-1.5">
-                {pendingFiles.map((file) => (
-                    <AttachmentPreviewItem
-                      key={file.id}
-                      filename={file.filename}
-                      mediaType={file.mediaType}
-                      previewUrl={file.previewUrl}
-                      onRemove={() => handleRemoveFile(file.id)}
-                      onClick={file.filename.startsWith('clipboard-') ? () => handleClipboardPreview(file) : undefined}
-                      onEditComplete={(editedDataUrl) => handleAttachmentEditComplete(file.id, editedDataUrl)}
-                      imageSiblings={imageSiblingsForPending}
-                      siblingIndex={pendingImageFiles.findIndex((f) => f.id === file.id)}
-                    />
-                  ))}
-                {currentQuotedSelection && (
-                  <QuotedSelectionChip
-                    text={currentQuotedSelection.text}
-                    filePath={currentQuotedSelection.filePath}
-                    sourceLabel={currentQuotedSelection.sourceLabel}
-                    onRemove={handleRemoveQuotedSelection}
-                  />
-                )}
-              </div>
-            )}
-
-            <AgentMessageQueue
-              items={queuedMessages}
-              canSendNow={canSendQueuedNow}
-              onSendNow={handleSendQueuedNow}
-              onRecall={handleRecallQueuedMessage}
-              onRemove={handleRemoveQueuedMessage}
-              onMove={handleMoveQueuedMessage}
-            />
-
-            {/* Agent 建议提示 */}
-            {suggestion && !streaming && (
-              <div className="px-3 pt-2.5 pb-1.5">
-                <button
-                  type="button"
-                  className="group flex items-start gap-2 w-full rounded-lg border border-dashed border-primary/30 bg-primary/[0.03] px-3 py-2.5 text-left text-sm transition-colors hover:border-primary/50 hover:bg-primary/[0.06]"
-                  onClick={() => handleSend(suggestion)}
-                >
-                  <Sparkles className="size-4 shrink-0 mt-0.5 text-primary/60 group-hover:text-primary/80" />
-                  <span className="flex-1 min-w-0 text-foreground/80 group-hover:text-foreground line-clamp-3">{suggestion}</span>
-                  <X
-                    className="size-3.5 shrink-0 mt-0.5 text-muted-foreground/40 hover:text-foreground transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setPromptSuggestions((prev) => {
-                        if (!prev.has(sessionId)) return prev
-                        const map = new Map(prev)
-                        map.delete(sessionId)
-                        return map
-                      })
-                    }}
-                  />
-                </button>
-              </div>
-            )}
-
-            <RichTextInput
-              ref={richTextInputRef}
-              value={inputContent}
-              onChange={setInputContent}
-              onSubmit={handleSend}
-              minHeight={64}
-              fontSize={16}
-              onPasteFiles={handlePasteFiles}
-              onPasteLongText={handlePasteLongText}
-              voiceInputId={agentVoiceInputId}
-              longTextPasteThreshold={longTextPasteAsAttachmentEnabled ? LONG_TEXT_ATTACHMENT_THRESHOLD : undefined}
-              placeholder={
-                agentChannelId && hasAvailableModel
-                  ? sendWithCmdEnter
-                    ? '输入消息...（@ 引用文件，/ 调用 Skill，# 使用 MCP，& 引用会话，～ 引用待办/日程；⌘/Ctrl+Enter 发送）'
-                    : '输入消息...（@ 引用文件，/ 调用 Skill，# 使用 MCP，& 引用会话，～ 引用待办/日程；Enter 发送）'
-                  : !agentChannelId
-                    ? '请先在设置中选择 Agent 供应商'
-                    : '暂无可用模型，请先在设置中启用渠道'
-              }
-              disabled={!agentChannelId || !hasAvailableModel}
-              autoFocusTrigger={sessionId}
-              collapsible
-              enableMentions
-              workspacePath={sessionPath}
-              workspaceSlug={workspaceSlug}
-              sessionId={sessionId}
-              attachedDirs={workspaceMentionPaths}
-              sessionAttachedDirs={sessionMentionPaths}
-              htmlValue={inputHtmlContent}
-              onHtmlChange={setInputHtmlContent}
-              sendWithCmdEnter={sendWithCmdEnter}
-            />
-
-            {/* Footer 工具栏 — 容器变窄时尾部按钮自动折叠进「更多」Popover */}
-            <InputToolbarOverflow className="agent-input-toolbar" items={inputToolbarItems} trailing={inputTrailingNode} />
           </div>
-        </div>
+        ) : (
+          <>
+            {/* 消息区域 */}
+            <AgentMessages
+              sessionId={sessionId}
+              sessionModelId={agentModelId || undefined}
+              messagesLoaded={messagesLoaded}
+              persistedSDKMessages={persistedSDKMessages}
+              streaming={streaming}
+              streamState={streamState}
+              liveMessages={liveMessages}
+              sessionPath={sessionPath}
+              fileRoots={sessionFileRoots}
+              attachedDirs={allAttachedDirs}
+              stoppedByUser={stoppedByUser}
+              onRetry={handleRetry}
+              onRetryInNewSession={handleRetryInNewSession}
+              onFork={handleFork}
+              onRewind={handleRewindRequest}
+              onCompact={handleCompact}
+            />
+
+            {/* 权限请求横幅 */}
+            <PermissionBanner sessionId={sessionId} />
+
+            {/* AskUserQuestion 交互式问答横幅 */}
+            <AskUserBanner sessionId={sessionId} />
+
+            {/* ExitPlanMode 计划审批横幅 */}
+            <ExitPlanModeBanner sessionId={sessionId} />
+
+            {/* 输入区域 — 交互横幅显示时隐藏，由横幅替代 */}
+            {!hasBannerOverlay && (
+              <div className="agent-hero-composer px-2.5 pb-2.5 md:px-3 md:pb-3" data-input-mode="agent">
+                {composerCardNode}
+              </div>
+            )}
+          </>
         )}
       </div>
     </AgentSessionProvider>

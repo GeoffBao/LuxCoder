@@ -168,6 +168,8 @@ interface RichTextInputProps {
 export interface RichTextInputHandle {
   /** 在光标处插入文件引用（右侧文件面板拖入时调用） */
   insertFileMentions: (items: FilePanelDragItem[]) => void
+  /** 聚焦并将光标移到文末（快捷入口 chip 写入引导文案后调用） */
+  focusEnd: () => void
 }
 
 /**
@@ -823,6 +825,9 @@ export const RichTextInput = forwardRef<RichTextInputHandle, RichTextInputProps>
           .insertContent(' ')
       }
       chain.run()
+    },
+    focusEnd(): void {
+      editor?.commands.focus('end')
     },
   }), [editor])
 

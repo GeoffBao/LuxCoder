@@ -17,15 +17,7 @@ import { userProfileAtom } from '@/atoms/user-profile'
 import { appModeAtom } from '@/atoms/app-mode'
 import { normalizeAppModeForUi } from '@/components/app-shell/code-main-view-model'
 import { getRandomTip, getPlatform, type Tip } from '@/lib/tips'
-import luxshareIctMascotUrl from '@/assets/brand/luxshare-ict-mascot.png'
-
-/** 根据小时返回时段问候 */
-function getGreeting(hour: number): string {
-  if (hour < 6) return '夜深了'
-  if (hour < 12) return '早上好'
-  if (hour < 18) return '下午好'
-  return '晚上好'
-}
+import { getGreeting, EnterpriseMascot } from './greeting'
 
 /**
  * OpenMoji Woman Singer (1F469-200D-1F3A4) — Home 模式吉祥物
@@ -119,21 +111,6 @@ function MascotFarmer({ className }: { className?: string }): React.ReactElement
         <line x1="19.5127" x2="52.0809" y1="16.2702" y2="16.2702" fill="none" stroke="#000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"/>
       </g>
     </svg>
-  )
-}
-
-function EnterpriseMascot({ className }: { className?: string }): React.ReactElement {
-  return (
-    <img
-      src={luxshareIctMascotUrl}
-      className={cn(
-        'rounded-full object-cover shadow-[0_12px_40px_rgba(28,82,180,0.18)] ring-1 ring-blue-500/15',
-        className,
-      )}
-      alt=""
-      aria-hidden="true"
-      draggable={false}
-    />
   )
 }
 

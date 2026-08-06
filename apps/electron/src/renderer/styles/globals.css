@@ -132,6 +132,19 @@
     --press-scale: 0.97;
   }
 
+  /* ===== Code 模式新会话首屏「居中 → 下沉」=====
+   * composer 卡片在首屏居中态和常规底部固定态之间共用同一个
+   * view-transition-name，浏览器据此自动插值位置/尺寸做平滑过渡
+   * （AgentView.tsx 用 document.startViewTransition 包裹 heroVisible 翻转）。
+   */
+  .agent-hero-composer {
+    view-transition-name: agent-composer;
+  }
+  ::view-transition-group(agent-composer) {
+    animation-duration: var(--duration-base);
+    animation-timing-function: var(--ease-out);
+  }
+
   :root {
     --background: 0 0% 100%;
     --foreground: 0 0% 3.9%;
