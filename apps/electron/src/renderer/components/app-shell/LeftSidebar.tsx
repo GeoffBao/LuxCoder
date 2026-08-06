@@ -11,7 +11,7 @@
 import * as React from 'react'
 import { useAtom, useSetAtom, useAtomValue, useStore } from 'jotai'
 import { toast } from 'sonner'
-import { Pin, PinOff, Settings, Plus, Trash2, Pencil, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MoreHorizontal, FolderOpen, GripVertical, Clock, CalendarDays, ChevronRight, GitBranch, Download, Loader2, RotateCw, Layers, LayoutDashboard, PenTool, Library, House, Puzzle, Boxes } from 'lucide-react'
+import { Pin, PinOff, Settings, Plus, Trash2, Pencil, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MoreHorizontal, FolderOpen, GripVertical, Clock, CalendarDays, ChevronRight, GitBranch, Download, Loader2, RotateCw, Layers, LayoutDashboard, PenTool, Library, Puzzle, Boxes } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { MarqueeText } from '@/components/ui/marquee-text'
@@ -60,6 +60,7 @@ import {
   liveMessagesMapAtom,
   agentSessionPendingFilesAtom,
   agentSessionStreamingStateAtomFamily,
+  agentSessionDraftsAtom,
   agentSessionDraftAtomFamily,
   agentSessionDraftHtmlAtomFamily,
   agentPendingFilesAtomFamily,
@@ -91,6 +92,7 @@ import { labelManagerOpenAtom, labelManagerWorkspaceRootAtom } from '@/atoms/lab
 import { workspaceLabelsAtom, loadWorkspaceLabels } from '@/atoms/workspace-labels-atoms'
 import type { WorkspaceLabel } from '@luxcoder/shared/labels'
 import { buildRecentSessionList } from './sidebar-session-views'
+import { selectDraftSessionsWithContent } from './draft-recall-model'
 import {
   buildAgentSessionTrees,
   getSessionStatus,
@@ -121,6 +123,7 @@ import { useCreateSession } from '@/hooks/useCreateSession'
 import { useSyncActiveTabSideEffects } from '@/hooks/useSyncActiveTabSideEffects'
 import { NewTaskProjectFlowDialog } from './NewTaskProjectFlowDialog'
 import { CollapsedWorkspacePopover } from '@/components/agent/CollapsedWorkspacePopover'
+import { WEB_TOOLS } from '@/components/tools/ToolsView'
 import { MoveSessionDialog } from '@/components/agent/MoveSessionDialog'
 import {
   SessionMiniMapPopover,
@@ -1311,6 +1314,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     }
     await createAgent({
       draft: true,
+      recallDraft: true,
       workspaceId: targetWorkspaceId,
       channelId: agentChannelId || undefined,
       modelId: agentModelId || undefined,
@@ -2614,27 +2618,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
         <div className="my-3 h-px w-8 bg-border/70" />
 
-        {/* 模式切换 */}
+        {/* 主入口：Code 模式（悬停查看工作区）——Home 模式切换入口已下线，主入口固定 Code */}
         <div className="flex flex-col items-center gap-1.5">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                aria-label="切换到 Home 模式"
-                onClick={() => handleRailModeSwitch('chat')}
-                className={cn(
-                  'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag',
-                  mode === 'chat'
-                    ? 'bg-primary/10 text-foreground shadow-[0_1px_2px_0_rgba(0,0,0,0.05)]'
-                    : 'text-foreground/45 hover:bg-foreground/[0.06] hover:text-foreground/75'
-                )}
-              >
-                <House size={17} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">Home 模式</TooltipContent>
-          </Tooltip>
-
           <CollapsedWorkspacePopover>
             <button
               type="button"
@@ -3125,6 +3110,17 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         )}
       </div>
 
+      {/* 未发送草稿找回入口：点「新会话」但没发送时，内容还在，不会真的丢，但原来没有回去的路。 */}
+      {mode === 'agent' && (
+        <DraftSessionRecallSection
+          workspaceId={currentWorkspaceId}
+          sessions={agentSessions}
+          draftSessionIds={draftSessionIds}
+          excludeSessionId={currentAgentSessionId}
+          onOpen={(id, title) => openSession('agent', id, title)}
+        />
+      )}
+
       {/* Task 日历入口：Todo / 日历 / 定时任务合一，作为任务中心入口排在侧栏最上方。 */}
       <div className="sidebar-module-zone px-3 pt-2 pb-0.5">
         <SidebarModule
@@ -3174,9 +3170,10 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         <SidebarModule
           icon={Boxes}
           title="工具导航"
+          count={WEB_TOOLS.length}
           active={activeView === 'tools'}
           onClick={handleOpenTools}
-          ariaLabel="工具导航"
+          ariaLabel={`工具导航，${WEB_TOOLS.length} 个网站工具`}
         />
       </div>
 
@@ -3210,8 +3207,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       {/* 置顶区：常驻在会话/项目 Tab 切换器上方，跨 Tab 可见（pwork agent 模式同样显示） */}
       {(mode === 'chat' || mode === 'agent') && viewMode === 'active' && pinnedConversations.length > 0 && (
         <div className="pt-2 pb-1 flex-shrink-0 titlebar-no-drag">
-          <div className="px-3.5 pb-1 text-[11px] font-medium text-foreground/40 select-none">
-            置顶
+          <div className="px-3 pb-1">
+            <span className="px-1.5 text-[11px] font-medium text-foreground/40 select-none">置顶</span>
           </div>
           <div
             className=""
@@ -3241,8 +3238,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
       {mode === 'agent' && agentStatusFilter !== 'archived' && pinnedAgentSessions.length > 0 && (
         <div className="pt-2 pb-1 flex-shrink-0 titlebar-no-drag">
-          <div className="group/date-header flex items-center justify-between px-3.5 pb-1">
-            <span className="text-[11px] font-medium text-foreground/40 select-none">置顶</span>
+          <div className="group/date-header flex items-center justify-between px-3 pb-1">
+            <span className="px-1.5 text-[11px] font-medium text-foreground/40 select-none">置顶</span>
             <button
               type="button"
               aria-label={isPinnedAgentGroupCollapsed ? '展开置顶' : '折叠置顶'}
@@ -4001,6 +3998,61 @@ const ChildSessionItem = React.memo(function ChildSessionItem({
 })
 
 // ===== 工作区分组历史 =====
+
+interface DraftSessionRecallSectionProps {
+  workspaceId: string | null
+  sessions: AgentSessionMeta[]
+  draftSessionIds: Set<string>
+  excludeSessionId: string | null
+  onOpen: (id: string, title: string) => void
+}
+
+/**
+ * 未发送草稿找回区块：单独抽出为叶子组件，只订阅 agentSessionDraftsAtom（每次按键都变）。
+ * 若直接在 LeftSidebar 顶层订阅该 atom，整个侧边栏都会随输入框按键重渲染
+ * （参考 AgentView.tsx 里同样的 atomFamily 切片注释）。
+ */
+const DraftSessionRecallSection = React.memo(function DraftSessionRecallSection({
+  workspaceId,
+  sessions,
+  draftSessionIds,
+  excludeSessionId,
+  onOpen,
+}: DraftSessionRecallSectionProps): React.ReactElement | null {
+  const draftTexts = useAtomValue(agentSessionDraftsAtom)
+  const items = React.useMemo(
+    () => selectDraftSessionsWithContent({
+      sessions,
+      draftSessionIds,
+      draftTexts,
+      workspaceId: workspaceId ?? undefined,
+      excludeSessionId,
+    }),
+    [sessions, draftSessionIds, draftTexts, workspaceId, excludeSessionId],
+  )
+
+  if (items.length === 0) return null
+
+  return (
+    <div className="px-3 pt-2">
+      <div className="px-1 pb-1 text-[11px] font-medium text-foreground/40">未发送草稿</div>
+      <div className="flex flex-col gap-0.5">
+        {items.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => onOpen(item.id, item.title)}
+            title={item.text}
+            className="flex h-8 w-full items-center gap-2 rounded-lg px-2.5 text-left text-[12.5px] text-foreground/60 transition-colors duration-150 hover:bg-foreground/[0.06] hover:text-foreground/85"
+          >
+            <Pencil size={12} className="shrink-0 text-foreground/35" />
+            <span className="truncate">{item.text}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+})
 
 interface AgentProjectGroupItemProps {
   group: AgentProjectGroup

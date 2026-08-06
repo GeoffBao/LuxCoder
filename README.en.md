@@ -16,14 +16,9 @@ A great coding product should do more than produce an answer. It should help use
 - **Knowledge that compounds**: CLAUDE.md, Memory, Skills, and Context have distinct roles, reducing repeated explanations.
 - **Local first**: core sessions, projects, Skills, MCP configuration, and settings stay on the user's machine.
 
-## Two Work Modes
+## Main Entry: Code
 
-| Mode | Best for |
-|------|----------|
-| **Chat** | Questions, analysis, writing, document reading, and model comparison without acting on the local environment |
-| **Code** | File operations, commands, code changes, project management, task orchestration, and automation |
-
-Use Chat when you only need an answer. Use Code when the task must act and deliver.
+The main entry of LuxCoder is the **Code** mode (default). File operations, commands, code changes, project management, task orchestration, automation, as well as questions, analysis, writing, and other knowledge work can all be done in Code.
 
 Projects & Kanban live inside Code. The Code workspace switches between Sessions and Kanban views.
 
@@ -37,7 +32,7 @@ Projects & Kanban live inside Code. The Code workspace switches between Sessions
 - Pi Agent Runtime as the default Code runtime, with support for multiple enabled model channels;
 - transparent routing to a compatible runtime for Claude subscription credentials.
 
-Subscription login channels are currently intended for Code. Chat availability depends on the channel protocol and model capabilities.
+Subscription login channels are currently intended for Code.
 
 ### Projects and Long-Running Work
 
@@ -79,10 +74,9 @@ Open **Settings > Model Configuration** and either:
 - sign in with a ChatGPT subscription; or
 - sign in with a Claude Pro / Max subscription.
 
-### 3. Choose a Work Mode
+### 3. Use Code
 
-- For discussion, analysis, and writing, use **Chat**.
-- For repository changes, commands, or multi-step execution, use **Code**.
+The app opens in **Code** mode by default. Discussion, analysis, and writing, or repository changes, commands, and multi-step execution can all be started directly.
 
 ### 4. Create a Workspace and Project
 

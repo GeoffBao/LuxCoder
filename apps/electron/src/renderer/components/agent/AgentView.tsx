@@ -131,7 +131,6 @@ import {
 } from '@/lib/agent-message-queue'
 import type { AgentQueuedAttachment, AgentQueuedMessage, QueueDropPlacement } from '@/lib/agent-message-queue'
 import type { QuickstartChip } from '@/lib/agent-quickstart-chips'
-import { codeMainViewAtom } from '@/atoms/project-atoms'
 
 /** 稳定的空 SDKMessage 数组引用，避免 ?? [] 每次创建新引用 */
 const EMPTY_SDK_MESSAGES: SDKMessage[] = []
@@ -492,7 +491,6 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
   const agentChannelIds = useAtomValue(agentChannelIdsAtom)
   const [agentRuntime, setAgentRuntime] = useAtom(agentRuntimeAtom)
   const setSettingsOpen = useSetAtom(settingsOpenAtom)
-  const setCodeMainView = useSetAtom(codeMainViewAtom)
   const setDraftSessionIds = useSetAtom(draftSessionIdsAtom)
   const draftSessionIds = useAtomValue(draftSessionIdsAtom)
   const isDraftSession = draftSessionIds.has(sessionId)
@@ -2939,20 +2937,22 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     </Tooltip>
   )
 
-  // 首屏快捷入口 chip 点击：按 action 类型分别写入引导文案 / 触发 Skill 提及 / 跳转看板。
-  // 注意：这里必须同时清空 html 草稿——rich-text-input 同步 value 时 htmlValue 优先于纯文本，
-  // 若不清理，上一次 chip 写入产生的 html 草稿会在第二次点击时覆盖新文本（表现为内容不更新）。
+  // 首屏快捷入口 chip 点击：按 action 类型分别写入引导文案 / 触发 Skill 提及。
+  // invokeSkill 必须插入真正的 mention 节点（insertSkillMention），而不是拼 `/slug ` 纯文本——
+  // 后者只是普通文字，不会渲染成 skill-mention-chip，也不会被序列化成 `/skill:slug`，
+  // 表现为「点了 chip 却只看到一段固定提示词，没有真正切到对应 Skill」。
+  // insertPrompt 分支用 setInputContent 走 value/htmlValue 同步，必须同时清空 html 草稿——
+  // 否则上一次写入产生的 html 草稿会在下一次点击时覆盖新文本（表现为内容不更新）。
   const handleQuickstartChip = React.useCallback((chip: QuickstartChip): void => {
     const { action } = chip
-    if (action.type === 'navigate') {
-      if (action.target === 'work-board') setCodeMainView('work')
+    if (action.type === 'invokeSkill') {
+      richTextInputRef.current?.insertSkillMention(action.skillSlug, chip.label)
       return
     }
-    const text = action.type === 'insertPrompt' ? action.text : `/${action.skillSlug} `
-    setInputContent(text)
+    setInputContent(action.text)
     setInputHtmlContent('')
     requestAnimationFrame(() => richTextInputRef.current?.focusEnd())
-  }, [setCodeMainView, setInputContent, setInputHtmlContent])
+  }, [setInputContent, setInputHtmlContent])
 
   const sendButton = (
     <Button
