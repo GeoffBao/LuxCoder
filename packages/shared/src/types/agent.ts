@@ -1041,8 +1041,8 @@ export interface WorkspaceMcpConfig {
 
 // ===== Skill 元数据 =====
 
-/** 导入来源类型：工作区本地 or 企业版组织分发 */
-export type SkillImportSourceType = 'workspace' | 'organization'
+/** 导入来源类型：工作区本地 / 企业版组织分发 / SkillHub 市场 */
+export type SkillImportSourceType = 'workspace' | 'organization' | 'skillhub'
 
 /** 从其他工作区/组织导入的 Skill 来源元数据 */
 export interface SkillImportSource {
@@ -1192,8 +1192,12 @@ export interface SkillHubSkill {
   name: string
   files: string[]
   description?: string
+  /** 发布者姓名（服务端 snake_case；兼容 camelCase） */
   displayName?: string
+  display_name?: string
+  /** 发布者工号（服务端 snake_case；兼容 camelCase） */
   employeeId?: string
+  employee_id?: string
   downloads: number
   stars: number
 }

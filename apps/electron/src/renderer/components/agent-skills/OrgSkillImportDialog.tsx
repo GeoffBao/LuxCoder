@@ -74,7 +74,7 @@ export function OrgSkillImportDialog({ open, onOpenChange, workspaceSlug, instal
       return (
         s.name.toLowerCase().includes(q) ||
         (s.description ?? '').toLowerCase().includes(q) ||
-        (s.displayName ?? '').toLowerCase().includes(q)
+        ((s.display_name ?? s.displayName) ?? '').toLowerCase().includes(q)
       )
     })
   }, [skills, search, categoryFilter])
@@ -256,8 +256,8 @@ export function OrgSkillImportDialog({ open, onOpenChange, workspaceSlug, instal
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="truncate text-sm font-medium">{skill.name}</span>
-                        {skill.displayName && (
-                          <span className="shrink-0 text-[10px] text-muted-foreground">by {skill.displayName}</span>
+                        {(skill.display_name ?? skill.displayName) && (
+                          <span className="shrink-0 text-[10px] text-muted-foreground">by {skill.display_name ?? skill.displayName}</span>
                         )}
                         <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                           {inferSkillCategory(skill.name, skill.description)}

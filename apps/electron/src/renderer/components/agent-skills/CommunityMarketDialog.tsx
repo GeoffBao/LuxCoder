@@ -58,7 +58,7 @@ export function CommunityMarketDialog({ open, onOpenChange, workspaceSlug, insta
     return skills.filter((s) =>
       s.name.toLowerCase().includes(q) ||
       (s.description ?? '').toLowerCase().includes(q) ||
-      (s.displayName ?? '').toLowerCase().includes(q),
+      ((s.display_name ?? s.displayName) ?? '').toLowerCase().includes(q),
     )
   }, [skills, search])
 
@@ -66,7 +66,7 @@ export function CommunityMarketDialog({ open, onOpenChange, workspaceSlug, insta
     setInstalling(skill.name)
     try {
       await window.electronAPI.skillhubInstallSkill(workspaceSlug, skill)
-      toast.success(`已安装 Skill：${skill.displayName ?? skill.name}`)
+      toast.success(`已安装 Skill：${(skill.display_name ?? skill.displayName) ?? skill.name}`)
       onImported()
     } catch (err) {
       console.error('[技能市场] 安装失败:', err)
@@ -124,8 +124,8 @@ export function CommunityMarketDialog({ open, onOpenChange, workspaceSlug, insta
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="truncate text-sm font-medium">{skill.name}</span>
-                      {skill.displayName && (
-                        <span className="shrink-0 text-[10px] text-muted-foreground">by {skill.displayName}</span>
+                      {(skill.display_name ?? skill.displayName) && (
+                        <span className="shrink-0 text-[10px] text-muted-foreground">by {skill.display_name ?? skill.displayName}</span>
                       )}
                     </div>
                     <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{skill.description || '暂无描述'}</p>
