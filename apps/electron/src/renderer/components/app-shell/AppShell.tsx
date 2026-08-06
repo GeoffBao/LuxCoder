@@ -254,7 +254,9 @@ export function AppShell({ contextValue }: AppShellProps): React.ReactElement {
                     onMouseDown={handleMouseDown}
                   />
                 )}
-                <RightSidePanel width={clampedRightPanelWidth} />
+                {isPanelOpen && (
+                  <RightSidePanel width={clampedRightPanelWidth} />
+                )}
               </div>
             )}
         </div>

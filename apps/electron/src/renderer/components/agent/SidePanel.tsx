@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils'
 import { FileBrowser, FileDropZone, FileTypeIcon, FileSearchBar, computeRevealAncestors, isPathUnderRoot, computeTreeRowLayout, AncestorGuides, STICKY_ROW_BASE_CLASS, canBeSticky } from '@/components/file-browser'
 import { DiffPanelTabBar } from '@/components/diff/DiffPanelTabBar'
 import { DiffChangesList } from '@/components/diff/DiffChangesList'
+import { PreviewPanel } from '@/components/diff/PreviewPanel'
 import { ChatView } from '@/components/chat/ChatView'
 import {
   agentSidePanelOpenAtom,
@@ -562,6 +563,10 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
             ) : (
               <div className="flex-1 flex items-center justify-center text-muted-foreground text-xs">等待会话初始化...</div>
             )
+          ) : effectiveActiveTab === 'preview' ? (
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <PreviewPanel sessionId={sessionId} />
+            </div>
           ) : effectiveActiveTab === 'files' ? (
             <div className="inspector-file-panel flex-1 min-h-0 flex flex-col pt-2 mx-2 mb-2">
               {sessionPath ? (

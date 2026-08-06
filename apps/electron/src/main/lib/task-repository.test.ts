@@ -175,6 +175,34 @@ describe('TaskRepository', () => {
     ])
   })
 
+  test('record 缺失 source 时回退 spec 的 source / teambitionTaskId（存量任务修复）', () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    const repository = createRepository({ 'ws-alpha': workspaceRoot })
+    // 早期 materialize 二次写 record 丢 source 的场景：spec 带 source，record 不带
+    repository.saveTask('ws-alpha', buildSpec({
+      id: 'tb-fallback',
+      title: 'TB fallback',
+      source: 'teambition',
+      teambitionTaskId: 'tb-task-002',
+    }))
+    saveTaskRecord(workspaceRoot, {
+      schemaVersion: 1,
+      taskId: '018f47a8-6c26-7a13-9bf6-7c8d4f2e4c72',
+      slug: 'tb-fallback',
+      revision: 1,
+      workflow: 'todo',
+      labelIds: [],
+      createdAt: 10,
+      updatedAt: 20,
+    })
+
+    const summary = repository.listTaskAggregateSummaries('ws-alpha')
+      .find((task) => task.taskSlug === 'tb-fallback')
+    expect(summary).toBeDefined()
+    expect(summary?.source).toBe('teambition')
+    expect(summary?.teambitionTaskId).toBe('tb-task-002')
+  })
+
   test('updateTaskWorkflow 以 stable taskId 更新 workflow、revision 与时间戳', () => {
     const workspaceRoot = createTempWorkspaceRoot()
     const repository = createRepository({ 'ws-alpha': workspaceRoot })

@@ -18,6 +18,8 @@ export interface TaskDeleteImpact {
   runCount: number
   activeRunCount: number
   sessionCount: number
+  /** 关联会话 ID 列表（orchestrator 会话 + taskSlug 归属会话）；供用户选择是否同步删除 */
+  sessionIds: string[]
   canPurge: boolean
   blockers: string[]
 }

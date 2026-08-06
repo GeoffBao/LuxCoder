@@ -11,6 +11,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { McpServerEntry, McpTransportType, WorkspaceMcpConfig } from '@luxcoder/shared'
+import { isTeambitionMcpEntry } from '@luxcoder/shared/teambition-mcp'
 import {
   SettingsSection,
   SettingsCard,
@@ -140,6 +141,18 @@ export function McpServerForm({ server, workspaceSlug, onSaved, onChanged, onCan
   // http/sse 字段
   const [url, setUrl] = React.useState(server?.entry.url ?? '')
   const [headersText, setHeadersText] = React.useState(serializeKeyValueText(server?.entry.headers, ':'))
+
+  // 检测用户是否正在手动添加 Teambition MCP：新建模式下 name/url 匹配 TB 时提示使用预制 TB-Connect
+  const tbHintShownRef = React.useRef(false)
+  React.useEffect(() => {
+    if (server || tbHintShownRef.current) return // 仅新建模式提示一次
+    const probeEntry: McpServerEntry = { type: transportType, enabled, url, command } as McpServerEntry
+    if (isTeambitionMcpEntry(name.trim(), probeEntry)) {
+      tbHintShownRef.current = true
+      toast.info('检测到 Teambition MCP 配置，推荐使用预制 TB-Connect（在 MCP 列表中直接填写 Token 即可）')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [name, url, transportType, server])
 
   // UI 状态
   const [saving, setSaving] = React.useState(false)

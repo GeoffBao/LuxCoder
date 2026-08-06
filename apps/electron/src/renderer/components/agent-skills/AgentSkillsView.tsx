@@ -32,11 +32,19 @@ import { BuiltinMcpDetailSheet } from './BuiltinMcpDetailSheet'
 import { ImportSkillDialog } from './ImportSkillDialog'
 import { OrgSkillImportDialog } from './OrgSkillImportDialog'
 import { CommunityMarketDialog } from './CommunityMarketDialog'
+import { TeambitionConfigDialog } from '@/components/settings/TeambitionConfigDialog'
+import { findTeambitionMcpEntry, isTeambitionMcpEntry } from '@luxcoder/shared/teambition-mcp'
 import { EnhancedToolsPanel } from '@/components/settings/ToolSettings'
 import { AgentExpertsView } from '@/components/agent-experts/AgentExpertsView'
 import { groupSkills } from './skillGrouping'
 
-function buildSkillClassificationPrompt(input: {
+/** 是否市场来源技能（SkillHub 安装或 sourceKind=market） */
+function isMarketSkill(s: SkillMeta): boolean {
+  const src = s.importSource
+  return src?.sourceKind === 'market' || src?.sourceType === 'skillhub'
+}
+
+export function buildSkillClassificationPrompt(input: {
   workspaceName: string
   skillsDir: string
   skills: SkillMeta[]
@@ -84,7 +92,53 @@ version: "1.0.0"
 - 是否有需要用户确认或后续合并同类项的建议`
 }
 
-export function AgentSkillsView({ embedded = false }: { embedded?: boolean }): React.ReactElement {
+export interface AgentSkillsViewProps {
+  /** 嵌入设置面板时隐藏全屏标题栏 */
+  embedded?: boolean
+  /** 外部受控搜索词（PluginPanelView 传入，覆盖内部搜索框） */
+  externalQuery?: string
+  /** 外部来源筛选（PluginPanelView 传入）：all 全部 / custom 我的 / builtin 内置 / market 市场 */
+  sourceFilter?: 'all' | 'custom' | 'builtin' | 'market'
+  /** 外部状态筛选：all 全部 / enabled 启用 / disabled 停用 */
+  statusFilter?: 'all' | 'enabled' | 'disabled'
+  /** 外部分类筛选（PluginPanelView 传入）：按 Skill 的 group 动态分类，all 全部 / 具体分类名 / ungrouped 未分组 */
+  categoryFilter?: 'all' | 'ungrouped' | string
+  /** 隐藏 tab 切换条（专家/专家团/Skills/MCP/API），保留工具条操作按钮（社区市场/AI分类/导入等） */
+  hideTabBar?: boolean
+  /** 隐藏工具条内搜索框（由外层 PluginPanelView 提供搜索） */
+  hideSearch?: boolean
+  /** 隐藏整个工具条（tab 切换 + 搜索 + 操作按钮），由外层自定义工具条 */
+  hideToolbar?: boolean
+  /** 外部触发：打开社区市场（hideToolbar 时由 PluginPanelView 顶部按钮调用） */
+  onOpenCommunityMarket?: () => void
+  /** 外部触发：AI 分类（hideToolbar 时由 PluginPanelView 顶部按钮调用） */
+  onClassifySkills?: () => void
+  /** 外部触发：从其他工作区导入（hideToolbar 时由 PluginPanelView 顶部按钮调用） */
+  onOpenImport?: () => void
+  /** 外部触发：从企业组织导入（hideToolbar 时由 PluginPanelView 顶部按钮调用） */
+  onOpenOrgImport?: () => void
+  /** 外部触发：新增 MCP 服务器（hideToolbar 时由 PluginPanelView 顶部按钮调用） */
+  onAddMcp?: () => void
+  /** 外部新增 MCP 请求计数：每次递增时打开新增 MCP 弹窗（与 createRequestToken 模式一致） */
+  addMcpRequestToken?: number
+}
+
+export function AgentSkillsView({
+  embedded = false,
+  externalQuery,
+  sourceFilter = 'all',
+  statusFilter = 'all',
+  categoryFilter = 'all',
+  hideTabBar = false,
+  hideSearch = false,
+  hideToolbar = false,
+  onOpenCommunityMarket,
+  onClassifySkills,
+  onOpenImport,
+  onOpenOrgImport,
+  onAddMcp,
+  addMcpRequestToken = 0,
+}: AgentSkillsViewProps): React.ReactElement {
   const data = useAgentSkillsData()
   const bumpCapabilities = useSetAtom(workspaceCapabilitiesVersionAtom)
   const setPendingPrompt = useSetAtom(agentPendingPromptAtom)
@@ -98,6 +152,15 @@ export function AgentSkillsView({ embedded = false }: { embedded?: boolean }): R
   const [expertsCount, setExpertsCount] = React.useState(0)
   const [teamsCount, setTeamsCount] = React.useState(0)
   const [createExpertRequest, setCreateExpertRequest] = React.useState(0)
+
+  // 外部新增 MCP 请求：token 递增时打开新增 MCP 弹窗（PluginPanelView 顶部按钮触发）
+  React.useEffect(() => {
+    if (addMcpRequestToken > 0) {
+      setEditingMcp(null)
+      setMcpSheetOpen(true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addMcpRequestToken])
 
   // 加载专家/专家团数量（侧栏入口移除后，插件视图自身维护角标数据）
   React.useEffect(() => {
@@ -118,31 +181,55 @@ export function AgentSkillsView({ embedded = false }: { embedded?: boolean }): R
   const [showImport, setShowImport] = React.useState(false)
   const [showOrgImport, setShowOrgImport] = React.useState(false)
   const [showCommunityMarket, setShowCommunityMarket] = React.useState(false)
+  const [tbConfigOpen, setTbConfigOpen] = React.useState(false)
+  const [tbExistingUrl, setTbExistingUrl] = React.useState<string | undefined>(undefined)
   const [pendingDeleteSkill, setPendingDeleteSkill] = React.useState<SkillMeta | null>(null)
   const [pendingDeleteMcpName, setPendingDeleteMcpName] = React.useState<string | null>(null)
   const [isDeletingSkill, setIsDeletingSkill] = React.useState(false)
   const [isDeletingMcp, setIsDeletingMcp] = React.useState(false)
   const [classifyingSkills, setClassifyingSkills] = React.useState(false)
 
-  const q = search.trim().toLowerCase()
+  // 外部受控模式：externalQuery / sourceFilter / statusFilter 由 PluginPanelView 提供；
+  // 否则回退到内部搜索框（Settings 原行为不变）
+  const q = (externalQuery ?? search).trim().toLowerCase()
 
   const filteredSkills = React.useMemo(() => {
     return data.skills.filter((s) => {
-      if (!q) return true
-      return s.name.toLowerCase().includes(q) ||
-        s.slug.toLowerCase().includes(q) ||
-        (s.description ?? '').toLowerCase().includes(q) ||
-        (s.group ?? '').toLowerCase().includes(q)
+      // 搜索关键词
+      if (q && !(s.name.toLowerCase().includes(q)
+        || s.slug.toLowerCase().includes(q)
+        || (s.description ?? '').toLowerCase().includes(q)
+        || (s.group ?? '').toLowerCase().includes(q))) return false
+      // 来源筛选：custom=我的（非内置）/ builtin=内置 / market=从 SkillHub 等市场安装
+      if (sourceFilter === 'custom' && data.defaultSkillSlugs.has(s.slug)) return false
+      if (sourceFilter === 'builtin' && !data.defaultSkillSlugs.has(s.slug)) return false
+      if (sourceFilter === 'market' && !isMarketSkill(s)) return false
+      // 分类筛选：按 group 动态分类
+      if (categoryFilter !== 'all') {
+        const g = (s.group ?? '').trim()
+        if (categoryFilter === 'ungrouped') {
+          if (g) return false
+        } else if (g !== categoryFilter) {
+          return false
+        }
+      }
+      // 状态筛选
+      if (statusFilter === 'enabled' && !s.enabled) return false
+      if (statusFilter === 'disabled' && s.enabled) return false
+      return true
     })
-  }, [data.skills, q])
+  }, [data.skills, data.defaultSkillSlugs, q, sourceFilter, statusFilter, categoryFilter])
 
   const customSkills = filteredSkills.filter((s) => !data.defaultSkillSlugs.has(s.slug))
   const builtinSkills = filteredSkills.filter((s) => data.defaultSkillSlugs.has(s.slug))
   const updateCount = data.skills.filter((s) => s.hasUpdate).length
 
+  // TB-Connect 是内置预制 MCP（在「LuxCoder 内置」区提供唯一入口），
+  // 其配置虽写入工作区 mcp.json（供注入器与看板同步读取），但不在「我的 MCP」区重复展示
   const userMcpEntries = React.useMemo(() => {
     return Object.entries(data.mcpConfig.servers ?? {})
       .filter(([name]) => name !== 'memos-cloud')
+      .filter(([name, entry]) => !isTeambitionMcpEntry(name, entry))
       .filter(([name]) => !q || name.toLowerCase().includes(q))
   }, [data.mcpConfig, q])
 
@@ -156,9 +243,11 @@ export function AgentSkillsView({ embedded = false }: { embedded?: boolean }): R
     )
   }, [data.builtinMcpServers, q])
 
-  // 不含搜索过滤的 MCP 总数（Tab 计数与空态判断用）
+  // 不含搜索过滤的 MCP 总数（Tab 计数与空态判断用）；与 userMcpEntries 一致剔除 Teambition 条目
   const mcpCount = React.useMemo(
-    () => Object.keys(data.mcpConfig.servers ?? {}).filter((n) => n !== 'memos-cloud').length + data.builtinMcpServers.length,
+    () => Object.entries(data.mcpConfig.servers ?? {})
+      .filter(([name, entry]) => name !== 'memos-cloud' && !isTeambitionMcpEntry(name, entry)).length
+      + data.builtinMcpServers.length,
     [data.mcpConfig, data.builtinMcpServers],
   )
   // API（增强工具）Tab 计数：已启用的增强工具数量（联网搜索 / Nano Banana / 自定义工具）
@@ -228,10 +317,12 @@ export function AgentSkillsView({ embedded = false }: { embedded?: boolean }): R
         </div>
       )}
 
-      {/* 工具条 */}
-      <div className={cn('titlebar-no-drag flex w-full items-center gap-3 shrink-0', embedded ? 'flex-wrap' : 'mx-auto max-w-6xl px-8 pb-4')}>
-        {/* 专家 / 专家团 / Skills / MCP / API 切换（Context 已升级为 Code 左侧模块） */}
-        <div className="relative flex h-8 items-stretch rounded-xl bg-muted p-0.5">
+      {/* 工具条：hideToolbar 时整个隐藏（由外层 PluginPanelView 自定义工具条）；否则 tab 切换条可单独隐藏（hideTabBar），操作按钮始终保留 */}
+      {!hideToolbar && (
+        <div className={cn('titlebar-no-drag flex w-full items-center gap-3 shrink-0', embedded ? 'flex-wrap' : 'mx-auto max-w-6xl px-8 pb-4')}>
+        {/* 专家 / 专家团 / Skills / MCP / API 切换（Context 已升级为 Code 左侧模块；hideTabBar 时隐藏） */}
+        {!hideTabBar && (
+          <div className="relative flex h-8 items-stretch rounded-xl bg-muted p-0.5">
           <div
             className={cn(
               'absolute bottom-0.5 top-0.5 w-[calc(20%-2px)] rounded-lg bg-background shadow-sm transition-transform duration-base ease-out',
@@ -262,9 +353,10 @@ export function AgentSkillsView({ embedded = false }: { embedded?: boolean }): R
             </button>
           ))}
         </div>
+        )}
 
-        {/* 搜索框（API 占位 Tab 无搜索逻辑，隐藏） */}
-        {tab !== 'api' && (
+        {/* 搜索框（API 占位 Tab 无搜索逻辑，隐藏；hideSearch/hideTabBar 时由外层 PluginPanelView 提供搜索） */}
+        {tab !== 'api' && !hideSearch && !hideTabBar && (
           <div className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-lg border border-border/60 bg-content-area px-3 transition-colors focus-within:border-primary/40">
             <Search size={14} className="shrink-0 text-foreground/40" />
             <input
@@ -292,7 +384,7 @@ export function AgentSkillsView({ embedded = false }: { embedded?: boolean }): R
         {tab === 'skills' && (
           <button
             type="button"
-            onClick={() => setShowCommunityMarket(true)}
+            onClick={() => (onOpenCommunityMarket ? onOpenCommunityMarket() : setShowCommunityMarket(true))}
             className="flex h-8 flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 text-[13px] font-medium text-emerald-600 shadow-sm transition-colors hover:bg-emerald-500/20 dark:text-emerald-400"
           >
             <Store size={14} />
@@ -307,7 +399,7 @@ export function AgentSkillsView({ embedded = false }: { embedded?: boolean }): R
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  onClick={() => void handleClassifySkills()}
+                  onClick={() => (onClassifySkills ? onClassifySkills() : void handleClassifySkills())}
                   disabled={classifyingSkills || data.skills.length === 0}
                   className="flex h-8 flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-border/60 bg-content-area px-3 text-[13px] font-medium text-foreground/80 shadow-sm transition-colors hover:bg-foreground/[0.04] disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -319,7 +411,7 @@ export function AgentSkillsView({ embedded = false }: { embedded?: boolean }): R
             </Tooltip>
             <button
               type="button"
-              onClick={() => setShowImport(true)}
+              onClick={() => (onOpenImport ? onOpenImport() : setShowImport(true))}
               className="flex h-8 flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-border/60 bg-content-area px-3 text-[13px] font-medium text-foreground/80 shadow-sm transition-colors hover:bg-foreground/[0.04]"
             >
               <Plus size={14} />
@@ -327,7 +419,7 @@ export function AgentSkillsView({ embedded = false }: { embedded?: boolean }): R
             </button>
             <button
               type="button"
-              onClick={() => setShowOrgImport(true)}
+              onClick={() => (onOpenOrgImport ? onOpenOrgImport() : setShowOrgImport(true))}
               className="flex h-8 flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 text-[13px] font-medium text-indigo-600 shadow-sm transition-colors hover:bg-indigo-500/20 dark:text-indigo-400"
             >
               <Building2 size={14} />
@@ -340,14 +432,15 @@ export function AgentSkillsView({ embedded = false }: { embedded?: boolean }): R
         {tab === 'mcp' && (
           <button
             type="button"
-            onClick={() => { setEditingMcp(null); setMcpSheetOpen(true) }}
+            onClick={() => (onAddMcp ? onAddMcp() : (setEditingMcp(null), setMcpSheetOpen(true)))}
             className="flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3 text-[13px] font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
           >
             <Plus size={14} />
             <span>添加服务器</span>
           </button>
         )}
-      </div>
+        </div>
+      )}
 
       {/* 内容 */}
       <div className={cn(embedded ? 'mt-4' : 'min-h-0 flex-1 overflow-y-auto scrollbar-thin')}>
@@ -392,10 +485,30 @@ export function AgentSkillsView({ embedded = false }: { embedded?: boolean }): R
               userEntries={userMcpEntries}
               builtinServers={builtinMcpServers}
               total={mcpCount}
-              onOpen={(name, entry) => { setEditingMcp({ name, entry }); setMcpSheetOpen(true) }}
-              onOpenBuiltin={setSelectedBuiltinMcp}
+              onOpen={(name, entry) => {
+                setEditingMcp({ name, entry }); setMcpSheetOpen(true)
+              }}
+              onOpenBuiltin={(server) => {
+                // TB-Connect 内置预制：点击直接打开 Token 配置引导（回填当前已配置的 TB 条目 URL）
+                if (server.id === 'tb-connect') {
+                  const tb = findTeambitionMcpEntry(data.mcpConfig)
+                  setTbExistingUrl(tb?.entry.url)
+                  setTbConfigOpen(true)
+                  return
+                }
+                setSelectedBuiltinMcp(server)
+              }}
               onToggle={data.toggleMcp}
-              onToggleBuiltin={data.toggleBuiltinMcp}
+              onToggleBuiltin={(id, enabled) => {
+                // TB-Connect 是 external 预制：开关操作工作区 mcp.json 中实际存在的 Teambition 条目
+                // （优先推荐名 TB-Connect，兼容历史自定义名如 TB-wxy）
+                if (id === 'tb-connect') {
+                  const tb = findTeambitionMcpEntry(data.mcpConfig)
+                  if (tb) void data.toggleMcp(tb.name, enabled)
+                  return
+                }
+                return data.toggleBuiltinMcp(id, enabled)
+              }}
               onRequestDelete={setPendingDeleteMcpName}
               onAdd={() => { setEditingMcp(null); setMcpSheetOpen(true) }}
             />
@@ -461,6 +574,15 @@ export function AgentSkillsView({ embedded = false }: { embedded?: boolean }): R
         onOpenChange={(open) => { setMcpSheetOpen(open); if (!open) bumpCapabilities((v) => v + 1) }}
         onSaved={() => setMcpSheetOpen(false)}
         onChanged={() => bumpCapabilities((v) => v + 1)}
+      />
+
+      {/* TB-Connect 配置引导：MCP 列表中未启用的 TB 条目点击时打开 */}
+      <TeambitionConfigDialog
+        open={tbConfigOpen}
+        onOpenChange={setTbConfigOpen}
+        workspaceSlug={data.workspaceSlug}
+        existingUrl={tbExistingUrl}
+        onSaved={() => bumpCapabilities((v) => v + 1)}
       />
 
       <BuiltinMcpDetailSheet
@@ -669,25 +791,33 @@ function McpTab({ userEntries, builtinServers, total, onOpen, onOpenBuiltin, onT
 
       {builtinServers.length > 0 && (
         <McpSection title="LuxCoder 内置" count={builtinServers.length}>
-          {builtinServers.map((server) => (
-            <McpCard
-              key={server.id}
-              name={server.displayName}
-              entry={{
-                type: 'stdio',
-                command: 'LuxCoder 运行时注入',
-                enabled: server.enabled,
-                isBuiltin: true,
-              }}
-              description={server.description}
-              targetLabel={server.availabilityReason ?? 'LuxCoder 运行时注入'}
-              statusLabel={getBuiltinMcpStatus(server).label}
-              statusTone={getBuiltinMcpStatus(server).tone}
-              readOnly
-              onOpen={() => onOpenBuiltin(server)}
-              onToggle={(enabled) => onToggleBuiltin(server.id, enabled)}
-            />
-          ))}
+          {builtinServers.map((server) => {
+            const isTbBuiltin = server.id === 'tb-connect'
+            return (
+              <McpCard
+                key={server.id}
+                name={server.displayName}
+                entry={{
+                  type: isTbBuiltin ? 'http' : 'stdio',
+                  command: isTbBuiltin ? undefined : 'LuxCoder 运行时注入',
+                  enabled: server.enabled,
+                  isBuiltin: true,
+                }}
+                description={server.description}
+                targetLabel={isTbBuiltin
+                  ? (server.available ? '已连接' : '点击配置 Token')
+                  : (server.availabilityReason ?? 'LuxCoder 运行时注入')}
+                statusLabel={getBuiltinMcpStatus(server).label}
+                statusTone={getBuiltinMcpStatus(server).tone}
+                readOnly
+                onOpen={() => onOpenBuiltin(server)}
+                // TB-Connect 已配置时提供开关（写入 mcp.json）；未配置时无开关，点击进入配置引导
+                onToggle={isTbBuiltin
+                  ? (server.available ? (enabled) => onToggleBuiltin(server.id, enabled) : undefined)
+                  : (enabled) => onToggleBuiltin(server.id, enabled)}
+              />
+            )
+          })}
         </McpSection>
       )}
     </div>

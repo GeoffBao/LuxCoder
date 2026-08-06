@@ -8,9 +8,23 @@
  */
 
 import type { BuiltinMcpServerSummary } from '@luxcoder/shared'
+import { isTeambitionMcpEntry } from '@luxcoder/shared/teambition-mcp'
 import { getToolCredentials, getToolState } from '../chat-tool-config'
 import { getBuiltinMcpDefinitions, type BuiltinMcpDefinition } from './baseline'
 import { isBuiltinMcpDefaultDisabled, isBuiltinMcpUserEnabled } from './settings'
+import { getWorkspaceMcpConfig } from '../agent-workspace-manager'
+
+/** 检查工作区 mcp.json 是否已配置并启用 Teambition MCP（宽松识别） */
+function hasConfiguredTeambitionMcp(workspaceSlug: string): boolean {
+  try {
+    const config = getWorkspaceMcpConfig(workspaceSlug)
+    return Object.entries(config.servers).some(([name, entry]) =>
+      isTeambitionMcpEntry(name, entry) && entry.enabled !== false && !!entry.url
+    )
+  } catch {
+    return false
+  }
+}
 
 interface BuiltinMcpListContext {
   workspaceSlug?: string
@@ -55,6 +69,18 @@ function resolveAvailability(
       availabilityReason: available
         ? undefined
         : state.enabled ? '需要配置 Gemini API Key' : 'Nano Banana 未启用',
+    }
+  }
+
+  if (item.id === 'tb-connect') {
+    // 外部预制 MCP：可用性取决于工作区 mcp.json 是否已配置并启用 Teambition MCP
+    const configured = ctx.workspaceSlug
+      ? hasConfiguredTeambitionMcp(ctx.workspaceSlug)
+      : false
+    return {
+      enabled: configured,
+      available: configured,
+      availabilityReason: configured ? undefined : '需要配置 Teambition Token（点击配置）',
     }
   }
 

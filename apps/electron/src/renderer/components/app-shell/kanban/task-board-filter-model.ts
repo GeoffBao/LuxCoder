@@ -4,6 +4,7 @@ import type { KanbanFilter, TaskBoardScopeFilter } from './types'
 export interface TaskBoardFilterState {
   scope: TaskBoardScopeFilter
   workflow: 'all' | TaskWorkflow
+  source?: 'all' | 'manual' | 'teambition' | 'other'
   labelIds: string[]
   includeUnlabeled: boolean
 }
@@ -30,6 +31,17 @@ export function taskMatchesBoardFilter(task: TaskAggregateSummary, filter: Kanba
 
   if (filter.workflow && filter.workflow !== 'all' && task.workflow !== filter.workflow) return false
 
+  if (filter.source && filter.source !== 'all') {
+    // 旧任务缺省 source 视为 manual
+    const taskSource = task.source ?? 'manual'
+    if (filter.source === 'other') {
+      // other = 非 manual / teambition 的未知来源（未来扩展预留）
+      if (taskSource === 'manual' || taskSource === 'teambition') return false
+    } else if (taskSource !== filter.source) {
+      return false
+    }
+  }
+
   const selectedLabels = filter.labelIds ?? []
   const includeUnlabeled = filter.includeUnlabeled ?? false
   if (selectedLabels.length === 0) {
@@ -55,6 +67,7 @@ export function cleanupTaskBoardFilterForWorkspace(
   return {
     scope,
     workflow: filter.workflow ?? 'all',
+    source: filter.source ?? 'all',
     labelIds: (filter.labelIds ?? []).filter((labelId) => availableLabels.has(labelId)),
     includeUnlabeled: filter.includeUnlabeled ?? false,
   }

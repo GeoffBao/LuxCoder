@@ -1,8 +1,12 @@
 import * as React from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
-import { LayoutDashboard, Plus, RefreshCw } from 'lucide-react'
+import { LayoutDashboard, Plus, RefreshCw, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import type { AgentSessionMeta, TaskDeleteImpact } from '@luxcoder/shared'
+import type { TeambitionMcpRecognition } from '@luxcoder/shared'
+import { agentSkillsTabAtom } from '@/atoms/active-view'
+import { activeViewAtom } from '@/atoms/active-view'
+import { TeambitionConnectHint } from './TeambitionConnectHint'
 import {
   agentModelIdAtom,
   agentSessionsAtom,
@@ -29,6 +33,8 @@ import {
   taskBoardLabelFilterAtom,
   taskBoardWorkflowFilterAtom,
 } from '@/atoms/task-board-filter-atoms'
+import { taskBoardLastSyncAtAtom } from '@/atoms/task-board-sync-atoms'
+import { formatRelativeUpdatedAt } from '../AgentSessionItem'
 import { Button } from '@/components/ui/button'
 import { CreateProjectDialog } from '@/components/work/CreateProjectDialog'
 import { workspaceLabelsAtom } from '@/atoms/workspace-labels-atoms'
@@ -71,6 +77,9 @@ interface KanbanBoardContainerProps {
   onSessionCreated?: (session: AgentSessionMeta) => void
   onRefresh?: () => void | Promise<void>
   refreshing?: boolean
+  /** 外部同步（后续接入企业 bug 系统 MCP）；当前为占位 UI */
+  onSync?: () => void | Promise<void>
+  syncing?: boolean
 }
 
 export function KanbanBoardContainer({
@@ -80,6 +89,8 @@ export function KanbanBoardContainer({
   onSessionCreated,
   onRefresh,
   refreshing = false,
+  onSync,
+  syncing = false,
 }: KanbanBoardContainerProps): React.ReactElement {
   const items = useAtomValue(kanbanItemsAtom)
   const projects = useAtomValue(serverKanbanProjectsAtom)
@@ -119,6 +130,38 @@ export function KanbanBoardContainer({
   const [deleteImpact, setDeleteImpact] = React.useState<TaskDeleteImpact | null>(null)
   const [impactLoading, setImpactLoading] = React.useState(false)
   const [deleting, setDeleting] = React.useState(false)
+  // 删除确认：是否同步删除关联会话（默认不勾选；每次打开对话框重置）
+  const [deleteWithSessions, setDeleteWithSessions] = React.useState(false)
+  React.useEffect(() => {
+    setDeleteWithSessions(false)
+  }, [pendingDeleteItem])
+
+  // 「一键更新」上次手动更新时间（localStorage 持久化）+ 每分钟刷新相对时间
+  const [lastSyncAt, setLastSyncAt] = useAtom(taskBoardLastSyncAtAtom)
+  const [now, setNow] = React.useState(Date.now())
+  React.useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 60_000)
+    return () => window.clearInterval(id)
+  }, [])
+
+  // Teambition MCP 连接识别（preferred / custom / missing）
+  const [tbRecognition, setTbRecognition] = React.useState<TeambitionMcpRecognition | null>(null)
+  React.useEffect(() => {
+    if (!workspaceRoot) return
+    let cancelled = false
+    void window.electronAPI.teambition?.recognize?.(workspaceRoot)
+      .then((result) => { if (!cancelled) setTbRecognition(result) })
+      .catch(() => { if (!cancelled) setTbRecognition({ status: 'missing' }) })
+    return () => { cancelled = true }
+  }, [workspaceRoot])
+
+  // 跳转 MCP 设置（agent-skills 的 mcp tab）
+  const setAgentSkillsTab = useSetAtom(agentSkillsTabAtom)
+  const setActiveView = useSetAtom(activeViewAtom)
+  const navigateToMcpSettings = React.useCallback(() => {
+    setAgentSkillsTab('mcp')
+    setActiveView('agent-skills')
+  }, [setAgentSkillsTab, setActiveView])
 
   const visibleItems = mode === 'board' ? activeBoardItems(items, workflowFilter) : items
   const emptyState = resolveTaskBoardEmptyState({
@@ -267,8 +310,23 @@ export function KanbanBoardContainer({
       if (!workspaceRoot || !workspace) return
       const taskSlug = pendingDeleteItem.task.taskSlug
       void window.electronAPI.tasks.delete(workspaceRoot, workspace.id, taskSlug)
-        .then(() => {
+        .then(async () => {
           setTaskSummaries((tasks) => tasks?.filter((t) => t.taskId !== pendingDeleteItem?.task?.taskId))
+          // 勾选「同时删除关联会话」：删除任务成功后逐个删除关联会话并清理 UI 状态
+          if (deleteWithSessions && deleteImpact && deleteImpact.sessionIds.length > 0) {
+            let removed = 0
+            for (const sessionId of deleteImpact.sessionIds) {
+              try {
+                await window.electronAPI.deleteAgentSession(sessionId)
+                setAgentSessions((prev) => prev.filter((s) => s.id !== sessionId))
+                executeClose(sessionId)
+                removed += 1
+              } catch (cause) {
+                console.warn(`[Kanban] 删除关联会话失败 ${sessionId}:`, cause)
+              }
+            }
+            if (removed > 0) toast.success(`已同步删除 ${removed} 个关联会话`)
+          }
           toast.success('Task 已永久删除')
         })
         .catch((cause: unknown) => {
@@ -344,7 +402,7 @@ export function KanbanBoardContainer({
           <div className="titlebar-no-drag flex items-center gap-2.5">
             <LayoutDashboard className="size-6 text-foreground/70" />
             <div>
-              <h1 className="text-2xl font-semibold text-foreground">Project 看板</h1>
+              <h1 className="text-2xl font-semibold text-foreground">任务看板</h1>
               <p className="text-xs text-muted-foreground">
                 {taskSummaries.length === visibleItems.length
                   ? `${visibleItems.length} 个正式 Task`
@@ -368,11 +426,43 @@ export function KanbanBoardContainer({
             <TaskBoardFilters />
           </div>
           <div className="titlebar-no-drag flex items-center gap-1">
+            <TeambitionConnectHint recognition={tbRecognition} onNavigateToMcp={navigateToMcpSettings} workspaceSlug={workspace?.slug} />
             <BoardListToggle value={mode} onChange={setMode} />
-            {onRefresh ? (
-              <Button variant="ghost" size="icon-sm" disabled={refreshing} onClick={() => { void onRefresh() }} aria-label="刷新 Project 看板" title="刷新">
-                <RefreshCw className={refreshing ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
-              </Button>
+            {onRefresh || onSync ? (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={refreshing || syncing}
+                  onClick={() => {
+                    const run = onSync ?? onRefresh
+                    if (!run) return
+                    void (async () => {
+                      try {
+                        await run()
+                        // 同步/刷新成功后才记录「上次更新时间」，失败不更新（避免失败也显示“刚刚更新”）
+                        setLastSyncAt(Date.now())
+                      } catch {
+                        // 失败由调用方 toast 提示；这里仅不更新上次更新时间
+                      }
+                    })()
+                  }}
+                  aria-label="一键更新所有（刷新本地 + 同步 TB）"
+                  title="一键更新所有（刷新本地 + 同步 Teambition）"
+                  className="relative"
+                >
+                  <RefreshCw className={(refreshing || syncing) ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
+                  <span className="absolute right-1 top-1 size-1.5 rounded-full bg-emerald-500" />
+                </Button>
+                {lastSyncAt ? (
+                  <span
+                    className="whitespace-nowrap text-[11px] text-muted-foreground"
+                    title={`上次手动更新：${new Date(lastSyncAt).toLocaleString()}`}
+                  >
+                    {now - lastSyncAt < 60_000 ? '刚刚更新' : `更新于 ${formatRelativeUpdatedAt(lastSyncAt, now)}前`}
+                  </span>
+                ) : null}
+              </>
             ) : null}
           </div>
         </div>
@@ -507,9 +597,34 @@ export function KanbanBoardContainer({
                 <p>删除后将无法恢复，确定要删除「{pendingDeleteItem?.title}」吗？</p>
                 {pendingDeleteItem?.task && !pendingDeleteItem.task.legacyIdentity ? (
                   impactLoading ? <p className="text-muted-foreground">正在分析影响…</p> : deleteImpact ? (
-                    <div className="rounded-lg bg-muted/50 p-3 text-xs leading-5 text-foreground/70">
-                      <p>{deleteImpact.runCount} 个历史 Run · {deleteImpact.sessionCount} 个关联会话</p>
-                      {deleteImpact.blockers.length > 0 && deleteImpact.blockers.map((b) => <p key={b} className="mt-1 text-destructive">{b}</p>)}
+                    <div className="space-y-2">
+                      <div className="rounded-lg bg-muted/50 p-3 text-xs leading-5 text-foreground/70">
+                        <p>{deleteImpact.runCount} 个历史 Run · {deleteImpact.sessionCount} 个关联会话</p>
+                        {deleteImpact.blockers.length > 0 && deleteImpact.blockers.map((b) => <p key={b} className="mt-1 text-destructive">{b}</p>)}
+                      </div>
+                      {deleteImpact.sessionIds.length > 0 && (
+                        <div className="overflow-hidden rounded-lg border border-border/60">
+                          {/* 仅点击复选框本身才触发，避免误触 */}
+                          <div className="flex items-center gap-2.5 bg-content-area px-3 py-2.5">
+                            <input
+                              type="checkbox"
+                              checked={deleteWithSessions}
+                              onChange={(e) => setDeleteWithSessions(e.target.checked)}
+                              className="size-4 shrink-0 cursor-pointer accent-primary"
+                              aria-label="同时删除关联会话"
+                            />
+                            <span className="text-xs font-medium text-foreground/85">
+                              同时删除 {deleteImpact.sessionIds.length} 个关联会话
+                            </span>
+                          </div>
+                          {deleteWithSessions && (
+                            <div className="flex items-start gap-2 border-t border-destructive/30 bg-destructive/10 px-3 py-2.5 text-xs leading-4 text-destructive">
+                              <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+                              <span>警告：将永久删除关联会话及其全部内容，此操作不可恢复！</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ) : <p className="text-destructive">未能完成影响分析，请重试。</p>
                 ) : null}

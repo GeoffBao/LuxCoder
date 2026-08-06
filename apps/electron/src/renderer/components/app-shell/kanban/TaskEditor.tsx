@@ -11,6 +11,8 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { TaskGeneratedEventPayload } from '@luxcoder/shared'
+import { TASK_TYPES, TASK_TYPE_LABELS } from '@luxcoder/shared/tasks/task-record'
+import type { TaskType } from '@luxcoder/shared/tasks/task-record'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -426,7 +428,7 @@ export function TaskEditor({
     <div className="flex h-full min-h-0 flex-col gap-3 bg-background p-3">
       <header className="titlebar-drag-region flex flex-wrap items-center gap-2 rounded-xl bg-card px-3 py-2.5 shadow-sm">
         <div className="titlebar-no-drag flex flex-wrap items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={onClose}><ArrowLeft className="h-4 w-4" />返回 Project 看板</Button>
+        <Button variant="ghost" size="sm" onClick={onClose}><ArrowLeft className="h-4 w-4" />返回 任务看板</Button>
         <span className="text-sm font-semibold">{target.mode === 'edit' ? '编辑任务' : '新增任务'}</span>
         {target.mode === 'edit' && target.taskSlug && (
           <div className="ml-2 inline-flex rounded-lg bg-muted p-1">
@@ -478,6 +480,21 @@ export function TaskEditor({
                   </button>
                 ))}
               </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="space-y-1.5 text-xs font-medium">
+                类型
+                <select
+                  value={draft.type ?? 'task'}
+                  onChange={(event) => patchDraft({ type: event.target.value as TaskType })}
+                  className="h-9 w-full rounded-lg border border-border bg-background px-2.5 text-xs outline-none focus:ring-1 focus:ring-ring"
+                >
+                  {TASK_TYPES.map((type) => (
+                    <option key={type} value={type}>{TASK_TYPE_LABELS[type]}</option>
+                  ))}
+                </select>
+              </label>
+              <div />
             </div>
             <label className="block space-y-1.5 text-xs font-medium">标题<Input value={draft.title} onChange={(event) => patchDraft({ title: event.target.value })} placeholder="例如：完成桌面端发布" /></label>
             <label className="block space-y-1.5 text-xs font-medium">目标<Textarea value={draft.goal} onChange={(event) => patchDraft({ goal: event.target.value })} placeholder="说明最终希望达成的结果" rows={4} /></label>

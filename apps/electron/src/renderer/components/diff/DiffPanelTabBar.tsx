@@ -6,7 +6,7 @@
 
 import * as React from 'react'
 import { useAtomValue, useSetAtom } from 'jotai'
-import { PanelRightClose, X } from 'lucide-react'
+import { PanelRightClose, X, Monitor } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { WINDOW_CONTROLS_INSET_RIGHT } from '@/lib/platform'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
@@ -126,6 +126,29 @@ export function DiffPanelTabBar({
               <span className="size-2 rounded-full bg-primary ring-1 ring-background shrink-0" />
             )}
             文件改动
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onTabChange('preview')}
+          className={cn(
+            isClassic
+              ? 'relative h-[34px] flex-1 overflow-hidden whitespace-nowrap px-3 text-xs transition-colors select-none cursor-pointer'
+              : 'inspector-tab relative flex-1 overflow-hidden whitespace-nowrap rounded-md px-2 text-[11px] font-medium transition-colors select-none cursor-pointer',
+            isClassic ? 'rounded-t-lg' : 'rounded-none',
+            'border-t border-l border-r',
+            normalizedActiveTab === 'preview'
+              ? isClassic
+                ? 'bg-content-area text-foreground border-border/50'
+                : 'app-tab-active text-foreground border-border/80'
+              : isClassic
+                ? 'text-muted-foreground border-transparent hover:text-foreground hover:bg-muted/50'
+                : 'app-tab-inactive text-muted-foreground border-transparent hover:text-foreground',
+          )}
+        >
+          <span className="inline-flex items-center gap-1">
+            <Monitor className="size-3" />
+            演示窗口
           </span>
         </button>
         {showChatTab && (

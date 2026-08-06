@@ -7,9 +7,11 @@ import { StatusBadge } from './StatusBadge'
 import { SubtaskProgress } from './SubtaskProgress'
 import { SubtaskRow } from './SubtaskRow'
 import { resolveDagAttention, shouldShowDoneColumnAttention } from './dag-attention'
+import { TASK_TYPE_LABELS, type TaskType } from '@luxcoder/shared/tasks'
 import type { TaskWorkflow } from '@luxcoder/shared/tasks'
 import type { KanbanItem } from './types'
 import { resolveTeambitionSyncBadge } from '@/components/work/teambition-view'
+import { TaskSourceTag } from './TaskSourceTag'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { workspaceLabelsAtom } from '@/atoms/workspace-labels-atoms'
@@ -127,6 +129,18 @@ export function TaskTile({
   const canChangeWorkflow = Boolean(onChangeWorkflow) && Boolean(item.task && !item.task.legacyIdentity)
   const hasCardMenu = canEdit || canRename || canArchive || canDelete || canSetLabels || canChangeWorkflow
 
+  // C2: 类型徽章 + 已完成半透明
+  const itemType: TaskType = item.task?.type ?? 'task'
+  const isDone = item.task?.workflow === 'done' || item.session.sessionStatus === 'completed'
+  const typeBadgeClass: Record<TaskType, string> = {
+    activity: 'bg-purple-500/10 text-purple-700 dark:text-purple-300',
+    requirement: 'bg-blue-500/10 text-blue-700 dark:text-blue-300',
+    bug: 'bg-red-500/10 text-red-700 dark:text-red-300',
+    task: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+    checklist: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+    hardware: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-300',
+  }
+
   const card = (
     <article
       ref={drag.setNodeRef}
@@ -151,6 +165,7 @@ export function TaskTile({
       className={cn(
         'group cursor-pointer rounded-xl bg-card p-3 shadow-sm ring-1 ring-border/30 transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         live && 'ring-amber-500/40',
+        isDone && 'opacity-70',
         showDoneAttention && dagAttention?.kind === 'has-failed' && 'ring-destructive/35',
         showDoneAttention && dagAttention?.kind === 'needs-review' && 'ring-violet-500/35',
         showDoneAttention && dagAttention?.kind === 'incomplete' && 'ring-amber-500/35',
@@ -173,7 +188,15 @@ export function TaskTile({
               className="w-full rounded-md border border-border bg-background px-1.5 py-0.5 text-sm font-medium leading-5 outline-none ring-1 ring-ring"
             />
           ) : (
-            <h3 className="line-clamp-2 text-sm font-medium leading-5">{item.title}</h3>
+            <>
+              <div className="flex items-center gap-1.5">
+                <span className={cn('inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium leading-none', typeBadgeClass[itemType])}>
+                  {TASK_TYPE_LABELS[itemType]}
+                </span>
+                <TaskSourceTag source={item.task?.source} />
+                <h3 className="line-clamp-2 text-sm font-medium leading-5">{item.title}</h3>
+              </div>
+            </>
           )}
           {viewModel.projectName && <p className="mt-1 truncate text-[11px] text-muted-foreground">{viewModel.projectName}</p>}
           {viewModel.labelIds.length > 0 && (

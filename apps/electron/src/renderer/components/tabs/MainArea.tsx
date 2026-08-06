@@ -27,9 +27,13 @@ import { TabContent } from './TabContent'
 import { AutomationFormView } from '@/components/automation/AutomationFormView'
 import { PlanningView } from '@/components/planning/PlanningView'
 import { AgentSkillsView } from '@/components/agent-skills/AgentSkillsView'
+import { PluginPanelView } from '@/components/agent-skills/PluginPanelView'
 import { WorkspaceContextView } from '@/components/agent-skills/WorkspaceContextView'
+import { agentSkillsTabAtom } from '@/atoms/active-view'
 import { RepoWikiView } from '@/components/repo-wiki/RepoWikiView'
 import { ExcalidrawView } from '@/components/excalidraw/ExcalidrawView'
+import { CoworkPlaceholderView } from '@/components/app-shell/CoworkPlaceholderView'
+import { ToolsView } from '@/components/tools/ToolsView'
 import { automationFormAtom } from '@/atoms/automation-atoms'
 import { activeViewAtom } from '@/atoms/active-view'
 import { interfaceVariantAtom } from '@/atoms/theme'
@@ -50,6 +54,7 @@ export function MainArea(): React.ReactElement {
   const activeTab = useAtomValue(activeTabAtom)
   const automationFormOpen = useAtomValue(automationFormAtom).open
   const activeView = useAtomValue(activeViewAtom)
+  const agentSkillsTab = useAtomValue(agentSkillsTabAtom)
   const setActiveView = useSetAtom(activeViewAtom)
   const appMode = useAtomValue(appModeAtom)
   const codeMainView = useAtomValue(codeMainViewAtom)
@@ -251,16 +256,23 @@ export function MainArea(): React.ReactElement {
                 <PlanningView />
               )
             ) : activeView === 'agent-skills' ? (
-              // Yoda 插件视图：专家 / Skills / MCP / API 合一，Home / Code 共享，全屏取代 TabBar + TabContent
-              <AgentSkillsView />
+              // 侧边栏常用插件入口：精简视图，隐藏 Yoda 标题与完整 Tab 栏，仅展示当前子模块
+              <PluginPanelView
+                tab={agentSkillsTab === 'mcp' ? 'mcp' : agentSkillsTab === 'experts' ? 'experts' : 'skills'}
+                title="常用插件"
+              />
             ) : activeView === 'workspace-context' ? (
               // Yoda 记忆：已迁入设置面板；全屏视图保留兼容（历史 deep-link）
               <WorkspaceContextView />
             ) : activeView === 'repo-wiki' ? (
-              // Yoda 知识库：Home 模式知识库入口（待开发占位）
+              // 个人知识库：Home 模式知识库入口（待开发占位）
               <RepoWikiView />
             ) : activeView === 'excalidraw-gallery' || activeView === 'excalidraw-editor' ? (
               <ExcalidrawView />
+            ) : activeView === 'cowork-placeholder' ? (
+              <CoworkPlaceholderView />
+            ) : activeView === 'tools' ? (
+              <ToolsView />
             ) : (
               <>
                 <TabBar />

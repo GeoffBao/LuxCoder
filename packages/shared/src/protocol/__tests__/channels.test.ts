@@ -121,6 +121,9 @@ describe('kanban protocol contracts', () => {
       BIND_PROJECT: 'teambition:bindProject',
       LIST_BINDINGS: 'teambition:listBindings',
       RETRY_SYNC: 'teambition:retrySync',
+      SYNC_MY_OPEN_TASKS: 'teambition:syncMyOpenTasks',
+      CREATE_SYNCED_TASKS: 'teambition:createSyncedTasks',
+      RECOGNIZE: 'teambition:recognize',
     });
   });
 

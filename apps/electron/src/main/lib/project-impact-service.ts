@@ -131,6 +131,7 @@ export function analyzeTaskDeleteImpact(
     runCount,
     activeRunCount,
     sessionCount: taskSessions.length,
+    sessionIds: taskSessions.map((session) => session.id),
     blockers,
     canPurge: true, // User can always choose to purge with warnings
   }

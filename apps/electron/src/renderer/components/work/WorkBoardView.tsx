@@ -22,6 +22,8 @@ import {
   serverKanbanProjectsAtom,
 } from '@/atoms/project-atoms'
 import { KanbanBoardContainer } from '@/components/app-shell/kanban/KanbanBoardContainer'
+import { TeambitionSyncDialog } from '@/components/app-shell/kanban/TeambitionSyncDialog'
+import type { BrowserTeambitionTask } from '@/../preload/index'
 import type { SpecNodeSummary } from '@/components/app-shell/kanban/subtask-merge'
 import type { KanbanItem, KanbanTaskRun } from '@/components/app-shell/kanban/types'
 import { useOpenSession } from '@/hooks/useOpenSession'
@@ -292,6 +294,90 @@ export function WorkBoardView(): React.ReactElement {
     }
   }
 
+  // C3: 一键更新所有 —— 刷新本地看板 + 拉取 TB 待办候选（手动勾选后添加）
+  const [syncing, setSyncing] = React.useState(false)
+  const [creatingTb, setCreatingTb] = React.useState(false)
+  const [tbDialogOpen, setTbDialogOpen] = React.useState(false)
+  const [tbCandidates, setTbCandidates] = React.useState<BrowserTeambitionTask[]>([])
+  const [tbAlreadySynced, setTbAlreadySynced] = React.useState<string[]>([])
+  const [tbMock, setTbMock] = React.useState(false)
+
+  const fetchTbCandidates = React.useCallback(async (): Promise<void> => {
+    if (!workspaceRoot || !workspace) return
+    const api = window.electronAPI.teambition
+    if (!api?.syncMyOpenTasks) return
+    setSyncing(true)
+    try {
+      const result = await api.syncMyOpenTasks(workspaceRoot, workspace.id)
+      if (result?.needsReauth) {
+        toast.warning('Teambition 需要重新授权，请先检查 TB-Connect 配置', { duration: 6000 })
+        return
+      }
+      if (!result) {
+        toast.error('Teambition 同步失败：未返回结果')
+        return
+      }
+      setTbCandidates(result.candidates ?? [])
+      setTbAlreadySynced(result.alreadySynced ?? [])
+      setTbMock(Boolean(result.mock))
+      setTbDialogOpen(true)
+      if (result.mock) {
+        // Mock 时仍打开对话框展示提示
+      }
+    } catch (cause) {
+      console.error('[WorkBoard] 拉取 TB 待办失败:', cause)
+      toast.error(`拉取 TB 待办失败：${errorMessage(cause)}`)
+    } finally {
+      setSyncing(false)
+    }
+  }, [refreshAll, workspace, workspaceRoot])
+
+  const handleCreateTbTasks = async (selected: BrowserTeambitionTask[]): Promise<void> => {
+    if (!workspaceRoot || !workspace || selected.length === 0) return
+    const api = window.electronAPI.teambition
+    if (!api?.createSyncedTasks) {
+      toast.error('创建 TB 任务 API 不可用，请重启应用后重试')
+      return
+    }
+    setCreatingTb(true)
+    try {
+      const result = await api.createSyncedTasks(workspaceRoot, workspace.id, selected)
+      const createdCount = result.created?.length ?? 0
+      const failedCount = result.failed?.length ?? 0
+      if (createdCount > 0) {
+        toast.success(`已添加 ${createdCount} 个 TB 待办到看板${failedCount > 0 ? `，${failedCount} 个失败` : ''}`)
+      } else if (failedCount > 0) {
+        toast.error(`添加失败：${result.failed?.[0]?.reason ?? '未知原因'}`)
+      } else {
+        toast.info('没有可添加的 TB 待办')
+      }
+      setTbDialogOpen(false)
+      // 刷新看板展示新任务
+      await refreshAll()
+    } catch (cause) {
+      console.error('[WorkBoard] 创建 TB 任务失败:', cause)
+      toast.error(`创建 TB 任务失败：${errorMessage(cause)}`)
+    } finally {
+      setCreatingTb(false)
+    }
+  }
+
+  const handleSync = async (): Promise<void> => {
+    if (syncing) return
+    try {
+      // 先刷新本地数据，再拉取 TB 候选
+      await refreshAll()
+      if (!workspaceRoot || !workspace) {
+        toast.warning('工作区尚未就绪，请稍后重试')
+        return
+      }
+      await fetchTbCandidates()
+    } catch (cause) {
+      console.error('[WorkBoard] 一键更新失败:', errorMessage(cause))
+      toast.error(`一键更新失败：${errorMessage(cause)}`)
+    }
+  }
+
   if (!workspace) {
     return (
       <div className="grid h-full place-items-center bg-background p-6">
@@ -329,6 +415,8 @@ export function WorkBoardView(): React.ReactElement {
             }}
             onRefresh={handleRefresh}
             refreshing={loading}
+            onSync={handleSync}
+            syncing={syncing}
             onTaskCreated={async (created) => {
               await refreshAll()
               if (!created?.ran || !created.sessionId) return
@@ -342,6 +430,17 @@ export function WorkBoardView(): React.ReactElement {
           />
         </div>
       </div>
+      <TeambitionSyncDialog
+        open={tbDialogOpen}
+        onOpenChange={setTbDialogOpen}
+        candidates={tbCandidates}
+        alreadySynced={tbAlreadySynced}
+        loading={syncing}
+        mock={tbMock}
+        creating={creatingTb}
+        onRefresh={() => { void fetchTbCandidates() }}
+        onConfirm={(selected) => { void handleCreateTbTasks(selected) }}
+      />
     </div>
   )
 }

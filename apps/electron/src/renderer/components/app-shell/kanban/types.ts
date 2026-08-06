@@ -100,6 +100,8 @@ export interface KanbanFilter {
   projectId?: string | null
   /** 'all' 或省略表示不限制 workflow。 */
   workflow?: 'all' | TaskWorkflow
+  /** 来源筛选：'all' 或省略表示不限制；manual=手动创建，teambition=TB 同步，other=其他来源。 */
+  source?: 'all' | 'manual' | 'teambition' | 'other'
   /** 多个选中 Label 按 OR 匹配。 */
   labelIds?: readonly string[]
   /** true 时把无标签 Task 纳入结果；未选 Label 时表示仅看无标签。 */

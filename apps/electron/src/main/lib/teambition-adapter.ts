@@ -22,6 +22,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import type { McpServerEntry } from '@luxcoder/shared'
+import type { TaskType } from '@luxcoder/shared/tasks/task-record'
 import {
   TeambitionCapabilityError,
   type TeambitionGateway,
@@ -56,6 +57,14 @@ export interface TeambitionToolNames {
   postComment: string
   claimTask?: string
   syncProgress?: string
+  /** 用户名下未 close 任务查询工具（如 TB 的 SearchUserTasksV3）；一键同步使用 */
+  listMyOpenTasks?: string
+  /** 企业级任务搜索（SearchTasksByTQLV2）；按 TQL 精确查询“我的任务”/搜索 */
+  searchTasksByTql?: string
+  /** 当前用户信息（GetUsersMe）；查询“我的任务”需要 userId */
+  getCurrentUser?: string
+  /** 项目任务类型（GetScenarioFieldsMCP）；解析 TB 任务类型（sfc）到本地 TaskType */
+  getScenarioFields?: string
 }
 
 export interface McpTeambitionAdapterConfig {
@@ -115,15 +124,36 @@ export function mapTeambitionTask(raw: TeambitionTaskRaw, fallbackProjectId = ''
   const id = textField(raw, 'id', '_id', 'taskId')
   const title = textField(raw, 'title', 'content', 'name')
   if (!id || !title) throw new Error('Teambition 任务缺少 id 或 title/content 字段')
+  // isDone → 看板状态：已完成 / 进行中（TB 的 done 对应看板已完成）
+  const isDone = raw.isDone === true
   return {
     id,
     title,
     projectId: textField(raw, 'projectId', '_projectId') ?? fallbackProjectId,
-    ...(textField(raw, 'status', 'taskflowstatusId') ? { status: textField(raw, 'status', 'taskflowstatusId') } : {}),
+    status: textField(raw, 'status', 'taskflowstatusId') ?? (isDone ? 'done' : 'doing'),
+    ...(typeof raw.uniqueId === 'number' ? { uniqueId: raw.uniqueId } : {}),
     ...(timestampField(raw, 'updatedAt', 'updated') !== undefined
       ? { updatedAt: timestampField(raw, 'updatedAt', 'updated') }
       : {}),
+    // Mock 种子直接给本地枚举 type；真实 TB 详情只有 sfcId，由 adapter 用 GetScenarioFieldsMCP 补全
+    ...(textField(raw, 'type') !== undefined
+      ? { type: normalizeTeambitionTaskType(textField(raw, 'type')) }
+      : {}),
+    ...(textField(raw, 'sfcId') !== undefined ? { typeId: textField(raw, 'sfcId') } : {}),
   }
+}
+
+/** 将 TB 任务类型名（sfc name / 本地枚举）归一化为本地 TaskType；未知归 task。 */
+export function normalizeTeambitionTaskType(typeName?: string): TaskType | undefined {
+  if (!typeName) return undefined
+  const name = typeName.trim().toLowerCase()
+  // bug 用精确/前缀匹配（覆盖 Bug/Bugs/Bugfix），避免误伤 debug 等含 bug 子串的类型名
+  if (name.includes('缺陷') || name === 'bug' || name.startsWith('bug')) return 'bug'
+  if (name.includes('需求') || name === 'requirement' || name === 'story' || name.includes('story')) return 'requirement'
+  if (name.includes('活动') || name === 'activity') return 'activity'
+  if (name.includes('硬件') || name === 'hardware') return 'hardware'
+  if (name.includes('checklist')) return 'checklist'
+  return 'task'
 }
 
 export class McpTeambitionAdapter implements TeambitionAdapter {
@@ -146,8 +176,12 @@ export class McpTeambitionAdapter implements TeambitionAdapter {
     if (!server.url) {
       throw new Error('TW MCP 配置缺少 url 字段')
     }
+
+    // 使用 Electron 主进程的 Node 原生 fetch 直连 TB 网关（不经代理；bun/undici 会被
+    // 企业 Squid 拦截，Node 原生 fetch 可正常直连内网 MCP）。
     const transport = new StreamableHTTPClientTransport(new URL(server.url), {
       requestInit: server.headers ? { headers: server.headers } : undefined,
+      fetch: globalThis.fetch,
     })
     const client = new Client({ name: 'luxcoder-work-mode', version: '1.0.0' })
     await client.connect(transport)
@@ -198,6 +232,131 @@ export class McpTeambitionAdapter implements TeambitionAdapter {
 
   async listClaimableTasks(projectId: string): Promise<TeambitionRemoteTask[]> {
     return (await this.fetchTasks(projectId)).map((task) => mapTeambitionTask(task, projectId))
+  }
+
+  async listMyOpenTasks(_roleTypes?: string): Promise<TeambitionRemoteTask[]> {
+    const client = await this.getClient()
+
+    // 优先用 TQL 精确查询「我的任务」= 我执行且未完成（与 TB 系统“我的任务”视图一致）
+    const tqlTool = this.config.toolNames.searchTasksByTql
+    const meTool = this.config.toolNames.getCurrentUser
+    if (tqlTool && meTool) {
+      try {
+        // 1. 获取当前用户 id
+        const mePayload = extractToolPayload(await client.callTool({ name: meTool, arguments: {} }))
+        const me = (mePayload && typeof mePayload === 'object')
+          ? (mePayload as { id?: string; userId?: string })
+          : {}
+        const userId = me.id ?? me.userId
+        if (!userId) {
+          console.warn('[Teambition] GetUsersMe 未返回 userId，回退 SearchUserTasksV3')
+        } else {
+          const tql = `isDone = false AND executorId = "${userId}"`
+          const args: Record<string, unknown> = { tql, pageSize: 100 }
+          const payload = extractToolPayload(await client.callTool({ name: tqlTool, arguments: args }))
+          const ids = Array.isArray(payload)
+            ? payload as string[]
+            : payload && typeof payload === 'object'
+              ? (payload as { result?: string[] }).result ?? []
+              : []
+          // SearchTasksByTQLV2 只返回任务 ID 列表；逐条 QueryTaskV3 拉详情（最多 50 条，避免刷屏）
+          const detailTool = this.config.toolNames.getTaskDetail
+          if (!detailTool || ids.length === 0) return []
+          const details: TeambitionTaskRaw[] = []
+          for (const taskId of ids.slice(0, 50)) {
+            try {
+              const detailPayload = extractToolPayload(await client.callTool({
+                name: detailTool,
+                arguments: { taskId },
+              }))
+              const raw = Array.isArray(detailPayload)
+                ? detailPayload[0]
+                : (detailPayload as { result?: TeambitionTaskRaw[] }).result?.[0]
+              if (raw) details.push(raw as TeambitionTaskRaw)
+            } catch (error) {
+              console.warn(`[Teambition] 查询任务详情失败 ${taskId}:`, error)
+            }
+          }
+          return this.attachTaskTypes(
+            details
+              .filter((task) => task.isDone !== true && task.isArchived !== true)
+              .map((task) => mapTeambitionTask(task)),
+          )
+        }
+      } catch (error) {
+        console.warn('[Teambition] TQL 查询我的任务失败，回退 SearchUserTasksV3:', error)
+      }
+    }
+
+    // 回退：SearchUserTasksV3 分页拉取（默认 executor）
+    const toolName = this.config.toolNames.listMyOpenTasks
+    if (!toolName) return []
+    const collected: TeambitionTaskRaw[] = []
+    let nextPageToken: string | undefined
+    for (let page = 0; page < 50; page++) {
+      const args: Record<string, unknown> = {
+        roleTypes: 'executor',
+        pageSize: 100,
+      }
+      if (nextPageToken) args.pageToken = nextPageToken
+
+      const payload = extractToolPayload(await client.callTool({ name: toolName, arguments: args }))
+      const rawTasks = Array.isArray(payload)
+        ? payload as TeambitionTaskRaw[]
+        : payload && typeof payload === 'object'
+          ? (payload as { result?: TeambitionTaskRaw[] }).result ?? []
+          : []
+      collected.push(...rawTasks)
+
+      const next = payload && typeof payload === 'object'
+        ? (payload as { nextPageToken?: string }).nextPageToken
+        : undefined
+      if (!next) break
+      nextPageToken = next
+    }
+
+    return this.attachTaskTypes(
+      collected
+        .filter((task) => task.isDone !== true && task.isArchived !== true)
+        .map((task) => mapTeambitionTask(task)),
+    )
+  }
+
+  /**
+   * 用 GetScenarioFieldsMCP 批量解析任务 sfcId → TB 类型名 → 本地 TaskType（按项目缓存）。
+   * 仅在任务缺少 type 但带 typeId（sfcId）时查询，避免对每条任务都发起额外调用。
+   */
+  private async attachTaskTypes(tasks: TeambitionRemoteTask[]): Promise<TeambitionRemoteTask[]> {
+    const toolName = this.config.toolNames.getScenarioFields
+    if (!toolName) return tasks
+    const pending = tasks.filter((task) => !task.type && task.typeId && task.projectId)
+    if (pending.length === 0) return tasks
+    const client = await this.getClient()
+    const projectIds = [...new Set(pending.map((task) => task.projectId))]
+    const cache = new Map<string, Map<string, string>>()
+    for (const projectId of projectIds) {
+      try {
+        const payload = extractToolPayload(await client.callTool({
+          name: toolName,
+          arguments: { projectId, pageSize: 100 },
+        }))
+        const list = Array.isArray(payload)
+          ? payload as Array<{ id?: string; name?: string }>
+          : (payload as { result?: Array<{ id?: string; name?: string }> }).result ?? []
+        const byId = new Map<string, string>()
+        for (const item of list) {
+          if (item?.id && item?.name) byId.set(item.id, item.name)
+        }
+        cache.set(projectId, byId)
+      } catch (error) {
+        console.warn(`[Teambition] 查询项目任务类型失败 ${projectId}:`, error)
+      }
+    }
+    for (const task of pending) {
+      const typeName = cache.get(task.projectId)?.get(task.typeId ?? '')
+      if (typeName) task.type = normalizeTeambitionTaskType(typeName)
+    }
+    return tasks
   }
 
   async claimTask(taskId: string, idempotencyKey: string): Promise<TeambitionRemoteTask> {
@@ -305,6 +464,13 @@ export class MockTeambitionAdapter implements TeambitionAdapter {
 
   async listClaimableTasks(projectId: string): Promise<TeambitionRemoteTask[]> {
     return (await this.fetchTasks(projectId)).map((task) => mapTeambitionTask(task, projectId))
+  }
+
+  async listMyOpenTasks(): Promise<TeambitionRemoteTask[]> {
+    // Mock：返回所有 mock 任务（未 close 模拟）
+    return [...this.tasks.values()]
+      .filter((task) => (task.mockPhase ?? 'todo') !== 'closed')
+      .map((task) => mapTeambitionTask(task))
   }
 
   async claimTask(taskId: string, _idempotencyKey: string): Promise<TeambitionRemoteTask> {

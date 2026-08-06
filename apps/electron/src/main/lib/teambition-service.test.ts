@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { normalizeTeambitionTaskType } from './teambition-adapter'
 import {
   TeambitionAuthenticationError,
   TeambitionConflictError,
@@ -10,6 +11,28 @@ import {
   type TeambitionGatewayCapabilities,
   type TeambitionRemoteTask,
 } from './teambition-service'
+
+describe('normalizeTeambitionTaskType', () => {
+  test('TB 缺陷类型归一为 bug', () => {
+    expect(normalizeTeambitionTaskType('缺陷')).toBe('bug')
+    expect(normalizeTeambitionTaskType('bug')).toBe('bug')
+    expect(normalizeTeambitionTaskType('Bugs')).toBe('bug')
+  })
+  test('包含 bug 子串的非缺陷类型（如 debug）不误判', () => {
+    expect(normalizeTeambitionTaskType('debug')).toBe('task')
+  })
+  test('需求 / story 归一为 requirement', () => {
+    expect(normalizeTeambitionTaskType('需求')).toBe('requirement')
+    expect(normalizeTeambitionTaskType('story')).toBe('requirement')
+  })
+  test('未知 / 空类型归 task 或 undefined', () => {
+    expect(normalizeTeambitionTaskType('其他类型')).toBe('task')
+    expect(normalizeTeambitionTaskType(undefined)).toBeUndefined()
+  })
+  test('mock 本地枚举直接命中', () => {
+    expect(normalizeTeambitionTaskType('requirement')).toBe('requirement')
+  })
+})
 
 class MockGateway implements TeambitionGateway {
   capabilities: TeambitionGatewayCapabilities = {
@@ -26,6 +49,7 @@ class MockGateway implements TeambitionGateway {
 
   async probeCapabilities(): Promise<TeambitionGatewayCapabilities> { return this.capabilities }
   async listClaimableTasks(): Promise<TeambitionRemoteTask[]> { return this.tasks }
+  async listMyOpenTasks(): Promise<TeambitionRemoteTask[]> { return this.tasks.filter((t) => t.status !== 'closed') }
   async claimTask(taskId: string, idempotencyKey: string): Promise<TeambitionRemoteTask> {
     if (this.failure) throw this.failure
     this.claims.push(idempotencyKey)
