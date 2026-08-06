@@ -23,7 +23,6 @@ import {
   PlayCircle,
   Blocks,
   Users,
-  Presentation,
   Rocket,
   LayoutTemplate,
   FileStack,
@@ -77,7 +76,6 @@ export const QUICKSTART_CHIPS: Record<QuickstartCategory, QuickstartChip[]> = {
     { id: 'dev-collab', label: '多 Agent 协作', icon: Users, action: { type: 'invokeSkill', skillSlug: 'agent-collaboration' } },
   ],
   design: [
-    { id: 'design-ppt', label: 'PPT 设计', icon: Presentation, action: { type: 'invokeSkill', skillSlug: 'dashi-ppt' } },
     { id: 'design-web-ppt', label: '网页 PPT', icon: Rocket, action: { type: 'invokeSkill', skillSlug: 'frontend-slides' } },
     { id: 'design-guizang-ppt', label: '杂志风网页 PPT', icon: LayoutTemplate, action: { type: 'invokeSkill', skillSlug: 'guizang-ppt-skill' } },
     { id: 'design-pptx', label: 'PPTX 精修', icon: FileStack, action: { type: 'invokeSkill', skillSlug: 'ppt-master-skill' } },

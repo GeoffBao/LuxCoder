@@ -565,7 +565,7 @@ function compareSemver(a: string, b: string): number {
 /** 防御性目录基名集合：复制 default skills 时永远跳过这些目录，避免
  *  .git 0444 文件、node_modules 文件爆炸等场景把启动期同步链路炸掉。
  * 注意：dist 不在过滤列表中——它是 skill 可能自带的合法运行时产物（如
- * dashi-ppt 的 project/dist，package.json imports 直接引用），无条件过滤
+ * 部分 PPT 类 skill 的 project/dist，package.json imports 直接引用），无条件过滤
  * 会破坏这类 skill。构建产物防御只保留 .git / node_modules 等元数据目录。 */
 const DEFAULT_SKILL_COPY_BLOCKLIST = new Set([
   '.git',
