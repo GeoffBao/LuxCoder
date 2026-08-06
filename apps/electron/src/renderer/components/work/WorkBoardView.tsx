@@ -23,6 +23,19 @@ import {
 } from '@/atoms/project-atoms'
 import { KanbanBoardContainer } from '@/components/app-shell/kanban/KanbanBoardContainer'
 import { TeambitionSyncDialog } from '@/components/app-shell/kanban/TeambitionSyncDialog'
+import { SectionTabs } from '@/components/ui/section-tabs'
+import { taskBoardSectionAtom } from '@/atoms/task-board-section-atoms'
+import {
+  tbCurrentUserIdAtom,
+  tbDefectDetailAtom,
+  tbDefectErrorAtom,
+  tbDefectItemsAtom,
+  tbDefectLoadedWorkspaceAtom,
+  tbDefectTransitionsAtom,
+  tbDefectWorkflowsAtom,
+  tbLocalTaskIdsAtom,
+} from '@/atoms/tb-defect-atoms'
+import { TeambitionDefectBoardView } from './teambition-defect/TeambitionDefectBoardView'
 import type { BrowserTeambitionTask } from '@/../preload/index'
 import type { SpecNodeSummary } from '@/components/app-shell/kanban/subtask-merge'
 import type { KanbanItem, KanbanTaskRun } from '@/components/app-shell/kanban/types'
@@ -43,7 +56,16 @@ export function WorkBoardView(): React.ReactElement {
   const [selectedProjectId, setSelectedProjectId] = useAtom(selectedProjectIdAtom)
   const setSessions = useSetAtom(serverKanbanSessionsAtom)
   const [taskSummaries, setTaskSummaries] = useAtom(serverTaskSummariesAtom)
+  const [taskBoardSection, setTaskBoardSection] = useAtom(taskBoardSectionAtom)
   const setRuns = useSetAtom(serverKanbanRunsAtom)
+  const setTbItems = useSetAtom(tbDefectItemsAtom)
+  const setTbDetail = useSetAtom(tbDefectDetailAtom)
+  const setTbTransitions = useSetAtom(tbDefectTransitionsAtom)
+  const setTbWorkflows = useSetAtom(tbDefectWorkflowsAtom)
+  const setTbUserId = useSetAtom(tbCurrentUserIdAtom)
+  const setTbError = useSetAtom(tbDefectErrorAtom)
+  const setTbLoadedWorkspace = useSetAtom(tbDefectLoadedWorkspaceAtom)
+  const setTbLocalTaskIds = useSetAtom(tbLocalTaskIdsAtom)
   const setBindings = useSetAtom(serverTeambitionBindingsAtom)
   const setSpecNodes = useSetAtom(kanbanSpecNodesAtom)
   const setTaskExpertIds = useSetAtom(kanbanTaskExpertIdsAtom)
@@ -73,6 +95,15 @@ export function WorkBoardView(): React.ReactElement {
     setBindings([])
     setSpecNodes(new Map())
     setTaskExpertIds(new Map())
+    // TB 缺陷看板状态随工作区切换清空（重新加载新工作区）
+    setTbItems([])
+    setTbDetail(null)
+    setTbTransitions([])
+    setTbWorkflows(new Map())
+    setTbUserId(undefined)
+    setTbError(null)
+    setTbLoadedWorkspace(null)
+    setTbLocalTaskIds(new Set())
     setWorkspaceRoot(null)
     setError(null)
     if (!workspace) return () => { cancelled = true }
@@ -93,7 +124,7 @@ export function WorkBoardView(): React.ReactElement {
       })
 
     return () => { cancelled = true }
-  }, [setBindings, setRuns, setSpecNodes, setTaskExpertIds, setTaskSummaries, workspace])
+  }, [setBindings, setRuns, setSpecNodes, setTaskExpertIds, setTaskSummaries, setTbDetail, setTbError, setTbItems, setTbLoadedWorkspace, setTbLocalTaskIds, setTbTransitions, setTbUserId, setTbWorkflows, workspace])
 
   const captureWorkspaceLoad = React.useCallback((): WorkspaceLoadIdentity | null => {
     const active = activeWorkspaceLoadRef.current
@@ -400,12 +431,34 @@ export function WorkBoardView(): React.ReactElement {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
+      <div className="titlebar-drag-region flex justify-center pt-2">
+        <SectionTabs
+          value={taskBoardSection}
+          onChange={setTaskBoardSection}
+          options={[
+            { value: 'tb-defect' as const, label: 'TB 问题看板' },
+            { value: 'agent' as const, label: 'Task 执行看板' },
+          ]}
+        />
+      </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {error && (
           <div className="mb-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {error}
           </div>
         )}
+        {taskBoardSection === 'tb-defect' ? (
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <TeambitionDefectBoardView
+              workspaceRoot={workspaceRoot}
+              workspaceId={workspace.id}
+              // 加入本地任务时按当前看板选中的项目/工作目录默认填充
+              defaultProjectId={selectedProjectId ?? undefined}
+              defaultWorkingDirectory={projects.find((project) => project.id === selectedProjectId)?.workingDirectory}
+              onRefresh={() => void handleRefresh()}
+            />
+          </div>
+        ) : (
         <div className="min-h-0 flex-1 overflow-hidden">
           <KanbanBoardContainer
             onOpenItem={handleOpenItem}
@@ -429,6 +482,7 @@ export function WorkBoardView(): React.ReactElement {
             }}
           />
         </div>
+        )}
       </div>
       <TeambitionSyncDialog
         open={tbDialogOpen}

@@ -82,4 +82,23 @@ export const TEAMBITION_IPC_CHANNELS = {
   RECOGNIZE: 'teambition:recognize',
 } as const;
 
+/** TB 缺陷看板通道组（研发三区视图 / 状态流转 / 写回） */
+export const TEAMBITION_BOARD_IPC_CHANNELS = {
+  GET_CURRENT_USER: 'tbBoard:getCurrentUser',
+  LIST_MY_DEFECTS: 'tbBoard:listMyDefects',
+  LIST_PROJECT_DEFECTS: 'tbBoard:listProjectDefects',
+  GET_WORKFLOW: 'tbBoard:getWorkflow',
+  GET_WORKFLOWS_BATCH: 'tbBoard:getWorkflowsBatch',
+  /** 本地 Agent 看板中已存在的 TB 任务 ID 集合（加入本地任务去重/置灰用） */
+  LIST_LOCAL_TB_TASK_IDS: 'tbBoard:listLocalTbTaskIds',
+  LIST_TRANSITIONS: 'tbBoard:listTransitions',
+  GET_TASK_DETAIL: 'tbBoard:getTaskDetail',
+  CLAIM_TASK: 'tbBoard:claimTask',
+  UPDATE_STATUS: 'tbBoard:updateStatus',
+  POST_COMMENT: 'tbBoard:postComment',
+  /** 是否 Mock 网关（无真实 TB 配置时本地兜底，UI 展示「演示数据」角标） */
+  IS_MOCK: 'tbBoard:isMock',
+  CLEAR_CACHE: 'tbBoard:clearCache',
+} as const;
+
 export const SESSION_COMMAND_CHANNEL = SESSION_KANBAN_IPC_CHANNELS.COMMAND;

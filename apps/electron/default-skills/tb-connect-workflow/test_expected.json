@@ -1,0 +1,47 @@
+{
+  "skill_id": "scenarios/connect_TB_workflow",
+  "version": "2.1.0",
+  "test_cases": [
+    {
+      "case_type": "normal",
+      "case_name": "shortId 正常查询分析",
+      "input": {
+        "shortId": "S87750AA1-12247"
+      },
+      "expected_output": {
+        "status": "success",
+        "summary": "问题单已分析，HTML 报告已生成",
+        "report_path": "log/S87750AA1-12247/分析报告.html",
+        "log_dir": "log/S87750AA1-12247/",
+        "comment_updated": true
+      },
+      "description": "提供合法 shortId，验证完整流程：查询→下载→分析→报告→评论"
+    },
+    {
+      "case_type": "error",
+      "case_name": "输入不足无法定位",
+      "input": {
+        "problem_desc": "最近有个问题帮我看看"
+      },
+      "expected_output": {
+        "status": "failed",
+        "summary": "输入不足，无法定位问题单",
+        "error_code": "INSUFFICIENT_INPUT"
+      },
+      "description": "既无 id 也无可定位描述，验证异常处理分支1"
+    },
+    {
+      "case_type": "error",
+      "case_name": "查询无结果",
+      "input": {
+        "shortId": "INVALID-SHORTID-99999"
+      },
+      "expected_output": {
+        "status": "failed",
+        "summary": "所有查询方式均零命中，问题单不存在",
+        "error_code": "ZERO_MATCH"
+      },
+      "description": "提供不存在的 shortId，验证异常处理分支2"
+    }
+  ]
+}

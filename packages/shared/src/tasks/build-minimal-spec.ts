@@ -18,6 +18,8 @@ export interface BuildMinimalTaskSpecInput {
   teambitionTaskId?: string
   /** 业务类型：bug/requirement/task 等（TB 同步任务由 TB 任务类型解析） */
   type?: TaskType
+  /** Agent 专家 slug（如 general/通讯软件专家）；自动选 Agent 后写入 defaults.expertId */
+  expertId?: string
 }
 
 /**
@@ -33,6 +35,7 @@ export function buildMinimalTaskSpec(input: BuildMinimalTaskSpecInput): TaskSpec
   const defaults: Record<string, unknown> = {}
   if (input.model) defaults.model = input.model
   if (input.llmConnection) defaults.llmConnection = input.llmConnection
+  if (input.expertId) defaults.expertId = input.expertId
 
   return TaskSpecSchema.parse({
     id: slugify(title) || 'untitled-task',

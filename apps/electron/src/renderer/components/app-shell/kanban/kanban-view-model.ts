@@ -120,6 +120,7 @@ function buildItem(
     ...(expertId ? { expertId } : {}),
     ...(totalNodes > 0 ? { subtaskTotal: totalNodes } : {}),
     ...(run && totalNodes > 0 ? { taskRun: { completedNodes, totalNodes } } : {}),
+    ...(run?.failureReason ? { taskRunFailureReason: run.failureReason } : {}),
     ...(binding
       ? {
           teambition: {

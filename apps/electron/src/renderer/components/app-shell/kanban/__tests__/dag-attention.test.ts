@@ -16,15 +16,23 @@ describe('resolveDagAttention', () => {
       row('done', 'a'),
       row('failed', 'b'),
       row('pending', 'c'),
-    ])).toEqual({ kind: 'has-failed', label: '有失败' })
+    ])).toEqual({ kind: 'has-failed', label: '执行失败' })
   })
 
-  test('needs-review 为待处理（优先于未跑完）', () => {
+  test('有失败时携带失败原因', () => {
+    expect(resolveDagAttention(
+      [row('done', 'a'), row('failed', 'b')],
+      undefined,
+      '节点 b 执行异常：SDK 超时',
+    )).toEqual({ kind: 'has-failed', label: '执行失败', reason: '节点 b 执行异常：SDK 超时' })
+  })
+
+  test('needs-review 为待验收（优先于未跑完）', () => {
     expect(resolveDagAttention([
       row('done', 'a'),
       row('needs-review', 'b'),
       row('pending', 'c'),
-    ])).toEqual({ kind: 'needs-review', label: '待处理' })
+    ])).toEqual({ kind: 'needs-review', label: '待验收' })
   })
 
   test('仅 pending/running 为未跑完', () => {
@@ -39,9 +47,10 @@ describe('resolveDagAttention', () => {
 })
 
 describe('shouldShowDoneColumnAttention', () => {
-  test('仅 done 列展示', () => {
+  test('done 与 needs-review 列展示', () => {
     const attention = { kind: 'incomplete' as const, label: '未跑完' }
     expect(shouldShowDoneColumnAttention('done', attention)).toBe(true)
+    expect(shouldShowDoneColumnAttention('needs-review', attention)).toBe(true)
     expect(shouldShowDoneColumnAttention('in-progress', attention)).toBe(false)
     expect(shouldShowDoneColumnAttention('done', null)).toBe(false)
   })

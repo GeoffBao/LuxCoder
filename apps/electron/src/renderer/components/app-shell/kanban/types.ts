@@ -75,6 +75,8 @@ export interface KanbanTaskRun {
   taskSlug: string
   runId: string
   nodeStates: Record<string, KanbanNodeState>
+  /** 大体失败原因（首个失败节点 reason，可能为 undefined） */
+  failureReason?: string
 }
 
 /** 可安全展示的 Teambition 绑定字段。 */
@@ -142,6 +144,8 @@ export interface KanbanItem {
   /** 解析后的专家 slug（任务 defaults ∨ 项目默认） */
   expertId?: string
   taskRun?: KanbanNodeProgress
+  /** 运行大体失败原因（首个失败节点 reason），用于卡片醒目失败提示 */
+  taskRunFailureReason?: string
   teambition?: KanbanTeambitionFields
 }
 
