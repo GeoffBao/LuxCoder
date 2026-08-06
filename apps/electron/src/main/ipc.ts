@@ -150,6 +150,12 @@ import type {
   CreatePlanningGroupInput,
   UpdatePlanningGroupInput,
   SnoozePlanningReminderInput,
+  PlanningNativeSyncEntity,
+  PlanningNativeSyncStatus,
+  PlanningNativeSyncPermissionResult,
+  PlanningNativeSyncTarget,
+  PlanningSyncProfile,
+  SavePlanningSyncProfileInput,
 } from '@luxcoder/shared'
 import type { ExpertManifest, ExpertPackage } from '@luxcoder/shared/experts'
 import type { UserProfile, AppSettings } from '../types'
@@ -241,8 +247,16 @@ import {
   listActivePlanningReminders,
   acknowledgePlanningReminder,
   snoozePlanningReminder,
+  listPlanningSyncProfiles,
+  savePlanningSyncProfile,
 } from './lib/planning-manager'
 import { broadcastPlanningChanged } from './lib/planning-events'
+import {
+  getPlanningNativeSyncStatus,
+  listPlanningNativeSyncTargets,
+  requestPlanningNativeSyncAccess,
+} from './lib/planning-native-sync-service'
+import { runPlanningNativeSync } from './lib/planning-native-sync-coordinator'
 import {
   createExpert,
   getExpert,
@@ -2406,18 +2420,7 @@ export function registerIpcHandlers(): void {
   // 获取 Agent 会话列表
   ipcMain.handle(
     AGENT_IPC_CHANNELS.LIST_SESSIONS,
-    async (): Promise<AgentSessionMeta[]> => {
-      const sessions = listAgentSessions()
-      // 启动所有已有附加目录的文件监听
-      for (const session of sessions) {
-        if (session.attachedDirectories) {
-          for (const dir of session.attachedDirectories) {
-            watchAttachedDirectory(dir)
-          }
-        }
-      }
-      return sessions
-    }
+    async (): Promise<AgentSessionMeta[]> => listAgentSessions()
   )
 
   // 创建 Agent 会话
@@ -5494,6 +5497,35 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(PLANNING_IPC_CHANNELS.SNOOZE_REMINDER, async (_, input: SnoozePlanningReminderInput): Promise<PlanningReminder | undefined> => {
     if (!input || typeof input.id !== 'string' || !Number.isInteger(input.minutes) || input.minutes < 1 || input.minutes > 10080) throw new Error('推迟分钟数非法')
     const reminder = snoozePlanningReminder(input.id, input.minutes); if (reminder) broadcastPlanningChanged(['todos', 'calendar_events', 'reminders']); return reminder
+  })
+
+  // ===== macOS Calendar / Reminders 同步（授权、受管目标与单向发布） =====
+  const isPlanningNativeSyncEntity = (value: unknown): value is PlanningNativeSyncEntity => value === 'calendar' || value === 'reminder'
+  ipcMain.handle(PLANNING_IPC_CHANNELS.GET_NATIVE_SYNC_STATUS, async (): Promise<PlanningNativeSyncStatus> => getPlanningNativeSyncStatus())
+  ipcMain.handle(PLANNING_IPC_CHANNELS.REQUEST_NATIVE_SYNC_ACCESS, async (_, entity: unknown): Promise<PlanningNativeSyncPermissionResult> => {
+    if (!isPlanningNativeSyncEntity(entity)) throw new Error('同步实体类型非法')
+    return requestPlanningNativeSyncAccess(entity)
+  })
+  ipcMain.handle(PLANNING_IPC_CHANNELS.OPEN_NATIVE_SYNC_PRIVACY_SETTINGS, async (_, entity: unknown): Promise<void> => {
+    if (!isPlanningNativeSyncEntity(entity)) throw new Error('同步实体类型非法')
+    if (process.platform !== 'darwin') return
+    await shell.openExternal(entity === 'calendar'
+      ? 'x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars'
+      : 'x-apple.systempreferences:com.apple.preference.security?Privacy_Reminders')
+  })
+  ipcMain.handle(PLANNING_IPC_CHANNELS.LIST_NATIVE_SYNC_TARGETS, async (_, entity: unknown): Promise<PlanningNativeSyncTarget[]> => {
+    if (!isPlanningNativeSyncEntity(entity)) throw new Error('同步实体类型非法')
+    return listPlanningNativeSyncTargets(entity)
+  })
+  ipcMain.handle(PLANNING_IPC_CHANNELS.LIST_SYNC_PROFILES, async (): Promise<PlanningSyncProfile[]> => listPlanningSyncProfiles())
+  ipcMain.handle(PLANNING_IPC_CHANNELS.SAVE_SYNC_PROFILE, async (_, input: SavePlanningSyncProfileInput): Promise<PlanningSyncProfile> => {
+    if (!input || !isPlanningNativeSyncEntity(input.entity) || !input.target || typeof input.target.id !== 'string' || typeof input.target.title !== 'string' || typeof input.target.sourceTitle !== 'string' || (input.enabled !== undefined && typeof input.enabled !== 'boolean')) throw new Error('同步目标参数非法')
+    // renderer 不可信：必须由主进程重新确认目标仍存在且可写，不能接受伪造的 Calendar/List 标识。
+    const target = (await listPlanningNativeSyncTargets(input.entity)).find((item) => item.id === input.target.id)
+    if (!target) throw new Error('同步目标不存在、不可写或尚未授权')
+    const profile = savePlanningSyncProfile({ ...input, target })
+    void runPlanningNativeSync()
+    return profile
   })
 
   // ===== 定时任务（Automation）=====

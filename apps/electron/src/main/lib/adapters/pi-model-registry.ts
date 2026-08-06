@@ -75,7 +75,15 @@ function compilePiReasoningCapabilities(
   const thinkingLevelMap = encoding.effortMap as PiCatalogModel['thinkingLevelMap']
   switch (encoding.kind) {
     case 'adaptive-effort':
-      return { compat: { forceAdaptiveThinking: true }, thinkingLevelMap }
+      return {
+        compat: { forceAdaptiveThinking: true },
+        thinkingLevelMap,
+      }
+    // DeepSeek V4's Anthropic-compatible protocol is not adaptive thinking.
+    // Pi's generic stream emits a legacy budget; the runtime request extension
+    // replaces it with `thinking: enabled` + `output_config.effort`.
+    case 'deepseek-output-effort':
+      return { thinkingLevelMap }
     case 'openai-reasoning-effort':
       return { compat: { supportsReasoningEffort: true }, thinkingLevelMap }
     case 'zai-thinking-effort':

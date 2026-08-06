@@ -1051,9 +1051,16 @@ export class AgentOrchestrator {
     const appSettings = getSettings()
     let sessionMeta = getAgentSessionMeta(sessionId)
     // 历史会话缺失 runtime 时按 Claude 兼容；新会话创建时已持久化其默认 runtime。
+    // previousAgentRuntime 只用于判断"本轮真正切换了执行引擎"（决定是否要清空 sdkSessionId，
+    // 因为 pi/claude 的 session id 格式互不兼容），不能用它来决定要不要持久化 agentRuntime：
+    // normalizeAgentRuntime 在 provider 为 anthropic-oauth（或全局 Claude 内核关闭）时会强制
+    // 结果为固定值，此时旧值和新值被强制成同一个结果，即使 sessionMeta 里存的原始值早就不对
+    // （例如渠道切到 anthropic-oauth 后，存量会话的 agentRuntime 字段永远卡在 'pi'，
+    // 而实际每轮都在用 claude 运行时执行——fork/rewind 等按 sessionMeta.agentRuntime 原始值
+    // 分发的逻辑会因此一直走错分支）。持久化判断必须比较"原始存储值"与"本轮生效值"。
     const previousAgentRuntime = normalizeAgentRuntime(sessionMeta?.agentRuntime ?? 'claude', channel.provider)
     const agentRuntime = normalizeAgentRuntime(inputAgentRuntime ?? sessionMeta?.agentRuntime ?? 'claude', channel.provider)
-    if (!sessionMeta?.agentRuntime || previousAgentRuntime !== agentRuntime) {
+    if (sessionMeta?.agentRuntime !== agentRuntime) {
       try {
         sessionMeta = updateAgentSessionMeta(sessionId, {
           agentRuntime,

@@ -159,6 +159,12 @@ import type {
   CreatePlanningGroupInput,
   UpdatePlanningGroupInput,
   SnoozePlanningReminderInput,
+  PlanningNativeSyncEntity,
+  PlanningNativeSyncStatus,
+  PlanningNativeSyncPermissionResult,
+  PlanningNativeSyncTarget,
+  PlanningSyncProfile,
+  SavePlanningSyncProfileInput,
   CreateProjectInput,
   LoadedProject,
   ProjectAsset,
@@ -1603,6 +1609,13 @@ export interface ElectronAPI {
   onPlanningAgentOperation: (callback: (operation: PlanningAgentOperation) => void) => () => void
   /** 独立规划窗口启动的 Todo Agent 会话转交到主窗口（自动打开并注入提示） */
   onTodoAgentSessionReady: (callback: (activation: TodoAgentSessionActivation) => void) => () => void
+  /** macOS EventKit 同步设置；非 macOS 返回 unsupported 或空集合。 */
+  getPlanningNativeSyncStatus: () => Promise<PlanningNativeSyncStatus>
+  requestPlanningNativeSyncAccess: (entity: PlanningNativeSyncEntity) => Promise<PlanningNativeSyncPermissionResult>
+  openPlanningNativeSyncPrivacySettings: (entity: PlanningNativeSyncEntity) => Promise<void>
+  listPlanningNativeSyncTargets: (entity: PlanningNativeSyncEntity) => Promise<PlanningNativeSyncTarget[]>
+  listPlanningSyncProfiles: () => Promise<PlanningSyncProfile[]>
+  savePlanningSyncProfile: (input: SavePlanningSyncProfileInput) => Promise<PlanningSyncProfile>
 
   /** CodeClaw 桌面助手桥接（主进程状态机 → 桌宠窗口） */
   codeClaw: {
@@ -3504,6 +3517,12 @@ const electronAPI: ElectronAPI = {
     ipcRenderer.on(PLANNING_IPC_CHANNELS.TODO_AGENT_SESSION_READY, listener)
     return () => { ipcRenderer.removeListener(PLANNING_IPC_CHANNELS.TODO_AGENT_SESSION_READY, listener) }
   },
+  getPlanningNativeSyncStatus: () => ipcRenderer.invoke(PLANNING_IPC_CHANNELS.GET_NATIVE_SYNC_STATUS),
+  requestPlanningNativeSyncAccess: (entity: PlanningNativeSyncEntity) => ipcRenderer.invoke(PLANNING_IPC_CHANNELS.REQUEST_NATIVE_SYNC_ACCESS, entity),
+  openPlanningNativeSyncPrivacySettings: (entity: PlanningNativeSyncEntity) => ipcRenderer.invoke(PLANNING_IPC_CHANNELS.OPEN_NATIVE_SYNC_PRIVACY_SETTINGS, entity),
+  listPlanningNativeSyncTargets: (entity: PlanningNativeSyncEntity) => ipcRenderer.invoke(PLANNING_IPC_CHANNELS.LIST_NATIVE_SYNC_TARGETS, entity),
+  listPlanningSyncProfiles: () => ipcRenderer.invoke(PLANNING_IPC_CHANNELS.LIST_SYNC_PROFILES),
+  savePlanningSyncProfile: (input: SavePlanningSyncProfileInput) => ipcRenderer.invoke(PLANNING_IPC_CHANNELS.SAVE_SYNC_PROFILE, input),
 
   // ===== CodeClaw 桌面助手 =====
   codeClaw: {

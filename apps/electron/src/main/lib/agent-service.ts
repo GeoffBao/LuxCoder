@@ -126,6 +126,17 @@ function getMainRendererWebContents(): WebContents | null {
 
 // ===== EventBus IPC 转发中间件 =====
 
+/**
+ * 完成事件只需要侧栏/导航使用的轻量 meta。Pi 的 entry bindings 仅用于主进程
+ * session fork/rewind，传到 renderer 会在长会话完成时徒增 IPC 序列化成本。
+ */
+function getSessionMetaForRenderer(sessionId: string) {
+  const session = getAgentSessionMeta(sessionId)
+  if (!session) return undefined
+  const { piEntryBindings: _piEntryBindings, ...meta } = session
+  return meta
+}
+
 eventBus.use((sessionId, payload, next) => {
   // 兜底：未走 runAgent/runAgentHeadless 注册时（如旧 Conductor 直调），仍推到主窗口
   let wc = sessionWebContents.get(sessionId)
@@ -200,6 +211,8 @@ export async function runAgent(
             resultSubtype: opts?.resultSubtype,
             resultErrors: opts?.resultErrors,
             backgroundTasksPending: opts?.backgroundTasksPending,
+            // 只读取刚完成的轻量 meta，renderer 可据此增量更新列表，避免再取 5,000+ 条全量会话。
+            session: getSessionMetaForRenderer(input.sessionId),
           })
         }
       },
@@ -303,6 +316,8 @@ export async function runAgentHeadless(
             resultSubtype: opts?.resultSubtype,
             resultErrors: opts?.resultErrors,
             backgroundTasksPending: opts?.backgroundTasksPending,
+            // 只读取刚完成的轻量 meta，renderer 可据此增量更新列表，避免再取 5,000+ 条全量会话。
+            session: getSessionMetaForRenderer(runInput.sessionId),
           })
         }
       },
