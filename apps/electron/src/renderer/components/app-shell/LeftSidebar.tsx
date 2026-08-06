@@ -3204,8 +3204,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
       {/* 项目中心入口已移除：Project 导航改由下方 Sessions | Projects Tab 承担 */}
 
-      {/* 置顶区：常驻在会话/项目 Tab 切换器上方，跨 Tab 可见（pwork agent 模式同样显示） */}
-      {(mode === 'chat' || mode === 'agent') && viewMode === 'active' && pinnedConversations.length > 0 && (
+      {/* 置顶区：Chat 对话置顶（仅遗留 Chat 模式内显示；Code/agent 主入口已有独立的 Agent 置顶区，见下方，不应混入旧 Chat 对话） */}
+      {mode === 'chat' && viewMode === 'active' && pinnedConversations.length > 0 && (
         <div className="pt-2 pb-1 flex-shrink-0 titlebar-no-drag">
           <div className="px-3 pb-1">
             <span className="px-1.5 text-[11px] font-medium text-foreground/40 select-none">置顶</span>
@@ -3418,40 +3418,10 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         </div>
       ) : mode === 'agent' && agentGroupBy === 'date' ? (
         <div className="flex-1 overflow-y-auto px-3 pb-3 scrollbar-thin min-h-0 titlebar-no-drag">
-          {/* 融合：pwork（agent 模式）下先展示 chat 对话列表（对话），再展示 Agent 会话工作区分组 */}
-          {conversationGroups.length > 0 && (
-            <div className="sidebar-workspace-list pt-2 pb-1">
-              <div className="px-1.5 pt-1 pb-1 text-[11px] font-medium text-foreground/40 select-none">对话</div>
-              <div className="flex flex-col gap-0.5">
-                {conversationGroups.map((group) => (
-                  <div key={group.label} className="mb-0.5">
-                    <div className="px-1.5 pt-1 pb-0.5 text-[11px] font-medium text-foreground/40 select-none">
-                      {group.label}
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      {group.items.map((conv) => (
-                        <ConversationItem
-                          key={conv.id}
-                          conversation={conv}
-                          active={conv.id === activeSessionId}
-                          streaming={streamingIds.has(conv.id)}
-                          showPinIcon={!!conv.pinned}
-                          relativeTimeNow={relativeTimeNow}
-                          onSelect={handleSelectConversation}
-                          onRequestDelete={handleRequestDelete}
-                          onRename={handleRename}
-                          onTogglePin={handleTogglePin}
-                          onToggleArchive={handleToggleArchive}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
           {/* 分组方式：日期（默认）——活跃 / 已归档 / 全部统一走这套渲染，
-              具体显示哪些会话由 agentProjectGroups 内部按 agentStatusFilter 过滤决定 */}
+              具体显示哪些会话由 agentProjectGroups 内部按 agentStatusFilter 过滤决定
+              （旧 pwork 融合模式遗留的「先展示 chat 对话列表」逻辑已移除：Code 主入口
+              固定 agent 后，会话列表只应展示 Agent 会话，旧 Chat 对话不再混入） */}
           <div className="sidebar-workspace-list pt-2">
                 <div className="flex flex-col gap-0.5">
                   {displayProjectGroups
