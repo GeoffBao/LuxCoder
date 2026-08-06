@@ -1013,6 +1013,15 @@ html.theme-custom body {
 }
 
 /* 输入框和弹层也沿用 Scenic 的独立表面；否则它们会成为唯一看起来"有效果"的局部区域。 */
+/* 注意：backdrop-filter 会创建 stacking context（z-index:0）。haze/scenic 下该容器会把内部
+   上弹面板（如 ProjectContextPicker 项目选择器 z-50）困在 z-0 层，而被消息区空状态内容区
+   （z-10）盖住，导致面板顶部项目点不动。这里统一提升容器 stacking context 层级，
+   让内部弹层能覆盖消息区（Agent/Chat 双模式防御）。 */
+:root:not(.ui-classic) [data-input-mode] > div:first-child {
+  position: relative;
+  z-index: 20;
+}
+
 :root.ui-modern.theme-custom [data-input-mode] > div:first-child {
   background: var(--app-input-background, hsl(var(--input-surface))) !important;
   -webkit-backdrop-filter: var(--app-content-backdrop-filter, none);

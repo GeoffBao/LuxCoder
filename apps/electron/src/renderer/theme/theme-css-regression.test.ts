@@ -25,6 +25,16 @@ describe('ThemePack Scenic layout CSS', () => {
     expect(css).toContain('.translucent-windows:not(.theme-scenic) .crt-sidebar')
   })
 
+  test('composer 容器提升 stacking context，scenic 毛玻璃不能把内部弹层困在消息区内容之下', async () => {
+    const css = await Bun.file(globalsCssPath).text()
+
+    // Haze/Scenic 给 composer 注入 backdrop-filter（创建 stacking context，z-index:0），
+    // 会把内部上弹面板（如项目选择器 z-50）困在 z-0，被消息区空状态内容区（z-10）盖住，
+    // 导致面板顶部项目点不动。必须给 composer 显式提层。
+    expect(css).toContain(':root:not(.ui-classic) [data-input-mode] > div:first-child')
+    expect(css).toMatch(/\[data-input-mode\] > div:first-child\s*\{[^}]*position: relative;[^}]*z-index: 20;/s)
+  })
+
   test('主题材质不会改变原有工作台外层几何', async () => {
     const [css, appShell] = await Promise.all([
       Bun.file(globalsCssPath).text(),
