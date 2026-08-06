@@ -11,6 +11,7 @@ import { TASK_TYPE_LABELS, type TaskType } from '@luxcoder/shared/tasks'
 import type { TaskWorkflow } from '@luxcoder/shared/tasks'
 import type { KanbanItem } from './types'
 import { resolveTeambitionSyncBadge } from '@/components/work/teambition-view'
+import { TaskSourceTag } from './TaskSourceTag'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { workspaceLabelsAtom } from '@/atoms/workspace-labels-atoms'
@@ -192,11 +193,7 @@ export function TaskTile({
                 <span className={cn('inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium leading-none', typeBadgeClass[itemType])}>
                   {TASK_TYPE_LABELS[itemType]}
                 </span>
-                {item.task?.source === 'teambition' && (
-                  <span className="inline-flex shrink-0 items-center rounded-md bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-medium leading-none text-sky-700 dark:text-sky-300" title="来自 Teambition 同步">
-                    TB
-                  </span>
-                )}
+                <TaskSourceTag source={item.task?.source} />
                 <h3 className="line-clamp-2 text-sm font-medium leading-5">{item.title}</h3>
               </div>
             </>

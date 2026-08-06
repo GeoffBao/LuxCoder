@@ -17,9 +17,7 @@ import { appModeAtom } from '@/atoms/app-mode'
 import { codeMainViewAtom } from '@/atoms/project-atoms'
 import { WorkspaceLabelManagerDialog } from '@/components/labels/WorkspaceLabelManagerDialog'
 import { labelManagerOpenAtom, labelManagerWorkspaceRootAtom } from '@/atoms/label-manager-atoms'
-import { agentSidePanelOpenAtom, agentSidePanelWidthAtom, currentAgentSessionIdAtom, currentSessionSidePanelOpenAtom } from '@/atoms/agent-atoms'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { PanelRight } from 'lucide-react'
+import { agentSidePanelWidthAtom, currentAgentSessionIdAtom, currentSessionSidePanelOpenAtom } from '@/atoms/agent-atoms'
 import { leftSidebarWidthAtom, MIN_LEFT_SIDEBAR_WIDTH } from '@/atoms/sidebar-atoms'
 import { sidebarCollapsedAtom } from '@/atoms/tab-atoms'
 import { automationFormAtom } from '@/atoms/automation-atoms'
@@ -55,7 +53,6 @@ export function AppShell({ contextValue }: AppShellProps): React.ReactElement {
   const [codeMainView, setCodeMainView] = useAtom(codeMainViewAtom)
   const currentSessionId = useAtomValue(currentAgentSessionIdAtom)
   const isPanelOpen = useAtomValue(currentSessionSidePanelOpenAtom)
-  const setAgentSidePanelOpen = useSetAtom(agentSidePanelOpenAtom)
   const automationForm = useAtomValue(automationFormAtom)
   const interfaceVariant = useAtomValue(interfaceVariantAtom)
   const settingsOpen = useAtomValue(settingsOpenAtom)
@@ -257,25 +254,8 @@ export function AppShell({ contextValue }: AppShellProps): React.ReactElement {
                     onMouseDown={handleMouseDown}
                   />
                 )}
-                {isPanelOpen ? (
+                {isPanelOpen && (
                   <RightSidePanel width={clampedRightPanelWidth} />
-                ) : (
-                  // 折叠图标条：面板收起后显示窄竖条，点击重新展开
-                  <div className="flex w-9 flex-col items-center gap-2 py-2 border-l border-border/60 bg-content-area">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          onClick={() => setAgentSidePanelOpen(true)}
-                          className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
-                          aria-label="展开文件面板"
-                        >
-                          <PanelRight size={15} />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="left">展开文件面板</TooltipContent>
-                    </Tooltip>
-                  </div>
                 )}
               </div>
             )}

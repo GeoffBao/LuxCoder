@@ -31,10 +31,11 @@ const WORKFLOW_OPTIONS: Array<{ value: 'all' | TaskWorkflow; label: string }> = 
   { value: 'cancelled', label: '已取消' },
 ]
 
-const SOURCE_OPTIONS: Array<{ value: 'all' | 'manual' | 'teambition'; label: string }> = [
+const SOURCE_OPTIONS: Array<{ value: 'all' | 'manual' | 'teambition' | 'other'; label: string }> = [
   { value: 'all', label: '全部' },
   { value: 'manual', label: '手动创建' },
   { value: 'teambition', label: 'TB 同步' },
+  { value: 'other', label: '其他' },
 ]
 
 export function TaskBoardFilters(): React.ReactElement {

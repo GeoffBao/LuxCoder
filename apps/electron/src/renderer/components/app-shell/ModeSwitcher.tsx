@@ -19,14 +19,23 @@ import { agentSessionsAtom, currentAgentSessionIdAtom } from '@/atoms/agent-atom
 import { tabsAtom } from '@/atoms/tab-atoms'
 import { useOpenSession } from '@/hooks/useOpenSession'
 import { normalizeAppModeForUi } from '@/components/app-shell/code-main-view-model'
-import { Code2, House } from 'lucide-react'
+import { House, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const modes: { id: 'pwork' | 'cowork'; value: AppMode; label: string; icon: React.ReactNode }[] = [
-  // pwork = Agent 编程模式（主工作区，融合 chat 菜单）；cowork 占位暂复用 agent（后续补占位页）
-  { id: 'pwork', value: 'agent', label: 'pwork', icon: <Code2 size={15} /> },
-  { id: 'cowork', value: 'agent', label: 'cowork', icon: <House size={15} /> },
+  // pwork = Agent 编程模式（主工作区，融合 chat 菜单），对外显示 Home；cowork 占位暂复用 agent（后续补占位页）
+  { id: 'pwork', value: 'agent', label: 'Home', icon: <House size={15} /> },
+  { id: 'cowork', value: 'agent', label: 'cowork', icon: <Users size={15} /> },
 ]
+
+/**
+ * cowork 协作入口整体隐藏（功能保留，留待后续开发）：UI 仅展示 Home；
+ * 切换/占位逻辑代码不动，后续开发时将本常量改为 true 即恢复双模式。
+ */
+const COWORK_VISIBLE: boolean = false
+
+/** 实际渲染的项（cowork 隐藏时仅 Home） */
+const visibleModes = COWORK_VISIBLE ? modes : modes.filter((m) => m.id === 'pwork')
 
 const SLIDER_TRANSLATE = ['translate-x-0', 'translate-x-full'] as const
 
@@ -93,14 +102,15 @@ export function ModeSwitcher(): React.ReactElement {
       <div
         className="relative flex rounded-xl p-1 titlebar-drag-region mode-switcher-track sidebar-control-surface"
       >
-        {/* 滑动背景指示器（双模式各占一半） */}
+        {/* 滑动背景指示器（双模式各占一半；cowork 隐藏时占满单项） */}
         <div
           className={cn(
-            'mode-slider pointer-events-none absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-lg bg-background shadow-sm transition-transform duration-base ease-out',
+            'mode-slider pointer-events-none absolute top-1 bottom-1 left-1 rounded-lg bg-background shadow-sm transition-transform duration-base ease-out',
             sliderTranslate
           )}
+          style={{ width: `calc(${100 / visibleModes.length}% - 4px)` }}
         />
-        {modes.map(({ id, label, icon }) => (
+        {visibleModes.map(({ id, label, icon }) => (
           <button
             key={id}
             type="button"

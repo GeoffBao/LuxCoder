@@ -258,14 +258,14 @@ export function MainArea(): React.ReactElement {
             ) : activeView === 'agent-skills' ? (
               // 侧边栏常用插件入口：精简视图，隐藏 Yoda 标题与完整 Tab 栏，仅展示当前子模块
               <PluginPanelView
-                tab={agentSkillsTab === 'mcp' ? 'mcp' : 'skills'}
-                title={agentSkillsTab === 'mcp' ? 'MCP 配置' : '技能管理'}
+                tab={agentSkillsTab === 'mcp' ? 'mcp' : agentSkillsTab === 'experts' ? 'experts' : 'skills'}
+                title="常用插件"
               />
             ) : activeView === 'workspace-context' ? (
               // Yoda 记忆：已迁入设置面板；全屏视图保留兼容（历史 deep-link）
               <WorkspaceContextView />
             ) : activeView === 'repo-wiki' ? (
-              // Yoda 知识库：Home 模式知识库入口（待开发占位）
+              // 个人知识库：Home 模式知识库入口（待开发占位）
               <RepoWikiView />
             ) : activeView === 'excalidraw-gallery' || activeView === 'excalidraw-editor' ? (
               <ExcalidrawView />

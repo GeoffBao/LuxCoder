@@ -180,9 +180,10 @@ export class TaskRepository {
           ? { kind: 'project' as const, projectId }
           : { kind: 'workspace' as const },
         workflow: task.record?.workflow ?? 'todo',
-        type: task.record?.type,
-        source: task.record?.source,
-        teambitionTaskId: task.record?.teambitionTaskId,
+        type: task.record?.type ?? task.spec?.type,
+        // record 缺失时回退 spec（修复早期 materialize 二次写 record 丢失 source/teambitionTaskId 的存量任务）
+        source: task.record?.source ?? task.spec?.source,
+        teambitionTaskId: task.record?.teambitionTaskId ?? task.spec?.teambitionTaskId,
         revision: task.record?.revision,
         labelIds: task.record?.labelIds ?? [],
         orchestratorSessionId: task.record?.orchestratorSessionId,

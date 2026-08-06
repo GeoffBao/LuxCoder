@@ -3,6 +3,7 @@ import { useAtomValue } from 'jotai'
 import { Archive, ArchiveRestore, MoreHorizontal, Pencil, Play, Tag, Trash2 } from 'lucide-react'
 import { workspaceLabelsAtom } from '@/atoms/workspace-labels-atoms'
 import { LabelChips } from '@/components/labels/LabelChips'
+import { TaskSourceTag } from './TaskSourceTag'
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { formatRelativeUpdatedAt } from '../AgentSessionItem'
 import { buildTaskCardViewModel } from './task-card-view-model'
@@ -86,6 +87,7 @@ export function TaskListRow({
         {item.task ? WORKFLOW_LABELS[item.task.workflow] : '兼容项'}
       </span>
       <div className="flex min-w-0 items-center gap-1 overflow-hidden">
+        <TaskSourceTag source={item.task?.source} />
         <LabelChips labels={labels} activeIds={vm.labelIds} max={2} />
         {vm.labelIds.length === 0 ? <span className="text-muted-foreground">—</span> : null}
       </div>

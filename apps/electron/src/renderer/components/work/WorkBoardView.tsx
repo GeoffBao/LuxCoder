@@ -364,13 +364,18 @@ export function WorkBoardView(): React.ReactElement {
 
   const handleSync = async (): Promise<void> => {
     if (syncing) return
-    // 先刷新本地数据，再拉取 TB 候选
-    await refreshAll()
-    if (!workspaceRoot || !workspace) {
-      toast.warning('工作区尚未就绪，请稍后重试')
-      return
+    try {
+      // 先刷新本地数据，再拉取 TB 候选
+      await refreshAll()
+      if (!workspaceRoot || !workspace) {
+        toast.warning('工作区尚未就绪，请稍后重试')
+        return
+      }
+      await fetchTbCandidates()
+    } catch (cause) {
+      console.error('[WorkBoard] 一键更新失败:', errorMessage(cause))
+      toast.error(`一键更新失败：${errorMessage(cause)}`)
     }
-    await fetchTbCandidates()
   }
 
   if (!workspace) {

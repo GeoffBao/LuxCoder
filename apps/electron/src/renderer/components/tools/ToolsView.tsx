@@ -1,5 +1,5 @@
 /**
- * ToolsView — 工具集主页面
+ * ToolsView — 工具导航主页面
  *
  * 分「本地工具」与「网站工具」两类：
  * - 网站工具：点击卡片在外部浏览器打开
@@ -7,11 +7,11 @@
  */
 
 import * as React from 'react'
-import { useAtomValue, useSetAtom } from 'jotai'
-import { ArrowLeft, Globe, FolderCog, ExternalLink } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { activeViewAtom, toolsSectionAtom } from '@/atoms/active-view'
+import { useAtom } from 'jotai'
+import { Globe, FolderCog, ExternalLink } from 'lucide-react'
+import { toolsSectionAtom } from '@/atoms/active-view'
 import { cn } from '@/lib/utils'
+import { SectionTabs } from '@/components/ui/section-tabs'
 
 interface WebTool {
   id: string
@@ -37,12 +37,7 @@ const WEB_TOOLS: WebTool[] = [
 ]
 
 export function ToolsView(): React.ReactElement {
-  const setActiveView = useSetAtom(activeViewAtom)
-  const section = useAtomValue(toolsSectionAtom)
-
-  const handleBack = React.useCallback(() => {
-    setActiveView('conversations')
-  }, [setActiveView])
+  const [section, setSection] = useAtom(toolsSectionAtom)
 
   const handleOpenWebTool = React.useCallback((url: string): void => {
     window.electronAPI?.openExternal?.(url).catch(() => {
@@ -52,18 +47,17 @@ export function ToolsView(): React.ReactElement {
 
   return (
     <div className="flex h-full flex-col">
-      {/* 顶部栏：返回 + 标题 */}
-      <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border px-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleBack}
-          className="h-8 gap-1.5 px-2 text-[13px] text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft size={14} />
-          <span>返回</span>
-        </Button>
-        <span className="text-[13px] font-semibold text-foreground">工具集</span>
+      {/* 顶部栏：标题 + 子页 tab（网站工具 / 本地工具） */}
+      <div className="flex h-11 shrink-0 items-center gap-3 border-b border-border px-4">
+        <span className="text-[13px] font-semibold text-foreground">工具导航</span>
+        <SectionTabs
+          value={section}
+          onChange={setSection}
+          options={[
+            { value: 'web', label: '网站工具', icon: <Globe size={12} /> },
+            { value: 'local', label: '本地工具', icon: <FolderCog size={12} /> },
+          ]}
+        />
       </div>
 
       <div className="flex-1 overflow-y-auto p-6">

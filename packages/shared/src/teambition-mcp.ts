@@ -5,7 +5,7 @@
  * 宽松策略而非只匹配规范名 `TB-Connect`：
  *  1. 精确匹配 server key === 'TB-Connect'（推荐名）
  *  2. URL 匹配：server.url 包含 TB 网关域名或路径
- *  3. 名称匹配：server key 包含 tb / teambition（不区分大小写）
+ *  3. 名称匹配：server key 包含 teambition，或以 `tb-`/`tb_` 前缀（避免误伤 bitbucket 等含 tb 子串的命名）
  *
  * 这样用户已自定义命名（TB-wxy、teambition-mcp 等）也能被识别，不会漏掉提示。
  */
@@ -22,12 +22,12 @@ const TB_GATEWAY_URL_HINTS = [
   'aliwork',
 ]
 
-/** 名称特征（用于 server key 匹配识别） */
-const TB_NAME_HINTS = ['tb', 'teambition']
+/** 名称匹配：teambition 子串，或 tb- / tb_ / tb 开头的命名（不含裸 tb 子串，避免误伤 bitbucket 等） */
+const TB_NAME_PATTERN = /^tb[\s_-]/i
 
-function containsAny(haystack: string, needles: string[]): boolean {
-  const lower = haystack.toLowerCase()
-  return needles.some((needle) => lower.includes(needle.toLowerCase()))
+function isTeambitionName(name: string): boolean {
+  const lower = name.toLowerCase()
+  return lower.includes('teambition') || TB_NAME_PATTERN.test(name)
 }
 
 /** 判断某个 MCP server 条目是否指向 Teambition */
@@ -38,10 +38,10 @@ export function isTeambitionMcpEntry(name: string, entry: McpServerEntry | undef
   if (name === TB_MCP_PREFERRED_NAME) return true
 
   // 2. URL 匹配（http/sse 类型带 url）
-  if (entry.url && containsAny(entry.url, TB_GATEWAY_URL_HINTS)) return true
+  if (entry.url && TB_GATEWAY_URL_HINTS.some((hint) => entry.url!.toLowerCase().includes(hint))) return true
 
-  // 3. 名称模糊匹配
-  if (containsAny(name, TB_NAME_HINTS)) return true
+  // 3. 名称匹配
+  if (isTeambitionName(name)) return true
 
   return false
 }

@@ -11,7 +11,7 @@
 import * as React from 'react'
 import { useAtom, useSetAtom, useAtomValue, useStore } from 'jotai'
 import { toast } from 'sonner'
-import { Pin, PinOff, Settings, Plus, Trash2, Pencil, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MoreHorizontal, FolderOpen, GripVertical, Clock, CalendarDays, ChevronRight, GitBranch, Download, Loader2, RotateCw, Layers, LayoutDashboard, PenTool, Library, House, Puzzle, Star, Wrench, Boxes, Globe, FolderCog } from 'lucide-react'
+import { Pin, PinOff, Settings, Plus, Trash2, Pencil, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MoreHorizontal, FolderOpen, GripVertical, Clock, CalendarDays, ChevronRight, GitBranch, Download, Loader2, RotateCw, Layers, LayoutDashboard, PenTool, Library, House, Puzzle, Boxes } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { MarqueeText } from '@/components/ui/marquee-text'
@@ -20,7 +20,7 @@ import { SidebarToggleButton } from './SidebarToggleButton'
 import { ModeSwitcher } from './ModeSwitcher'
 import { TabNavigationControls } from '@/components/tabs/TabNavigationControls'
 import { UserAvatar } from '@/components/chat/UserAvatar'
-import { activeViewAtom, agentSkillsTabAtom, toolsSectionAtom } from '@/atoms/active-view'
+import { activeViewAtom, agentSkillsTabAtom } from '@/atoms/active-view'
 import { automationFormAtom, automationsAtom } from '@/atoms/automation-atoms'
 import { appModeAtom, type AppMode } from '@/atoms/app-mode'
 import { settingsOpenAtom, settingsTabAtom } from '@/atoms/settings-tab'
@@ -610,7 +610,6 @@ function deleteSetEntry<T>(prev: Set<T>, value: T): Set<T> {
 export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.ReactElement {
   const [activeView, setActiveView] = useAtom(activeViewAtom)
   const setAgentSkillsTab = useSetAtom(agentSkillsTabAtom)
-  const setToolsSection = useSetAtom(toolsSectionAtom)
   const setAutomationForm = useSetAtom(automationFormAtom)
   const automations = useAtomValue(automationsAtom)
   const setAutomations = useSetAtom(automationsAtom)
@@ -707,6 +706,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   const openSession = useOpenSession()
   const { createAgent } = useCreateSession()
   const setNewTaskProjectFlowOpen = useSetAtom(newTaskProjectFlowOpenAtom)
+  // 侧栏「新任务」入口暂隐藏
+  const SHOW_NEW_TASK_ENTRY: boolean = false
   const syncActiveTabSideEffects = useSyncActiveTabSideEffects()
   const store = useStore()
   const sidebarRootRef = React.useRef<HTMLDivElement>(null)
@@ -726,10 +727,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   const [createGroupTargetSessionId, setCreateGroupTargetSessionId] = React.useState<string | null>(null)
   const [creatingSessionGroup, setCreatingSessionGroup] = React.useState(false)
 
-  // 常用插件分组展开/折叠
-  const [pluginGroupExpanded, setPluginGroupExpanded] = React.useState(true)
-  // 工具集分组展开/折叠
-  const [toolGroupExpanded, setToolGroupExpanded] = React.useState(true)
+  // 常用插件 / 工具导航 / 知识库 均为单入口主视图（子页在页面内顶部 tab 切换），无需展开/折叠 state
 
   // Skill/MCP 计数通过 IPC 异步加载，首次渲染默认 0
   const [pluginSkillCount, setPluginSkillCount] = React.useState(0)
@@ -743,6 +741,14 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       setPluginMcpCount(caps?.mcpServers?.length ?? 0)
     }).catch(() => {})
   }, [currentWorkspaceId, workspaces])
+
+  // 专家数量通过 IPC 加载（专家为全局能力，不依赖工作区）
+  const [pluginExpertCount, setPluginExpertCount] = React.useState(0)
+  React.useEffect(() => {
+    window.electronAPI?.experts?.list?.()
+      .then((list) => setPluginExpertCount(list.filter((e) => (e.kind ?? 'expert') === 'expert').length))
+      .catch(() => {})
+  }, [])
 
   // 当前工作区根目录（Projects Tab 需要传给 SidebarProjectsTab）
   const [workspaceRoot, setWorkspaceRoot] = React.useState<string | null>(null)
@@ -1044,26 +1050,21 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     setSettingsOpen(true)
   }, [setAgentSkillsTab, setSettingsOpen, setSettingsTab])
 
-  /** 打开 Skills 管理（侧边栏常用插件入口 → 主视图） */
-  const handleOpenAgentSkills = React.useCallback((): void => {
-    setAgentSkillsTab('skills')
+  /** 打开常用插件主视图（技能 / MCP / 专家Agent 在页面内顶部 tab 切换） */
+  const handleOpenAgentPlugins = React.useCallback((): void => {
     setActiveView('agent-skills')
-  }, [setAgentSkillsTab, setActiveView])
+  }, [setActiveView])
 
-  /** 打开 MCP 管理（侧边栏常用插件入口 → 主视图） */
-  const handleOpenAgentMcp = React.useCallback((): void => {
-    setAgentSkillsTab('mcp')
-    setActiveView('agent-skills')
-  }, [setAgentSkillsTab, setActiveView])
+  /** 打开工具导航主视图（网站工具 / 本地工具 在页面内顶部 tab 切换） */
+  const handleOpenTools = React.useCallback((): void => {
+    setAutomationForm({ open: false, draft: null })
+    setActiveView('tools')
+  }, [setActiveView, setAutomationForm])
 
-  /** 打开/关闭 Yoda 知识库 视图（Home 模式知识库入口） */
-  const handleOpenRepoWiki = React.useCallback((): void => {
-    if (activeView === 'repo-wiki') {
-      setActiveView('conversations')
-      return
-    }
+  /** 打开知识库主视图（个人知识库 / 企业知识库 在页面内顶部 tab 切换）；重复点击保持当前页面 */
+  const handleOpenKnowledge = React.useCallback((): void => {
     setActiveView('repo-wiki')
-  }, [activeView, setActiveView])
+  }, [setActiveView])
 
   /** 打开唯一正式任务看板；重复点击保持当前页面，不隐式退回会话。 */
   const handleOpenTaskBoard = React.useCallback((): void => {
@@ -1446,6 +1447,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   }, [currentWorkspaceId, handleSwitchWorkspace])
 
   /** 侧栏「新任务」：先经项目选择器再开 TaskEditor */
+  /** 侧栏「新任务」（暂隐藏，功能保留）：先经项目选择器再开 TaskEditor */
   const handleNewTask = React.useCallback((): void => {
     setActiveView('conversations')
     setNewTaskProjectFlowOpen(true)
@@ -2676,7 +2678,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             </TooltipContent>
           </Tooltip>
 
-          {mode === 'agent' ? (
+          {/* 新任务入口（暂隐藏，功能保留）：与「新会话」平级的高频操作，改 SHOW_NEW_TASK_ENTRY=true 恢复 */}
+          {SHOW_NEW_TASK_ENTRY && mode === 'agent' ? (
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -2699,7 +2702,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  aria-label={`Project 看板，${activeTaskCount} 个未完成`}
+                  aria-label={`任务看板，${activeTaskCount} 个未完成`}
                   onClick={handleOpenTaskBoard}
                   className={cn(
                     'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag border',
@@ -2723,7 +2726,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                   )}
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="right">Project 看板（{activeTaskCount} 个未完成）</TooltipContent>
+              <TooltipContent side="right">任务看板（{activeTaskCount} 个未完成）</TooltipContent>
             </Tooltip>
           )}
 
@@ -2794,13 +2797,13 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               <TooltipContent side="right">Excalidraw 画板{excalidrawCount > 0 ? `（${excalidrawCount} 个画布）` : ''}</TooltipContent>
             </Tooltip>
 
-          {/* Yoda 知识库：LLM 知识库入口，pwork（agent 模式）可见 */}
+          {/* 知识库：单入口，pwork（agent 模式）可见 */}
           <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  aria-label="Yoda 知识库"
-                  onClick={handleOpenRepoWiki}
+                  aria-label="知识库"
+                  onClick={handleOpenKnowledge}
                   className={cn(
                     'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag border',
                     activeView === 'repo-wiki'
@@ -2811,7 +2814,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                   <Library size={16} />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="right">Yoda 知识库（待开发）</TooltipContent>
+              <TooltipContent side="right">知识库</TooltipContent>
             </Tooltip>
 
         </div>
@@ -2970,6 +2973,61 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
   // ===== 展开状态：完整侧边栏 =====
   const isPinnedAgentGroupCollapsed = collapsedFlatGroupIds.has(PINNED_AGENT_GROUP_KEY)
+
+  // cowork 协作占位：左侧菜单全部清除留白（仅保留拖拽条、全局工具栏与模式切换，便于切回 pwork）
+  if (activeView === 'cowork-placeholder') {
+    return (
+      <div
+        ref={sidebarRootRef}
+        className={cn(
+          'relative h-full flex flex-col',
+          'refined-sidebar',
+          !noTransition && 'transition-[width] duration-slow ease-out',
+          isClassic
+            ? 'bg-background rounded-2xl shadow-xl dark:shadow-md'
+            : 'bg-[hsl(var(--sidebar-surface))]'
+        )}
+        style={{ width: width ?? MIN_LEFT_SIDEBAR_WIDTH, minWidth: MIN_LEFT_SIDEBAR_WIDTH, flexShrink: 0 }}
+      >
+        <SidebarWindowDragStrip
+          height={isMac ? SIDEBAR_DRAG_STRIP_HEIGHT.expandedMac : SIDEBAR_DRAG_STRIP_HEIGHT.expanded}
+        />
+
+        {/* 全局工具栏（折叠、搜索、导航）仍保留 */}
+        <div className={cn('relative z-10 w-full flex-shrink-0 flex items-center justify-end gap-1 titlebar-no-drag', isMac ? 'h-[30px] pr-2' : 'h-7 pr-1.5')}>
+          <SidebarToggleButton className="size-6" />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label="搜索"
+                onClick={() => setSearchDialogOpen(true)}
+                className={cn(
+                  'size-6 flex items-center justify-center rounded-md text-foreground/50 transition-colors duration-150',
+                  isClassic
+                    ? 'sidebar-control-surface hover:text-foreground/70'
+                    : 'hover:bg-foreground/[0.08] hover:text-foreground/85'
+                )}
+              >
+                <Search size={14} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">搜索 ({getAcceleratorDisplay(getActiveAccelerator('global-search'))})</TooltipContent>
+          </Tooltip>
+          <TabNavigationControls className="h-7 gap-0" />
+        </div>
+
+        {/* 模式切换器保留，便于切回 pwork */}
+        <div className="px-3">
+          <ModeSwitcher />
+        </div>
+
+        {/* 留白：cowork 协作功能开发中，无侧边菜单 */}
+        <div className="flex-1" />
+      </div>
+    )
+  }
+
   return (
     <div
       ref={sidebarRootRef}
@@ -3021,7 +3079,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
       {/* 工作区切换器已按调研建议收起：默认单工作区，多工作区管理降级到设置 > 工作区（高级选项） */}
 
-      {/* 新对话/新会话 + 新任务 */}
+      {/* 新对话/新会话（新任务入口已隐藏：任务创建统一在任务看板内 / Cmd+Shift+N） */}
       <div className="px-3 pt-2 flex items-center gap-1.5">
         <Tooltip>
           <TooltipTrigger asChild>
@@ -3037,7 +3095,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             {mode === 'agent' ? '新会话' : '新对话'} ({getAcceleratorDisplay(getActiveAccelerator('new-session'))})
           </TooltipContent>
         </Tooltip>
-        {mode === 'agent' && (
+        {/* 新任务入口（暂隐藏，功能保留）：与「新会话」平级按钮，改 SHOW_NEW_TASK_ENTRY=true 恢复 */}
+        {SHOW_NEW_TASK_ENTRY && mode === 'agent' && (
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -3079,94 +3138,36 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         <div className="sidebar-module-zone px-3 pb-0.5">
           <SidebarModule
             icon={LayoutDashboard}
-            title="Project 看板"
+            title="任务看板"
             count={activeTaskCount}
             active={codeMainView === 'tasks' && activeView === 'conversations'}
             onClick={handleOpenTaskBoard}
-            ariaLabel={`Project 看板，${activeTaskCount} 个未完成`}
+            ariaLabel={`任务看板，${activeTaskCount} 个未完成`}
           />
         </div>
       )}
 
-      {/* 常用插件：Skills + MCP 入口，从设置-Yoda 提取到侧边栏二级菜单 */}
+      {/* 常用插件：单入口（技能 / MCP / 专家Agent 在页面内顶部 tab 切换） */}
       <div className="sidebar-module-zone px-3 pb-0.5">
-        <button
-          type="button"
-          onClick={() => setPluginGroupExpanded(!pluginGroupExpanded)}
-          className="sidebar-module-row w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-[9px] text-[13px] font-medium text-foreground/70 hover:text-foreground hover:bg-foreground/[0.04] transition-[background-color,color] duration-150 titlebar-no-drag"
-        >
-          <Puzzle size={16} className="sidebar-module-icon shrink-0 text-foreground/40" />
-          <span className="flex-1 text-left">常用插件</span>
-          <ChevronRight
-            size={13}
-            className={cn(
-              'shrink-0 text-foreground/30 transition-transform duration-200',
-              pluginGroupExpanded && 'rotate-90'
-            )}
-          />
-        </button>
-        {pluginGroupExpanded && (
-          <div className="ml-2.5 mt-0.5 flex flex-col gap-0.5">
-            <SidebarModule
-              icon={Star}
-              title="技能"
-              count={pluginSkillCount}
-              onClick={handleOpenAgentSkills}
-              ariaLabel={`技能，${pluginSkillCount} 个已安装`}
-            />
-            <SidebarModule
-              icon={Wrench}
-              title="MCP"
-              count={pluginMcpCount}
-              onClick={handleOpenAgentMcp}
-              ariaLabel={`MCP 服务器，${pluginMcpCount} 个已配置`}
-            />
-          </div>
-        )}
+        <SidebarModule
+          icon={Puzzle}
+          title="常用插件"
+          count={pluginSkillCount + pluginMcpCount + pluginExpertCount}
+          active={activeView === 'agent-skills'}
+          onClick={handleOpenAgentPlugins}
+          ariaLabel={`常用插件，${pluginSkillCount + pluginMcpCount + pluginExpertCount} 个已配置`}
+        />
       </div>
 
-      {/* 工具集：二级菜单（网站工具 / 本地工具） */}
+      {/* 工具导航：单入口（网站工具 / 本地工具 在页面内顶部 tab 切换） */}
       <div className="sidebar-module-zone px-3 pb-0.5">
-        <button
-          type="button"
-          onClick={() => setToolGroupExpanded(!toolGroupExpanded)}
-          className="sidebar-module-row w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-[9px] text-[13px] font-medium text-foreground/70 hover:text-foreground hover:bg-foreground/[0.04] transition-[background-color,color] duration-150 titlebar-no-drag"
-        >
-          <Boxes size={16} className="sidebar-module-icon shrink-0 text-foreground/40" />
-          <span className="flex-1 text-left">工具集</span>
-          <ChevronRight
-            size={13}
-            className={cn(
-              'shrink-0 text-foreground/30 transition-transform duration-200',
-              toolGroupExpanded && 'rotate-90'
-            )}
-          />
-        </button>
-        {toolGroupExpanded && (
-          <div className="ml-2.5 mt-0.5 flex flex-col gap-0.5">
-            <SidebarModule
-              icon={Globe}
-              title="网站工具"
-              active={activeView === 'tools'}
-              onClick={() => {
-                setAutomationForm({ open: false, draft: null })
-                setToolsSection('web')
-                setActiveView('tools')
-              }}
-              ariaLabel="网站工具"
-            />
-            <SidebarModule
-              icon={FolderCog}
-              title="本地工具"
-              onClick={() => {
-                setAutomationForm({ open: false, draft: null })
-                setToolsSection('local')
-                setActiveView('tools')
-              }}
-              ariaLabel="本地工具（预留）"
-            />
-          </div>
-        )}
+        <SidebarModule
+          icon={Boxes}
+          title="工具导航"
+          active={activeView === 'tools'}
+          onClick={handleOpenTools}
+          ariaLabel="工具导航"
+        />
       </div>
 
       {/* 插件与 Yoda 记忆已并入设置面板（设置 > Yoda 插件 / Yoda 记忆），Home / Code 共享；左栏不再单独露出 */}
@@ -3183,14 +3184,14 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         />
       </div>
 
-      {/* Yoda 知识库：LLM 知识库（Karpathy raw→wiki 范式，待开发），pwork 入口 */}
+      {/* 知识库：单入口（个人知识库 / 企业知识库 在页面内顶部 tab 切换） */}
       <div className="sidebar-module-zone px-3 pb-0.5">
         <SidebarModule
           icon={Library}
-          title="Yoda 知识库"
+          title="知识库"
           active={activeView === 'repo-wiki'}
-          onClick={handleOpenRepoWiki}
-          ariaLabel="Yoda 知识库（待开发）"
+          onClick={handleOpenKnowledge}
+          ariaLabel="知识库"
         />
       </div>
 

@@ -63,7 +63,7 @@ import {
   resolveEffectiveCwd,
 } from './project-path-service'
 import { TaskRepository } from './task-repository'
-import { MockTeambitionAdapter } from './teambition-adapter'
+import { MockTeambitionAdapter, normalizeTeambitionTaskType } from './teambition-adapter'
 import { TaskRunner, type CreateSessionOptions, type RunOptions } from './task-runner'
 import {
   materializeTaskTransaction,
@@ -965,6 +965,8 @@ export function registerTaskHandlers(window: BrowserWindow): void {
           // 手动添加时归到 Workspace 范围，用户后续可在编辑里改归属。
           source: 'teambition',
           teambitionTaskId: task.id,
+          // TB 任务类型（缺陷/需求/任务等）映射到本地 TaskType，避免全部落成默认“任务”
+          type: normalizeTeambitionTaskType(task.type),
         })
         // 关键：spec.id 必须等于去重 slug（含 TB taskId 后缀），否则 materialize
         // 生成的目录 slug 与下次同步的去重键不一致 → 二次同步会重复创建
@@ -1124,6 +1126,7 @@ async function getTeambitionAdapterInfo(workspaceRoot: string): Promise<Teambiti
           listMyOpenTasks: 'SearchUserTasksV3',
           searchTasksByTql: 'SearchTasksByTQLV2',
           getCurrentUser: 'GetUsersMe',
+          getScenarioFields: 'GetScenarioFieldsMCP',
         },
       })
       console.warn(`[Teambition] 已连接 TB MCP (${tb.name})`)

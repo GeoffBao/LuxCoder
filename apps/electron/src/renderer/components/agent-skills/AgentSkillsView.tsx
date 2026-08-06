@@ -38,6 +38,12 @@ import { EnhancedToolsPanel } from '@/components/settings/ToolSettings'
 import { AgentExpertsView } from '@/components/agent-experts/AgentExpertsView'
 import { groupSkills } from './skillGrouping'
 
+/** 是否市场来源技能（SkillHub 安装或 sourceKind=market） */
+function isMarketSkill(s: SkillMeta): boolean {
+  const src = s.importSource
+  return src?.sourceKind === 'market' || src?.sourceType === 'skillhub'
+}
+
 export function buildSkillClassificationPrompt(input: {
   workspaceName: string
   skillsDir: string
@@ -194,10 +200,10 @@ export function AgentSkillsView({
         || s.slug.toLowerCase().includes(q)
         || (s.description ?? '').toLowerCase().includes(q)
         || (s.group ?? '').toLowerCase().includes(q))) return false
-      // 来源筛选：custom=我的（非内置） / builtin=内置 / market=市场（预留，暂按非内置处理）
+      // 来源筛选：custom=我的（非内置）/ builtin=内置 / market=从 SkillHub 等市场安装
       if (sourceFilter === 'custom' && data.defaultSkillSlugs.has(s.slug)) return false
       if (sourceFilter === 'builtin' && !data.defaultSkillSlugs.has(s.slug)) return false
-      if (sourceFilter === 'market' && data.defaultSkillSlugs.has(s.slug)) return false
+      if (sourceFilter === 'market' && !isMarketSkill(s)) return false
       // 分类筛选：按 group 动态分类
       if (categoryFilter !== 'all') {
         const g = (s.group ?? '').trim()

@@ -5,10 +5,9 @@
  * 社区市场 / AI分类 / 导入 / 企业导入 的 dialog 由本组件自行管理。
  */
 import * as React from 'react'
-import { useAtomValue, useSetAtom } from 'jotai'
+import { useSetAtom } from 'jotai'
 import { toast } from 'sonner'
-import { ArrowLeft, Search, Store, Sparkles, Plus, Building2, ChevronDown, Blocks, Wrench, Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Search, Store, Sparkles, Plus, Building2, ChevronDown, Blocks, Wrench, Loader2, Star, Bot } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import {
   DropdownMenu,
@@ -19,19 +18,20 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { AgentSkillsView } from '@/components/agent-skills/AgentSkillsView'
+import { AgentExpertsView } from '@/components/agent-experts/AgentExpertsView'
 import { CommunityMarketDialog } from '@/components/agent-skills/CommunityMarketDialog'
 import { ImportSkillDialog } from '@/components/agent-skills/ImportSkillDialog'
 import { OrgSkillImportDialog } from '@/components/agent-skills/OrgSkillImportDialog'
 import { agentSkillsTabAtom } from '@/atoms/active-view'
-import { activeViewAtom } from '@/atoms/active-view'
 import { agentPendingPromptAtom } from '@/atoms/agent-atoms'
 import { useCreateSession } from '@/hooks/useCreateSession'
 import { cn } from '@/lib/utils'
+import { SectionTabs } from '@/components/ui/section-tabs'
 import type { SkillMeta } from '@luxcoder/shared'
 import { useAgentSkillsData } from './useAgentSkillsData'
 import { buildSkillClassificationPrompt } from './AgentSkillsView'
 
-type PluginTab = 'skills' | 'mcp'
+export type PluginTab = 'experts' | 'skills' | 'mcp'
 type SourceFilter = 'all' | 'builtin' | 'market' | 'custom'
 type StatusFilter = 'all' | 'enabled' | 'disabled'
 type CategoryFilter = 'all' | 'ungrouped' | string
@@ -125,7 +125,6 @@ function FilterDropdown<T extends string>({
 
 export function PluginPanelView({ tab, title }: PluginPanelViewProps): React.ReactElement {
   const setAgentSkillsTab = useSetAtom(agentSkillsTabAtom)
-  const setActiveView = useSetAtom(activeViewAtom)
   const setPendingPrompt = useSetAtom(agentPendingPromptAtom)
   const { createAgent } = useCreateSession()
   const [query, setQuery] = React.useState('')
@@ -137,6 +136,7 @@ export function PluginPanelView({ tab, title }: PluginPanelViewProps): React.Rea
   const [importOpen, setImportOpen] = React.useState(false)
   const [orgImportOpen, setOrgImportOpen] = React.useState(false)
   const [addMcpRequest, setAddMcpRequest] = React.useState(0)
+  const [createExpertRequest, setCreateExpertRequest] = React.useState(0)
 
   // 数据层（动态分类 + dialog 数据）
   const data = useAgentSkillsData()
@@ -147,9 +147,13 @@ export function PluginPanelView({ tab, title }: PluginPanelViewProps): React.Rea
     setAgentSkillsTab(tab)
   }, [tab, setAgentSkillsTab])
 
-  const handleBack = React.useCallback(() => {
-    setActiveView('conversations')
-  }, [setActiveView])
+  // 切换子 tab 时重置搜索与筛选，避免上个页面的关键词污染新页面列表
+  React.useEffect(() => {
+    setQuery('')
+    setSourceFilter('all')
+    setStatusFilter('all')
+    setCategoryFilter('all')
+  }, [tab])
 
   const categoryOptions = React.useMemo(() => {
     return [
@@ -191,18 +195,18 @@ export function PluginPanelView({ tab, title }: PluginPanelViewProps): React.Rea
 
   return (
     <div className="flex h-full flex-col">
-      {/* 顶部栏：返回 + 标题 */}
-      <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border px-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleBack}
-          className="h-8 gap-1.5 px-2 text-[13px] text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft size={14} />
-          <span>返回</span>
-        </Button>
+      {/* 顶部栏：标题 + 子页 tab（技能 / MCP / 专家Agent） */}
+      <div className="flex h-11 shrink-0 items-center gap-3 border-b border-border px-4">
         <span className="text-[13px] font-semibold text-foreground">{title}</span>
+        <SectionTabs
+          value={tab}
+          onChange={setAgentSkillsTab}
+          options={[
+            { value: 'skills', label: '技能', icon: <Star size={12} /> },
+            { value: 'mcp', label: 'MCP', icon: <Wrench size={12} /> },
+            { value: 'experts', label: '专家Agent', icon: <Bot size={12} /> },
+          ]}
+        />
       </div>
 
       {/* 工具条（单排）：搜索 + 分类/来源/状态 + 操作按钮，横向可滚动 */}
@@ -212,7 +216,7 @@ export function PluginPanelView({ tab, title }: PluginPanelViewProps): React.Rea
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={tab === 'skills' ? '搜索 Skill...' : '搜索 MCP 服务器...'}
+            placeholder={tab === 'experts' ? '搜索专家名称或 slug...' : tab === 'skills' ? '搜索 Skill...' : '搜索 MCP 服务器...'}
             className="h-8 pl-8 text-[13px]"
           />
         </div>
@@ -301,19 +305,46 @@ export function PluginPanelView({ tab, title }: PluginPanelViewProps): React.Rea
             </button>
           </>
         )}
+
+        {/* 操作按钮（专家页） */}
+        {tab === 'experts' && (
+          <>
+            <div className="mx-1 h-5 w-px shrink-0 bg-border" />
+            <button
+              type="button"
+              onClick={() => setCreateExpertRequest((n) => n + 1)}
+              className="flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-primary px-3 text-[12px] font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+            >
+              <Plus size={13} />
+              <span>新建专家</span>
+            </button>
+          </>
+        )}
       </div>
 
-      {/* 内容区：AgentSkillsView，完全隐藏自带工具条，使用受控筛选 */}
+      {/* 内容区：专家页复用 AgentExpertsView（embedded）；Skills/MCP 走 AgentSkillsView 受控筛选 */}
       <div className="flex-1 overflow-auto">
-        <AgentSkillsView
-          embedded
-          hideToolbar
-          externalQuery={query}
-          sourceFilter={sourceFilter}
-          statusFilter={statusFilter}
-          categoryFilter={categoryFilter}
-          addMcpRequestToken={addMcpRequest}
-        />
+        {tab === 'experts' ? (
+          <AgentExpertsView
+            embedded
+            kind="expert"
+            externalSearch={query}
+            createRequestToken={createExpertRequest}
+          />
+        ) : (
+          /* Skills / MCP：内容区补左右留白，避免卡片贴侧边菜单太挤 */
+          <div className="px-4">
+            <AgentSkillsView
+              embedded
+              hideToolbar
+              externalQuery={query}
+              sourceFilter={sourceFilter}
+              statusFilter={statusFilter}
+              categoryFilter={categoryFilter}
+              addMcpRequestToken={addMcpRequest}
+            />
+          </div>
+        )}
       </div>
 
       {/* 操作 dialog（Skills 页） */}

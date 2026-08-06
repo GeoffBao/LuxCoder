@@ -4,8 +4,8 @@ import type { TaskWorkflow } from '@luxcoder/shared/tasks'
 /** Workflow 筛选：'all' 表示不筛选。 */
 export const taskBoardWorkflowFilterAtom = atom<'all' | TaskWorkflow>('all')
 
-/** 来源筛选：'all' 表示不筛选。manual=手动创建，teambition=TB 同步。 */
-export type TaskBoardSourceFilter = 'all' | 'manual' | 'teambition'
+/** 来源筛选：'all' 表示不筛选。manual=手动创建，teambition=TB 同步，other=其他来源。 */
+export type TaskBoardSourceFilter = 'all' | 'manual' | 'teambition' | 'other'
 export const taskBoardSourceFilterAtom = atom<TaskBoardSourceFilter>('all')
 
 /** 选中的 Labels；空数组本身不构成筛选。 */

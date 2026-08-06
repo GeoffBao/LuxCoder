@@ -22,6 +22,10 @@ export interface TeambitionRemoteTask {
   updatedAt?: number
   /** TB 任务编号（uniqueId，如 871）；UI 展示/按编号搜索用 */
   uniqueId?: number
+  /** 本地任务业务类型（bug/requirement/task 等），由 TB 任务类型（sfc）解析；无则 undefined 默认 task */
+  type?: string
+  /** TB 任务类型 ID（sfcId），adapter 用于查类型名 */
+  typeId?: string
 }
 
 export interface TeambitionClaimableTask extends TeambitionRemoteTask {

@@ -87,6 +87,33 @@ describe('materializeTaskTransaction', () => {
     expect(recoverTaskMaterializations(workspaceRoot, deps)).toEqual([])
   })
 
+  test('创建时保留 source / teambitionTaskId / type 到 TaskRecord（防二次写覆盖）', async () => {
+    const workspaceRoot = root()
+    const deps = dependencies()
+    const tbSpec: TaskSpec = {
+      ...spec(),
+      source: 'teambition',
+      teambitionTaskId: 'tb-task-001',
+      type: 'task',
+    }
+
+    await materializeTaskTransaction({
+      workspaceRoot, workspaceId: 'ws-1', spec: tbSpec,
+      mode: { kind: 'create', sessionOptions: { sessionStatus: 'todo' } },
+    }, deps)
+
+    const loaded = loadTaskRecord(workspaceRoot, 'demo-task')
+    expect(loaded.kind).toBe('valid')
+    if (loaded.kind === 'valid') {
+      expect(loaded.record).toEqual(expect.objectContaining({
+        source: 'teambition',
+        teambitionTaskId: 'tb-task-001',
+        type: 'task',
+        orchestratorSessionId: 'created-session',
+      }))
+    }
+  })
+
   test('Task commit 失败时补偿删除尚未对外返回的新 Session', async () => {
     const workspaceRoot = root()
     let deleted: string | undefined
