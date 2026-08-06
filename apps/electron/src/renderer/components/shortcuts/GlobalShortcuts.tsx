@@ -508,7 +508,9 @@ export function GlobalShortcuts(): null {
 
       if (target.type === 'chat') {
         const conversationId = target.sessionId
-        store.set(appModeAtom, 'chat')
+        // chat/Home 入口已下线：打开 chat 会话保持 Code 主模式（agent），
+        // 避免左侧栏任务看板等模块被 `mode === 'agent'` 条件隐藏。
+        store.set(appModeAtom, 'agent')
         store.set(currentConversationIdAtom, conversationId)
         store.set(conversationDraftsAtom, (prev) => {
           const map = new Map(prev)

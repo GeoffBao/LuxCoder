@@ -81,7 +81,9 @@ export function useOpenSession(): OpenSessionFn {
       setActiveView('conversations')
 
       if (type === 'chat') {
-        setAppMode('chat')
+        // chat/Home 入口已下线：打开 chat 会话保持 Code 主模式（agent），
+        // 避免左侧栏任务看板等模块被 `mode === 'agent'` 条件隐藏。
+        setAppMode('agent')
         setCurrentConversationId(sessionId)
       } else if (type === 'agent' || type === 'preview') {
         setAppMode('agent')

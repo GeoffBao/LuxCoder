@@ -83,6 +83,19 @@ export function AppShell({ contextValue }: AppShellProps): React.ReactElement {
     setCodeMainView('tasks')
     setActiveView('conversations')
   }, [appMode, setAppMode, setCodeMainView, setActiveView])
+
+  // 遗留 Home/chat 持久化值：仅在启动时一次性迁移到 Code 主入口。
+  // chat 模式入口已下线（折叠态 Home 按钮删除 + MODE_SWITCHER_VISIBLE=false），
+  // 若 localStorage 残留 'chat'，老用户启动后会卡在 chat 界面：任务看板等 agent 模块
+  // 被 `mode === 'agent'` 条件隐藏，展开侧边栏又无切回 Code 的入口。
+  // 用 ref 只拦启动初始值：运行中 Cmd+Shift+M（toggle-mode）显式切到 chat 不应被本 effect 立即改回。
+  const chatMigrationDoneRef = React.useRef(false)
+  React.useEffect(() => {
+    if (chatMigrationDoneRef.current) return
+    chatMigrationDoneRef.current = true
+    if (appMode !== 'chat') return
+    setAppMode('agent')
+  }, [appMode, setAppMode])
   // 左侧边栏可拖拽宽度
   const [leftSidebarWidth, setLeftSidebarWidth] = useAtom(leftSidebarWidthAtom)
   const sidebarCollapsed = useAtomValue(sidebarCollapsedAtom)

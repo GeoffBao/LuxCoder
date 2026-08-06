@@ -1012,12 +1012,14 @@ function TabStatePersistenceInitializer(): null {
       store.set(activeTabIdAtom, restoredActiveTabId)
 
       // 同步 appMode 和 currentSessionId
+      // chat/Home 入口已下线，应用主模式统一为 agent：恢复 chat tab 时只回填
+      // currentConversationId（会话仍可查看），不再把全局 appMode 切成 chat，
+      // 否则左侧栏任务看板等 agent 模块会被 `mode === 'agent'` 条件隐藏。
       if (activeTab) {
+        store.set(appModeAtom, 'agent')
         if (activeTab.type === 'chat') {
-          store.set(appModeAtom, 'chat')
           store.set(currentConversationIdAtom, activeTab.sessionId)
         } else {
-          store.set(appModeAtom, 'agent')
           store.set(currentAgentSessionIdAtom, activeTab.sessionId)
         }
       }

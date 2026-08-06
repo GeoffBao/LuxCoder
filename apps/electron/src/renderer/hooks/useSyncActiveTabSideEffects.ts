@@ -42,7 +42,9 @@ export function useSyncActiveTabSideEffects(): SyncActiveTabSideEffects {
       }
 
       if (newActiveTab.type === 'chat') {
-        setAppMode('chat')
+        // chat/Home 入口已下线：激活 chat tab 保持 Code 主模式（agent），
+        // 避免左侧栏任务看板等模块被 `mode === 'agent'` 条件隐藏。
+        setAppMode('agent')
         setCurrentConversationId(newActiveTab.sessionId)
         setCurrentAgentSessionId(null)
         return

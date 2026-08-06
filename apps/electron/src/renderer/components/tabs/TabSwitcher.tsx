@@ -272,7 +272,9 @@ export function TabSwitcher(): ReactElement | null {
       })
 
       if (candidate.type === 'chat') {
-        setAppMode('chat')
+        // chat/Home 入口已下线：打开 chat 会话保持 Code 主模式（agent），
+        // 避免左侧栏任务看板等模块被 `mode === 'agent'` 条件隐藏。
+        setAppMode('agent')
         setCurrentConversationId(candidate.id)
         setCurrentAgentSessionId(null)
         return
