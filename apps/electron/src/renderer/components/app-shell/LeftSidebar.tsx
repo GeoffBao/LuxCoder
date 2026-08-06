@@ -121,6 +121,7 @@ import { useCreateSession } from '@/hooks/useCreateSession'
 import { useSyncActiveTabSideEffects } from '@/hooks/useSyncActiveTabSideEffects'
 import { NewTaskProjectFlowDialog } from './NewTaskProjectFlowDialog'
 import { CollapsedWorkspacePopover } from '@/components/agent/CollapsedWorkspacePopover'
+import { WEB_TOOLS } from '@/components/tools/ToolsView'
 import { MoveSessionDialog } from '@/components/agent/MoveSessionDialog'
 import {
   SessionMiniMapPopover,
@@ -3155,9 +3156,10 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         <SidebarModule
           icon={Boxes}
           title="工具导航"
+          count={WEB_TOOLS.length}
           active={activeView === 'tools'}
           onClick={handleOpenTools}
-          ariaLabel="工具导航"
+          ariaLabel={`工具导航，${WEB_TOOLS.length} 个网站工具`}
         />
       </div>
 

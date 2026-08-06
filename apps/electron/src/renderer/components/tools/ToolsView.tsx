@@ -21,7 +21,7 @@ interface WebTool {
 }
 
 /** 网站工具（配置化，后续可扩展） */
-const WEB_TOOLS: WebTool[] = [
+export const WEB_TOOLS: WebTool[] = [
   {
     id: 'luxclaw',
     name: 'LuxClaw',
