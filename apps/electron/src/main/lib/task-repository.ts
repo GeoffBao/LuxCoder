@@ -180,6 +180,7 @@ export class TaskRepository {
           ? { kind: 'project' as const, projectId }
           : { kind: 'workspace' as const },
         workflow: task.record?.workflow ?? 'todo',
+        kanbanColumn: task.record?.kanbanColumn,
         revision: task.record?.revision,
         labelIds: task.record?.labelIds ?? [],
         orchestratorSessionId: task.record?.orchestratorSessionId,
@@ -263,7 +264,7 @@ export class TaskRepository {
     patch: TaskMetadataPatch,
     now: () => number = Date.now,
   ): TaskAggregateSummary {
-    if (patch.title === undefined && patch.archived === undefined && patch.labelIds === undefined) {
+    if (patch.title === undefined && patch.archived === undefined && patch.labelIds === undefined && patch.kanbanColumn === undefined) {
       throw new Error('Task metadata patch 不能为空')
     }
     const aggregate = this.getTaskAggregateById(workspaceId, taskId)
@@ -290,6 +291,7 @@ export class TaskRepository {
         saveTaskRecord(workspaceRoot, {
           ...aggregate.record,
           ...(patch.labelIds !== undefined ? { labelIds: patch.labelIds } : {}),
+          ...(patch.kanbanColumn !== undefined ? { kanbanColumn: patch.kanbanColumn } : {}),
           ...(patch.archived === undefined
             ? {}
             : patch.archived

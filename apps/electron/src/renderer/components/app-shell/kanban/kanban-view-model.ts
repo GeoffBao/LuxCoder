@@ -188,9 +188,11 @@ export function buildKanbanViewModel(input: BuildKanbanViewModelInput): KanbanVi
         title: summary.title,
         taskSlug: summary.taskSlug,
         ...(projectId ? { projectId } : { projectId: undefined }),
-        kanbanColumn: summary.legacyIdentity && linkedSession?.kanbanColumn
-          ? linkedSession.kanbanColumn
-          : deriveDefaultKanbanColumn(summary.workflow),
+        kanbanColumn: summary.kanbanColumn
+          ?? (summary.legacyIdentity && linkedSession?.kanbanColumn
+            ? linkedSession.kanbanColumn
+            : undefined)
+          ?? deriveDefaultKanbanColumn(summary.workflow),
       }
       const item = buildItem(
         session,

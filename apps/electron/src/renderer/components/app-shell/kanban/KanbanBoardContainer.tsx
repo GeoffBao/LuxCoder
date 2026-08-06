@@ -44,7 +44,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { useCloseTab } from '@/hooks/useCloseTab'
 import { BoardListToggle } from './BoardListToggle'
-import { activeBoardItems, consumeFirstNotification } from './board-model'
+import { activeBoardItems, consumeFirstNotification, DEFAULT_KANBAN_COLUMNS, type KanbanColumnDefinition } from './board-model'
 import { buildKanbanModelCatalog } from './kanban-model-catalog'
 import { KanbanBoard } from './KanbanBoard'
 import { KanbanProjectFilter } from './KanbanProjectFilter'
@@ -53,7 +53,9 @@ import { NewTaskComposer } from './NewTaskComposer'
 import { TaskEditor } from './TaskEditor'
 import { resolveTaskEditorTarget } from './task-editor-model'
 import { resolveTaskBoardEmptyState } from './task-board-empty-state'
-import { filterPickableKanbanProjects, type KanbanItem, type TaskEditorTarget } from './types'
+import { filterPickableKanbanProjects, type KanbanItem, type KanbanProject, type TaskEditorTarget } from './types'
+import type { TaskWorkflow } from '@luxcoder/shared/tasks'
+import type { KanbanColumnDef } from '@luxcoder/shared/projects'
 
 /** 任务创建/运行后回调；`ran` 为 true 时打开编排会话。 */
 export interface TaskCreatedEvent {
@@ -130,6 +132,77 @@ export function KanbanBoardContainer({
       : {}),
     hasSecondaryFilters: workflowFilter !== 'all' || labelFilter.length > 0 || includeUnlabeled,
   })
+
+  // ---------------------------------------------------------------------------
+  // 项目自定义列（对齐 craft）：仅聚焦到单个真实 Project 时使用/编辑该项目列；
+  // 跨项目/工作区视图始终用默认四列，避免语义混乱。
+  // ---------------------------------------------------------------------------
+  const editingProject = scope.kind === 'project'
+    ? projects.find((project) => project.id === scope.projectId) ?? null
+    : null
+  const usingProjectColumns = Boolean(editingProject?.kanbanColumns?.length)
+  const activeColumns = React.useMemo<KanbanColumnDefinition[]>(() => {
+    if (!usingProjectColumns || !editingProject) return DEFAULT_KANBAN_COLUMNS
+    // 透传项目自定义列（含 dropStatusId），board-model 已具备去重/过滤/回退逻辑
+    return editingProject.kanbanColumns ?? DEFAULT_KANBAN_COLUMNS
+  }, [usingProjectColumns, editingProject])
+
+  // 持久化项目自定义列；projects:changed 广播会刷新 atom，无需本地乐观投影
+  const persistProjectColumns = React.useCallback((columns: KanbanColumnDef[]) => {
+    if (!workspaceRoot || !editingProject?.slug) return
+    void window.electronAPI.projects.update(workspaceRoot, editingProject.slug, { kanbanColumns: columns })
+      .catch((cause: unknown) => {
+        toast.error('保存看板列失败', { description: cause instanceof Error ? cause.message : String(cause) })
+      })
+  }, [workspaceRoot, editingProject])
+
+  // 可编辑列：项目已有自定义列则直接改；首次定制时用当前活跃列作为种子
+  // （保留内置 id，确保已有卡片位置不丢）
+  const resolveEditableColumns = React.useCallback((): KanbanColumnDef[] => {
+    const custom = editingProject?.kanbanColumns
+    if (custom?.length) return custom.map((column) => ({ ...column }))
+    return activeColumns.map((column) => ({
+      id: column.id,
+      name: column.name,
+      color: column.color,
+      dropStatusId: column.dropStatusId,
+    }))
+  }, [editingProject, activeColumns])
+
+  const handleAddColumn = React.useCallback(() => {
+    const base = resolveEditableColumns()
+    const id = `col-${crypto.randomUUID().slice(0, 8)}`
+    persistProjectColumns([...base, { id, name: '新列' }])
+  }, [resolveEditableColumns, persistProjectColumns])
+
+  const handleUpdateColumn = React.useCallback((columnId: string, patch: Partial<KanbanColumnDef>) => {
+    const next = resolveEditableColumns().map((column) =>
+      column.id === columnId ? { ...column, ...patch } : column,
+    )
+    persistProjectColumns(next)
+  }, [resolveEditableColumns, persistProjectColumns])
+
+  // 删除列：先把该列卡片逐个重分配到第一个剩余列（不丢卡片），再持久化列集合。
+  const handleRemoveColumn = React.useCallback((columnId: string) => {
+    const remaining = resolveEditableColumns().filter((column) => column.id !== columnId)
+    const fallbackId = remaining[0]?.id
+    if (fallbackId && workspaceRoot && workspace) {
+      for (const item of items) {
+        if (item.columnId !== columnId || !item.task || item.task.legacyIdentity) continue
+        void window.electronAPI.tasks.updateMetadata(
+          workspaceRoot,
+          workspace.id,
+          item.task.taskId,
+          { kanbanColumn: fallbackId, expectedRevision: item.task.revision },
+        ).then((updated) => {
+          setTaskSummaries((tasks) => tasks?.map((task) => task.taskId === updated.taskId ? updated : task))
+        }).catch((cause: unknown) => {
+          toast.error('移动卡片失败', { description: cause instanceof Error ? cause.message : String(cause) })
+        })
+      }
+    }
+    persistProjectColumns(remaining)
+  }, [resolveEditableColumns, persistProjectColumns, items, workspaceRoot, workspace, setTaskSummaries])
 
   const { groups: modelGroups, modelToConnection } = React.useMemo(
     () => buildKanbanModelCatalog(channels),
@@ -397,6 +470,7 @@ export function KanbanBoardContainer({
         items={items}
         mode={mode}
         workflowFilter={workflowFilter}
+        columns={activeColumns}
         emptyState={emptyState ? {
           title: emptyState.title,
           actionLabel: emptyState.action === 'create' ? '新建任务' : '清除筛选',
@@ -405,11 +479,19 @@ export function KanbanBoardContainer({
             : () => clearFilters(),
         } : null}
         onMove={(itemId, columnId) => {
+          const configuredDrop = activeColumns.find((column) => column.id === columnId)?.dropStatusId
+          const dropStatusId = configuredDrop === 'todo' || configuredDrop === 'in-progress'
+            || configuredDrop === 'needs-review' || configuredDrop === 'done' || configuredDrop === 'cancelled'
+            ? configuredDrop
+            : undefined
           void moveCard({
             itemId,
             columnId,
             ...(workspaceRoot ? { workspaceRoot } : {}),
             ...(workspace ? { workspaceId: workspace.id } : {}),
+            ...(usingProjectColumns
+              ? { columnPlacementMode: 'custom' as const, dropStatusId }
+              : {}),
           }).then(() => {
             if (workflowFilter === 'all' || workflowFilter === columnId) return
             toast.info('任务已移动，并被当前状态筛选隐藏', {
@@ -477,6 +559,9 @@ export function KanbanBoardContainer({
               })
             })
         }}
+        onAddColumn={editingProject ? handleAddColumn : undefined}
+        onUpdateColumn={editingProject ? handleUpdateColumn : undefined}
+        onRemoveColumn={editingProject ? handleRemoveColumn : undefined}
       />
       <CreateProjectDialog
         open={createProjectOpen}

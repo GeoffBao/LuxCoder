@@ -38,6 +38,12 @@ const ProjectSlugSchema = z.string().regex(/^[a-z0-9][a-z0-9-]*$/, 'project slug
 const ProjectNameSchema = z.string().trim().min(1, '项目名称不能为空')
 const OptionalProjectStringSchema = z.string().optional()
 const ProjectKindSchema = z.enum(['project', 'home', 'ad-hoc'])
+const KanbanColumnDefSchema = z.object({
+  id: z.string().min(1, '列 id 不能为空'),
+  name: z.string().min(1, '列名称不能为空'),
+  color: z.string().optional(),
+  dropStatusId: z.string().optional(),
+})
 const CreateProjectInputSchema = z.object({
   name: ProjectNameSchema,
   description: OptionalProjectStringSchema,
@@ -56,6 +62,7 @@ const UpdateProjectInputSchema = z.object({
   color: OptionalProjectStringSchema,
   archivedAt: z.number().optional(),
   defaultExpertId: OptionalProjectStringSchema,
+  kanbanColumns: z.array(KanbanColumnDefSchema).optional(),
 })
 
 export interface ProjectRepositoryOptions {

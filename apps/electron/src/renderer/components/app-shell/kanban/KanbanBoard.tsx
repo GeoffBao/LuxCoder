@@ -1,8 +1,10 @@
 import { DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { Plus } from 'lucide-react'
 import { activeBoardItems, buildKanbanBoardModel, type KanbanColumnDefinition } from './board-model'
 import { KanbanColumn } from './KanbanColumn'
 import { TaskListRow } from './TaskListRow'
 import type { TaskWorkflow } from '@luxcoder/shared/tasks'
+import type { KanbanColumnDef } from '@luxcoder/shared/projects'
 import type { KanbanBoardMode, KanbanItem } from './types'
 
 export interface KanbanBoardEmptyStateView {
@@ -28,6 +30,10 @@ interface KanbanBoardProps {
   onSetLabels?: (item: KanbanItem, labelIds: string[]) => void
   onChangeWorkflow?: (item: KanbanItem, workflow: TaskWorkflow) => void
   emptyState?: KanbanBoardEmptyStateView | null
+  /** 项目自定义列的编辑入口（仅聚焦单个 Project 时由容器传入） */
+  onAddColumn?: () => void
+  onUpdateColumn?: (columnId: string, patch: Partial<KanbanColumnDef>) => void
+  onRemoveColumn?: (columnId: string) => void
 }
 
 function dropColumnId(event: DragEndEvent): string | null {
@@ -35,7 +41,7 @@ function dropColumnId(event: DragEndEvent): string | null {
   return typeof value === 'string' ? value : null
 }
 
-export function KanbanBoard({ items, mode, workflowFilter, columns, onMove, onOpenItem, onEditItem, onRenameItem, onArchiveItem, onDeleteItem, onOpenSubtask, onRunTask, onRetryTeambition, onSetLabels, onChangeWorkflow, emptyState }: KanbanBoardProps): React.ReactElement {
+export function KanbanBoard({ items, mode, workflowFilter, columns, onMove, onOpenItem, onEditItem, onRenameItem, onArchiveItem, onDeleteItem, onOpenSubtask, onRunTask, onRetryTeambition, onSetLabels, onChangeWorkflow, emptyState, onAddColumn, onUpdateColumn, onRemoveColumn }: KanbanBoardProps): React.ReactElement {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor),
@@ -111,8 +117,23 @@ export function KanbanBoard({ items, mode, workflowFilter, columns, onMove, onOp
             onRetryTeambition={onRetryTeambition}
             onSetLabels={onSetLabels}
             onChangeWorkflow={onChangeWorkflow}
+            onUpdateColumn={onUpdateColumn}
+            onRemoveColumn={activeModel.columns.length > 1 ? onRemoveColumn : undefined}
           />
         ))}
+        {onAddColumn ? (
+          <button
+            type="button"
+            data-no-dnd="true"
+            onClick={onAddColumn}
+            title="新增列"
+            aria-label="新增列"
+            className="flex min-h-[64px] w-[180px] shrink-0 items-center justify-center gap-1.5 self-start rounded-2xl border border-dashed border-border/60 text-sm text-muted-foreground transition-colors hover:border-foreground/25 hover:bg-muted/50 hover:text-foreground"
+          >
+            <Plus className="h-4 w-4" />
+            新增列
+          </button>
+        ) : null}
       </div>
     </DndContext>
   )

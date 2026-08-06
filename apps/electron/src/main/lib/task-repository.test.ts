@@ -330,6 +330,62 @@ describe('TaskRepository', () => {
     expect(updated.archivedAt).toBeUndefined()
   })
 
+  test('updateTaskMetadata 持久化独立看板列 kanbanColumn，不影响其它字段', () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    const repository = createRepository({ 'ws-alpha': workspaceRoot })
+    const taskId = '018f47a8-6c26-7a13-9bf6-7c8d4f2e4c72'
+    repository.saveTask('ws-alpha', buildSpec({ id: 'kanban-column-test', title: '看板列任务' }))
+    saveTaskRecord(workspaceRoot, {
+      schemaVersion: 1,
+      taskId,
+      slug: 'kanban-column-test',
+      revision: 1,
+      workflow: 'in-progress',
+      labelIds: [],
+      createdAt: 1,
+      updatedAt: 1,
+    })
+
+    const updated = repository.updateTaskMetadata(
+      'ws-alpha', taskId, { kanbanColumn: 'col-abc123', expectedRevision: 1 }, () => 50,
+    )
+    expect(updated).toEqual(expect.objectContaining({
+      taskId,
+      kanbanColumn: 'col-abc123',
+      workflow: 'in-progress',
+      revision: 2,
+      updatedAt: 50,
+    }))
+    expect(updated.title).toBe('看板列任务')
+    expect(updated.archivedAt).toBeUndefined()
+
+    // 重新读取（从磁盘重建聚合），确认列位置真正落盘
+    const reloaded = repository.listTaskAggregateSummaries('ws-alpha').find((task) => task.taskId === taskId)
+    expect(reloaded?.kanbanColumn).toBe('col-abc123')
+    expect(reloaded?.workflow).toBe('in-progress')
+  })
+
+  test('updateTaskMetadata 空 patch（仅 kanbanColumn: undefined）应报错', () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    const repository = createRepository({ 'ws-alpha': workspaceRoot })
+    const taskId = '018f47a8-6c26-7a13-9bf6-7c8d4f2e4c72'
+    repository.saveTask('ws-alpha', buildSpec({ id: 'empty-patch-test', title: '空补丁' }))
+    saveTaskRecord(workspaceRoot, {
+      schemaVersion: 1,
+      taskId,
+      slug: 'empty-patch-test',
+      revision: 1,
+      workflow: 'todo',
+      labelIds: [],
+      createdAt: 1,
+      updatedAt: 1,
+    })
+
+    expect(() => repository.updateTaskMetadata(
+      'ws-alpha', taskId, { kanbanColumn: undefined },
+    )).toThrow('Task metadata patch 不能为空')
+  })
+
   test('按稳定 taskId 查找 TaskAggregate，并发现 record-only 恢复项', () => {
     const workspaceRoot = createTempWorkspaceRoot()
     const repository = createRepository({ 'ws-alpha': workspaceRoot })

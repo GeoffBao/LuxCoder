@@ -71,6 +71,34 @@ describe('buildKanbanViewModel', () => {
     expect(model.listItems[0]?.task?.taskSlug).toBe('workspace-release')
   })
 
+  test('Task 自带 kanbanColumn 时优先于 workflow 推导的默认列', () => {
+    const taskId = '22222222-2222-4222-8222-222222222222'
+    const model = buildKanbanViewModel({
+      projects,
+      tasks: [createTask({
+        taskId,
+        taskSlug: 'custom-column-task',
+        title: '自定义列任务',
+        workflow: 'in-progress',
+        // 独立于状态徽标的列位置：卡片应落在 col-design 而不是「进行中」
+        kanbanColumn: 'col-design',
+        updatedAt: 50,
+      })],
+      sessions: [],
+      runs: [],
+      bindings: [],
+      filter: { projectId: null },
+    })
+
+    expect(model.listItems).toHaveLength(1)
+    expect(model.listItems[0]).toEqual(expect.objectContaining({
+      id: taskId,
+      title: '自定义列任务',
+      columnId: 'col-design',
+    }))
+    expect(model.listItems[0]?.task?.workflow).toBe('in-progress')
+  })
+
   test('没有 orchestrator Session 的恢复项仍显示诊断卡片，Project facet 来自 Task scope', () => {
     const taskId = '33333333-3333-4333-8333-333333333333'
     const model = buildKanbanViewModel({

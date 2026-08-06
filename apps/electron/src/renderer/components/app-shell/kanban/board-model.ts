@@ -5,6 +5,8 @@ export interface KanbanColumnDefinition {
   id: string
   name: string
   color?: string
+  /** 拖卡片到此列时自动套用的状态（仅自定义列路径使用，松耦合存 TaskWorkflow 字符串） */
+  dropStatusId?: string
 }
 
 export interface KanbanBoardColumn extends KanbanColumnDefinition {

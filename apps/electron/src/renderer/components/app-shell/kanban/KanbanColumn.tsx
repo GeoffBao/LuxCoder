@@ -1,8 +1,10 @@
 import { useDroppable } from '@dnd-kit/core'
 import { cn } from '@/lib/utils'
 import { resolveKanbanColumnColor } from './kanban-colors'
+import { KanbanColumnEditorPopover } from './KanbanColumnEditorPopover'
 import { TaskTile } from './TaskTile'
 import type { KanbanBoardColumn } from './board-model'
+import type { KanbanColumnDef } from '@luxcoder/shared/projects'
 import type { TaskWorkflow } from '@luxcoder/shared/tasks'
 import type { KanbanItem } from './types'
 
@@ -18,9 +20,12 @@ interface KanbanColumnProps {
   onRetryTeambition?: (item: KanbanItem) => void
   onSetLabels?: (item: KanbanItem, labelIds: string[]) => void
   onChangeWorkflow?: (item: KanbanItem, workflow: TaskWorkflow) => void
+  /** 项目自定义列的编辑入口（仅聚焦单个 Project 时由容器传入） */
+  onUpdateColumn?: (columnId: string, patch: Partial<KanbanColumnDef>) => void
+  onRemoveColumn?: (columnId: string) => void
 }
 
-export function KanbanColumn({ column, onOpenItem, onEditItem, onRenameItem, onArchiveItem, onDeleteItem, onOpenSubtask, onRunTask, onRetryTeambition, onSetLabels, onChangeWorkflow }: KanbanColumnProps): React.ReactElement {
+export function KanbanColumn({ column, onOpenItem, onEditItem, onRenameItem, onArchiveItem, onDeleteItem, onOpenSubtask, onRunTask, onRetryTeambition, onSetLabels, onChangeWorkflow, onUpdateColumn, onRemoveColumn }: KanbanColumnProps): React.ReactElement {
   const drop = useDroppable({ id: `column:${column.id}`, data: { columnId: column.id } })
   const color = resolveKanbanColumnColor(column.id, column.color)
   return (
@@ -30,7 +35,17 @@ export function KanbanColumn({ column, onOpenItem, onEditItem, onRenameItem, onA
     >
       <header className="sticky top-0 z-[1] mb-3 flex items-center gap-2 rounded-lg bg-muted/90 px-1 py-1 backdrop-blur">
         <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
-        <h2 className="text-sm font-medium">{column.name}</h2>
+        {onUpdateColumn ? (
+          <KanbanColumnEditorPopover
+            column={column}
+            onRename={(name) => onUpdateColumn(column.id, { name })}
+            onSetColor={(nextColor) => onUpdateColumn(column.id, { color: nextColor })}
+            onSelectDropStatus={(status) => onUpdateColumn(column.id, { dropStatusId: status })}
+            onRemove={onRemoveColumn ? () => onRemoveColumn(column.id) : undefined}
+          />
+        ) : (
+          <h2 className="text-sm font-medium">{column.name}</h2>
+        )}
         <span className="ml-auto rounded-full bg-background/80 px-2 py-0.5 text-[11px] text-muted-foreground">{column.items.length}</span>
       </header>
       <div className="space-y-3">

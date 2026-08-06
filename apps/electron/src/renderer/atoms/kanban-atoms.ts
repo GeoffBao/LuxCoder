@@ -1,6 +1,6 @@
 import { atom } from 'jotai'
 import type { AgentSessionMeta } from '@luxcoder/shared'
-import type { TaskAggregateSummary } from '@luxcoder/shared/tasks'
+import type { TaskAggregateSummary, TaskWorkflow } from '@luxcoder/shared/tasks'
 import { buildKanbanViewModel } from '@/components/app-shell/kanban/kanban-view-model'
 import { workflowForKanbanColumn } from '@/components/app-shell/kanban/status-column'
 import type { SpecNodeSummary } from '@/components/app-shell/kanban/subtask-merge'
@@ -96,6 +96,13 @@ export interface MoveCardInput {
   columnId: string
   workspaceRoot?: string
   workspaceId?: string
+  /**
+   * 'workflow'（默认/无自定义列）：列即状态，走 updateWorkflow；
+   * 'custom'（项目自定义列）：列位置独立持久化到 kanbanColumn，可选按 dropStatusId 联动状态。
+   */
+  columnPlacementMode?: 'workflow' | 'custom'
+  /** 自定义列模式下，落列后自动套用的目标状态（可选，undefined 表示不改变状态） */
+  dropStatusId?: TaskWorkflow
 }
 
 function toErrorMessage(cause: unknown): string {
@@ -127,6 +134,49 @@ export const moveCardAtom = atom(
         ])
         return
       }
+
+      // 项目自定义列路径：列位置独立持久化，可选 dropStatusId 联动状态
+      if (input.columnPlacementMode === 'custom') {
+        const previous = task
+        set(serverTaskSummariesAtom, (tasks) => tasks?.map((candidate) =>
+          candidate.taskId === task.taskId ? { ...candidate, kanbanColumn: input.columnId } : candidate,
+        ))
+        try {
+          let updated = await window.electronAPI.tasks.updateMetadata(
+            input.workspaceRoot,
+            input.workspaceId,
+            task.taskId,
+            { kanbanColumn: input.columnId, expectedRevision: task.revision },
+          )
+          if (get(latestKanbanMoveSequenceAtom).get(itemId) !== sequence) return
+          // 落列后按 dropStatusId 链式联动 workflow（仅当目标与当前状态不同）
+          if (input.dropStatusId && input.dropStatusId !== updated.workflow) {
+            const workflowUpdated = await window.electronAPI.tasks.updateWorkflow(
+              input.workspaceRoot,
+              input.workspaceId,
+              task.taskId,
+              input.dropStatusId,
+              updated.revision,
+            )
+            if (get(latestKanbanMoveSequenceAtom).get(itemId) !== sequence) return
+            updated = workflowUpdated
+          }
+          set(serverTaskSummariesAtom, (tasks) => tasks?.map((candidate) =>
+            candidate.taskId === task.taskId ? updated : candidate,
+          ))
+        } catch (cause) {
+          if (get(latestKanbanMoveSequenceAtom).get(itemId) !== sequence) return
+          set(serverTaskSummariesAtom, (tasks) => tasks?.map((candidate) =>
+            candidate.taskId === task.taskId ? previous : candidate,
+          ))
+          set(kanbanNotificationsAtom, (notifications) => [
+            ...notifications,
+            { level: 'error', message: toErrorMessage(cause) },
+          ])
+        }
+        return
+      }
+
       const workflow = workflowForKanbanColumn(input.columnId)
       set(serverTaskSummariesAtom, (tasks) => tasks?.map((candidate) =>
         candidate.taskId === task.taskId ? { ...candidate, workflow } : candidate,

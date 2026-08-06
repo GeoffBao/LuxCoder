@@ -1,4 +1,5 @@
 import type { AgentSessionMeta } from '@luxcoder/shared'
+import type { KanbanColumnDef } from '@luxcoder/shared/projects'
 import type { TaskAggregateSummary, TaskWorkflow } from '@luxcoder/shared/tasks'
 
 /** 历史遗留的收件箱列 ID；列已下线，存量值由 board fallback 归入待办。 */
@@ -58,6 +59,8 @@ export interface KanbanProject {
    * 隐藏容器 Project，仅用于看板卡片归属展示，不应出现在项目选择/管理类 UI 中。
    */
   kind?: 'project' | 'home' | 'ad-hoc'
+  /** 项目自定义看板列（ProjectConfig.kanbanColumns 透传）；未设置时看板用全局默认列 */
+  kanbanColumns?: KanbanColumnDef[]
 }
 
 /** 隐藏容器 Project（home / ad-hoc）判定；用于从"选择/管理项目"类 UI 中排除它们。 */

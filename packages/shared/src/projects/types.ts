@@ -11,6 +11,22 @@
  */
 
 /**
+ * 看板列定义（对齐 craft-agents-oss 的 KanbanColumnDef）
+ *
+ * 列位置（column）与状态徽标（statusId）解耦：
+ * - id：列的唯一标识，卡片拖入该列时写入 TaskRecord.kanbanColumn
+ * - name：列标题
+ * - dropStatusId：拖卡片到此列时自动套用的状态（可选，松耦合存 TaskWorkflow 字符串）
+ * - color：列主题色（可选）
+ */
+export interface KanbanColumnDef {
+  id: string;
+  name: string;
+  dropStatusId?: string;
+  color?: string;
+}
+
+/**
  * 项目主配置（存储在 config.json 中）
  */
 export interface ProjectConfig {
@@ -39,6 +55,8 @@ export interface ProjectConfig {
    * 承载 Home 模式对话与未绑定真实 Project 的临时 Code 会话。
    */
   kind?: 'project' | 'home' | 'ad-hoc';
+  /** 项目自定义看板列；未设置时用全局默认列（列即状态） */
+  kanbanColumns?: KanbanColumnDef[];
 }
 
 /**
@@ -115,6 +133,8 @@ export interface UpdateProjectInput {
   archivedAt?: number;
   /** 默认 Agent 专家 ID（仅存储展示，本阶段不注入编排器） */
   defaultExpertId?: string;
+  /** 项目自定义看板列；传 undefined 保持现状，传 [] 清除自定义列回退默认 */
+  kanbanColumns?: KanbanColumnDef[];
 }
 
 /**

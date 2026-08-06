@@ -16,6 +16,8 @@ export interface TaskMetadataPatch {
   title?: string;
   archived?: boolean;
   labelIds?: string[];
+  /** 独立于 workflow 的看板列位置（项目自定义列时使用），与状态徽标解耦 */
+  kanbanColumn?: string;
   expectedRevision?: number;
 }
 
@@ -25,6 +27,8 @@ export const TaskRecordSchema = z.object({
   slug: z.string().regex(/^[a-z0-9][a-z0-9-]*$/, 'task slug 必须是小写 URL-safe slug'),
   revision: z.number().int().positive(),
   workflow: TaskWorkflowSchema,
+  /** 独立于 workflow 的看板列位置（可选，无自定义列时缺省，列即状态） */
+  kanbanColumn: z.string().min(1).optional(),
   labelIds: z.array(z.string().min(1)),
   orchestratorSessionId: z.string().min(1).optional(),
   archivedAt: z.number().int().nonnegative().optional(),
@@ -42,6 +46,7 @@ export interface TaskAggregateSummary {
   goal?: string;
   scope: { kind: 'workspace' } | { kind: 'project'; projectId: string };
   workflow: TaskWorkflow;
+  kanbanColumn?: string;
   revision?: number;
   labelIds: string[];
   orchestratorSessionId?: string;

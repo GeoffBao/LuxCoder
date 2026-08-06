@@ -25,6 +25,9 @@ const PRESET_COLORS = [
   '#8b5cf6', // violet
 ] as const
 
+/** 供其他组件（如看板列编辑弹层）复用同一套预设色板 */
+export { PRESET_COLORS }
+
 const DEFAULT_COLOR = PRESET_COLORS[0]
 
 export interface AccentColorPickerProps {

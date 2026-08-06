@@ -175,6 +175,30 @@ describe('workspace project storage', () => {
     expect(projectStorage.readProjectMemory(workspaceRoot, project.slug)).toBe('已归档前的记忆');
   });
 
+  test('更新项目能持久化自定义看板列 kanbanColumns', () => {
+    const workspaceRoot = createTempWorkspaceRoot();
+    const project = projectStorage.createProject(workspaceRoot, { name: 'Kanban Columns' });
+
+    const columns = [
+      { id: 'todo', name: '待办', color: '#6366f1', dropStatusId: 'todo' },
+      { id: 'col-abc123', name: '设计稿', color: '#ec4899', dropStatusId: 'in-progress' },
+      { id: 'done', name: '已完成', color: '#10b981' },
+    ];
+    const updated = withMockedNow([2000, 2001], () =>
+      projectStorage.updateProject(workspaceRoot, project.slug, { kanbanColumns: columns }),
+    );
+    expect(updated.kanbanColumns).toEqual(columns);
+    expect(updated.updatedAt).toBe(2000);
+
+    const reloaded = projectStorage.loadProjectConfig(workspaceRoot, project.slug);
+    expect(reloaded).not.toBeNull();
+    expect(reloaded?.kanbanColumns).toEqual(columns);
+
+    // 传 undefined 保持现状
+    const untouched = projectStorage.updateProject(workspaceRoot, project.slug, {});
+    expect(untouched.kanbanColumns).toEqual(columns);
+  });
+
   test('更新项目后返回值与重载 config.json 的 updatedAt 完全一致', () => {
     const workspaceRoot = createTempWorkspaceRoot();
     const project = projectStorage.createProject(workspaceRoot, {
