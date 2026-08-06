@@ -56,6 +56,37 @@ describe('git-session-context-service', () => {
     })
   })
 
+  test('Given a tag sharing the branch name When listing branches Then name stays the plain branch shorthand', () => {
+    const repo = makeRepo()
+    // git 的 %(refname:short) 在存在同名 tag 时会消歧义为 `heads/main`，
+    // 但 `git switch`/`worktree add -b` 只接受纯短名，必须绕开这个消歧义。
+    sh(repo, ['tag', 'main'])
+
+    const branches = listGitBranchesForSession({ repoPath: repo })
+    const mainBranch = branches.find((branch) => branch.local && branch.name === 'main')
+
+    expect(mainBranch).toMatchObject({ local: true, current: true })
+    expect(branches.some((branch) => branch.name === 'heads/main')).toBe(false)
+  })
+
+  test('Given a tag sharing the branch name When switching to it in Local mode Then succeeds without ambiguous-ref error', () => {
+    const repo = makeRepo()
+    sh(repo, ['tag', 'main'])
+    sh(repo, ['switch', 'feature/alpha'])
+    const branches = listGitBranchesForSession({ repoPath: repo })
+    const mainBranch = branches.find((branch) => branch.local && branch.name === 'main')!
+
+    const result = prepareSessionGitContext({
+      sessionId: 'session-tag-collision',
+      repoPath: repo,
+      executionMode: 'local',
+      branch: mainBranch.name,
+    })
+
+    expect(result.context.branch).toBe('main')
+    expect(sh(repo, ['branch', '--show-current'])).toBe('main')
+  })
+
   test('Given Worktree mode When preparing session context Then creates detached worktree under repo .worktrees and persists meta', () => {
     const repo = makeRepo()
     const updates: Partial<AgentSessionMeta>[] = []

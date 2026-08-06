@@ -89,15 +89,21 @@ export function listGitBranchesForSession(input: ListGitBranchesInput): GitBranc
     .map((line): GitBranchInfo => {
       const [ref = '', shortName = '', head = '', upstream = ''] = line.split('\0')
       const local = ref.startsWith('refs/heads/')
-      const name = local ? shortName : shortName.replace(/^origin\//, '')
+      // 不用 git 的 `%(refname:short)`：当仓库存在与分支同名的 tag（如 tag `main` + branch `main`）时，
+      // git 会为消歧义返回 `heads/main` 而不是 `main`，而 `git switch`/`git worktree add -b` 只接受
+      // 纯粹的 refs/heads/ 短名，传入消歧义后的名字会报 "fatal: a branch is expected, got 'refs/heads/main'"。
+      // 直接从完整 ref 路径截取短名，绕开 git 的消歧义逻辑，保证名字始终可直接喂给 switch/worktree。
+      const name = local
+        ? ref.slice('refs/heads/'.length)
+        : ref.replace(/^refs\/remotes\/[^/]+\//, '')
       return {
         name,
         ref,
         local,
-        current: local && shortName === currentBranch,
+        current: local && name === currentBranch,
         upstream: upstream || undefined,
         head: head || undefined,
-        checkedOutPath: local ? occupiedByBranch.get(shortName) : undefined,
+        checkedOutPath: local ? occupiedByBranch.get(name) : undefined,
       }
     })
     .sort((a, b) => {
