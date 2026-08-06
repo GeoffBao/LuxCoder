@@ -3,9 +3,8 @@
  *
  * 现代个人版空态（对齐 Cursor / Codex 的轻量视觉）：
  * 1. 前景完整展示 hero 图（不裁剪，保持原始比例），圆角卡片 + 阴影提升质感
- * 2. 同一张图模糊放大作为氛围背景，柔和衬托、不抢主图
- * 3. 个性化时段问候（大字号 + 适中字重）
- * 4. 一行轻量功能提示（按 Chat / Agent 模式展示各自相关能力）——不占空间、无按钮感
+ * 2. 个性化时段问候（大字号 + 适中字重）
+ * 3. 一行轻量功能提示（按 Chat / Agent 模式展示各自相关能力）——不占空间、无按钮感
  *
  * 不在空态页内重复放 Home/Code 切换按钮——侧边栏 ModeSwitcher 提供唯一出入口，
  * 空态页聚焦于「开始打字」一个 CTA。
@@ -23,7 +22,6 @@ import {
   Sparkles,
   type LucideIcon,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { userProfileAtom } from '@/atoms/user-profile'
 import { appModeAtom } from '@/atoms/app-mode'
 import { normalizeAppModeForUi, type PrimaryUiMode } from '@/components/app-shell/code-main-view-model'
@@ -81,17 +79,6 @@ export function WelcomeEmptyState(): React.ReactElement {
 
   return (
     <div className="welcome-empty-state relative h-full w-full overflow-hidden">
-      {/* 氛围背景：同图放大模糊 + 弱化，形成与主图一致的柔和色调；暗色主题下进一步降透明 */}
-      <img
-        src={welcomeHeroUrl}
-        alt=""
-        aria-hidden="true"
-        draggable={false}
-        className="absolute inset-0 h-full w-full scale-125 object-cover opacity-30 blur-2xl dark:opacity-20"
-      />
-      {/* 底部向主题背景淡出，避免氛围层过于抢眼 */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background/50" />
-
       {/* 内容滚动区（小窗口可滚动，避免图过高被截断） */}
       <div className="relative z-10 h-full overflow-y-auto">
         <div className="flex min-h-full flex-col items-center justify-center gap-6 px-6 py-8">
