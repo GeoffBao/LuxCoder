@@ -1,0 +1,4 @@
+interface:
+  display_name: "Excalidraw Diagram"
+  short_description: "Generate handwritten-style Excalidraw diagrams in Obsidian/standard/animated formats."
+  default_prompt: "Use $excalidraw-diagram to create or update a handwritten-style Excalidraw diagram."

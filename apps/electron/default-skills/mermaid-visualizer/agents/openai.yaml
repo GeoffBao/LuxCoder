@@ -1,0 +1,4 @@
+interface:
+  display_name: "Mermaid Visualizer"
+  short_description: "Transform text content into professional Mermaid diagrams for..."
+  default_prompt: "Use $mermaid-visualizer to help with this task."

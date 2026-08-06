@@ -1,0 +1,4 @@
+interface:
+  display_name: "Staged Review and Fix"
+  short_description: "Review current git changes, find issues, apply targeted fixes"
+  default_prompt: "Use staged-review-and-fix to review this commit / git status changes and fix issues."

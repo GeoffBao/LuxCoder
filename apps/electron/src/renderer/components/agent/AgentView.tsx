@@ -2939,7 +2939,9 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     </Tooltip>
   )
 
-  // 首屏快捷入口 chip 点击：按 action 类型分别写入引导文案 / 触发 Skill 提及 / 跳转看板
+  // 首屏快捷入口 chip 点击：按 action 类型分别写入引导文案 / 触发 Skill 提及 / 跳转看板。
+  // 注意：这里必须同时清空 html 草稿——rich-text-input 同步 value 时 htmlValue 优先于纯文本，
+  // 若不清理，上一次 chip 写入产生的 html 草稿会在第二次点击时覆盖新文本（表现为内容不更新）。
   const handleQuickstartChip = React.useCallback((chip: QuickstartChip): void => {
     const { action } = chip
     if (action.type === 'navigate') {
@@ -2948,8 +2950,9 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     }
     const text = action.type === 'insertPrompt' ? action.text : `/${action.skillSlug} `
     setInputContent(text)
+    setInputHtmlContent('')
     requestAnimationFrame(() => richTextInputRef.current?.focusEnd())
-  }, [setCodeMainView, setInputContent])
+  }, [setCodeMainView, setInputContent, setInputHtmlContent])
 
   const sendButton = (
     <Button
