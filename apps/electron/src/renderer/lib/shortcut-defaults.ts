@@ -26,6 +26,8 @@ export interface ShortcutDefinition {
   category: ShortcutCategory
   /** 是否为全局快捷键（由主进程 globalShortcut 注册） */
   global?: boolean
+  /** 全局注册不可用时，是否仍保留应用内 keydown 回退 */
+  localFallback?: boolean
   /** 是否为只读（仅展示，不可自定义） */
   readonly?: boolean
 }
@@ -152,7 +154,9 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
     description: '打开或聚焦独立的 Todo、日程与定时任务窗口',
     defaultMac: 'Cmd+Shift+T',
     defaultWin: 'Ctrl+Shift+T',
-    category: 'navigation',
+    category: 'global',
+    global: true,
+    localFallback: true,
   },
 
   // 编辑级（输入框格式化，仅 macOS — Cmd+B/S 被全局快捷键占用）

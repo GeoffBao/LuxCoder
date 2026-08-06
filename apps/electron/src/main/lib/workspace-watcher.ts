@@ -16,6 +16,7 @@ import type { FSWatcher } from 'node:fs'
 import type { BrowserWindow } from 'electron'
 import { AGENT_IPC_CHANNELS } from '@luxcoder/shared'
 import { getAgentWorkspacesDir } from './config-paths'
+import { listAgentSessions } from './agent-session-manager'
 
 /** debounce 延迟（ms） */
 const DEBOUNCE_MS = 300
@@ -42,6 +43,15 @@ let attachedFilesTimer: ReturnType<typeof setTimeout> | null = null
 /** 主窗口引用（供附加目录监听器使用） */
 let mainWin: BrowserWindow | null = null
 
+/** 会话附加目录只需在启动/监听器重启时恢复一次；LIST_SESSIONS 是高频读取路径， */
+function restoreAgentSessionAttachedDirectoryWatchers(): void {
+  for (const session of listAgentSessions()) {
+    for (const dirPath of session.attachedDirectories ?? []) {
+      watchAttachedDirectory(dirPath)
+    }
+  }
+}
+
 /**
  * 启动工作区文件监听
  *
@@ -49,6 +59,9 @@ let mainWin: BrowserWindow | null = null
  */
 export function startWorkspaceWatcher(win: BrowserWindow): void {
   mainWin = win
+  // 会话附加目录只需在启动/监听器重启时恢复一次；LIST_SESSIONS 是高频读取路径，
+  // 不能随每次列表 IPC 再遍历全部会话并触发同步 stat。
+  restoreAgentSessionAttachedDirectoryWatchers()
   const watchDir = getAgentWorkspacesDir()
 
   if (!existsSync(watchDir)) {
