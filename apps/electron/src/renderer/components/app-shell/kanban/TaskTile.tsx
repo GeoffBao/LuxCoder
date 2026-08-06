@@ -221,9 +221,10 @@ export function TaskTile({
               event.stopPropagation()
               onOpenTaskFamily?.(item)
             }}
-            className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex h-7 shrink-0 items-center gap-1 rounded-full bg-muted/60 px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <Users className="h-4 w-4" />
+            <Users className="h-3.5 w-3.5" />
+            会话
           </button>
         )}
         {hasCardMenu && (
