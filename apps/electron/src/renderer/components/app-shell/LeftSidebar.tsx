@@ -607,6 +607,12 @@ function deleteSetEntry<T>(prev: Set<T>, value: T): Set<T> {
   return next
 }
 
+/**
+ * 模式切换器（Home | cowork）整体隐藏：当前仅剩 Home 单一模式，无 Tab 切换价值，
+ * 直接展示左侧菜单。功能保留（切换/占位逻辑不动），后续需要多模式时改为 true 恢复。
+ */
+const MODE_SWITCHER_VISIBLE: boolean = false
+
 export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.ReactElement {
   const [activeView, setActiveView] = useAtom(activeViewAtom)
   const setAgentSkillsTab = useSetAtom(agentSkillsTabAtom)
@@ -3017,10 +3023,12 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
           <TabNavigationControls className="h-7 gap-0" />
         </div>
 
-        {/* 模式切换器保留，便于切回 pwork */}
-        <div className="px-3">
-          <ModeSwitcher />
-        </div>
+        {/* 模式切换器（已隐藏，无 Tab 切换价值）；改 MODE_SWITCHER_VISIBLE=true 恢复 */}
+        {MODE_SWITCHER_VISIBLE && (
+          <div className="px-3">
+            <ModeSwitcher />
+          </div>
+        )}
 
         {/* 留白：cowork 协作功能开发中，无侧边菜单 */}
         <div className="flex-1" />
@@ -3072,10 +3080,12 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         <TabNavigationControls className="h-7 gap-0" />
       </div>
 
-      {/* 模式切换器：Home | Code（ModeSwitcher 自带 pt-2 + 拖拽区，这里只补水平内边距） */}
-      <div className="px-3">
-        <ModeSwitcher />
-      </div>
+      {/* 模式切换器（已隐藏，无 Tab 切换价值）；改 MODE_SWITCHER_VISIBLE=true 恢复 */}
+      {MODE_SWITCHER_VISIBLE && (
+        <div className="px-3">
+          <ModeSwitcher />
+        </div>
+      )}
 
       {/* 工作区切换器已按调研建议收起：默认单工作区，多工作区管理降级到设置 > 工作区（高级选项） */}
 
