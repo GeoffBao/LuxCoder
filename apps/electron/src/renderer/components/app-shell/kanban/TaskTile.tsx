@@ -1,6 +1,6 @@
 import { useDraggable } from '@dnd-kit/core'
 import { useAtomValue } from 'jotai'
-import { Archive, ArchiveRestore, ChevronDown, Clock, Link2, MessageSquare, MoreHorizontal, Pencil, Play, Tag, Trash2 } from 'lucide-react'
+import { Archive, ArchiveRestore, ChevronDown, Clock, Link2, MessageSquare, MoreHorizontal, Pencil, Play, Tag, Trash2, Users } from 'lucide-react'
 import * as React from 'react'
 import { cn } from '@/lib/utils'
 import { StatusBadge } from './StatusBadge'
@@ -36,6 +36,8 @@ interface TaskTileProps {
   onRetryTeambition?: (item: KanbanItem) => void
   onSetLabels?: (item: KanbanItem, labelIds: string[]) => void
   onChangeWorkflow?: (item: KanbanItem, workflow: TaskWorkflow) => void
+  /** 打开任务家族会话面板（同 taskSlug 的全部关联会话） */
+  onOpenTaskFamily?: (item: KanbanItem) => void
   className?: string
 }
 
@@ -57,6 +59,7 @@ export function TaskTile({
   onRetryTeambition,
   onSetLabels,
   onChangeWorkflow,
+  onOpenTaskFamily,
   className,
 }: TaskTileProps): React.ReactElement {
   const [expanded, setExpanded] = React.useState(
@@ -126,6 +129,9 @@ export function TaskTile({
   const canSetLabels = Boolean(onSetLabels) && Boolean(item.task && !item.task.legacyIdentity)
   const canChangeWorkflow = Boolean(onChangeWorkflow) && Boolean(item.task && !item.task.legacyIdentity)
   const hasCardMenu = canEdit || canRename || canArchive || canDelete || canSetLabels || canChangeWorkflow
+  // 任务家族入口：正式 Task（非 legacy）始终可查；普通会话有 taskSlug 也可查（对齐 craft 家族心智）
+  const canOpenTaskFamily = Boolean(onOpenTaskFamily) && Boolean(item.task?.taskSlug ?? item.session.taskSlug)
+  const hasAnyMenu = hasCardMenu || canOpenTaskFamily
 
   const card = (
     <article
@@ -173,7 +179,13 @@ export function TaskTile({
               className="w-full rounded-md border border-border bg-background px-1.5 py-0.5 text-sm font-medium leading-5 outline-none ring-1 ring-ring"
             />
           ) : (
-            <h3 className="line-clamp-2 text-sm font-medium leading-5">{item.title}</h3>
+            <h3 className={cn(
+              'line-clamp-2 text-sm font-medium leading-5',
+              // 对齐 craft：done/cancelled（closed 态）标题划线，与列位置无关
+              (item.task?.workflow === 'done' || item.task?.workflow === 'cancelled'
+                || item.session.sessionStatus === 'done' || item.session.sessionStatus === 'cancelled')
+                && 'text-foreground/55 line-through',
+            )}>{item.title}</h3>
           )}
           {viewModel.projectName && <p className="mt-1 truncate text-[11px] text-muted-foreground">{viewModel.projectName}</p>}
           {viewModel.labelIds.length > 0 && (
@@ -198,6 +210,22 @@ export function TaskTile({
             <Play className="h-3.5 w-3.5 fill-current" />
           </button>
         )}
+        {canOpenTaskFamily && (
+          <button
+            type="button"
+            title="查看任务全部会话"
+            aria-label="查看任务全部会话"
+            data-no-dnd
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation()
+              onOpenTaskFamily?.(item)
+            }}
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Users className="h-4 w-4" />
+          </button>
+        )}
         {hasCardMenu && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -214,6 +242,11 @@ export function TaskTile({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-40 z-[9999]" onClick={(event) => event.stopPropagation()}>
+              {canOpenTaskFamily && (
+                <DropdownMenuItem onSelect={() => onOpenTaskFamily?.(item)}>
+                  <Users className="mr-2 h-3.5 w-3.5" />任务会话
+                </DropdownMenuItem>
+              )}
               {canEdit && (
                 <DropdownMenuItem onSelect={() => handleEdit()}>
                   <Pencil className="mr-2 h-3.5 w-3.5" />编辑任务
@@ -397,7 +430,7 @@ export function TaskTile({
     </article>
   )
 
-  if (!hasCardMenu) return card
+  if (!hasAnyMenu) return card
 
   const archived = Boolean(item.task?.archivedAt ?? item.session.archived)
 
@@ -408,6 +441,12 @@ export function TaskTile({
           元素盖住会"看起来没反应"——AgentSessionItem 的会话行右键菜单已经踩过这个坑，
           这里保持同一套覆盖值。 */}
       <ContextMenuContent className="w-40 z-[9999]">
+        {canOpenTaskFamily && (
+          <ContextMenuItem onSelect={() => onOpenTaskFamily?.(item)}>
+            <Users className="mr-2 h-3.5 w-3.5" />
+            任务会话
+          </ContextMenuItem>
+        )}
         {canEdit && (
           <ContextMenuItem onSelect={() => handleEdit()}>
             <Pencil className="mr-2 h-3.5 w-3.5" />

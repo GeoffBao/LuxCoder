@@ -51,6 +51,7 @@ import { KanbanProjectFilter } from './KanbanProjectFilter'
 import { TaskBoardFilters } from './TaskBoardFilters'
 import { NewTaskComposer } from './NewTaskComposer'
 import { TaskEditor } from './TaskEditor'
+import { TaskFamilySheet } from './TaskFamilySheet'
 import { resolveTaskEditorTarget } from './task-editor-model'
 import { resolveTaskBoardEmptyState } from './task-board-empty-state'
 import { filterPickableKanbanProjects, type KanbanItem, type KanbanProject, type TaskEditorTarget } from './types'
@@ -120,6 +121,8 @@ export function KanbanBoardContainer({
   const [pendingDeleteItem, setPendingDeleteItem] = React.useState<KanbanItem | null>(null)
   const [deleteImpact, setDeleteImpact] = React.useState<TaskDeleteImpact | null>(null)
   const [impactLoading, setImpactLoading] = React.useState(false)
+  // 任务家族会话面板：聚焦某张卡片的 taskSlug，列出同 slug 全部关联会话
+  const [familyTarget, setFamilyTarget] = React.useState<KanbanItem | null>(null)
   const [deleting, setDeleting] = React.useState(false)
 
   const visibleItems = mode === 'board' ? activeBoardItems(items, workflowFilter) : items
@@ -507,6 +510,7 @@ export function KanbanBoardContainer({
           setPendingDeleteItem(item)
         }}
         onOpenSubtask={onOpenSubtask}
+        onOpenTaskFamily={(item) => setFamilyTarget(item)}
         onRunTask={(item) => {
           const taskSlug = item.task?.taskSlug ?? item.session.taskSlug
           if (!workspaceRoot || !workspace || !taskSlug) return
@@ -613,6 +617,17 @@ export function KanbanBoardContainer({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <TaskFamilySheet
+        open={familyTarget !== null}
+        onOpenChange={(open) => { if (!open) setFamilyTarget(null) }}
+        taskSlug={familyTarget?.task?.taskSlug ?? familyTarget?.session.taskSlug ?? ''}
+        orchestratorSessionId={familyTarget?.task?.orchestratorSessionId ?? familyTarget?.session.id}
+        title={familyTarget?.title ?? ''}
+        onOpenSession={(sessionId) => {
+          setFamilyTarget(null)
+          onOpenSubtask?.(sessionId)
+        }}
+      />
     </div>
   )
 }

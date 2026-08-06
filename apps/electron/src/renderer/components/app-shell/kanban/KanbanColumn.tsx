@@ -16,6 +16,7 @@ interface KanbanColumnProps {
   onArchiveItem?: (item: KanbanItem) => void
   onDeleteItem?: (item: KanbanItem) => void
   onOpenSubtask?: (sessionId: string) => void
+  onOpenTaskFamily?: (item: KanbanItem) => void
   onRunTask?: (item: KanbanItem) => void
   onRetryTeambition?: (item: KanbanItem) => void
   onSetLabels?: (item: KanbanItem, labelIds: string[]) => void
@@ -25,7 +26,7 @@ interface KanbanColumnProps {
   onRemoveColumn?: (columnId: string) => void
 }
 
-export function KanbanColumn({ column, onOpenItem, onEditItem, onRenameItem, onArchiveItem, onDeleteItem, onOpenSubtask, onRunTask, onRetryTeambition, onSetLabels, onChangeWorkflow, onUpdateColumn, onRemoveColumn }: KanbanColumnProps): React.ReactElement {
+export function KanbanColumn({ column, onOpenItem, onEditItem, onRenameItem, onArchiveItem, onDeleteItem, onOpenSubtask, onOpenTaskFamily, onRunTask, onRetryTeambition, onSetLabels, onChangeWorkflow, onUpdateColumn, onRemoveColumn }: KanbanColumnProps): React.ReactElement {
   const drop = useDroppable({ id: `column:${column.id}`, data: { columnId: column.id } })
   const color = resolveKanbanColumnColor(column.id, column.color)
   return (
@@ -60,6 +61,7 @@ export function KanbanColumn({ column, onOpenItem, onEditItem, onRenameItem, onA
             onArchive={onArchiveItem}
             onRequestDelete={onDeleteItem}
             onOpenSubtask={onOpenSubtask}
+            onOpenTaskFamily={onOpenTaskFamily}
             onRunTask={onRunTask}
             onRetryTeambition={onRetryTeambition}
             onSetLabels={onSetLabels}
