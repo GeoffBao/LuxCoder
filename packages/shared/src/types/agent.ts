@@ -1041,16 +1041,18 @@ export interface WorkspaceMcpConfig {
 
 // ===== Skill 元数据 =====
 
-/** 导入来源类型：工作区本地 / 企业版组织分发 / SkillHub 市场 */
-export type SkillImportSourceType = 'workspace' | 'organization' | 'skillhub'
+/** 导入来源类型：工作区本地 / 企业版组织分发 / SkillHub 市场 / 本地文件导入 */
+export type SkillImportSourceType = 'workspace' | 'organization' | 'skillhub' | 'local'
 
-/** 从其他工作区/组织导入的 Skill 来源元数据 */
+/** 从其他工作区/组织/本地文件导入的 Skill 来源元数据 */
 export interface SkillImportSource {
   /** 来源类型；缺省按 workspace 处理（兼容旧数据） */
   sourceType?: SkillImportSourceType
   /** workspace 源：来源工作区 slug */
   sourceWorkspaceSlug?: string
   sourceWorkspaceName?: string
+  /** local 源：本地 zip / 文件夹路径（导入时记录） */
+  localPath?: string
   /** organization 源：组织 ID 与名称 */
   organizationId?: string
   organizationName?: string
@@ -1926,6 +1928,10 @@ export const AGENT_IPC_CHANNELS = {
   BATCH_IMPORT_SKILLS_FROM_WORKSPACES: 'agent:batch-import-skills-from-workspaces',
   /** 从源工作区同步更新已导入的 Skill */
   UPDATE_SKILL_FROM_SOURCE: 'agent:update-skill-from-source',
+  /** 选择本地 Skill 导入源（zip 压缩包或文件夹） */
+  PICK_LOCAL_SKILL_SOURCE: 'agent:pick-local-skill-source',
+  /** 从本地 zip / 文件夹导入 Skill 到当前工作区 */
+  IMPORT_SKILLS_FROM_LOCAL: 'agent:import-skills-from-local',
   /** 读取 SKILL.md 全文内容 */
   READ_SKILL_CONTENT: 'agent:read-skill-content',
   /** 写入 SKILL.md 全文内容 */

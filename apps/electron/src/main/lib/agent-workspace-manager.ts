@@ -12,6 +12,7 @@ import type { Dirent } from 'node:fs'
 import { rmSyncWithRetry, renameIfDestinationAbsentWithRetry, renameWithRetry } from './fs-retry'
 import { writeJsonFileAtomic, readJsonFileSafe } from './safe-file'
 import { randomUUID } from 'node:crypto'
+import { tmpdir } from 'node:os'
 import { join, resolve, relative, isAbsolute, dirname, basename } from 'node:path'
 import {
   getAgentWorkspacesIndexPath,
@@ -1854,6 +1855,158 @@ export async function importSkillFromOrganization(
   meta.importSource = source
   console.log(`[Agent 工作区] 已从组织导入 Skill: ${targetSlug}/${skill.slug} (v${skill.version})`)
   return meta
+}
+
+// ===== 本地文件导入（zip 压缩包 / 文件夹） =====
+
+/** 递归收集含 SKILL.md 的 Skill 目录；一个 Skill 目录内部不再深入（支持单/多 Skill 包） */
+function collectLocalSkillDirs(root: string): string[] {
+  const results: string[] = []
+  const visit = (dir: string): void => {
+    let entries: Dirent[]
+    try {
+      entries = readdirSync(dir, { withFileTypes: true })
+    } catch {
+      return
+    }
+    if (entries.some((entry) => entry.isFile() && entry.name === 'SKILL.md')) {
+      results.push(dir)
+      return
+    }
+    for (const entry of entries) {
+      if (entry.isDirectory() && entry.name !== '.git') {
+        visit(join(dir, entry.name))
+      }
+    }
+  }
+  visit(root)
+  return results
+}
+
+/** 把 zip 字节安全落盘到目标目录（防路径穿越：仅允许相对路径、拒绝 .. 段） */
+function writeZipFilesToDir(files: Record<string, Uint8Array>, dest: string): void {
+  for (const [name, content] of Object.entries(files)) {
+    const normalized = name.replace(/\\/g, '/').replace(/^\/+/, '')
+    const isAbsoluteDrive = /^[a-zA-Z]:\//.test(normalized)
+    if (
+      !normalized
+      || normalized.split('/').some((segment) => segment === '..')
+      || isAbsoluteDrive
+    ) {
+      throw new Error(`压缩包包含非法路径: ${name}`)
+    }
+    const filePath = join(dest, normalized)
+    mkdirSync(dirname(filePath), { recursive: true })
+    writeFileSync(filePath, content)
+  }
+}
+
+/**
+ * 从本地 zip 压缩包或文件夹导入 Skill 到目标工作区。
+ * 压缩包 / 文件夹内任意含 SKILL.md 的目录都会识别为一个 Skill（单/多 Skill 均支持）；
+ * 同名 Skill 已存在时跳过（不覆盖）。
+ */
+export async function importSkillsFromLocal(
+  targetSlug: string,
+  sourcePath: string,
+): Promise<BulkImportSkillsResult> {
+  if (!sourcePath || !existsSync(sourcePath)) {
+    throw new Error('本地 Skill 源不存在或已移动')
+  }
+  const sourceStat = statSync(sourcePath)
+  const items: BulkImportSkillItemResult[] = []
+
+  // 解析来源根目录：zip 解压到临时目录；文件夹直接使用
+  let rootDir = sourcePath
+  let tempDir: string | undefined
+  try {
+    if (sourceStat.isFile()) {
+      if (!sourcePath.toLowerCase().endsWith('.zip')) {
+        throw new Error('仅支持 .zip 压缩包或文件夹形式的 Skill 源')
+      }
+      tempDir = join(tmpdir(), `luxcoder-skill-import-${randomUUID()}`)
+      mkdirSync(tempDir, { recursive: true })
+      const files = await extractSkillZip(readFileSync(sourcePath))
+      if (Object.keys(files).length === 0) {
+        throw new Error('压缩包为空或不是有效的 zip 文件')
+      }
+      writeZipFilesToDir(files, tempDir)
+      rootDir = tempDir
+    } else if (!sourceStat.isDirectory()) {
+      throw new Error('不支持的 Skill 源类型')
+    }
+
+    const skillDirs = collectLocalSkillDirs(rootDir)
+    if (skillDirs.length === 0) {
+      throw new Error('未在所选位置找到 SKILL.md（请选择包含 SKILL.md 的文件夹或压缩包）')
+    }
+
+    const targetSkillsDir = getWorkspaceSkillsDir(targetSlug)
+    for (const skillDir of skillDirs) {
+      const slug = basename(skillDir)
+      const targetPath = join(targetSkillsDir, slug)
+      const targetInactivePath = join(getInactiveSkillsDir(targetSlug), slug)
+      try {
+        const meta = await withSkillImportLock(targetPath, async () => {
+          if (existsSync(targetPath) || existsSync(targetInactivePath)) {
+            throw new SkillAlreadyExistsError(slug)
+          }
+          const importSource: SkillImportSource = {
+            sourceType: 'local',
+            localPath: sourcePath,
+            importedAt: new Date().toISOString(),
+            sourceVersion: parseSkillVersion(skillDir),
+            sourceContentHash: computeSkillContentHash(skillDir),
+          }
+          const tempPath = join(targetSkillsDir, `.${slug}.importing-${randomUUID()}`)
+          try {
+            await cpAsync(skillDir, tempPath, { recursive: true })
+            await writeFileAsync(join(tempPath, SOURCE_META_FILE), JSON.stringify(importSource, null, 2), 'utf-8')
+            const content = await readFileAsync(join(tempPath, 'SKILL.md'), 'utf-8')
+            const skillMeta = parseSkillFrontmatter(content, slug, true)
+            skillMeta.importSource = importSource
+            if (!renameIfDestinationAbsentWithRetry(tempPath, targetPath)) {
+              throw new SkillAlreadyExistsError(slug)
+            }
+            console.log(`[Agent 工作区] 已从本地导入 Skill: ${targetSlug}/${slug} ← ${sourcePath}`)
+            return skillMeta
+          } catch (error) {
+            if (existsSync(tempPath)) {
+              try {
+                rmSyncWithRetry(tempPath, { recursive: true, force: true })
+              } catch (cleanupError) {
+                console.warn(`[Agent 工作区] 清理 Skill 临时目录失败: ${tempPath}`, cleanupError)
+              }
+            }
+            throw error
+          }
+        })
+        items.push({ slug, name: meta.name, status: 'imported' })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '未知错误'
+        if (error instanceof SkillAlreadyExistsError) {
+          items.push({ slug, name: slug, status: 'skipped', reason: '已存在同名 Skill' })
+        } else {
+          items.push({ slug, name: slug, status: 'failed', reason: message })
+        }
+      }
+    }
+  } finally {
+    if (tempDir) {
+      try {
+        rmSyncWithRetry(tempDir, { recursive: true, force: true })
+      } catch (cleanupError) {
+        console.warn(`[Agent 工作区] 清理本地导入临时目录失败: ${tempDir}`, cleanupError)
+      }
+    }
+  }
+
+  return {
+    imported: items.filter((item) => item.status === 'imported').length,
+    skipped: items.filter((item) => item.status === 'skipped').length,
+    failed: items.filter((item) => item.status === 'failed').length,
+    items,
+  }
 }
 
 /**
