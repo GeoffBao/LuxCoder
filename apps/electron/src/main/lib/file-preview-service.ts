@@ -649,6 +649,26 @@ export async function preparePdfPreview(filePath: string, basePaths?: string[]):
   return { resolvedPath: safePath, tmpHtmlUrl }
 }
 
+/** 为内联 HTML 预览注册文件所在目录的 luxcoder-file:// URL（相对路径资源自动解析） */
+export async function prepareHtmlPreview(filePath: string, basePaths?: string[]): Promise<{ resolvedPath: string; tmpUrl: string } | null> {
+  const safePath = resolveTargetPath(filePath, basePaths)
+  if (!existsSync(safePath)) return null
+  const st = statSync(safePath)
+  if (st.size > MAX_FILE_SIZE) return null
+
+  try {
+    const { registerPromaDirectoryPath } = await import('./local-file-protocol')
+    const dirUrl = registerPromaDirectoryPath(dirname(safePath))
+    // 目录 URL 形如 luxcoder-file://{token}，拼接文件名后 iframe 可直接加载；
+    // 页面内相对路径资源（css/js/img）会走协议目录解析，自动补齐。
+    const tmpUrl = `${dirUrl}/${encodeURIComponent(basename(safePath))}`
+    return { resolvedPath: safePath, tmpUrl }
+  } catch (err) {
+    console.error('[file-preview] prepareHtmlPreview asset resolution failed:', err)
+    return null
+  }
+}
+
 /** 将 DOCX 文件转换为 HTML（供内联预览使用） */
 export async function convertDocxToHtml(filePath: string, basePaths?: string[]): Promise<{ resolvedPath: string; html: string } | null> {
   const safePath = resolveTargetPath(filePath, basePaths)
