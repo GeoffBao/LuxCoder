@@ -10,15 +10,18 @@
 
 import { useMemo, useState } from 'react'
 import { useAtomValue, useSetAtom } from 'jotai'
-import { BookOpen, ChevronRight, ChevronLeft, HardDriveDownload, Users2 } from 'lucide-react'
+import { BookOpen, ChevronRight, ChevronLeft, HardDriveDownload, KeyRound, Users2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { EnvironmentCheckPanel } from '@/components/environment/EnvironmentCheckPanel'
 import { isShellEnvironmentOkAtom } from '@/atoms/environment'
 import { detectIsWindows } from '@/lib/platform'
 import { migrationImportDialogOpenAtom } from '@/atoms/migration-atoms'
 
+/** Onboarding 完成后的后续动作：打开教程 Tab / 打开渠道设置；不传则直接进入主界面 */
+export type OnboardingCompleteAction = 'tutorial' | 'channels'
+
 interface OnboardingViewProps {
-  onComplete: (openTutorial?: boolean) => void
+  onComplete: (action?: OnboardingCompleteAction) => void
 }
 
 const TUTORIAL_ASSETS_BASE = 'https://github.com/GeoffBao/LuxCoder/releases/download/tutorial-assets'
@@ -29,9 +32,9 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
   const shellOk = useAtomValue(isShellEnvironmentOkAtom)
   const setMigrationImportDialogOpen = useSetAtom(migrationImportDialogOpenAtom)
 
-  const handleFinish = async (openTutorial?: boolean) => {
+  const handleFinish = async (action?: OnboardingCompleteAction) => {
     await window.electronAPI.updateSettings({ onboardingCompleted: true })
-    onComplete(openTutorial)
+    onComplete(action)
   }
 
   const handleNextFromWelcome = () => {
@@ -73,7 +76,7 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
           <div className="w-full max-w-2xl space-y-3">
             {/* 主推：查看使用指南 */}
             <button
-              onClick={() => handleFinish(true)}
+              onClick={() => handleFinish('tutorial')}
               className="w-full rounded-xl bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 border border-primary/15 p-4 flex items-center gap-4 hover:from-primary/10 hover:via-primary/15 hover:to-primary/10 transition-colors text-left"
             >
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
@@ -83,6 +86,23 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
                 <h3 className="text-sm font-semibold text-foreground">查看使用指南</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   了解 Chat / Code 模式、项目管理、任务编排、Skills 系统等核心功能
+                </p>
+              </div>
+              <ChevronRight size={16} className="text-muted-foreground/50 flex-shrink-0" />
+            </button>
+
+            {/* 配置 AI 渠道：可跳过，避免首次进入 Chat/Code 因未配置渠道而空转 */}
+            <button
+              onClick={() => handleFinish('channels')}
+              className="w-full rounded-xl border border-border/60 bg-card/50 p-4 flex items-center gap-4 hover:bg-card hover:border-border transition-colors text-left"
+            >
+              <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
+                <KeyRound size={18} className="text-muted-foreground" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-medium text-foreground">配置 AI 渠道</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  添加 API Key，Chat / Code 才能正常对话（也可稍后随时在设置中配置）
                 </p>
               </div>
               <ChevronRight size={16} className="text-muted-foreground/50 flex-shrink-0" />

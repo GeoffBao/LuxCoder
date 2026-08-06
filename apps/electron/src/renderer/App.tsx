@@ -1,13 +1,14 @@
 import * as React from 'react'
 import { useAtom, useStore } from 'jotai'
 import { AppShell } from './components/app-shell/AppShell'
-import { OnboardingView } from './components/onboarding/OnboardingView'
+import { OnboardingView, type OnboardingCompleteAction } from './components/onboarding/OnboardingView'
 import { TutorialBanner } from './components/tutorial/TutorialBanner'
 import { EnvironmentCheckDialog } from './components/environment/EnvironmentCheckDialog'
 import { MigrationImportDialog } from './components/migration/MigrationImportDialog'
 import { TooltipProvider } from './components/ui/tooltip'
 import { conversationsAtom } from './atoms/chat-atoms'
 import { environmentCheckDialogOpenAtom } from './atoms/environment'
+import { settingsOpenAtom, settingsTabAtom } from './atoms/settings-tab'
 import { tabsAtom, activeTabIdAtom, openTab, TUTORIAL_TAB_ID } from './atoms/tab-atoms'
 import luxcoderMarkWhite from './assets/brand/luxcoder-mark-white.svg'
 import type { AppShellContextType } from './contexts/AppShellContext'
@@ -44,11 +45,11 @@ export default function App(): React.ReactElement {
     initialize()
   }, [])
 
-  // 完成 onboarding 回调：创建欢迎对话，可选打开教程 Tab
-  const handleOnboardingComplete = async (openTutorial?: boolean) => {
+  // 完成 onboarding 回调：创建欢迎对话，可选打开教程 Tab / 渠道设置
+  const handleOnboardingComplete = async (action?: OnboardingCompleteAction) => {
     setShowOnboarding(false)
 
-    if (openTutorial) {
+    if (action === 'tutorial') {
       const tabs = store.get(tabsAtom)
       const result = openTab(tabs, { type: 'tutorial', sessionId: TUTORIAL_TAB_ID, title: 'LuxCoder 使用指南' })
       store.set(tabsAtom, result.tabs)
@@ -73,6 +74,11 @@ export default function App(): React.ReactElement {
       }
     } catch (error) {
       console.error('[App] 创建欢迎对话失败:', error)
+    }
+
+    if (action === 'channels') {
+      store.set(settingsTabAtom, 'channels')
+      store.set(settingsOpenAtom, true)
     }
   }
 
