@@ -83,6 +83,7 @@ import type { TabItem } from './atoms/tab-atoms'
 import { feishuBotStatesAtom } from './atoms/feishu-atoms'
 import { dingtalkBotStatesAtom } from './atoms/dingtalk-atoms'
 import { currentConversationIdAtom, channelsAtom, channelsLoadedAtom, selectedModelAtom } from './atoms/chat-atoms'
+import { chatToolsAtom } from './atoms/chat-tool-atoms'
 import { appModeAtom } from './atoms/app-mode'
 import type { FeishuBotBridgeState, FeishuBridgeState, DingTalkBotBridgeState, DingTalkBridgeState } from '@luxcoder/shared'
 import { Toaster } from './components/ui/sonner'
@@ -772,6 +773,31 @@ function SessionListPreferenceInitializer(): null {
 }
 
 /**
+ * Chat 工具列表初始化组件
+ *
+ * 全局挂载一次，加载 chatToolsAtom（唯一状态源）。
+ * 此前只有打开设置面板「工具」Tab 才会填充该 atom，
+ * 新会话未打开过设置时 ToolSelectorPopover 会一直显示"加载中..."，
+ * 且 activeToolIdsAtom 恒为空导致已启用的工具（记忆/联网搜索等）实际不生效。
+ * 同时订阅 chat-tools.json 文件变化，外部/其他窗口改动后自动刷新。
+ */
+function ChatToolsInitializer(): null {
+  const setChatTools = useSetAtom(chatToolsAtom)
+
+  useEffect(() => {
+    const load = (): void => {
+      window.electronAPI.getChatTools()
+        .then(setChatTools)
+        .catch((err: unknown) => console.error('[ChatToolsInitializer] 加载工具列表失败:', err))
+    }
+    load()
+    return window.electronAPI.onCustomToolChanged(load)
+  }, [setChatTools])
+
+  return null
+}
+
+/**
  * Chat IPC 监听器初始化组件
  *
  * 全局挂载，永不销毁。确保 Chat 流式事件
@@ -1221,6 +1247,7 @@ if (isQuickTaskWindow) {
       <MarkdownFontSizeInitializer />
       <SidebarModuleInitializer />
       <SessionListPreferenceInitializer />
+      <ChatToolsInitializer />
       <ChatListenersInitializer />
       <AgentListenersInitializer />
       <UpdaterInitializer />
