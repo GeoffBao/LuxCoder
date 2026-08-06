@@ -70,6 +70,10 @@ export function SkillCard({ skill, isBuiltin, updating, onOpen, onToggle, onUpda
           <span className="flex items-center gap-1 rounded-md bg-blue-500/10 px-1.5 py-0.5 text-[11px] font-medium text-blue-600 dark:text-blue-400">
             <ShieldCheck size={12} /> 系统内置
           </span>
+        ) : skill.importSource?.sourceKind === 'market' ? (
+          <span className="flex items-center gap-1 rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+            <ArrowDownToLine size={12} /> 市场
+          </span>
         ) : skill.importSource ? (
           <span className="truncate rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
             {skill.importSource.sourceType === 'organization'

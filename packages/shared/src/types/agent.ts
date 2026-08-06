@@ -1041,8 +1041,8 @@ export interface WorkspaceMcpConfig {
 
 // ===== Skill 元数据 =====
 
-/** 导入来源类型：工作区本地 or 企业版组织分发 */
-export type SkillImportSourceType = 'workspace' | 'organization'
+/** 导入来源类型：工作区本地 / 企业版组织分发 / SkillHub 市场 */
+export type SkillImportSourceType = 'workspace' | 'organization' | 'skillhub'
 
 /** 从其他工作区/组织导入的 Skill 来源元数据 */
 export interface SkillImportSource {
@@ -1060,6 +1060,8 @@ export interface SkillImportSource {
   organizationSkillSlug?: string
   importedAt: string        // ISO 8601
   sourceVersion: string     // 导入时源 Skill 的 version，无则 '0.0.0'
+  /** 来源类型：workspace=其他工作区导入 / market=从 Skill 市场下载（默认 workspace，向后兼容） */
+  sourceKind?: 'workspace' | 'market'
   /** 导入时源 Skill 目录的内容哈希（用于本地修改检测） */
   sourceContentHash?: string
   /** 最近一次与源 Skill 同步的时间（ISO 8601）；为空则从未同步 */
@@ -1178,6 +1180,35 @@ export interface CommunitySkill {
 
 /** 社区市场安装结果 */
 export interface CommunitySkillInstallResult {
+  slug: string
+  name: string
+  version: string
+}
+
+// ===== SkillHub 企业市场（内网） =====
+
+/** SkillHub 技能条目（Discovery.pull 兼容：name + files） */
+export interface SkillHubSkill {
+  name: string
+  files: string[]
+  description?: string
+  /** 发布者姓名（服务端 snake_case；兼容 camelCase） */
+  displayName?: string
+  display_name?: string
+  /** 发布者工号（服务端 snake_case；兼容 camelCase） */
+  employeeId?: string
+  employee_id?: string
+  downloads: number
+  stars: number
+}
+
+/** SkillHub 技能清单响应（GET /index.json） */
+export interface SkillHubIndex {
+  skills: SkillHubSkill[]
+}
+
+/** SkillHub 安装结果 */
+export interface SkillHubInstallResult {
   slug: string
   name: string
   version: string
@@ -1949,6 +1980,14 @@ export const AGENT_IPC_CHANNELS = {
   COMMUNITY_FETCH_MANIFEST: 'community:fetch-manifest',
   /** 安装社区市场 Skill 到工作区 */
   COMMUNITY_INSTALL_SKILL: 'community:install-skill',
+
+  // SkillHub 企业市场（内网）
+  /** 拉取 SkillHub 技能清单 */
+  SKILLHUB_FETCH_INDEX: 'skillhub:fetch-index',
+  /** 从 SkillHub 安装技能到工作区 */
+  SKILLHUB_INSTALL_SKILL: 'skillhub:install-skill',
+  /** 上报 SkillHub 下载次数 */
+  SKILLHUB_REPORT_DOWNLOAD: 'skillhub:report-download',
 
   // 流式事件（主进程 → 渲染进程推送）
   /** Agent 流式事件 */

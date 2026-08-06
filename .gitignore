@@ -61,3 +61,8 @@ pnpm-workspace.yaml
 
 # Claude Code local worktrees/settings (not part of this repo)
 .claude/
+
+# 开发日志与外部 API 快照（本地临时数据，不入仓）
+*.log
+skillhub-*.json
+skillhub-*.yaml

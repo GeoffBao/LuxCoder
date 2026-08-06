@@ -390,7 +390,7 @@ export const agentSidePanelWidthAtom = atomWithStorage<number>('luxcoder-agent-s
 /** @deprecated 保留以兼容旧代码，但实际所有 session 都读全局 atom */
 export const agentSidePanelOpenMapAtom = atom<Map<string, boolean>>(new Map())
 
-export type AgentSidePanelTab = 'files' | 'session' | 'workspace' | 'changes' | 'chat'
+export type AgentSidePanelTab = 'files' | 'session' | 'workspace' | 'changes' | 'chat' | 'preview'
 
 export type AgentFileSourceFilter = 'session' | 'project'
 

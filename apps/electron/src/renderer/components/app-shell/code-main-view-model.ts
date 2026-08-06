@@ -88,7 +88,7 @@ export function isOverlayActiveView(activeView: ActiveView): boolean {
 }
 
 /**
- * agent 模式主区是否渲染正式 Project 看板。
+ * agent 模式主区是否渲染正式 任务看板。
  *
  * 优先级约束：
  * - 仅 agent 模式（遗留 cowork 由启动迁移落到 agent + codeMainView='work'）

@@ -1,5 +1,6 @@
 import { slugify } from '../utils/slug.ts'
 import { TaskSpecSchema, type TaskSpec } from './schema.ts'
+import type { TaskType } from './task-record.ts'
 
 export interface BuildMinimalTaskSpecInput {
   title: string
@@ -11,6 +12,12 @@ export interface BuildMinimalTaskSpecInput {
   model?: string
   workingDirectory?: string
   projectId?: string
+  /** 任务来源：manual/teambition */
+  source?: 'manual' | 'teambition'
+  /** 来源为 teambition 时的 TB 任务 ID */
+  teambitionTaskId?: string
+  /** 业务类型：bug/requirement/task 等（TB 同步任务由 TB 任务类型解析） */
+  type?: TaskType
 }
 
 /**
@@ -34,6 +41,9 @@ export function buildMinimalTaskSpec(input: BuildMinimalTaskSpecInput): TaskSpec
     ...(acceptanceCriteria ? { acceptance_criteria: acceptanceCriteria } : {}),
     ...(input.projectId ? { project: input.projectId } : {}),
     ...(input.workingDirectory ? { cwd: input.workingDirectory } : {}),
+    ...(input.source ? { source: input.source } : {}),
+    ...(input.teambitionTaskId ? { teambitionTaskId: input.teambitionTaskId } : {}),
+    ...(input.type ? { type: input.type } : {}),
     ...(input.sources?.length ? { sources: input.sources } : {}),
     ...(input.skills?.length ? { skills: input.skills } : {}),
     ...(Object.keys(defaults).length ? { defaults } : {}),

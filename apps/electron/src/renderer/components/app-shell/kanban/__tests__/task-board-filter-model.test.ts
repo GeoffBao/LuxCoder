@@ -14,6 +14,7 @@ describe('cleanupTaskBoardFilterForWorkspace', () => {
     })).toEqual({
       scope: { kind: 'all' },
       workflow: 'needs-review',
+      source: 'all',
       labelIds: ['keep-label'],
       includeUnlabeled: true,
     })
@@ -23,6 +24,7 @@ describe('cleanupTaskBoardFilterForWorkspace', () => {
     expect(cleanupTaskBoardFilterForWorkspace({}, { projectIds: [], labelIds: [] })).toEqual({
       scope: { kind: 'all' },
       workflow: 'all',
+      source: 'all',
       labelIds: [],
       includeUnlabeled: false,
     })

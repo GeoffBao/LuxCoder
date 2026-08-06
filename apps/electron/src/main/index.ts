@@ -385,8 +385,11 @@ function createWindow(): void {
   installWindowsZoomInFallback(mainWindow)
 
   // Load the renderer
+  // 默认 dev 模式走 Vite dev server（热重载）；设置 LUXCODER_STATIC_RENDERER=1 时
+  // 直接加载 dist/renderer 静态构建，无需启动 Vite（适合只想看编译产物/快速验证）。
   const isDev = !app.isPackaged
-  if (isDev) {
+  const preferStaticRenderer = process.env.LUXCODER_STATIC_RENDERER === '1'
+  if (isDev && !preferStaticRenderer) {
     mainWindow.loadURL('http://127.0.0.1:5173')
     mainWindow.webContents.openDevTools()
   } else {
