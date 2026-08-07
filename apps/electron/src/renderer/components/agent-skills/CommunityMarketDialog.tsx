@@ -1,7 +1,7 @@
 /**
  * CommunityMarketDialog — 社区市场（n-skills）
  *
- * 拉取 n-skills 市场清单，浏览/搜索社区 Skill，一键安装到当前工作区。
+ * 拉取 n-skills 市场清单，浏览/搜索社区 Skill，一键安装到当前空间。
  */
 
 import * as React from 'react'
@@ -94,7 +94,7 @@ export function CommunityMarketDialog({ open, onOpenChange, workspaceSlug, insta
             社区市场 · n-skills
           </DialogTitle>
           <DialogDescription>
-            浏览社区贡献的 Agent Skills，一键安装到当前工作区。由 n-skills 社区维护，遵循各 Skill 的许可证。
+            浏览社区贡献的 Agent Skills，一键安装到当前空间。由 n-skills 社区维护，遵循各 Skill 的许可证。
           </DialogDescription>
         </DialogHeader>
 

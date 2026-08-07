@@ -47,7 +47,7 @@ export function NewTaskProjectFlowDialog(): React.ReactElement {
         <DialogHeader>
           <DialogTitle>新建任务</DialogTitle>
           <DialogDescription>
-            可绑定项目，也可直接创建 Workspace Task。
+            可绑定工作区，也可直接创建 Workspace Task。
           </DialogDescription>
         </DialogHeader>
         <ProjectContextPicker

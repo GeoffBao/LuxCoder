@@ -21,6 +21,8 @@ export interface SessionHeaderProps {
   maxLength?: number
   /** 标题旁的可选标签（如项目名），仅在非编辑态显示 */
   badge?: React.ReactNode
+  /** 标题上方的可选面包屑行（如工作区名 · 路径），对齐 synara ChatHeader 的线程面包屑 */
+  breadcrumb?: React.ReactNode
 }
 
 export function SessionHeader({
@@ -29,6 +31,7 @@ export function SessionHeader({
   actions,
   maxLength = 100,
   badge,
+  breadcrumb,
 }: SessionHeaderProps): React.ReactElement {
   const isWindows = React.useMemo(() => detectIsWindows(), [])
   const [editing, setEditing] = React.useState(false)
@@ -102,10 +105,19 @@ export function SessionHeader({
         </div>
       ) : (
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
-          <span className="truncate text-sm font-medium text-foreground">
-            {title}
-          </span>
-          {badge}
+          <div className="min-w-0 flex-1">
+            {breadcrumb && (
+              <div className="mb-0.5 flex min-w-0 items-center gap-1 truncate text-[10px] leading-4 text-muted-foreground/55">
+                {breadcrumb}
+              </div>
+            )}
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="truncate text-sm font-medium text-foreground">
+                {title}
+              </span>
+              {badge}
+            </div>
+          </div>
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}

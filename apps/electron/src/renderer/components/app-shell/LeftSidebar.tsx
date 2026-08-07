@@ -870,7 +870,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   /**
    * 当前工作区的 craft Project 列表。
    * ProjectsInitializer 按 slug 加载，这里再按 workspaceId 过滤，
-   * 避免工作区切换瞬间 atom 尚未清空时把旧工作区项目渲到新工作区组（闪一帧空子分组）。
+   * 避免空间切换瞬间 atom 尚未清空时把旧工作区渲到新空间组（闪一帧空子分组）。
    */
   const currentWorkspaceProjects = React.useMemo(() => {
     if (!currentWorkspaceSlug) return EMPTY_PROJECTS
@@ -1306,12 +1306,12 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       const updated = await window.electronAPI.sendSessionCommand(sessionId, { kind: 'set_project_id', projectId })
       setAgentSessions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
     } catch (error) {
-      console.error('[侧边栏] 移动到项目失败:', error)
-      toast.error('移动到项目失败')
+      console.error('[侧边栏] 移动到工作区失败:', error)
+      toast.error('移动到工作区失败')
     }
   }, [setAgentSessions])
 
-  /** 项目模式下全局「+」新建项目（KanbanProject，不是 Workspace） */
+  /** 工作区模式下全局「+」新建工作区（KanbanProject，不是 Workspace） */
   const handleCreateKanbanProject = React.useCallback(async (input: Parameters<typeof window.electronAPI.projects.create>[1]): Promise<void> => {
     if (!workspaceRoot) return
     setCreatingProject(true)
@@ -1319,13 +1319,13 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       const project = await window.electronAPI.projects.create(workspaceRoot, input)
       setKanbanProjects((prev) => [project, ...prev.filter((existing) => existing.id !== project.id)])
       setCreateProjectOpen(false)
-      toast.success('项目已创建')
+      toast.success('工作区已创建')
       // 新建后进入唯一任务看板并按该 Project 筛选。
       setSelectedProjectId(project.id)
       setCodeMainView('tasks')
       setActiveView('conversations')
     } catch (cause) {
-      toast.error('创建项目失败', { description: cause instanceof Error ? cause.message : String(cause) })
+      toast.error('创建工作区失败', { description: cause instanceof Error ? cause.message : String(cause) })
     } finally {
       setCreatingProject(false)
     }
@@ -1466,7 +1466,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     if (!workspaceId || !workspace) return
 
     if (!canDeleteWorkspace(workspace)) {
-      toast.error(workspace.slug === 'default' ? '默认空间不能删除' : '至少需要保留一个工作空间')
+      toast.error(workspace.slug === 'default' ? '默认空间不能删除' : '至少需要保留一个空间')
       setPendingDeleteWorkspaceId(null)
       return
     }
@@ -1546,12 +1546,12 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         }
       }
 
-      toast.success('工作空间已删除', {
+      toast.success('空间已删除', {
         description: `已删除「${workspace.name}」及其绑定资源`,
       })
     } catch (error) {
-      console.error('[侧边栏] 删除工作区失败:', error)
-      const msg = error instanceof Error ? error.message : '删除工作区失败'
+      console.error('[侧边栏] 删除空间失败:', error)
+      const msg = error instanceof Error ? error.message : '删除空间失败'
       toast.error(msg)
     } finally {
       setDeletingWorkspaceId(null)
@@ -1709,9 +1709,9 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         .reorderAgentWorkspaces(newWorkspaceIds)
         .then(setWorkspaces)
         .catch((error) => {
-          console.error('[侧边栏] 工作区排序失败:', error)
+          console.error('[侧边栏] 空间排序失败:', error)
           setWorkspaces(workspaces)
-          toast.error('工作区排序失败')
+          toast.error('空间排序失败')
         })
     }
   }, [dragProjectId, projectDropIndicator, automationGroup, automationGroupOrder, setWorkspaces, workspaces])
@@ -1938,7 +1938,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       const updated = await window.electronAPI.updateAgentWorkspace(workspaceId, { name: newName })
       setWorkspaces((prev) => prev.map((w) => (w.id === updated.id ? updated : w)))
     } catch (error) {
-      console.error('[侧边栏] 重命名工作区失败:', error)
+      console.error('[侧边栏] 重命名空间失败:', error)
       const msg = error instanceof Error ? error.message : '重命名失败'
       toast.error(msg)
     }
@@ -2502,7 +2502,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     </AlertDialog>
   )
 
-  // 工作空间删除确认弹窗（会同时删除其下的会话与绑定资源）
+  // 空间删除确认弹窗（会同时删除其下的会话与绑定资源）
   const projectDeleteDialog = (
     <AlertDialog
       open={pendingDeleteWorkspaceId !== null}
@@ -2520,9 +2520,9 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         }}
       >
         <AlertDialogHeader>
-          <AlertDialogTitle>确认删除工作空间</AlertDialogTitle>
+          <AlertDialogTitle>确认删除空间</AlertDialogTitle>
           <AlertDialogDescription>
-            将删除「{pendingDeleteWorkspace?.name ?? '该工作空间'}」及其绑定的所有会话、自动任务、MCP、Skills、工作区文件和本地工作区目录。附加目录和附加文件只会移除引用，不会删除原始文件。删除后无法恢复。
+            将删除「{pendingDeleteWorkspace?.name ?? '该空间'}」及其绑定的所有会话、自动任务、MCP、Skills、工作区文件和本地工作区目录。附加目录和附加文件只会移除引用，不会删除原始文件。删除后无法恢复。
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -2532,7 +2532,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             onClick={handleConfirmDeleteWorkspace}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {deletingWorkspaceId ? '删除中...' : '删除工作空间'}
+            {deletingWorkspaceId ? '删除中...' : '删除空间'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -2602,7 +2602,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
           <CollapsedWorkspacePopover>
             <button
               type="button"
-              aria-label="切换到 Code 模式（悬停查看工作区）"
+              aria-label="切换到 Code 模式（悬停查看空间）"
               onClick={() => handleRailModeSwitch('agent')}
               className={cn(
                 'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag',
@@ -3257,11 +3257,11 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
       {/* 会话列表筛选行：对标 Claude 的分组标题行（如「Today」右侧筛选图标），
           不再是孤立的图标，而是左边带标签、右边带筛选的全宽标题行；
-          项目模式下额外包含「新建项目 +」按钮 */}
+          工作区模式下额外包含「新建工作区 +」按钮 */}
       {mode === 'agent' && (
         <div className="flex items-center justify-between px-3 pt-1 pb-1 border-b border-border/50">
           <span className="px-1.5 text-[11px] font-medium text-foreground/35 select-none">
-            {agentGroupBy === 'project' ? '项目' : '会话'}
+            {agentGroupBy === 'project' ? '工作区' : '会话'}
           </span>
           <span className="flex items-center gap-0.5">
             {agentGroupBy === 'project' && (
@@ -3269,14 +3269,14 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    aria-label="新建项目"
+                    aria-label="新建工作区"
                     onClick={() => setCreateProjectOpen(true)}
                     className="grid size-6 place-items-center rounded-md text-foreground/50 transition-colors hover:bg-foreground/[0.06] hover:text-foreground/80"
                   >
                     <Plus size={14} />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom">新建项目</TooltipContent>
+                <TooltipContent side="bottom">新建工作区</TooltipContent>
               </Tooltip>
             )}
             <SessionListFilterMenu />
@@ -3810,7 +3810,7 @@ interface ChildSessionItemProps {
   agentIndicatorMap: Map<string, SessionIndicatorStatus>
   relativeTimeNow: number
   workspaceName?: string
-  /** 当前工作区项目列表 + 移动回调；透传给会话行的「移动到项目」子菜单 */
+  /** 当前工作区列表 + 移动回调；透传给会话行的「移动到工作区」子菜单 */
   projects?: KanbanProject[]
   onMoveToProject?: (sessionId: string, projectId?: string) => void | Promise<void>
   /** 当前工作区自定义分组 + 移动/新建回调；透传给会话行的「移动到分组」子菜单 */
@@ -4253,7 +4253,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
               onSelect={() => onRequestDeleteWorkspace(group.workspace.id)}
             >
               <Trash2 size={14} />
-              删除工作空间
+              删除空间
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

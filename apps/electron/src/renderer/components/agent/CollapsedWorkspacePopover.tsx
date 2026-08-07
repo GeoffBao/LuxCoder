@@ -126,13 +126,13 @@ export function CollapsedWorkspacePopover({
         {/* 头部 */}
         <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-border/40">
           <span className="text-[11px] font-medium text-foreground/50 uppercase tracking-wide">
-            Agent 模式 · 项目
+            Agent 模式 · 空间
           </span>
           <button
             type="button"
             onClick={handleStartCreate}
             className="p-1 rounded hover:bg-foreground/[0.06] text-foreground/35 hover:text-foreground/60 transition-colors"
-            title="新建项目"
+            title="新建空间"
           >
             <Plus size={13} />
           </button>
@@ -166,7 +166,7 @@ export function CollapsedWorkspacePopover({
                 onChange={(e) => setNewName(e.target.value)}
                 onKeyDown={handleCreateKeyDown}
                 onBlur={() => setCreating(false)}
-                placeholder="项目名称..."
+                placeholder="空间名称..."
                 className="flex-1 min-w-0 bg-transparent text-[13px] text-foreground border-b border-primary/50 outline-none px-0.5"
                 maxLength={50}
               />

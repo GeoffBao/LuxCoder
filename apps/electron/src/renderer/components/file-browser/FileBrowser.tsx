@@ -424,7 +424,7 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, access
             <AlertDialogTitle>确认删除</AlertDialogTitle>
             <AlertDialogDescription>
               {deleteCount > 1 ? (
-                <>确定要删除选中的 <strong>{deleteCount}</strong> 个项目吗？</>
+                <>确定要删除选中的 <strong>{deleteCount}</strong> 个文件吗？</>
               ) : (
                 <>
                   确定要删除 <strong>{deleteTarget?.name}</strong> 吗？

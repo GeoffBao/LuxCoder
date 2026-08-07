@@ -273,11 +273,11 @@ export function WorkspaceSelector(): React.ReactElement {
       <div className="rounded-lg border border-border/60 overflow-hidden">
         {/* 头部 */}
         <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-border/40">
-          <span className="text-[11px] font-medium text-foreground/50 uppercase tracking-wide">项目</span>
+          <span className="text-[11px] font-medium text-foreground/50 uppercase tracking-wide">空间</span>
           <button
             onClick={handleStartCreate}
             className="p-1 rounded hover:bg-foreground/[0.06] text-foreground/35 hover:text-foreground/60 transition-colors titlebar-no-drag"
-            title="新建项目"
+            title="新建空间"
           >
             <Plus size={13} />
           </button>
@@ -371,7 +371,7 @@ export function WorkspaceSelector(): React.ReactElement {
                 onChange={(e) => setNewName(e.target.value)}
                 onKeyDown={handleCreateKeyDown}
                 onBlur={() => setCreating(false)}
-                placeholder="项目名称..."
+                placeholder="空间名称..."
                 className="flex-1 min-w-0 bg-transparent text-[13px] text-foreground border-b border-primary/50 outline-none px-0.5"
                 maxLength={50}
               />
@@ -395,9 +395,9 @@ export function WorkspaceSelector(): React.ReactElement {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除项目</AlertDialogTitle>
+            <AlertDialogTitle>确认删除空间</AlertDialogTitle>
             <AlertDialogDescription>
-              删除后项目配置将被移除，但目录文件会保留。确定要删除吗？
+              删除后空间配置将被移除，但目录文件会保留。确定要删除吗？
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

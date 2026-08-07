@@ -79,7 +79,7 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
   {
     id: 'new-task',
     name: '新建任务',
-    description: '打开新建任务的项目选择器（仅 Agent 模式）',
+    description: '打开新建任务的工作区选择器（仅 Agent 模式）',
     defaultMac: 'Cmd+Shift+N',
     defaultWin: 'Ctrl+Shift+N',
     category: 'app',
@@ -126,8 +126,8 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
   },
   {
     id: 'browse-project-folder',
-    name: '浏览项目文件夹',
-    description: '在新会话/新任务的项目选择器中打开系统选目录',
+    name: '浏览工作区文件夹',
+    description: '在新会话/新任务的工作区选择器中打开系统选目录',
     defaultMac: 'Cmd+O',
     defaultWin: 'Ctrl+O',
     category: 'navigation',
