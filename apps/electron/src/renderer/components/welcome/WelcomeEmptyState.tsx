@@ -27,6 +27,7 @@ import { appModeAtom } from '@/atoms/app-mode'
 import { normalizeAppModeForUi, type PrimaryUiMode } from '@/components/app-shell/code-main-view-model'
 import { getPlatform, type Platform } from '@/lib/tips'
 import welcomeHeroUrl from '@/assets/brand/welcome-hero.avif'
+import spidermanHeroUrl from '@/assets/brand/spiderman-hero.avif'
 
 /** 根据小时返回时段问候 */
 function getGreeting(hour: number): string {
@@ -77,6 +78,9 @@ export function WelcomeEmptyState(): React.ReactElement {
   const displayName = userProfile.userName || '用户'
   const items = getGuideItems(uiMode, platform)
 
+  // Chat 模式使用蜘蛛侠 hero 图，Project / Scratch 保持默认 hero 图；布局完全一致
+  const heroUrl = uiMode === 'chat' ? spidermanHeroUrl : welcomeHeroUrl
+
   return (
     <div className="welcome-empty-state relative h-full w-full overflow-hidden">
       {/* 内容滚动区（小窗口可滚动，避免图过高被截断） */}
@@ -85,7 +89,7 @@ export function WelcomeEmptyState(): React.ReactElement {
           {/* 前景 hero 图：h-auto 按宽度等比缩放，完整展示、绝不裁剪 */}
           <div className="w-full max-w-2xl overflow-hidden rounded-2xl shadow-[0_16px_50px_rgba(0,0,0,0.25)] ring-1 ring-black/5">
             <img
-              src={welcomeHeroUrl}
+              src={heroUrl}
               alt=""
               aria-hidden="true"
               draggable={false}
