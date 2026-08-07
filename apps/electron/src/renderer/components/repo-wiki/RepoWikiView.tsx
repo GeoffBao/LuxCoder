@@ -53,7 +53,7 @@ export function RepoWikiView(): React.ReactElement {
       {/* 顶部栏：标题 + 子页 tab（个人知识库 / 企业知识库） */}
       <div className="titlebar-no-drag flex h-11 shrink-0 items-center gap-3 border-b border-border px-4">
         <Library className="size-4.5 text-foreground/60" />
-        <span className="text-[13px] font-semibold text-foreground">知识库</span>
+        <span className="text-[13px] font-semibold text-foreground">Yoda 知识库</span>
         <SectionTabs
           value={tab}
           onChange={setTab}

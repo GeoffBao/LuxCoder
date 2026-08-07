@@ -11,7 +11,7 @@
 import * as React from 'react'
 import { useAtom, useSetAtom, useAtomValue, useStore } from 'jotai'
 import { toast } from 'sonner'
-import { Pin, PinOff, Settings, Plus, Trash2, Pencil, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MoreHorizontal, FolderOpen, GripVertical, Clock, CalendarDays, ChevronRight, GitBranch, Download, Loader2, RotateCw, Layers, LayoutDashboard, PenTool, Library, Puzzle, Boxes } from 'lucide-react'
+import { Pin, PinOff, Settings, Plus, Trash2, Pencil, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MoreHorizontal, FolderOpen, GripVertical, Clock, Zap, ChevronRight, GitBranch, Download, Loader2, RotateCw, Layers, LayoutDashboard, PenTool, Library, Puzzle, Boxes } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { MarqueeText } from '@/components/ui/marquee-text'
@@ -1037,7 +1037,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     return () => window.removeEventListener('focus', handleFocus)
   }, [setConversations, setAgentSessions])
 
-  /** 打开/关闭 Task 日历（Todo / 日历 / 定时任务） */
+  /** 打开/关闭定时任务主界面（Task 日历已收窄为只保留定时任务） */
   const handleOpenPlanning = React.useCallback((): void => {
     if (activeView === 'planning') {
       // 编辑页 → 关表单回列表；列表页 → 退出到对话
@@ -2725,7 +2725,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             <TooltipTrigger asChild>
               <button
                 type="button"
-                aria-label={`Task 日历，${automationCount} 个任务已创建`}
+                aria-label={`定时任务，${automationCount} 个已创建`}
                 onClick={handleOpenPlanning}
                 className={cn(
                   'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag border',
@@ -2734,7 +2734,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                     : 'border-border/45 bg-foreground/[0.025] text-foreground/45 hover:border-border/70 hover:bg-foreground/[0.045] hover:text-primary',
                 )}
               >
-                <CalendarDays size={16} />
+                <Zap size={16} />
                 {automationCount > 0 && (
                   <span
                     className={cn(
@@ -2750,18 +2750,18 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               </button>
             </TooltipTrigger>
             <TooltipContent side="right">
-              Task 日历（{automationCount} 个任务已创建）
+              定时任务（{automationCount} 个已创建）
             </TooltipContent>
           </Tooltip>
 
           {/* 插件与 Yoda 记忆已并入设置面板（设置 > Yoda 插件 / Yoda 记忆），Home / Code 共享；左栏不再单独露出 */}
 
-          {/* Excalidraw 画板：通用创作工具，pwork（agent 模式）可见 */}
+          {/* Yoda 画布：通用创作工具，pwork（agent 模式）可见 */}
           <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  aria-label="Excalidraw 画板"
+                  aria-label="Yoda 画布"
                   onClick={handleOpenExcalidraw}
                   className={cn(
                     'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag border',
@@ -2785,7 +2785,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                   )}
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="right">Excalidraw 画板{excalidrawCount > 0 ? `（${excalidrawCount} 个画布）` : ''}</TooltipContent>
+              <TooltipContent side="right">Yoda 画布{excalidrawCount > 0 ? `（${excalidrawCount} 个画布）` : ''}</TooltipContent>
             </Tooltip>
 
           {/* 知识库：单入口，pwork（agent 模式）可见 */}
@@ -2793,7 +2793,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  aria-label="知识库"
+                  aria-label="Yoda 知识库"
                   onClick={handleOpenKnowledge}
                   className={cn(
                     'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag border',
@@ -2805,7 +2805,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                   <Library size={16} />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="right">知识库</TooltipContent>
+              <TooltipContent side="right">Yoda 知识库</TooltipContent>
             </Tooltip>
 
         </div>
@@ -3121,16 +3121,16 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         />
       )}
 
-      {/* Task 日历入口：Todo / 日历 / 定时任务合一，作为任务中心入口排在侧栏最上方。 */}
+      {/* 定时任务入口：Task 日历已收窄为只保留定时任务，作为任务中心入口排在侧栏最上方。 */}
       <div className="sidebar-module-zone px-3 pt-2 pb-0.5">
         <SidebarModule
-          icon={CalendarDays}
-          title="Task 日历"
+          icon={Zap}
+          title="定时任务"
           count={automationCount}
           active={activeView === 'planning'}
           onClick={handleOpenPlanning}
           keycapShortcutId="open-planning"
-          ariaLabel={`Task 日历，${automationCount} 个任务已创建`}
+          ariaLabel={`定时任务，${automationCount} 个已创建`}
           classNames={{
             row: cn('automation-entry', activeView === 'planning' && 'automation-entry-selected'),
             icon: 'automation-entry-icon',
@@ -3139,7 +3139,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         />
       </div>
 
-      {/* 任务看板：Workspace 级正式工作项入口，与 Task 日历相邻。 */}
+      {/* 任务看板：Workspace 级正式工作项入口，与定时任务相邻。 */}
       {mode === 'agent' && (
         <div className="sidebar-module-zone px-3 pb-0.5">
           <SidebarModule
@@ -3179,15 +3179,15 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
       {/* 插件与 Yoda 记忆已并入设置面板（设置 > Yoda 插件 / Yoda 记忆），Home / Code 共享；左栏不再单独露出 */}
 
-      {/* Excalidraw 画板：手绘风格白板，通用创作工具，pwork（agent 模式）可见 */}
+      {/* Yoda 画布：手绘风格白板，通用创作工具，pwork（agent 模式）可见 */}
       <div className="sidebar-module-zone px-3 pb-0.5">
         <SidebarModule
           icon={PenTool}
-          title="Excalidraw 画板"
+          title="Yoda 画布"
           count={excalidrawCount}
           active={activeView === 'excalidraw-gallery' || activeView === 'excalidraw-editor'}
           onClick={handleOpenExcalidraw}
-          ariaLabel={`Excalidraw 画板，${excalidrawCount} 个画布`}
+          ariaLabel={`Yoda 画布，${excalidrawCount} 个画布`}
         />
       </div>
 
@@ -3195,10 +3195,10 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       <div className="sidebar-module-zone px-3 pb-0.5">
         <SidebarModule
           icon={Library}
-          title="知识库"
+          title="Yoda 知识库"
           active={activeView === 'repo-wiki'}
           onClick={handleOpenKnowledge}
-          ariaLabel="知识库"
+          ariaLabel="Yoda 知识库"
         />
       </div>
 

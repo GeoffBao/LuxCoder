@@ -69,14 +69,6 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
     category: 'app',
   },
   {
-    id: 'new-todo',
-    name: '新建 Todo/日程/定时任务',
-    description: 'Task 日历内按当前子页签新建 Todo、日程或定时任务',
-    defaultMac: 'Cmd+T',
-    defaultWin: 'Ctrl+T',
-    category: 'app',
-  },
-  {
     id: 'new-task',
     name: '新建任务',
     description: '打开新建任务的工作区选择器（仅 Agent 模式）',
@@ -150,8 +142,8 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
   },
   {
     id: 'open-planning',
-    name: '打开任务/日程',
-    description: '打开或聚焦独立的 Todo、日程与定时任务窗口',
+    name: '打开定时任务',
+    description: '打开或聚焦独立的定时任务窗口',
     defaultMac: 'Cmd+Shift+T',
     defaultWin: 'Ctrl+Shift+T',
     category: 'global',

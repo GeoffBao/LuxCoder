@@ -274,12 +274,12 @@ export function GlobalShortcuts(): null {
     }, []),
   )
 
-  // Cmd+Shift+T / Ctrl+Shift+T → 打开或聚焦独立任务/日程窗口
+  // Cmd+Shift+T / Ctrl+Shift+T → 打开或聚焦独立定时任务窗口
   useShortcut(
     'open-planning',
     useCallback(() => {
       void window.electronAPI.openPlanningWindow().catch((error) => {
-        console.error('[任务/日程] 打开独立窗口失败:', error)
+        console.error('[定时任务] 打开独立窗口失败:', error)
       })
     }, []),
   )

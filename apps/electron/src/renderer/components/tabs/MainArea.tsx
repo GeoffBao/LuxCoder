@@ -25,7 +25,7 @@ import { useTrackSessionView } from '@/hooks/useTrackSessionView'
 import { TabBar } from './TabBar'
 import { TabContent } from './TabContent'
 import { AutomationFormView } from '@/components/automation/AutomationFormView'
-import { PlanningView } from '@/components/planning/PlanningView'
+import { AutomationsView } from '@/components/automation/AutomationsView'
 import { AgentSkillsView } from '@/components/agent-skills/AgentSkillsView'
 import { PluginPanelView } from '@/components/agent-skills/PluginPanelView'
 import { WorkspaceContextView } from '@/components/agent-skills/WorkspaceContextView'
@@ -252,8 +252,8 @@ export function MainArea(): React.ReactElement {
                 // 定时任务设置页：与列表同层级替换中间区，不经过 TabBar，避免切换时闪出会话 Tab。
                 <AutomationFormView />
               ) : (
-                // Task 日历：Todo / 日历 / 定时任务合一，全屏取代 TabBar + TabContent
-                <PlanningView />
+                // 定时任务主界面：全屏取代 TabBar + TabContent（Task 日历已收窄为只保留定时任务）
+                <AutomationsView />
               )
             ) : activeView === 'agent-skills' ? (
               // 侧边栏常用插件入口：精简视图，隐藏 Yoda 标题与完整 Tab 栏，仅展示当前子模块

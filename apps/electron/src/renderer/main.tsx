@@ -50,7 +50,7 @@ import {
 import { updateStatusAtom, initializeUpdater } from './atoms/updater'
 import { automationsAtom } from './atoms/automation-atoms'
 import { draftSessionIdsAtom } from './atoms/draft-session-atoms'
-import { todosAtom, calendarEventsAtom, planningWorkspaceScopeAtom } from './atoms/planning-atoms'
+import { planningWorkspaceScopeAtom } from './atoms/planning-atoms'
 import {
   notificationsEnabledAtom,
   notificationSoundEnabledAtom,
@@ -606,32 +606,6 @@ function AutomationInitializer(): null {
     const unsub = window.electronAPI.onAutomationChanged(load)
     return unsub
   }, [setAutomations, setAgentSessions, setDraftSessionIds, workspaceScope, currentWorkspaceId])
-
-  return null
-}
-
-/**
- * 任务/日程（Planning：Todo + 日程）初始化组件
- *
- * 加载当前工作区范围内的 Todo 与日程列表，并订阅主进程的变更事件刷新。
- */
-function PlanningInitializer(): null {
-  const setTodos = useSetAtom(todosAtom)
-  const setCalendarEvents = useSetAtom(calendarEventsAtom)
-  const workspaceScope = useAtomValue(planningWorkspaceScopeAtom)
-  const currentWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
-
-  useEffect(() => {
-    const load = (): void => {
-      window.electronAPI.listTodos(workspaceScope, currentWorkspaceId ?? undefined).then(setTodos).catch(console.error)
-      window.electronAPI.listCalendarEvents(workspaceScope, currentWorkspaceId ?? undefined).then(setCalendarEvents).catch(console.error)
-    }
-    load()
-    const unsub = window.electronAPI.onPlanningChanged((change) => {
-      if (change.resources.includes('todos') || change.resources.includes('calendar_events')) load()
-    })
-    return unsub
-  }, [setTodos, setCalendarEvents, workspaceScope, currentWorkspaceId])
 
   return null
 }
@@ -1222,7 +1196,6 @@ if (isQuickTaskWindow) {
         <ThemeInitializer />
         <AgentSettingsInitializer />
         <AutomationInitializer />
-        <PlanningInitializer />
         <PlanningWindowApp />
         <Toaster position="bottom-right" />
       </React.StrictMode>
@@ -1254,7 +1227,6 @@ if (isQuickTaskWindow) {
       <AgentListenersInitializer />
       <UpdaterInitializer />
       <AutomationInitializer />
-      <PlanningInitializer />
       <ProjectsInitializer />
       <FeishuInitializer />
       <DingTalkInitializer />

@@ -369,7 +369,7 @@ export function ExcalidrawGallery(): React.ReactElement {
       <div className="titlebar-no-drag flex items-center justify-between px-5 pb-3 pt-14 border-b border-border/50">
         <div className="flex items-center gap-2.5">
           <PenTool className="size-6 text-foreground/70" />
-          <h1 className="text-2xl font-semibold text-foreground">Excalidraw 画板</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Yoda 画布</h1>
         </div>
         <button
           type="button"
