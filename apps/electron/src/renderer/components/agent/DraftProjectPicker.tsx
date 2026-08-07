@@ -4,10 +4,8 @@
  */
 
 import * as React from 'react'
-import { useSetAtom } from 'jotai'
-import { toast } from 'sonner'
-import { agentSessionsAtom } from '@/atoms/agent-atoms'
 import { ProjectContextPicker } from '@/components/app-shell/ProjectContextPicker'
+import { useBindSessionProject } from '@/hooks/useBindSessionProject'
 import { canBindProjectBeforeSend } from './draft-session-lifecycle'
 
 export interface DraftProjectPickerProps {
@@ -15,6 +13,9 @@ export interface DraftProjectPickerProps {
   projectId?: string
   isDraft: boolean
   className?: string
+  /** 挂载时自动展开一次「新建工作区」表单（整个工作区首次建会话的引导） */
+  autoOpenCreate?: boolean
+  onAutoOpenHandled?: () => void
 }
 
 export function DraftProjectPicker({
@@ -22,23 +23,12 @@ export function DraftProjectPicker({
   projectId,
   isDraft,
   className,
+  autoOpenCreate,
+  onAutoOpenHandled,
 }: DraftProjectPickerProps): React.ReactElement | null {
-  const setAgentSessions = useSetAtom(agentSessionsAtom)
+  const bindProject = useBindSessionProject(sessionId)
 
   if (!canBindProjectBeforeSend({ projectId, isDraft })) return null
-
-  const bindProject = async (nextProjectId: string | null): Promise<void> => {
-    try {
-      const updated = await window.electronAPI.sendSessionCommand(sessionId, {
-        kind: 'set_project_id',
-        projectId: nextProjectId || undefined,
-      })
-      setAgentSessions((prev) => prev.map((session) => (session.id === updated.id ? updated : session)))
-    } catch (error) {
-      console.error('[DraftProjectPicker] 绑定项目失败:', error)
-      toast.error('绑定项目失败')
-    }
-  }
 
   return (
     <ProjectContextPicker
@@ -46,6 +36,8 @@ export function DraftProjectPicker({
       selectedProjectId={projectId}
       onSelect={bindProject}
       className={className}
+      autoOpenCreate={autoOpenCreate}
+      onAutoOpenHandled={onAutoOpenHandled}
     />
   )
 }

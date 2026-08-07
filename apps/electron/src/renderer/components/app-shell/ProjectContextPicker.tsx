@@ -39,6 +39,17 @@ export interface ProjectContextPickerProps {
   className?: string
   /** 强制展开面板（新任务流对话框） */
   defaultOpen?: boolean
+  /**
+   * 触发器样式：'chip'（默认）是带图标/背景的小按钮，用于 composer 工具栏；
+   * 'inline' 是纯文字 + 虚线下划线，字号跟随外层，用于嵌进句子里（空态问候语）。
+   * 面板展开方向随 variant 自动决定：chip 向上展开（贴 composer），inline 向下展开。
+   */
+  variant?: 'chip' | 'inline'
+  /** 未选中时的触发器文案；不传沿用各 variant 的默认值 */
+  placeholderLabel?: string
+  /** 挂载时自动展开一次「新建工作区」表单（整个工作区首次建会话的引导），处理后应调用 onAutoOpenHandled 避免重复触发 */
+  autoOpenCreate?: boolean
+  onAutoOpenHandled?: () => void
 }
 
 /** 项目数超过这个数量才显示搜索框——项目少时多一行筛选框纯属噪音 */
@@ -78,6 +89,10 @@ export function ProjectContextPicker({
   onSelect,
   className,
   defaultOpen = false,
+  variant = 'chip',
+  placeholderLabel,
+  autoOpenCreate = false,
+  onAutoOpenHandled,
 }: ProjectContextPickerProps): React.ReactElement {
   const projects = useAtomValue(serverKanbanProjectsAtom)
   const setProjects = useSetAtom(serverKanbanProjectsAtom)
@@ -92,6 +107,15 @@ export function ProjectContextPicker({
   const [filterText, setFilterText] = React.useState('')
   /** null = 尚未建立基线；避免挂载时回放历史 ⌘O / 浏览请求 */
   const browseBaselineRef = React.useRef<number | null>(null)
+  /** 防止 autoOpenCreate 在同一挂载周期内重复触发（例如 onAutoOpenHandled 更新的是异步 atom） */
+  const autoOpenHandledRef = React.useRef(false)
+
+  React.useEffect(() => {
+    if (!autoOpenCreate || autoOpenHandledRef.current) return
+    autoOpenHandledRef.current = true
+    setCreateOpen(true)
+    onAutoOpenHandled?.()
+  }, [autoOpenCreate, onAutoOpenHandled])
 
   const workspace = workspaces.find((item) => item.id === currentWorkspaceId) ?? workspaces[0]
 
@@ -164,7 +188,7 @@ export function ProjectContextPicker({
       await onSelect(kanban.id)
       setOpen(false)
       if (result.created) {
-        toast.success(`已创建项目「${kanban.name}」`)
+        toast.success(`已创建工作区「${kanban.name}」`)
       }
     } catch (error) {
       console.error('[ProjectContextPicker] 打开路径失败:', error)
@@ -214,10 +238,10 @@ export function ProjectContextPicker({
       setCreateOpen(false)
       await onSelect(kanban.id)
       setOpen(false)
-      toast.success(`已创建项目「${kanban.name}」`)
+      toast.success(`已创建工作区「${kanban.name}」`)
     } catch (error) {
-      console.error('[ProjectContextPicker] 新建项目失败:', error)
-      toast.error('创建项目失败', {
+      console.error('[ProjectContextPicker] 新建工作区失败:', error)
+      toast.error('创建工作区失败', {
         description: error instanceof Error ? error.message : String(error),
       })
     } finally {
@@ -242,7 +266,7 @@ export function ProjectContextPicker({
         defaultOpen ? 'w-full' : 'w-[min(100%,280px)]',
       )}
       role="listbox"
-      aria-label="选择项目上下文"
+      aria-label="选择工作区上下文"
     >
       {/* 项目多起来后才出现的筛选框，项目少的常见场景下不占地方 */}
       {showSearch && (
@@ -253,7 +277,7 @@ export function ProjectContextPicker({
               autoFocus
               value={filterText}
               onChange={(e) => setFilterText(e.target.value)}
-              placeholder="筛选项目…"
+              placeholder="筛选工作区…"
               className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-foreground/35"
             />
           </div>
@@ -261,12 +285,12 @@ export function ProjectContextPicker({
       )}
 
       {/* 列表：只显示项目名，完整路径进 title（对齐 Cursor/Codex）。
-          最近使用的项目排前面，同一项目只出现一次。 */}
+          最近使用的工作区排前面，同一工作区只出现一次。 */}
       <div className="max-h-[220px] space-y-2 overflow-y-auto p-1.5">
         <Section title="最近">
           {visibleProjects.length === 0 ? (
             <p className="px-2 py-1.5 text-[11px] text-foreground/40">
-              {sections.projects.length === 0 ? '暂无项目' : '没有匹配的项目'}
+              {sections.projects.length === 0 ? '暂无工作区' : '没有匹配的工作区'}
             </p>
           ) : (
             visibleProjects.map((project) => (
@@ -287,14 +311,14 @@ export function ProjectContextPicker({
       <div className="shrink-0 space-y-0.5 border-t border-border/40 bg-background/90 p-1.5">
         <ActionRow
           icon={FolderPlus}
-          label="新建项目…"
+          label="新建工作区…"
           disabled={busy}
           onClick={() => setCreateOpen(true)}
         />
         {sections.actions.some((action) => action.id === 'skip') ? (
           <ActionRow
             icon={FolderKanban}
-            label="清除项目"
+            label="清除工作区"
             disabled={busy}
             onClick={() => { void handlePick(null) }}
           />
@@ -321,7 +345,8 @@ export function ProjectContextPicker({
     )
   }
 
-  const triggerLabel = selectedName ?? '选择/新建项目'
+  const defaultPlaceholder = variant === 'inline' ? '选择工作区' : '选择/新建工作区'
+  const triggerLabel = selectedName ?? placeholderLabel ?? defaultPlaceholder
 
   // Popover（而非手写 fixed 遮罩 + absolute 定位）：composer 在首屏居中态和
   // 底部固定态之间位置差异很大，固定往上弹会在首屏把面板顶进问候语/chips
@@ -329,23 +354,42 @@ export function ProjectContextPicker({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button
-          type="button"
-          disabled={busy}
-          className={cn(
-            'inline-flex h-7 max-w-[200px] items-center gap-1 rounded-md px-1.5 text-[12px] text-foreground/70 outline-none hover:bg-foreground/[0.05] hover:text-foreground',
-            busy && 'opacity-60',
-            className,
-          )}
-          aria-label="选择/新建项目"
-          title={selectedName ?? '选择或新建项目'}
-        >
-          <FolderKanban size={12} className="shrink-0 text-foreground/40" />
-          <span className="truncate">{triggerLabel}</span>
-          <ChevronDown size={11} className="shrink-0 text-foreground/35" />
-        </button>
+        {variant === 'inline' ? (
+          <button
+            type="button"
+            disabled={busy}
+            className={cn(
+              'underline decoration-dotted decoration-1 underline-offset-4 outline-none transition-opacity hover:opacity-70 disabled:opacity-60',
+              className,
+            )}
+            aria-expanded={open}
+            aria-haspopup="listbox"
+            aria-label="选择/新建工作区"
+            title={selectedName ?? '选择或新建工作区'}
+          >
+            {triggerLabel}
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled={busy}
+            className={cn(
+              'inline-flex h-7 max-w-[200px] items-center gap-1 rounded-md px-1.5 text-[12px] text-foreground/70 outline-none hover:bg-foreground/[0.05] hover:text-foreground',
+              busy && 'opacity-60',
+              className,
+            )}
+            aria-expanded={open}
+            aria-haspopup="listbox"
+            aria-label="选择/新建工作区"
+            title={selectedName ?? '选择或新建工作区'}
+          >
+            <FolderKanban size={12} className="shrink-0 text-foreground/40" />
+            <span className="truncate">{triggerLabel}</span>
+            <ChevronDown size={11} className="shrink-0 text-foreground/35" />
+          </button>
+        )}
       </PopoverTrigger>
-      <PopoverContent side="top" align="start" sideOffset={6} className="w-auto border-none bg-transparent p-0 shadow-none">
+      <PopoverContent side={variant === 'inline' ? 'bottom' : 'top'} align="start" sideOffset={6} className="w-auto border-none bg-transparent p-0 shadow-none">
         {panel}
       </PopoverContent>
       {createDialog}

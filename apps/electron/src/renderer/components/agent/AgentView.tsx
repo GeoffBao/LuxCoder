@@ -105,6 +105,7 @@ import {
   finalizeStreamingActivities,
 } from '@/atoms/agent-atoms'
 import type { AgentContextStatus } from '@/atoms/agent-atoms'
+import { projectOnboardingSessionIdsAtom } from '@/atoms/project-onboarding-atoms'
 import { settingsOpenAtom } from '@/atoms/settings-tab'
 import { longTextPasteAsAttachmentEnabledAtom } from '@/atoms/ui-preferences'
 import { channelsAtom } from '@/atoms/chat-atoms'
@@ -494,6 +495,16 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
   const setDraftSessionIds = useSetAtom(draftSessionIdsAtom)
   const draftSessionIds = useAtomValue(draftSessionIdsAtom)
   const isDraftSession = draftSessionIds.has(sessionId)
+  const [projectOnboardingSessionIds, setProjectOnboardingSessionIds] = useAtom(projectOnboardingSessionIdsAtom)
+  const shouldAutoOpenProjectCreate = projectOnboardingSessionIds.has(sessionId)
+  const handleProjectOnboardingHandled = React.useCallback(() => {
+    setProjectOnboardingSessionIds((prev) => {
+      if (!prev.has(sessionId)) return prev
+      const next = new Set(prev)
+      next.delete(sessionId)
+      return next
+    })
+  }, [sessionId, setProjectOnboardingSessionIds])
   const globalWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
   // 从会话元数据派生 workspaceId：会话数据已加载时以自身为准，未加载时回退全局 atom
   const currentWorkspaceId = React.useMemo(() => {
@@ -3030,13 +3041,15 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
       onDrop={handleDrop}
     >
       {(isPlanMode || isPermissionPlanMode) && !isDragOver && <PlanModeDashedBorder />}
-      {/* 项目选择器 + Git 分支/Worktree 上下文合并成一行（对齐 Codex 的
-          「项目 | Local/Worktree | 分支」一行式布局），而不是各占一整行。 */}
+      {/* 工作区选择器 + Git 分支/Worktree 上下文合并成一行（对齐 Codex 的
+          「工作区 | Local/Worktree | 分支」一行式布局），而不是各占一整行。 */}
       <div className="px-3 pt-2.5 pb-2 flex flex-wrap items-center gap-2 text-xs">
         <DraftProjectPicker
           sessionId={sessionId}
           projectId={sessionMeta?.projectId}
           isDraft={isDraftSession || isEmptySession}
+          autoOpenCreate={shouldAutoOpenProjectCreate}
+          onAutoOpenHandled={handleProjectOnboardingHandled}
         />
         <DraftGitContextPicker
           sessionId={sessionId}
@@ -3186,6 +3199,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
             {/* 消息区域 */}
             <AgentMessages
               sessionId={sessionId}
+              projectId={sessionMeta?.projectId}
               sessionModelId={agentModelId || undefined}
               messagesLoaded={messagesLoaded}
               persistedSDKMessages={persistedSDKMessages}

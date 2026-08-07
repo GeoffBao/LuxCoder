@@ -1,9 +1,10 @@
 /**
  * WelcomeEmptyState — 对话/会话空状态引导
  *
- * 安静空态（对齐 Cursor / Codex）：
+ * 安静空态（对齐 Cursor / Codex，企业版品牌吉祥物）：
  * 1. 企业版品牌 Mascot / OpenMoji 吉祥物插图
- * 2. 个性化时段问候（大字号 + regular 字重）
+ * 2. 个性化时段问候（大字号 + regular 字重）；Agent 模式动态绑定当前草稿会话的项目
+ *    （「在「项目名」里，一起做点什么？」，项目名可点击切换，复用 ProjectContextPicker）
  * 3. 一行弱化的平台感知 Tip
  *
  * 不在空态页内重复放 Home/Code 切换按钮——侧边栏 ModeSwitcher 提供唯一出入口，
@@ -16,6 +17,9 @@ import { cn } from '@/lib/utils'
 import { userProfileAtom } from '@/atoms/user-profile'
 import { appModeAtom } from '@/atoms/app-mode'
 import { normalizeAppModeForUi } from '@/components/app-shell/code-main-view-model'
+import { serverKanbanProjectsAtom } from '@/atoms/project-atoms'
+import { ProjectContextPicker } from '@/components/app-shell/ProjectContextPicker'
+import { useBindSessionProject } from '@/hooks/useBindSessionProject'
 import { getRandomTip, getPlatform, type Tip } from '@/lib/tips'
 import { getGreeting, EnterpriseMascot } from './greeting'
 
@@ -114,17 +118,26 @@ function MascotFarmer({ className }: { className?: string }): React.ReactElement
   )
 }
 
-export function WelcomeEmptyState(): React.ReactElement {
+export interface WelcomeEmptyStateProps {
+  /** Agent 模式当前草稿会话 ID；用于问候语里内联的项目切换器改绑项目 */
+  sessionId?: string
+  /** 当前草稿会话已绑定的 Project ID */
+  projectId?: string
+}
+
+export function WelcomeEmptyState({ sessionId, projectId }: WelcomeEmptyStateProps = {}): React.ReactElement {
   const userProfile = useAtomValue(userProfileAtom)
   const mode = useAtomValue(appModeAtom)
 
   // 稳定的随机 Tip（组件挂载时选一条）
   const [tip] = React.useState<Tip>(() => getRandomTip(getPlatform()))
+  const uiMode = normalizeAppModeForUi(mode)
+  const projects = useAtomValue(serverKanbanProjectsAtom)
+  const bindProject = useBindSessionProject(sessionId ?? '')
 
   const hour = new Date().getHours()
   const greeting = getGreeting(hour)
   const displayName = userProfile.userName || '用户'
-  const uiMode = normalizeAppModeForUi(mode)
 
   return (
     <div className="welcome-empty-state flex h-full flex-col items-center justify-center gap-5 px-4">
@@ -136,10 +149,27 @@ export function WelcomeEmptyState(): React.ReactElement {
           : <MascotFarmer className="size-28 opacity-85" />
       }
 
-      {/* 问候语 */}
-      <h1 className="text-[28px] font-normal tracking-tight text-foreground/90">
-        {displayName}，{greeting}
-      </h1>
+      {/* 问候语：Agent 模式绑定当前草稿会话的项目，项目名（或「选择工作区」占位）可点击直接切换，
+          与 composer 里的项目 chip（DraftProjectPicker）共用同一套选择面板与绑定逻辑。
+          Chat 模式不涉及项目，保留原有的个性化时段问候。 */}
+      {uiMode === 'agent' && sessionId ? (
+        <h1 className="text-[26px] font-medium tracking-tight text-foreground/90">
+          在
+          {' '}
+          <ProjectContextPicker
+            mode="session"
+            variant="inline"
+            selectedProjectId={projectId}
+            onSelect={bindProject}
+          />
+          {' '}
+          里，一起做点什么？
+        </h1>
+      ) : (
+        <h1 className="text-[28px] font-normal tracking-tight text-foreground/90">
+          {displayName}，{greeting}
+        </h1>
+      )}
 
       {/* Tip */}
       <p className="max-w-[52ch] text-center text-[13px] leading-relaxed text-foreground/40">
