@@ -180,6 +180,8 @@ export function getContextCompactionProgress(
 /** AgentMessages 属性接口 */
 interface AgentMessagesProps {
   sessionId: string
+  /** 当前会话已绑定的 Project ID（空态问候语内联项目切换器用） */
+  projectId?: string
   /** 用户在前端选择的模型 ID（用于显示渠道配置的 Model Name） */
   sessionModelId?: string
   /** 消息是否已完成首次加载 */
@@ -205,9 +207,9 @@ interface AgentMessagesProps {
   onCompact?: () => void
 }
 
-/** 空状态引导 — 使用 WelcomeEmptyState */
-function EmptyState(): React.ReactElement {
-  return <WelcomeEmptyState />
+/** 空状态引导 — 使用 WelcomeEmptyState，绑定当前草稿会话以支持问候语内联切换项目 */
+function EmptyState({ sessionId, projectId }: { sessionId: string; projectId?: string }): React.ReactElement {
+  return <WelcomeEmptyState sessionId={sessionId} projectId={projectId} />
 }
 
 function AssistantLogo({ model }: { model?: string }): React.ReactElement {
@@ -372,7 +374,7 @@ function RetryAttemptItem({
               <div>运行时: {attempt.environment.runtime}</div>
               <div>平台: {attempt.environment.platform}</div>
               <div>模型: {attempt.environment.model}</div>
-              {attempt.environment.workspace && <div>工作区: {attempt.environment.workspace}</div>}
+              {attempt.environment.workspace && <div>空间: {attempt.environment.workspace}</div>}
             </div>
           )}
 
@@ -496,7 +498,7 @@ function AgentRunningIndicator({ startedAt }: { startedAt?: number }): React.Rea
   )
 }
 
-export function AgentMessages({ sessionId, sessionModelId, messagesLoaded, persistedSDKMessages, streaming, streamState, liveMessages, sessionPath, fileRoots, attachedDirs, stoppedByUser, onRetry, onRetryInNewSession, onFork, onRewind, onCompact }: AgentMessagesProps): React.ReactElement {
+export function AgentMessages({ sessionId, projectId, sessionModelId, messagesLoaded, persistedSDKMessages, streaming, streamState, liveMessages, sessionPath, fileRoots, attachedDirs, stoppedByUser, onRetry, onRetryInNewSession, onFork, onRewind, onCompact }: AgentMessagesProps): React.ReactElement {
   const userProfile = useAtomValue(userProfileAtom)
   const setMinimapCache = useSetAtom(tabMinimapCacheAtom)
   const channels = useAtomValue(channelsAtom)
@@ -737,7 +739,7 @@ export function AgentMessages({ sessionId, sessionModelId, messagesLoaded, persi
         <ScrollPositionManager id={sessionId} ready={ready} />
         <ConversationContent>
           {!hasContent && !streaming ? (
-            <EmptyState />
+            <EmptyState sessionId={sessionId} projectId={projectId} />
           ) : (
             <>
               {/* 统一消息渲染（持久化 + 实时合并为一个列表，确保 system 消息位置正确） */}

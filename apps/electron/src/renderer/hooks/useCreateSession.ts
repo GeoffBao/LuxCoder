@@ -23,12 +23,16 @@ import {
 import { activeViewAtom } from '@/atoms/active-view'
 import { promptConfigAtom, selectedPromptIdAtom } from '@/atoms/system-prompt-atoms'
 import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
+import { serverKanbanProjectsAtom } from '@/atoms/project-atoms'
+import { projectOnboardingSessionIdsAtom } from '@/atoms/project-onboarding-atoms'
 import {
   findRecallableDraftSession,
   resolveCreateAgentWorkspaceId,
+  resolveDefaultProjectId,
   shouldMarkDraft,
   type CreateAgentSessionFlowInput,
 } from './create-agent-session-flow'
+import { getProjectOnboardingStorageKey, shouldPromptProjectOnboarding } from './project-onboarding-model'
 import { useOpenSession } from './useOpenSession'
 
 export type CreateSessionOptions = CreateAgentSessionFlowInput
@@ -60,6 +64,7 @@ export function useCreateSession(): CreateSessionActions {
   const setCurrentWorkspaceId = useSetAtom(currentAgentWorkspaceIdAtom)
   const setSessionChannelMap = useSetAtom(agentSessionChannelMapAtom)
   const setSessionModelMap = useSetAtom(agentSessionModelMapAtom)
+  const setProjectOnboardingSessionIds = useSetAtom(projectOnboardingSessionIdsAtom)
 
   const createChat = async (options?: CreateSessionOptions): Promise<string | undefined> => {
     try {
@@ -115,6 +120,28 @@ export function useCreateSession(): CreateSessionActions {
       }
     }
 
+    // 空白「新会话」入口（recallDraft）且未显式指定项目时，默认绑定同工作区最近工作的项目
+    // （参考 Synara）；程序化建会话（如搜索建会话/Skills 分类）保持历史行为不受影响。
+    const defaultProjectId = resolveDefaultProjectId({
+      explicitProjectId: input.projectId,
+      recallDraft: input.recallDraft,
+      sessions: store.get(agentSessionsAtom),
+      workspaceId,
+    })
+
+    // 整个工作区第一次建 Agent 会话（没有任何项目可默认绑定）时，弹一次「新建工作区」引导；
+    // 立刻写 localStorage 标记，哪怕用户之后取消对话框也不会再弹第二次。
+    let shouldPromptOnboarding = false
+    if (!defaultProjectId && input.recallDraft && workspaceId) {
+      const hasAnyProjectInWorkspace = store.get(serverKanbanProjectsAtom)
+        .some((project) => project.workspaceId === workspaceId && !project.archivedAt)
+      const alreadySeen = localStorage.getItem(getProjectOnboardingStorageKey(workspaceId)) !== null
+      shouldPromptOnboarding = shouldPromptProjectOnboarding({ workspaceId, hasAnyProjectInWorkspace, alreadySeen })
+      if (shouldPromptOnboarding) {
+        localStorage.setItem(getProjectOnboardingStorageKey(workspaceId), '1')
+      }
+    }
+
     try {
       if (workspaceId && workspaceId !== currentWorkspaceId) {
         setCurrentWorkspaceId(workspaceId)
@@ -128,19 +155,27 @@ export function useCreateSession(): CreateSessionActions {
         modelId,
       )
 
-      if (input.projectId) {
+      if (defaultProjectId) {
         try {
           session = await window.electronAPI.sendSessionCommand(session.id, {
             kind: 'set_project_id',
-            projectId: input.projectId,
+            projectId: defaultProjectId,
           })
         } catch (error) {
-          console.error('[创建会话] 新会话绑定项目失败:', error)
-          toast.error('已创建会话，但绑定项目失败')
+          console.error('[创建会话] 新会话绑定工作区失败:', error)
+          toast.error('已创建会话，但绑定工作区失败')
         }
       }
 
       setAgentSessions((prev) => [session, ...prev.filter((s) => s.id !== session.id)])
+
+      if (shouldPromptOnboarding) {
+        setProjectOnboardingSessionIds((prev) => {
+          const next = new Set(prev)
+          next.add(session.id)
+          return next
+        })
+      }
 
       if (channelId) {
         setSessionChannelMap((prev) => {

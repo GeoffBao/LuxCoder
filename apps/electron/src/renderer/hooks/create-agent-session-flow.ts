@@ -66,3 +66,36 @@ export function findRecallableDraftSession(params: {
   }
   return latest
 }
+
+/** 供 resolveDefaultProjectId 扫描「最近工作的项目」用的精简会话字段 */
+export interface ProjectRecencyCandidate {
+  projectId?: string
+  workspaceId?: string
+  updatedAt: number
+}
+
+/**
+ * 新会话默认绑定项目：参考 Synara「新会话默认绑定最近工作的项目」的行为。
+ *
+ * - 显式指定了 projectId（例如项目详情页「新会话」按钮）：原样返回，不覆盖明确意图。
+ * - 非 recallDraft（程序化建会话，如搜索建会话/Skills 分类触发）：保持历史行为，返回 undefined。
+ * - 空白「新会话」入口（recallDraft）且未显式指定项目：在同一工作区内按 updatedAt 倒序
+ *   找第一个绑定了 projectId 的历史会话，返回其 projectId；找不到则 undefined（维持项目无关的通用会话）。
+ */
+export function resolveDefaultProjectId(input: {
+  explicitProjectId?: string
+  recallDraft?: boolean
+  sessions: ProjectRecencyCandidate[]
+  workspaceId: string | undefined
+}): string | undefined {
+  if (input.explicitProjectId) return input.explicitProjectId
+  if (!input.recallDraft) return undefined
+
+  let latest: ProjectRecencyCandidate | null = null
+  for (const session of input.sessions) {
+    if (!session.projectId) continue
+    if (session.workspaceId !== input.workspaceId) continue
+    if (!latest || session.updatedAt > latest.updatedAt) latest = session
+  }
+  return latest?.projectId
+}

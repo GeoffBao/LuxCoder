@@ -1,9 +1,11 @@
 /**
  * WelcomeEmptyState — 对话/会话空状态引导
  *
- * 现代个人版空态（对齐 Cursor / Codex 的轻量视觉）：
+ * 现代个人版空态（对齐 Cursor / Codex 的轻量视觉，问候语项目绑定参考 Synara）：
  * 1. 前景完整展示 hero 图（不裁剪，保持原始比例），圆角卡片 + 阴影提升质感
- * 2. 个性化时段问候（大字号 + 适中字重）
+ * 2. 问候语：Agent 模式动态绑定当前草稿会话的项目（「在「项目名」里，一起做点什么？」），
+ *    项目名可点击切换（复用 ProjectContextPicker，与 composer 项目 chip 同一套逻辑）；
+ *    Chat 模式保留个性化时段问候（大字号 + 适中字重）
  * 3. 一行轻量功能提示（按 Chat / Agent 模式展示各自相关能力）——不占空间、无按钮感
  *
  * 不在空态页内重复放 Project/Chat 切换按钮——侧边栏 ModeSwitcher 提供唯一出入口，
@@ -24,7 +26,10 @@ import {
 } from 'lucide-react'
 import { userProfileAtom } from '@/atoms/user-profile'
 import { appModeAtom } from '@/atoms/app-mode'
+import { serverKanbanProjectsAtom } from '@/atoms/project-atoms'
 import { normalizeAppModeForUi, type PrimaryUiMode } from '@/components/app-shell/code-main-view-model'
+import { ProjectContextPicker } from '@/components/app-shell/ProjectContextPicker'
+import { useBindSessionProject } from '@/hooks/useBindSessionProject'
 import { getPlatform, type Platform } from '@/lib/tips'
 import welcomeHeroUrl from '@/assets/brand/welcome-hero.avif'
 import spidermanHeroUrl from '@/assets/brand/spiderman-hero.avif'
@@ -67,16 +72,26 @@ function getGuideItems(uiMode: PrimaryUiMode, platform: Platform): GuideItem[] {
   ]
 }
 
-export function WelcomeEmptyState(): React.ReactElement {
+export interface WelcomeEmptyStateProps {
+  /** Agent 模式当前草稿会话 ID；用于问候语里内联的项目切换器改绑项目 */
+  sessionId?: string
+  /** 当前草稿会话已绑定的 Project ID */
+  projectId?: string
+}
+
+export function WelcomeEmptyState({ sessionId, projectId }: WelcomeEmptyStateProps = {}): React.ReactElement {
   const userProfile = useAtomValue(userProfileAtom)
   const mode = useAtomValue(appModeAtom)
   const uiMode = normalizeAppModeForUi(mode)
   const platform = getPlatform()
+  const projects = useAtomValue(serverKanbanProjectsAtom)
+  const bindProject = useBindSessionProject(sessionId ?? '')
 
   const hour = new Date().getHours()
   const greeting = getGreeting(hour)
   const displayName = userProfile.userName || '用户'
   const items = getGuideItems(uiMode, platform)
+  const projectName = projectId ? projects.find((project) => project.id === projectId)?.name : undefined
 
   // Chat 模式使用蜘蛛侠 hero 图，Project / Scratch 保持默认 hero 图；布局完全一致
   const heroUrl = uiMode === 'chat' ? spidermanHeroUrl : welcomeHeroUrl
@@ -97,10 +112,27 @@ export function WelcomeEmptyState(): React.ReactElement {
             />
           </div>
 
-          {/* 问候语 */}
-          <h1 className="text-[26px] font-medium tracking-tight text-foreground/90">
-            {displayName}，{greeting}
-          </h1>
+          {/* 问候语：Agent 模式绑定当前草稿会话的项目，项目名（或「选择工作区」占位）可点击直接切换，
+              与 composer 里的项目 chip（DraftProjectPicker）共用同一套选择面板与绑定逻辑。
+              Chat 模式不涉及项目，保留原有的个性化时段问候。 */}
+          {uiMode === 'agent' && sessionId ? (
+            <h1 className="text-[26px] font-medium tracking-tight text-foreground/90">
+              在
+              {' '}
+              <ProjectContextPicker
+                mode="session"
+                variant="inline"
+                selectedProjectId={projectId}
+                onSelect={bindProject}
+              />
+              {' '}
+              里，一起做点什么？
+            </h1>
+          ) : (
+            <h1 className="text-[26px] font-medium tracking-tight text-foreground/90">
+              {displayName}，{greeting}
+            </h1>
+          )}
 
           {/* 功能提示一行：轻量内联展示，避免卡片/按钮的视觉负担 */}
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-xs text-foreground/40">
