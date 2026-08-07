@@ -249,7 +249,7 @@ function PromptRow({ prompt, dimmed = false }: { prompt: string; dimmed?: boolea
       </button>
 
       {expanded && (
-        <div className="ml-5.5 mt-1 mb-2 pl-3 border-l-2 border-border/30 animate-in fade-in slide-in-from-top-1 duration-150">
+        <div className="ml-5.5 mt-1 mb-2 pl-3 border-l-2 border-border/30 animate-in fade-in slide-in-from-top-1 duration-fast">
           <p className="text-[13px] text-foreground/70 leading-relaxed whitespace-pre-wrap break-words">
             {prompt}
           </p>
@@ -384,7 +384,7 @@ function ToolUseBlock({ block, allMessages, animate = false, index = 0, dimmed =
     return (
       <div
         className={cn(
-          animate && 'animate-in fade-in duration-150 fill-mode-both',
+          animate && 'animate-in fade-in duration-fast fill-mode-both',
         )}
         style={animate ? { animationDelay: delay } : undefined}
       >
@@ -396,7 +396,7 @@ function ToolUseBlock({ block, allMessages, animate = false, index = 0, dimmed =
         >
           <ChevronRight
             className={cn(
-              'size-3 text-muted-foreground/50 transition-transform duration-150 shrink-0',
+              'size-3 text-muted-foreground/50 transition-transform duration-fast shrink-0',
               childrenExpanded && 'rotate-90',
             )}
           />
@@ -427,7 +427,7 @@ function ToolUseBlock({ block, allMessages, animate = false, index = 0, dimmed =
         {childrenExpanded && (
           <div className={cn(
             'pl-5 mt-1.5 space-y-2 border-l-2 border-primary/20 ml-[5px]',
-            animate && 'animate-in fade-in slide-in-from-top-1 duration-150',
+            animate && 'animate-in fade-in slide-in-from-top-1 duration-fast',
           )}>
             {/* 提示词：可折叠行 */}
             {agentPrompt && <PromptRow prompt={agentPrompt} dimmed={dimmed} />}
@@ -473,7 +473,7 @@ function ToolUseBlock({ block, allMessages, animate = false, index = 0, dimmed =
   return (
     <div
       className={cn(
-        animate && 'animate-in fade-in duration-150 fill-mode-both',
+        animate && 'animate-in fade-in duration-fast fill-mode-both',
       )}
       style={animate ? { animationDelay: delay } : undefined}
     >
@@ -506,7 +506,7 @@ function ToolUseBlock({ block, allMessages, animate = false, index = 0, dimmed =
             )}
             {phrase.diffStats.additions > 0 && phrase.diffStats.deletions > 0 && ' '}
             {phrase.diffStats.deletions > 0 && (
-              <span className="text-red-500">-{phrase.diffStats.deletions}</span>
+              <span className="text-destructive">-{phrase.diffStats.deletions}</span>
             )}
           </span>
         )}
@@ -525,7 +525,7 @@ function ToolUseBlock({ block, allMessages, animate = false, index = 0, dimmed =
 
         <ChevronRight
           className={cn(
-            'shrink-0 size-3 text-muted-foreground/45 transition-transform duration-150',
+            'shrink-0 size-3 text-muted-foreground/45 transition-transform duration-fast',
             expanded && 'rotate-90',
           )}
         />
@@ -538,7 +538,7 @@ function ToolUseBlock({ block, allMessages, animate = false, index = 0, dimmed =
       {shouldShowResult && resultText && expanded && (
         <div className={cn(
           'ml-5.5 mt-1 mb-2 pl-3 border-l-2 border-border/30',
-          animate && 'animate-in fade-in slide-in-from-top-1 duration-150',
+          animate && 'animate-in fade-in slide-in-from-top-1 duration-fast',
         )}>
           <ToolResultRenderer
             toolName={block.name}
@@ -608,7 +608,7 @@ function ThinkingBlock({ block, dimmed = false }: ThinkingBlockProps): React.Rea
         <div
           ref={contentRef}
           className={cn(
-            'prose prose-sm dark:prose-invert max-w-none prose-p:my-1 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 text-[14px] leading-relaxed overflow-hidden transition-[max-height] duration-200',
+            'prose prose-sm dark:prose-invert max-w-none prose-p:my-1 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 text-[14px] leading-relaxed overflow-hidden transition-[max-height] duration-base',
             dimmed ? 'text-muted-foreground' : 'text-foreground/90',
             shouldCollapse && !isExpanded && 'max-h-[5.6em]',
           )}

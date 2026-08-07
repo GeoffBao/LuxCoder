@@ -97,7 +97,7 @@ export function MigrationImportDialog(): React.ReactElement {
               </button>
 
               {importResult && !importResult.success && (
-                <div className="flex items-center gap-1.5 text-sm text-red-500">
+                <div className="flex items-center gap-1.5 text-sm text-destructive">
                   <XCircle size={15} />
                   {importResult.error}
                 </div>
@@ -201,7 +201,7 @@ export function MigrationImportDialog(): React.ReactElement {
               </div>
 
               {importResult && !importResult.success && (
-                <div className="flex items-center gap-1.5 text-sm text-red-500">
+                <div className="flex items-center gap-1.5 text-sm text-destructive">
                   <XCircle size={15} />
                   {importResult.error}
                 </div>

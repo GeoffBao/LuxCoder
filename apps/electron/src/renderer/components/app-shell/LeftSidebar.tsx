@@ -2621,7 +2621,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                 type="button"
                 aria-label="搜索"
                 onClick={() => setSearchDialogOpen(true)}
-                className="size-10 flex items-center justify-center rounded-[12px] text-foreground/45 hover:bg-foreground/[0.08] hover:text-foreground/80 transition-colors duration-150 titlebar-no-drag"
+                className="size-10 flex items-center justify-center rounded-[12px] text-foreground/45 hover:bg-foreground/[0.08] hover:text-foreground/80 transition-colors duration-fast titlebar-no-drag"
               >
                 <Search size={16} />
               </button>
@@ -2638,7 +2638,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                 type="button"
                 aria-label={mode === 'agent' ? '新建 Agent 会话' : '新建 Chat 对话'}
                 onClick={mode === 'agent' ? handleNewAgentSession : handleNewConversation}
-                className="size-10 flex items-center justify-center rounded-[12px] text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-150 titlebar-no-drag"
+                className="size-10 flex items-center justify-center rounded-[12px] text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-fast titlebar-no-drag"
               >
                 <Plus size={16} />
               </button>
@@ -2655,7 +2655,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                   type="button"
                   aria-label="新建任务"
                   onClick={handleNewTask}
-                  className="size-10 flex items-center justify-center rounded-[12px] text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-150 titlebar-no-drag"
+                  className="size-10 flex items-center justify-center rounded-[12px] text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-fast titlebar-no-drag"
                 >
                   <Layers size={16} />
                 </button>
@@ -2834,7 +2834,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               >
                 <UserAvatar avatar={userProfile.avatar} size={28} />
                 {hasEnvironmentIssues && (
-                  <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-red-500" />
+                  <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-destructive" />
                 )}
               </button>
             </TooltipTrigger>
@@ -2976,7 +2976,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               aria-label="搜索"
               onClick={() => setSearchDialogOpen(true)}
               className={cn(
-                'size-6 flex items-center justify-center rounded-md text-foreground/50 transition-colors duration-150',
+                'size-6 flex items-center justify-center rounded-md text-foreground/50 transition-colors duration-fast',
                 isClassic
                   ? 'sidebar-control-surface hover:text-foreground/70'
                   : 'hover:bg-foreground/[0.08] hover:text-foreground/85'
@@ -3003,7 +3003,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
           <TooltipTrigger asChild>
             <button
               onClick={mode === 'agent' ? handleNewAgentSession : handleNewConversation}
-              className="flex-1 flex items-center gap-2 h-9 px-3 rounded-[10px] text-[13px] font-medium text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-150 titlebar-no-drag"
+              className="flex-1 flex items-center gap-2 h-9 px-3 rounded-[10px] text-[13px] font-medium text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-fast titlebar-no-drag"
             >
               <Plus size={14} />
               <span>{mode === 'agent' ? '新会话' : '新对话'}</span>
@@ -3019,7 +3019,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               <button
                 type="button"
                 onClick={handleNewTask}
-                className="flex-1 flex items-center gap-2 h-9 px-3 rounded-[10px] text-[13px] font-medium text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-150 titlebar-no-drag"
+                className="flex-1 flex items-center gap-2 h-9 px-3 rounded-[10px] text-[13px] font-medium text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-fast titlebar-no-drag"
               >
                 <Plus size={14} />
                 <span>新任务</span>
@@ -3155,7 +3155,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             >
               <ChevronRight
                 size={12}
-                className={cn('transition-transform duration-150', isPinnedAgentGroupCollapsed ? '' : 'rotate-90')}
+                className={cn('transition-transform duration-fast', isPinnedAgentGroupCollapsed ? '' : 'rotate-90')}
               />
             </button>
           </div>
@@ -3445,7 +3445,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                         >
                           <ChevronRight
                             size={12}
-                            className={cn('transition-transform duration-150', isFlatGroupCollapsed ? '' : 'rotate-90')}
+                            className={cn('transition-transform duration-fast', isFlatGroupCollapsed ? '' : 'rotate-90')}
                           />
                         </button>
                       </div>
@@ -3585,7 +3585,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             <div className="relative flex-shrink-0 text-foreground/40">
               <Settings size={16} />
               {hasEnvironmentIssues && (
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500" />
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-destructive" />
               )}
             </div>
           </button>
@@ -3731,7 +3731,7 @@ const ConversationItem = React.memo(function ConversationItem({
             startEdit()
           }}
           className={cn(
-            'session-quick-switch-row group relative w-full flex items-center gap-1.5 rounded-md py-1 pl-2 pr-1.5 transition-colors duration-100 titlebar-no-drag text-left',
+            'session-quick-switch-row group relative w-full flex items-center gap-1.5 rounded-md py-1 pl-2 pr-1.5 transition-colors duration-fast titlebar-no-drag text-left',
             active && 'session-item-selected',
             streaming
               ? 'text-foreground font-medium hover:bg-foreground/[0.03]'
@@ -3913,7 +3913,7 @@ const DraftSessionRecallSection = React.memo(function DraftSessionRecallSection(
             type="button"
             onClick={() => onOpen(item.id, item.title)}
             title={item.text}
-            className="flex h-8 w-full items-center gap-2 rounded-lg px-2.5 text-left text-[12.5px] text-foreground/60 transition-colors duration-150 hover:bg-foreground/[0.06] hover:text-foreground/85"
+            className="flex h-8 w-full items-center gap-2 rounded-lg px-2.5 text-left text-[12.5px] text-foreground/60 transition-colors duration-fast hover:bg-foreground/[0.06] hover:text-foreground/85"
           >
             <Pencil size={12} className="shrink-0 text-foreground/35" />
             <span className="truncate">{item.text}</span>
@@ -4182,7 +4182,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
             <ChevronRight
               size={12}
               className={cn(
-                'flex-shrink-0 text-foreground/30 transition-transform duration-150',
+                'flex-shrink-0 text-foreground/30 transition-transform duration-fast',
                 collapsed ? '-rotate-90' : 'rotate-90',
               )}
             />
@@ -4330,7 +4330,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
                           >
                             <ChevronRight
                               size={12}
-                              className={cn('transition-transform duration-150', isDateCollapsed ? '' : 'rotate-90')}
+                              className={cn('transition-transform duration-fast', isDateCollapsed ? '' : 'rotate-90')}
                             />
                           </button>
                         </div>

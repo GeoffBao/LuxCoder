@@ -1097,7 +1097,7 @@ function AttachedDirTree({ dirPath, onDetach, selectedPaths, onSelect, refreshVe
         />
         <ChevronRight
           className={cn(
-            'relative z-10 size-3.5 text-muted-foreground flex-shrink-0 transition-transform duration-150',
+            'relative z-10 size-3.5 text-muted-foreground flex-shrink-0 transition-transform duration-fast',
             expanded && 'rotate-90',
           )}
         />
@@ -1348,7 +1348,7 @@ function AttachedDirItem({ entry, depth, selectedPaths, onSelect, refreshVersion
         {entry.isDirectory ? (
           <ChevronRight
             className={cn(
-              'relative z-10 size-3.5 text-muted-foreground flex-shrink-0 transition-transform duration-150',
+              'relative z-10 size-3.5 text-muted-foreground flex-shrink-0 transition-transform duration-fast',
               expanded && 'rotate-90',
             )}
           />

@@ -397,7 +397,7 @@ export function ScrollMinimap({ items }: ScrollMinimapProps): React.ReactElement
               'ml-1 w-[280px] rounded-lg border bg-popover shadow-xl origin-top-left flex flex-col overflow-hidden pointer-events-auto',
               isLeaving
                 ? 'animate-out fade-out-0 zoom-out-95 duration-75'
-                : 'animate-in fade-in-0 zoom-in-95 duration-150'
+                : 'animate-in fade-in-0 zoom-in-95 duration-fast'
             )}
             style={{ maxHeight: 'min(420px, 60vh)' }}
             onMouseEnter={handleMouseEnter}
@@ -470,7 +470,7 @@ export function ScrollMinimap({ items }: ScrollMinimapProps): React.ReactElement
         >
           <div
             className={cn(
-              'absolute left-0 right-0 rounded-full transition-colors duration-100 scroll-progress-thumb',
+              'absolute left-0 right-0 rounded-full transition-colors duration-fast scroll-progress-thumb',
               isDragging
                 ? 'scroll-progress-thumb-active cursor-grabbing'
                 : 'cursor-grab'

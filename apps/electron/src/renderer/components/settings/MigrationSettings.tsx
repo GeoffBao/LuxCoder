@@ -440,7 +440,7 @@ export function MigrationSettings(): React.ReactElement {
             </button>
 
             {exportResult && (
-              <div className={cn('flex items-center gap-1.5 text-sm', exportResult.success ? 'text-green-600' : 'text-red-500')}>
+              <div className={cn('flex items-center gap-1.5 text-sm', exportResult.success ? 'text-green-600' : 'text-destructive')}>
                 {exportResult.success ? <CheckCircle2 size={15} /> : <XCircle size={15} />}
                 {exportResult.success
                   ? `已导出至 ${exportResult.filePath?.split('/').pop() ?? ''}`

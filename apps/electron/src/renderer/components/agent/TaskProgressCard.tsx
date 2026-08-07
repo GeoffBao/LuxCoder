@@ -38,7 +38,7 @@ function TaskRow({ item }: TaskRowProps): React.ReactElement {
     <div
       className={cn(
         'flex items-center gap-1.5 text-[13px] py-[3px]',
-        'transition-colors duration-200',
+        'transition-colors duration-base',
         isCompleted && 'opacity-50',
       )}
     >
@@ -89,7 +89,7 @@ function ProgressBar({ completed, total }: { completed: number; total: number })
   return (
     <div className="h-0.5 bg-muted rounded-full mb-2 overflow-hidden">
       <div
-        className="h-full bg-primary rounded-full transition-[width] duration-500 ease-out"
+        className="h-full bg-primary rounded-full transition-[width] duration-slow ease-out"
         style={{ width: `${percent}%` }}
       />
     </div>
@@ -125,7 +125,7 @@ export function TaskProgressCard({ activities, animate = false, streamEnded = fa
   const visibleItems = needsCollapse && !expanded && !alwaysExpanded ? items.slice(0, MAX_VISIBLE) : items
 
   return (
-    <div className={cn('my-1', animate && 'animate-in fade-in duration-200')}>
+    <div className={cn('my-1', animate && 'animate-in fade-in duration-base')}>
       {/* 虚线边框容器 */}
       <div className="rounded-md border border-border/50 bg-muted/35 px-3 py-2.5 shadow-sm">
         {/* 标题行 */}

@@ -253,7 +253,7 @@ export function AgentSkillsView({ embedded = false }: { embedded?: boolean }): R
               key={value}
               onClick={() => setTab(value)}
               className={cn(
-                'relative z-[1] flex min-w-[96px] items-center justify-center gap-1.5 rounded-lg px-4 text-sm font-medium transition-colors duration-200',
+                'relative z-[1] flex min-w-[96px] items-center justify-center gap-1.5 rounded-lg px-4 text-sm font-medium transition-colors duration-base',
                 tab === value ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
               )}
             >

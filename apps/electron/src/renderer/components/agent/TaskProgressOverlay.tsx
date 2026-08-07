@@ -196,7 +196,7 @@ export function TaskProgressOverlay({ activities, streaming, contextCompaction }
   if (!showTaskProgress) {
     return (
       <Button
-        className="absolute bottom-[26px] left-1/2 size-10 -translate-x-1/2 rounded-md border border-border/60 bg-background/85 shadow-sm backdrop-blur-sm transition-[background-color,transform] duration-200 hover:bg-accent/80 active:scale-[0.96]"
+        className="absolute bottom-[26px] left-1/2 size-10 -translate-x-1/2 rounded-md border border-border/60 bg-background/85 shadow-sm backdrop-blur-sm transition-[background-color,transform] duration-base hover:bg-accent/80 active:scale-[0.96]"
         onClick={() => scrollToBottom()}
         type="button"
         variant="ghost"
@@ -208,7 +208,7 @@ export function TaskProgressOverlay({ activities, streaming, contextCompaction }
 
   return (
     <div className={cn(
-      'pointer-events-none absolute bottom-[22px] left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 transition-opacity duration-200',
+      'pointer-events-none absolute bottom-[22px] left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 transition-opacity duration-base',
       fading && 'opacity-0',
     )}>
       <Popover open={open} onOpenChange={setOpen}>
@@ -217,7 +217,7 @@ export function TaskProgressOverlay({ activities, streaming, contextCompaction }
             type="button"
             className={cn(
               'pointer-events-auto flex min-h-10 max-w-[min(460px,calc(100vw-9rem))] items-center gap-2 rounded-md border border-border/60 bg-background/85 py-2 pr-3 pl-2.5 text-left shadow-sm backdrop-blur-sm',
-              'transition-[background-color,transform] duration-200 hover:bg-accent/80 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              'transition-[background-color,transform] duration-base hover:bg-accent/80 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             )}
           >
             {displayCompaction ? (
@@ -253,7 +253,7 @@ export function TaskProgressOverlay({ activities, streaming, contextCompaction }
       {!isAtBottom && (
         <Button
           aria-label="回到最下方"
-          className="pointer-events-auto size-10 rounded-md border border-border/60 bg-background/85 shadow-sm backdrop-blur-sm transition-[background-color,transform] duration-200 hover:bg-accent/80 active:scale-[0.96]"
+          className="pointer-events-auto size-10 rounded-md border border-border/60 bg-background/85 shadow-sm backdrop-blur-sm transition-[background-color,transform] duration-base hover:bg-accent/80 active:scale-[0.96]"
           onClick={() => scrollToBottom()}
           type="button"
           variant="ghost"

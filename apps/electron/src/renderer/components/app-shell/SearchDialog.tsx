@@ -540,7 +540,7 @@ export function SearchDialog(): React.ReactElement {
         <DialogPortal>
           <div
             aria-hidden
-            className="fixed inset-0 z-[99] bg-black/40 pointer-events-none animate-in fade-in-0 duration-150"
+            className="fixed inset-0 z-[99] bg-black/40 pointer-events-none animate-in fade-in-0 duration-fast"
           />
         </DialogPortal>
       )}
@@ -636,7 +636,7 @@ export function SearchDialog(): React.ReactElement {
 
           {/* 项目匹配区域 */}
           {projectResults.length > 0 && (
-            <div className="py-1 animate-in fade-in duration-150">
+            <div className="py-1 animate-in fade-in duration-fast">
               <div className="flex items-center gap-1.5 px-4 pt-2 pb-1 text-[11px] font-medium text-foreground/40 select-none">
                 <FolderKanban size={11} />
                 <span>项目</span>
@@ -658,7 +658,7 @@ export function SearchDialog(): React.ReactElement {
 
           {/* 标题匹配区域 */}
           {titleResults.length > 0 && (
-            <div className="py-1 animate-in fade-in duration-150">
+            <div className="py-1 animate-in fade-in duration-fast">
               <div className="px-4 pt-2 pb-1 text-[11px] font-medium text-foreground/40 select-none">
                 标题匹配
               </div>
@@ -682,7 +682,7 @@ export function SearchDialog(): React.ReactElement {
 
           {/* 内容匹配区域 */}
           {(contentResults.length > 0 || (loading && hasSearched && titleResults.length > 0)) && (
-            <div className="py-1 border-t border-border/30 animate-in fade-in duration-150">
+            <div className="py-1 border-t border-border/30 animate-in fade-in duration-fast">
               <div className="px-4 pt-2 pb-1 flex items-center gap-2 text-[11px] font-medium text-foreground/40 select-none">
                 <span>消息内容匹配</span>
                 {loading && <Loader2 size={12} className="animate-spin text-foreground/30" />}

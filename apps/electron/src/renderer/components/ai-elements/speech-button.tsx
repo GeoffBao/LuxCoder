@@ -98,7 +98,7 @@ export function SpeechButton({
             variant="ghost"
             size="icon"
             className={cn(
-              'relative size-8 transition-all duration-200 text-foreground/60 hover:text-foreground',
+              'relative size-8 transition-[color,background-color,transform] duration-base text-foreground/60 hover:text-foreground',
               isActive && 'bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary',
               className
             )}
@@ -113,7 +113,7 @@ export function SpeechButton({
                 {[0.6, 1, 0.75, 0.9].map((scale, index) => (
                   <span
                     key={index}
-                    className="w-[2px] rounded-full bg-current transition-[height] duration-100"
+                    className="w-[2px] rounded-full bg-current transition-[height] duration-fast"
                     style={{ height: `${Math.max(4, Math.round(voiceStatus.volume * scale * 16))}px` }}
                   />
                 ))}

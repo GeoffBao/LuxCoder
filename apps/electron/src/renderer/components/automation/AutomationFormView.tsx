@@ -260,7 +260,7 @@ function SaveStatusBadge({
   } else if (status === 'error') {
     icon = <AlertTriangle className="size-3" />
     text = '保存失败'
-    tone = 'text-red-500'
+    tone = 'text-destructive'
   } else {
     icon = <Check className="size-3 text-muted-foreground/50" />
     text = '已保存'
@@ -710,7 +710,7 @@ export function AutomationFormView({ standalone = false }: { standalone?: boolea
     : NO_FEISHU_BINDING
 
   return (
-    <div className="titlebar-no-drag absolute inset-0 z-10 bg-content-area flex animate-in fade-in duration-200">
+    <div className="titlebar-no-drag absolute inset-0 z-10 bg-content-area flex animate-in fade-in duration-base">
       {/* 左栏：自然语言任务描述（主角） */}
       <div className="flex-1 min-w-0 flex flex-col">
         <div className={cn('flex items-center gap-2 px-6 flex-shrink-0', standalone ? 'titlebar-drag-region pt-8 pb-4' : 'py-4')}>

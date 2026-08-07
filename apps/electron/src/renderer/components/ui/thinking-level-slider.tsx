@@ -112,7 +112,7 @@ export function ThinkingLevelSlider({
       {/* 当前值标签 */}
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-foreground">思考深度</span>
-        <span className="text-xs tabular-nums text-muted-foreground transition-opacity duration-150">
+        <span className="text-xs tabular-nums text-muted-foreground transition-opacity duration-fast">
           {currentLabel}
         </span>
       </div>
@@ -142,7 +142,7 @@ export function ThinkingLevelSlider({
               <div
                 key={i}
                 className={cn(
-                  'h-1.5 w-1.5 rounded-full transition-all duration-150',
+                  'h-1.5 w-1.5 rounded-full transition-[background-color,transform] duration-fast',
                   i <= committedIndex ? 'bg-white/70 scale-100' : 'bg-primary/20 scale-75',
                 )}
               />
@@ -158,7 +158,7 @@ export function ThinkingLevelSlider({
           <span
             key={l.value}
             className={cn(
-              'text-[10px] transition-all duration-150',
+              'text-[10px] transition-[color,transform,font-weight] duration-fast',
               i === committedIndex
                 ? 'text-foreground font-medium scale-100'
                 : 'text-muted-foreground/60 scale-90',

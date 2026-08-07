@@ -150,7 +150,7 @@ export function MessageActions({
   return (
     <div
       className={cn(
-        'flex items-center gap-2.5 text-muted-foreground/60 hover:text-muted-foreground/90 transition-colors duration-200',
+        'flex items-center gap-2.5 text-muted-foreground/60 hover:text-muted-foreground/90 transition-colors duration-base',
         className
       )}
       {...props}
@@ -754,7 +754,7 @@ export const UserMessageContent = React.memo(
         <div
           ref={contentRef}
           className={cn(
-            'overflow-hidden transition-[max-height] duration-200',
+            'overflow-hidden transition-[max-height] duration-base',
             '[&>*:first-child]:mt-0 [&>*:last-child]:mb-0',
             shouldCollapse && !isExpanded && 'max-h-[6.5em]'
           )}

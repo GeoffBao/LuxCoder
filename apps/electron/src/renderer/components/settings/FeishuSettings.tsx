@@ -71,7 +71,7 @@ const STATUS_CONFIG = {
   disconnected: { color: 'bg-gray-400', label: '未连接' },
   connecting: { color: 'bg-amber-400 animate-pulse', label: '连接中...' },
   connected: { color: 'bg-green-500', label: '已连接' },
-  error: { color: 'bg-red-500', label: '连接错误' },
+  error: { color: 'bg-destructive', label: '连接错误' },
 } as const
 
 
@@ -196,10 +196,10 @@ function FeishuTutorialVideo(): React.ReactElement | null {
           <span className="text-sm text-muted-foreground">
             {expanded ? '点击收起视频' : '点击展开视频教程（约 3 分钟）'}
           </span>
-          <ChevronRight size={16} className={cn('text-muted-foreground transition-transform duration-200', expanded && 'rotate-90')} />
+          <ChevronRight size={16} className={cn('text-muted-foreground transition-transform duration-base', expanded && 'rotate-90')} />
         </button>
         {expanded && (
-          <div className="px-4 pb-4 animate-in fade-in-0 slide-in-from-top-1 duration-200">
+          <div className="px-4 pb-4 animate-in fade-in-0 slide-in-from-top-1 duration-base">
             <div className="relative w-full overflow-hidden rounded-md bg-black" style={{ aspectRatio: '16 / 9' }}>
               {video.isIframe ? (
                 <iframe
@@ -296,11 +296,11 @@ function PermissionsStep(): React.ReactElement {
           className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           onClick={() => setExpanded(!expanded)}
         >
-          <ChevronRight size={14} className={cn('transition-transform duration-200', expanded && 'rotate-90')} />
+          <ChevronRight size={14} className={cn('transition-transform duration-base', expanded && 'rotate-90')} />
           <span>{expanded ? '收起权限明细' : '查看每个权限的作用'}</span>
         </button>
         {expanded && (
-          <div className="bg-muted/50 rounded-md p-3 font-mono text-xs space-y-0.5 animate-in fade-in-0 slide-in-from-top-1 duration-200">
+          <div className="bg-muted/50 rounded-md p-3 font-mono text-xs space-y-0.5 animate-in fade-in-0 slide-in-from-top-1 duration-base">
             <div><span className="text-foreground/70">im:message</span> — 获取与发送单聊、群组消息</div>
             <div><span className="text-foreground/70">im:message:send_as_bot</span> — 以机器人身份发送消息</div>
             <div><span className="text-foreground/70">im:message.p2p_msg:readonly</span> — 接收用户发给机器人的单聊消息</div>
@@ -372,12 +372,12 @@ function FeishuCliSection(): React.ReactElement {
             className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             onClick={() => setExpanded(!expanded)}
           >
-            <ChevronRight size={14} className={cn('transition-transform duration-200', expanded && 'rotate-90')} />
+            <ChevronRight size={14} className={cn('transition-transform duration-base', expanded && 'rotate-90')} />
             <span>{expanded ? '收起配置步骤' : '展开查看配置步骤'}</span>
           </button>
 
           {expanded && (
-            <div className="bg-muted/50 rounded-md p-3 font-mono text-xs space-y-1.5 animate-in fade-in-0 slide-in-from-top-1 duration-200">
+            <div className="bg-muted/50 rounded-md p-3 font-mono text-xs space-y-1.5 animate-in fade-in-0 slide-in-from-top-1 duration-base">
               <div><span className="text-foreground/70 font-semibold">步骤 1</span> — 安装飞书 CLI 到全局</div>
               <div className="pl-3 text-foreground/60">npm install -g @larksuite/cli</div>
               <div className="pt-1"><span className="text-foreground/70 font-semibold">步骤 2</span> — 将 SKILL 配置到本工作区（默认本工作区；如需全局会增加 Token 消耗）</div>
@@ -1394,7 +1394,7 @@ function BotConfigCard({ bot, state, onSaved, onRemoved }: BotConfigCardProps): 
           {testResult && (
             <div className={cn(
               'p-3 rounded-lg flex items-start gap-2 text-sm',
-              testResult.success ? 'bg-green-500/10 text-green-700 dark:text-green-400' : 'bg-red-500/10 text-red-700 dark:text-red-400'
+              testResult.success ? 'bg-green-500/10 text-green-700 dark:text-green-400' : 'bg-destructive/10 text-red-700 dark:text-red-400'
             )}>
               {testResult.success
                 ? <CheckCircle2 size={16} className="flex-shrink-0 mt-0.5" />
@@ -1405,7 +1405,7 @@ function BotConfigCard({ bot, state, onSaved, onRemoved }: BotConfigCardProps): 
           )}
 
           {state?.status === 'error' && state.errorMessage && (
-            <div className="p-2.5 rounded-lg bg-red-500/10 text-red-700 dark:text-red-400 text-sm">
+            <div className="p-2.5 rounded-lg bg-destructive/10 text-red-700 dark:text-red-400 text-sm">
               {state.errorMessage}
             </div>
           )}
