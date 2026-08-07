@@ -420,3 +420,393 @@ body,
 .codeclaw-card.theme-cloudling.error .codeclaw-vendored-theme {
   animation: codeclaw-shake 480ms ease-in-out infinite;
 }
+
+/* ============================================
+   CodeClaw v2 —— 移植自 clawd-on-desk（AGPL-3.0-only）
+   眼动 / 睡眠 / Mini 模式 / 权限气泡
+   ============================================ */
+
+/* ---- 眼动追踪 object 通道（替代 img 时的占位与对齐） ---- */
+.codeclaw-eye-tracked {
+  position: absolute;
+  left: 20px;
+  top: -4px;
+  width: 160px;
+  height: 150px;
+  display: block;
+  pointer-events: none;
+  border: 0;
+  overflow: hidden;
+}
+/* 内联 SVG 自带 width/height 属性，强制在容器内缩放并保持比例。 */
+.codeclaw-eye-tracked svg {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+  user-select: none;
+}
+.codeclaw-card.theme-clawd .codeclaw-eye-tracked { top: -12px; }
+.codeclaw-card.theme-calico .codeclaw-eye-tracked { top: -8px; }
+
+/* ---- 睡眠序列：宠物下沉、去 hover 上浮、呼吸变慢 ---- */
+.codeclaw-card.codeclaw-sleep-sleeping {
+  transform: translateY(10px) scale(.96);
+  filter: brightness(.82) saturate(.9);
+  cursor: default;
+  transition: transform 900ms ease, filter 900ms ease;
+}
+.codeclaw-card.codeclaw-sleep-sleeping:hover {
+  transform: translateY(10px) scale(.96);
+  filter: brightness(.82) saturate(.9);
+}
+.codeclaw-card.codeclaw-sleep-sleeping .codeclaw-mascot {
+  animation: codeclaw-sleep-breathe 4.6s ease-in-out infinite;
+}
+.codeclaw-card.codeclaw-sleep-yawning .codeclaw-mascot,
+.codeclaw-card.codeclaw-sleep-dozing .codeclaw-mascot,
+.codeclaw-card.codeclaw-sleep-collapsing .codeclaw-mascot {
+  animation: codeclaw-drowse 1.8s ease-in-out infinite;
+}
+.codeclaw-card.codeclaw-sleep-waking .codeclaw-mascot {
+  animation: codeclaw-wake-pop 500ms ease-out;
+}
+@keyframes codeclaw-sleep-breathe {
+  0%, 100% { transform: translateY(1px) scale(1); }
+  50% { transform: translateY(0) scale(1.006); }
+}
+@keyframes codeclaw-drowse {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-2px) rotate(.6deg); }
+}
+@keyframes codeclaw-wake-pop {
+  0% { transform: translateY(8px) scale(.94); opacity: .6; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* ---- Mini 模式 ---- */
+.codeclaw-root.codeclaw-mini {
+  place-items: stretch;
+}
+.codeclaw-root.codeclaw-mini .codeclaw-card {
+  width: 220px;
+  height: 220px;
+  transform: none;
+  filter: none;
+  cursor: pointer;
+}
+.codeclaw-root.codeclaw-mini .codeclaw-card:hover {
+  transform: none;
+  filter: none;
+}
+.codeclaw-root.codeclaw-mini .codeclaw-vendored-theme {
+  left: 8px;
+  top: 18px;
+  width: 160px;
+  height: 160px;
+}
+.codeclaw-root.codeclaw-mini .codeclaw-vendored-theme img {
+  max-width: 150px;
+  max-height: 150px;
+}
+.codeclaw-mini-actions {
+  position: absolute;
+  left: 12px;
+  bottom: 10px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: linear-gradient(180deg, rgba(6, 18, 54, .72), rgba(4, 11, 33, .62));
+  box-shadow: 0 6px 16px rgba(2, 9, 32, .2);
+  font: 600 9px/1 system-ui, sans-serif;
+  color: rgba(255,255,255,.78);
+}
+
+/* ---- 权限气泡 ---- */
+.codeclaw-bubble {
+  position: absolute;
+  left: 50%;
+  top: 4px;
+  z-index: 20;
+  width: 204px;
+  max-height: 168px;
+  padding: 10px 12px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.2);
+  background: linear-gradient(180deg, rgba(8, 22, 62, .96), rgba(5, 14, 40, .94));
+  box-shadow: 0 16px 40px rgba(2, 9, 32, .4), inset 0 1px 0 rgba(255,255,255,.12);
+  backdrop-filter: blur(18px);
+  transform: translateX(-50%);
+  text-align: left;
+  box-sizing: border-box;
+  animation: codeclaw-bubble-in 220ms cubic-bezier(.2, 0, 0, 1);
+}
+@keyframes codeclaw-bubble-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px) scale(.96); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+.codeclaw-bubble-close {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255,255,255,.55);
+  cursor: pointer;
+}
+.codeclaw-bubble-close:hover { background: rgba(255,255,255,.1); color: #fff; }
+.codeclaw-bubble-head { display: flex; align-items: center; margin-bottom: 4px; }
+.codeclaw-bubble-badge {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 216, 77, .16);
+  border: 1px solid rgba(255, 216, 77, .4);
+  font: 700 9px/1.2 system-ui, sans-serif;
+  color: #ffd84d;
+}
+.codeclaw-bubble-title {
+  font: 800 12px/1.3 system-ui, sans-serif;
+  color: #fff;
+  padding-right: 18px;
+  word-break: break-all;
+}
+.codeclaw-bubble-desc {
+  margin-top: 4px;
+  font: 500 10px/1.4 system-ui, sans-serif;
+  color: rgba(255,255,255,.68);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.codeclaw-bubble-actions { margin-top: 8px; }
+.codeclaw-bubble-always {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font: 500 9px/1 system-ui, sans-serif;
+  color: rgba(255,255,255,.66);
+  cursor: pointer;
+  margin-bottom: 6px;
+}
+.codeclaw-bubble-always input { accent-color: #2f7bff; }
+.codeclaw-bubble-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.codeclaw-btn {
+  flex: 1;
+  padding: 7px 10px;
+  border-radius: 9px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.08);
+  color: rgba(255,255,255,.88);
+  font: 700 11px/1 system-ui, sans-serif;
+  cursor: pointer;
+  transition: background 120ms ease, transform 80ms ease;
+}
+.codeclaw-btn:hover { background: rgba(255,255,255,.16); }
+.codeclaw-btn:active { transform: scale(.97); }
+.codeclaw-btn.primary {
+  border-color: rgba(47, 123, 255, .7);
+  background: linear-gradient(180deg, #3b82f6, #2563eb);
+  color: #fff;
+}
+.codeclaw-btn.primary:hover { background: linear-gradient(180deg, #4a8bf7, #2f6fe8); }
+.codeclaw-btn.danger {
+  border-color: rgba(255, 91, 91, .4);
+  background: rgba(220, 38, 38, .16);
+  color: #ff9b9b;
+}
+.codeclaw-btn.danger:hover { background: rgba(220, 38, 38, .28); }
+.codeclaw-bubble-options {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 84px;
+  overflow-y: auto;
+}
+.codeclaw-btn.option {
+  text-align: left;
+  padding: 6px 9px;
+}
+.codeclaw-bubble-prompts {
+  margin-bottom: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.codeclaw-bubble-prompt {
+  padding: 4px 7px;
+  border-radius: 6px;
+  background: rgba(255,255,255,.07);
+  font: 500 9px/1.35 system-ui, sans-serif;
+  color: rgba(255,255,255,.7);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.codeclaw-bubble-more {
+  font: 500 9px/1 system-ui, sans-serif;
+  color: rgba(255,255,255,.5);
+}
+
+/* 气泡存在时状态卡下沉，避免互相遮挡 */
+.codeclaw-root:has(.codeclaw-bubble) .codeclaw-status {
+  opacity: .88;
+}
+
+/* ============================================
+   CodeClaw v2.1 —— 尺寸档位 / DND / 会话 HUD
+   ============================================ */
+
+/* ---- 尺寸档位：root 按窗口实际尺寸，内容按档位缩放 ---- */
+.codeclaw-root.size-s .codeclaw-mascot,
+.codeclaw-root.size-s .codeclaw-eye-tracked {
+  transform: scale(.72);
+  transform-origin: center bottom;
+}
+.codeclaw-root.size-s .codeclaw-status {
+  transform: scale(.78);
+  transform-origin: center bottom;
+}
+.codeclaw-root.size-s .codeclaw-hud-toggle,
+.codeclaw-root.size-s .codeclaw-dnd-badge {
+  transform: scale(.8);
+}
+.codeclaw-root.size-l .codeclaw-mascot,
+.codeclaw-root.size-l .codeclaw-eye-tracked {
+  transform: scale(1.28);
+  transform-origin: center bottom;
+}
+.codeclaw-root.size-l .codeclaw-status {
+  transform: scale(1.12);
+  transform-origin: center bottom;
+}
+
+/* ---- 免打扰标记 ---- */
+.codeclaw-dnd-badge {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  z-index: 4;
+  padding: 3px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, .45);
+  background: linear-gradient(180deg, rgba(30, 41, 59, .8), rgba(15, 23, 42, .68));
+  font: 700 8px/1 system-ui, sans-serif;
+  color: rgba(226, 232, 240, .85);
+  pointer-events: none;
+}
+.codeclaw-root.dnd-on .codeclaw-bubble { display: none; }
+
+/* ---- 会话 HUD ---- */
+.codeclaw-hud-toggle {
+  position: absolute;
+  right: 10px;
+  bottom: 96px;
+  z-index: 5;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 8px;
+  background: rgba(6, 18, 54, .6);
+  color: rgba(255,255,255,.75);
+  cursor: pointer;
+}
+.codeclaw-hud-toggle:hover { background: rgba(6, 18, 54, .85); color: #fff; }
+.codeclaw-hud {
+  position: absolute;
+  left: 50%;
+  top: 8px;
+  z-index: 18;
+  width: 200px;
+  max-height: 200px;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: linear-gradient(180deg, rgba(8, 22, 62, .96), rgba(5, 14, 40, .94));
+  box-shadow: 0 16px 40px rgba(2, 9, 32, .4), inset 0 1px 0 rgba(255,255,255,.1);
+  backdrop-filter: blur(18px);
+  transform: translateX(-50%);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: codeclaw-bubble-in 200ms cubic-bezier(.2, 0, 0, 1);
+}
+.codeclaw-hud-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font: 700 11px/1 system-ui, sans-serif;
+  color: rgba(255,255,255,.85);
+}
+.codeclaw-hud-close {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255,255,255,.55);
+  cursor: pointer;
+}
+.codeclaw-hud-close:hover { background: rgba(255,255,255,.1); color: #fff; }
+.codeclaw-hud-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+.codeclaw-hud-empty {
+  padding: 10px 0;
+  text-align: center;
+  font: 500 10px/1 system-ui, sans-serif;
+  color: rgba(255,255,255,.45);
+}
+.codeclaw-hud-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255,255,255,.82);
+  font: 500 10px/1.3 system-ui, sans-serif;
+  text-align: left;
+  cursor: pointer;
+}
+.codeclaw-hud-item:hover { background: rgba(255,255,255,.08); }
+.codeclaw-hud-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #64748b;
+}
+.codeclaw-hud-dot.running { background: #3b82f6; }
+.codeclaw-hud-dot.needs-interaction { background: #f59e0b; }
+.codeclaw-hud-dot.completed { background: #22c55e; }
+.codeclaw-hud-dot.error { background: #ef4444; }
+.codeclaw-hud-item-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

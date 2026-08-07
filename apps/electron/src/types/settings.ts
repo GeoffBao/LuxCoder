@@ -4,7 +4,7 @@
  * 主题模式、IPC 通道等设置相关定义。
  */
 
-import type { AgentRuntime, AgentThinkingLevel, EnvironmentCheckResult, ThinkingConfig, AgentEffort, FeishuSessionMirrorSettings, SessionListPreference, WindowsShellPreference, ProviderType, CodeClawThemeId } from '@luxcoder/shared'
+import type { AgentRuntime, AgentThinkingLevel, EnvironmentCheckResult, ThinkingConfig, AgentEffort, FeishuSessionMirrorSettings, SessionListPreference, WindowsShellPreference, ProviderType, CodeClawThemeId, CodeClawSize } from '@luxcoder/shared'
 
 /** 通知音场景类型 */
 export type NotificationSoundType = 'taskComplete' | 'permissionRequest' | 'exitPlanMode' | 'planningReminder'
@@ -363,6 +363,12 @@ export interface CodeClawSettings {
   y?: number
   /** 桌宠主题 ID；CodeClaw 为 LuxCoder 原创，Clawd/Calico/Cloudling 来自 clawd-on-desk AGPL 主题。 */
   themeId?: CodeClawThemeId
+  /** 桌宠窗口尺寸档位（S/M/L），默认 M。 */
+  size?: CodeClawSize
+  /** 免打扰：交互请求静默，不弹气泡（对应上游 DND）。 */
+  dnd?: boolean
+  /** 音效开关，默认开。 */
+  soundEnabled?: boolean
 }
 
 /** 应用设置 */

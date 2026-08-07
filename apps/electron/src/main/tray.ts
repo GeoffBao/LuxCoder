@@ -5,6 +5,17 @@ import { listAgentSessions } from './lib/agent-session-manager'
 import { listAgentWorkspaces } from './lib/agent-workspace-manager'
 import { isAgentSessionActive } from './lib/agent-service'
 import { createTrayMenuModel, type TrayRecentSessionItem } from './lib/tray-menu-model'
+import { getSettings, updateSettings } from './lib/settings-service'
+import {
+  getCodeClawControlSnapshot,
+  publishCodeClawNow,
+  setCodeClawDnd,
+  setCodeClawMiniModeControl,
+  setCodeClawSize,
+  setCodeClawSound,
+  setCodeClawTheme,
+} from './lib/codeclaw-service'
+import { CODECLAW_THEMES, type CodeClawSize } from '@luxcoder/shared'
 
 let tray: Tray | null = null
 
@@ -62,6 +73,70 @@ function createRecentSessionMenuItem(
   }
 }
 
+/** 启用 CodeClaw 桌宠（未启用时托盘提供入口）。 */
+function enableCodeClaw(): void {
+  const current = getSettings().codeClaw ?? {}
+  updateSettings({ codeClaw: { ...current, enabled: true } })
+  // tray 直接 updateSettings 不走 ipc settings:update handler，需主动发布让桌宠窗口出现。
+  publishCodeClawNow()
+}
+
+/** 构建托盘「桌宠」控制菜单组（复用 codeclaw-service 的控制能力）。 */
+function buildCodeClawTrayGroup(): Electron.MenuItemConstructorOptions[] {
+  const snapshot = getCodeClawControlSnapshot()
+  const sizeLabels: Array<[CodeClawSize, string]> = [['s', '小'], ['m', '中'], ['l', '大']]
+  return [
+    { type: 'separator' },
+    {
+      label: snapshot.enabled ? '桌宠' : '桌宠（未启用）',
+      submenu: snapshot.enabled
+        ? [
+            {
+              label: snapshot.miniMode ? '退出 Mini 模式' : '进入 Mini 模式',
+              click: () => setCodeClawMiniModeControl(!snapshot.miniMode),
+            },
+            {
+              label: '主题',
+              submenu: CODECLAW_THEMES.map((theme) => ({
+                label: theme.name,
+                type: 'radio' as const,
+                checked: theme.id === snapshot.themeId,
+                click: () => setCodeClawTheme(theme.id),
+              })),
+            },
+            {
+              label: '尺寸',
+              submenu: sizeLabels.map(([id, label]) => ({
+                label,
+                type: 'radio' as const,
+                checked: snapshot.size === id,
+                click: () => setCodeClawSize(id),
+              })),
+            },
+            { type: 'separator' },
+            {
+              label: '免打扰',
+              type: 'checkbox' as const,
+              checked: snapshot.dnd,
+              click: (item) => setCodeClawDnd(item.checked),
+            },
+            {
+              label: '音效',
+              type: 'checkbox' as const,
+              checked: snapshot.soundEnabled,
+              click: (item) => setCodeClawSound(item.checked),
+            },
+          ]
+        : [
+            {
+              label: '启用 CodeClaw 桌宠',
+              click: () => enableCodeClaw(),
+            },
+          ],
+    },
+  ]
+}
+
 function buildTrayMenu(actions: TrayActions): Menu {
   const sessions = listAgentSessions()
   const runningSessionIds = new Set(
@@ -111,6 +186,7 @@ function buildTrayMenu(actions: TrayActions): Menu {
       label: '打开 LuxCoder',
       click: () => actions.showMainWindow(),
     },
+    ...buildCodeClawTrayGroup(),
     { type: 'separator' },
     {
       label: '退出 LuxCoder',

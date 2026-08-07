@@ -66,6 +66,10 @@ export function mockElectronModule(overrides: Record<string, unknown> = {}): voi
     screen: {
       getPrimaryDisplay: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }),
       getDisplayNearestPoint: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }),
+      getCursorScreenPoint: () => ({ x: 960, y: 540 }),
+    },
+    Menu: {
+      buildFromTemplate: () => ({ popup: () => undefined }),
     },
     ipcMain: {
       handle: () => undefined,

@@ -28,6 +28,10 @@ mock.module('./codeclaw-window', () => ({
   showCodeClawWindow: () => undefined,
   hideCodeClawWindow: () => undefined,
   moveCodeClawWindow: () => undefined,
+  setCodeClawMiniMode: () => undefined,
+  setCodeClawPeek: () => undefined,
+  resizeCodeClawWindow: () => undefined,
+  getCodeClawSize: () => 'm',
   getCodeClawWindow: () => ({
     isDestroyed: () => false,
     webContents: {

@@ -175,6 +175,10 @@ import type {
   TaskGeneratedEventPayload,
   CodeClawState,
   CodeClawThemeId,
+  CodeClawInteraction,
+  CodeClawMiniRequest,
+  CodeClawPeekRequest,
+  CodeClawSize,
 } from '@luxcoder/shared'
 import type { ProjectConfig } from '@luxcoder/shared/projects'
 import type { ExpertManifest, ExpertPackage } from '@luxcoder/shared/experts'
@@ -1585,6 +1589,8 @@ export interface ElectronAPI {
   codeClaw: {
     /** 订阅 CodeClaw 全量状态 */
     onState: (callback: (state: CodeClawState) => void) => () => void
+    /** 订阅全局光标屏幕坐标（眼动追踪用） */
+    onCursor: (callback: (point: { x: number; y: number }) => void) => () => void
     /** 拖拽移动窗口位置 */
     move: (x: number, y: number) => Promise<void>
     /** 打开/聚焦主窗口 */
@@ -1595,6 +1601,18 @@ export interface ElectronAPI {
     markSessionViewed: (sessionId: string) => Promise<void>
     /** 切换 CodeClaw clean-room 宠物主题 */
     setTheme: (themeId: CodeClawThemeId) => Promise<void>
+    /** 进入/退出 Mini 模式（贴边吸附） */
+    setMiniMode: (req: CodeClawMiniRequest) => Promise<void>
+    /** Mini 模式悬停探出/缩回 */
+    peekMini: (req: CodeClawPeekRequest) => Promise<void>
+    /** 调整桌宠窗口尺寸 S/M/L */
+    setSize: (size: CodeClawSize) => Promise<void>
+    /** 切换免打扰（交互静默） */
+    setDnd: (dnd: boolean) => Promise<void>
+    /** 切换音效 */
+    setSound: (enabled: boolean) => Promise<void>
+    /** 弹出桌宠右键菜单 */
+    openContextMenu: () => Promise<void>
   }
 }
 
@@ -3483,6 +3501,11 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.on(CODECLAW_IPC_CHANNELS.STATE, listener)
       return () => { ipcRenderer.removeListener(CODECLAW_IPC_CHANNELS.STATE, listener) }
     },
+    onCursor: (callback: (point: { x: number; y: number }) => void) => {
+      const listener = (_: Electron.IpcRendererEvent, point: { x: number; y: number }): void => callback(point)
+      ipcRenderer.on(CODECLAW_IPC_CHANNELS.CURSOR, listener)
+      return () => { ipcRenderer.removeListener(CODECLAW_IPC_CHANNELS.CURSOR, listener) }
+    },
     move: (x: number, y: number) =>
       ipcRenderer.invoke(CODECLAW_IPC_CHANNELS.MOVE, { x, y }),
     openMainWindow: () =>
@@ -3493,6 +3516,18 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.invoke(CODECLAW_IPC_CHANNELS.MARK_SESSION_VIEWED, sessionId),
     setTheme: (themeId: CodeClawThemeId) =>
       ipcRenderer.invoke(CODECLAW_IPC_CHANNELS.SET_THEME, themeId),
+    setMiniMode: (req: CodeClawMiniRequest) =>
+      ipcRenderer.invoke(CODECLAW_IPC_CHANNELS.SET_MINI_MODE, req),
+    peekMini: (req: CodeClawPeekRequest) =>
+      ipcRenderer.invoke(CODECLAW_IPC_CHANNELS.PEEK_MINI, req),
+    setSize: (size: CodeClawSize) =>
+      ipcRenderer.invoke(CODECLAW_IPC_CHANNELS.SET_SIZE, size),
+    setDnd: (dnd: boolean) =>
+      ipcRenderer.invoke(CODECLAW_IPC_CHANNELS.SET_DND, dnd),
+    setSound: (enabled: boolean) =>
+      ipcRenderer.invoke(CODECLAW_IPC_CHANNELS.SET_SOUND, enabled),
+    openContextMenu: () =>
+      ipcRenderer.invoke(CODECLAW_IPC_CHANNELS.OPEN_CONTEXT_MENU),
   },
 }
 
