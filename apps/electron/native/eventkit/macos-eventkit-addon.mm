@@ -34,7 +34,7 @@ static NSDate *date(NSNumber *milliseconds) { return [NSDate dateWithTimeInterva
 static NSURL *identityURL(NSString *entity, NSString *identity) { return identity ? [NSURL URLWithString:[NSString stringWithFormat:@"luxcoder://planning/%@/%@", entity, identity]] : nil; }
 static NSDictionary *itemResponse(EKCalendarItem *item) { return @{ @"calendarItemIdentifier": item.calendarItemIdentifier ?: @"", @"calendarItemExternalIdentifier": item.calendarItemExternalIdentifier ?: @"" }; }
 static NSNumber *milliseconds(NSDate *value) { return value ? @((long long)llround(value.timeIntervalSince1970 * 1000.0)) : nil; }
-// 只回传 Proma 自己写入的严格 UUID marker；用户的任意 EventKit URL 不得进入 JS 层。
+// 只回传 LuxCoder 自己写入的严格 UUID marker；用户的任意 EventKit URL 不得进入 JS 层。
 static NSString *promaIdentity(NSString *entity, EKCalendarItem *item) {
   NSString *prefix = [NSString stringWithFormat:@"proma://planning/%@/", entity];
   NSString *absolute = item.URL.absoluteString;
@@ -71,14 +71,14 @@ static void upsert(NSString *entity, NSDictionary *payload, CommandContext *ctx,
   NSString *identifier = string(payload, @"calendarItemIdentifier"); EKCalendarItem *recovered = identifier ? nil : ([entity isEqualToString:@"reminder"] ? ([recoveredReminders firstObject]) : recoveredItem(entity, target, payload));
   NSError *error = nil;
   if ([entity isEqualToString:@"calendar"]) {
-    EKEvent *event = identifier ? (EKEvent *)[eventStore() calendarItemWithIdentifier:identifier] : nil; if (event && ![event.calendar.calendarIdentifier isEqualToString:target.calendarIdentifier]) { ctx->reject(@"系统项目已移出连接集合"); return; } if (!event && identifier && ![number(payload, @"allowRecreate") boolValue]) { ctx->reject(@"系统日程已不存在；请选择保留 Proma 后再重建"); return; } if (!event) event = (EKEvent *)recovered; if (!event) event = [EKEvent eventWithEventStore:eventStore()];
+    EKEvent *event = identifier ? (EKEvent *)[eventStore() calendarItemWithIdentifier:identifier] : nil; if (event && ![event.calendar.calendarIdentifier isEqualToString:target.calendarIdentifier]) { ctx->reject(@"系统项目已移出连接集合"); return; } if (!event && identifier && ![number(payload, @"allowRecreate") boolValue]) { ctx->reject(@"系统日程已不存在；请选择保留 LuxCoder 后再重建"); return; } if (!event) event = (EKEvent *)recovered; if (!event) event = [EKEvent eventWithEventStore:eventStore()];
     NSNumber *startAt = number(payload, @"startAt"); if (!startAt) { ctx->reject(@"日程缺少开始时间"); return; }
     event.calendar = target; event.title = title; event.notes = string(payload, @"notes"); if (!event.URL) event.URL = identityURL(entity, string(payload, @"identity"));
     event.startDate = date(startAt); event.endDate = date(number(payload, @"endAt") ?: @(startAt.doubleValue + 3600000)); event.allDay = [number(payload, @"allDay") boolValue];
     if (![eventStore() saveEvent:event span:EKSpanThisEvent commit:YES error:&error]) { ctx->reject(error.localizedDescription); return; }
     ctx->resolve(json(itemResponse(event))); return;
   }
-  EKReminder *reminder = identifier ? (EKReminder *)[eventStore() calendarItemWithIdentifier:identifier] : nil; if (reminder && ![reminder.calendar.calendarIdentifier isEqualToString:target.calendarIdentifier]) { ctx->reject(@"系统项目已移出连接集合"); return; } if (!reminder && identifier && ![number(payload, @"allowRecreate") boolValue]) { ctx->reject(@"系统提醒事项已不存在；请选择保留 Proma 后再重建"); return; } if (!reminder) reminder = (EKReminder *)recovered; if (!reminder) reminder = [EKReminder reminderWithEventStore:eventStore()];
+  EKReminder *reminder = identifier ? (EKReminder *)[eventStore() calendarItemWithIdentifier:identifier] : nil; if (reminder && ![reminder.calendar.calendarIdentifier isEqualToString:target.calendarIdentifier]) { ctx->reject(@"系统项目已移出连接集合"); return; } if (!reminder && identifier && ![number(payload, @"allowRecreate") boolValue]) { ctx->reject(@"系统提醒事项已不存在；请选择保留 LuxCoder 后再重建"); return; } if (!reminder) reminder = (EKReminder *)recovered; if (!reminder) reminder = [EKReminder reminderWithEventStore:eventStore()];
   reminder.calendar = target; reminder.title = title; reminder.notes = string(payload, @"notes"); if (!reminder.URL) reminder.URL = identityURL(entity, string(payload, @"identity"));
   NSNumber *dueAt = number(payload, @"dueAt"); if (dueAt) { NSDate *due = date(dueAt); NSCalendarUnit units = [number(payload, @"dueDateOnly") boolValue] ? (NSCalendarUnitYear|NSCalendarUnitMonth|NSCalendarUnitDay) : (NSCalendarUnitYear|NSCalendarUnitMonth|NSCalendarUnitDay|NSCalendarUnitHour|NSCalendarUnitMinute|NSCalendarUnitSecond); NSDateComponents *components = [[NSCalendar currentCalendar] components:units fromDate:due]; components.timeZone = NSTimeZone.localTimeZone; reminder.dueDateComponents = components; } else reminder.dueDateComponents = nil;
   NSString *priority = string(payload, @"priority") ?: @"medium"; reminder.priority = [priority isEqualToString:@"high"] ? 1 : [priority isEqualToString:@"low"] ? 9 : 5;
@@ -157,7 +157,7 @@ static Napi::Value subscribeChanges(const Napi::CallbackInfo &info) {
   if (info.Length() < 1 || !info[0].IsFunction()) { Napi::TypeError::New(env, "change listener callback is required").ThrowAsJavaScriptException(); return env.Undefined(); }
   if (eventStoreChangeObserver) [[NSNotificationCenter defaultCenter] removeObserver:eventStoreChangeObserver];
   if (eventStoreChangeListener) eventStoreChangeListener->Release();
-  eventStoreChangeListener = std::make_unique<Napi::ThreadSafeFunction>(Napi::ThreadSafeFunction::New(env, info[0].As<Napi::Function>(), "PromaEventKitChanges", 1, 1));
+  eventStoreChangeListener = std::make_unique<Napi::ThreadSafeFunction>(Napi::ThreadSafeFunction::New(env, info[0].As<Napi::Function>(), "LuxCoderEventKitChanges", 1, 1));
   eventStoreChangeObserver = [[NSNotificationCenter defaultCenter] addObserverForName:EKEventStoreChangedNotification object:eventStore() queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *) {
     if (!eventStoreChangeListener) return;
     eventStoreChangeListener->NonBlockingCall([](Napi::Env callbackEnv, Napi::Function callback) { callback.Call({}); });

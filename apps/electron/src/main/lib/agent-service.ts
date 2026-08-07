@@ -124,6 +124,21 @@ function getMainRendererWebContents(): WebContents | null {
   return win && !win.webContents.isDestroyed() ? win.webContents : null
 }
 
+function publishRunStopped(
+  sessionId: string,
+  stoppedByUser: boolean | undefined,
+  startedAt: number | undefined,
+): void {
+  if (!stoppedByUser) return
+  eventBus.emit(sessionId, {
+    kind: 'luxcoder_event',
+    event: {
+      type: 'run_stopped',
+      ...(startedAt != null ? { startedAt } : {}),
+    },
+  })
+}
+
 // ===== EventBus IPC 转发中间件 =====
 
 /**
@@ -200,6 +215,7 @@ export async function runAgent(
         }
       },
       onComplete: (messages, opts) => {
+        publishRunStopped(input.sessionId, opts?.stoppedByUser, opts?.startedAt)
         if (!webContents.isDestroyed()) {
           webContents.send(AGENT_IPC_CHANNELS.STREAM_COMPLETE, {
             sessionId: input.sessionId,
@@ -227,6 +243,12 @@ export async function runAgent(
             title,
           })
         }
+      },
+      onRunStarted: ({ startedAt }) => {
+        eventBus.emit(input.sessionId, {
+          kind: 'luxcoder_event',
+          event: { type: 'run_started', startedAt },
+        })
       },
     })
   } catch (err) {
@@ -304,6 +326,7 @@ export async function runAgentHeadless(
       },
       onComplete: (messages, opts) => {
         callbacks.onComplete(messages, opts)
+        publishRunStopped(runInput.sessionId, opts?.stoppedByUser, opts?.startedAt)
         // 同步到渲染进程
         if (wc && !wc.isDestroyed()) {
           wc.send(AGENT_IPC_CHANNELS.STREAM_COMPLETE, {

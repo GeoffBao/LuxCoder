@@ -98,7 +98,7 @@ export interface PlanningNativeSyncItem {
   /** LuxCoder UUID；仅用于新建项目的 crash-recovery marker，不覆盖用户已有 URL。 */
   identity: string
   calendarItemIdentifier?: string
-  /** 仅用户在冲突中明确选择“保留 Proma”后才允许 locator 缺失时重建。 */
+  /** 仅用户在冲突中明确选择“保留 LuxCoder”后才允许 locator 缺失时重建。 */
   allowRecreate?: boolean
   title: string
   notes?: string
@@ -141,7 +141,7 @@ export async function listPlanningNativeConnectionItems(entity: PlanningNativeSy
   return callMacEventKitNativeAddon<PlanningNativeExternalItem[]>('listItems', entity, { targetId, ...range })
 }
 
-/** 按 Proma 已保存 locator 精确确认删除，不把有界 Calendar 查询误判成完整快照。 */
+/** 按 LuxCoder 已保存 locator 精确确认删除，不把有界 Calendar 查询误判成完整快照。 */
 export async function listPlanningNativeConnectionItemsByIdentifier(entity: PlanningNativeSyncEntity, targetId: string, calendarItemIdentifiers: string[]): Promise<PlanningNativeExternalItem[]> {
   if (calendarItemIdentifiers.length === 0 || !eventKitSupported()) return []
   const permission = await getPermission(entity)

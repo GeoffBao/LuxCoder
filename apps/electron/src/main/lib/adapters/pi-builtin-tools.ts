@@ -32,6 +32,34 @@ import { isBuiltinMcpUserEnabled } from '../builtin-mcp/settings'
 import { buildPiCollaborationTools } from '../agent-collaboration-tools'
 import { getVisionRelayRouteLabel, inspectImageWithVisionRelay, isVisionRelayConfigured, isVisionRelayEligibleForModel } from '../vision-relay-service'
 import {
+  listTodos,
+  getTodo,
+  createTodo,
+  updateTodo,
+  deleteTodo,
+  touchTodoSession,
+  listCalendarEvents,
+  getCalendarEvent,
+  createCalendarEvent,
+  updateCalendarEvent,
+  deleteCalendarEvent,
+  listPlanningGroups,
+  createPlanningGroup,
+  updatePlanningGroup,
+  deletePlanningGroup,
+  listPlanningTags,
+  createPlanningTag,
+  updatePlanningTag,
+  deletePlanningTag,
+  listActivePlanningReminders,
+  createPlanningReminder,
+  updatePlanningReminder,
+  deletePlanningReminder,
+  acknowledgePlanningReminder,
+  snoozePlanningReminder,
+} from '../planning-manager'
+import { broadcastPlanningAgentOperation, broadcastPlanningChanged } from '../planning-events'
+import {
   fetchWebPage,
   formatFetchResults,
   formatSearchResults,
@@ -464,7 +492,7 @@ function buildPlanningTools(sdk: PiSdk, ctx: PiBuiltinToolsContext): ToolDefinit
   return [
     sdk.defineTool({
       name: 'mcp__planning__list_todos', label: '列出 Todo',
-      description: '列出 Proma Todo（包含用户明确连接的系统提醒事项投影）。返回项的 nativeOrigin 表示编辑会写回系统；对该类项单项编辑/完成先征得用户确认，批量修改和删除必须明确确认。仅 Pi Agent 可用。',
+      description: '列出 LuxCoder Todo（包含用户明确连接的系统提醒事项投影）。返回项的 nativeOrigin 表示编辑会写回系统；对该类项单项编辑/完成先征得用户确认，批量修改和删除必须明确确认。仅 Pi Agent 可用。',
       parameters: Type.Object({
         status: Type.Optional(Type.Union([Type.Literal('open'), Type.Literal('completed')])),
         dueBefore: Type.Optional(Type.Number({ description: '仅返回此截止时间之前的 Todo，Unix 毫秒时间戳' })),
@@ -488,7 +516,7 @@ function buildPlanningTools(sdk: PiSdk, ctx: PiBuiltinToolsContext): ToolDefinit
     }),
     sdk.defineTool({
       name: 'mcp__planning__create_todo', label: '创建 Todo',
-      description: '创建 Proma 本地 Todo。调用前必须先用 list_todos(status=open) 检查重复，并用 list_groups({ scope: todo }) 查询并优先复用 Todo 分组；用户明确提出待办，或可合理确定下一步时使用。未传 dueAt 时默认当天结束前；仅 Pi Agent 可用。',
+      description: '创建 LuxCoder 本地 Todo。调用前必须先用 list_todos(status=open) 检查重复，并用 list_groups({ scope: todo }) 查询并优先复用 Todo 分组；用户明确提出待办，或可合理确定下一步时使用。未传 dueAt 时默认当天结束前；仅 Pi Agent 可用。',
       parameters: Type.Object({ title: Type.String(), ...optionalPlanningFields, priority: Type.Optional(Type.Union([Type.Literal('low'), Type.Literal('medium'), Type.Literal('high')])), dueAt: Type.Optional(Type.Number({ description: '截止时间 Unix 毫秒时间戳' })) }),
       async execute(_id: string, params: unknown) {
         const args = params as Record<string, unknown>
@@ -552,7 +580,7 @@ function buildPlanningTools(sdk: PiSdk, ctx: PiBuiltinToolsContext): ToolDefinit
     }),
     sdk.defineTool({
       name: 'mcp__planning__list_calendar_events', label: '列出日程',
-      description: '列出 Proma 日程（包含用户明确连接的系统日历投影）。nativeOrigin 表示编辑会写回系统；Agent 修改前必须先取得用户确认。仅 Pi Agent 可用。',
+      description: '列出 LuxCoder 日程（包含用户明确连接的系统日历投影）。nativeOrigin 表示编辑会写回系统；Agent 修改前必须先取得用户确认。仅 Pi Agent 可用。',
       parameters: Type.Object({
         startAt: Type.Optional(Type.Number({ description: '查询范围起点，Unix 毫秒时间戳' })),
         endAt: Type.Optional(Type.Number({ description: '查询范围终点，Unix 毫秒时间戳' })),
@@ -576,7 +604,7 @@ function buildPlanningTools(sdk: PiSdk, ctx: PiBuiltinToolsContext): ToolDefinit
     }),
     sdk.defineTool({
       name: 'mcp__planning__create_calendar_event', label: '创建日程',
-      description: '创建 Proma 本地日程。分组必须来自 list_groups({ scope: calendar })；用户明确提供时间安排时使用。仅 Pi Agent 可用。',
+      description: '创建 LuxCoder 本地日程。分组必须来自 list_groups({ scope: calendar })；用户明确提供时间安排时使用。仅 Pi Agent 可用。',
       parameters: Type.Object({ title: Type.String(), startAt: Type.Number({ description: '开始时间 Unix 毫秒时间戳' }), endAt: Type.Optional(Type.Number()), allDay: Type.Optional(Type.Boolean()), ...optionalPlanningFields, todoId: Type.Optional(Type.String()) }),
       async execute(_id: string, params: unknown) {
         const args = params as Record<string, unknown>

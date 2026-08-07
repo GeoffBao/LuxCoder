@@ -38,7 +38,8 @@
     "**/scripts/upstream-sync/**",
     "**/release-notes/**",
     "**/docs/**",
-    "**/tutorial/**"
+    "**/tutorial/**",
+    "**/proma-thinking/**"
   ],
   "warnOnlyGlobs": [
     "CLAUDE.md",

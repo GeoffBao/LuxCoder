@@ -121,14 +121,14 @@ export function PlanningNativeSyncControl({ entity }: { entity: PlanningNativeSy
   }
   const disconnect = async (id: string): Promise<void> => {
     setSaving(true)
-    try { await window.electronAPI.disconnectPlanningNativeConnection(id); await refresh(); toast.success('已从 Proma 隐藏该系统集合') }
+    try { await window.electronAPI.disconnectPlanningNativeConnection(id); await refresh(); toast.success('已从 LuxCoder 隐藏该系统集合') }
     catch (error) { console.error('[Planning 同步] 断开失败:', error); toast.error('断开系统集合失败') }
     finally { setSaving(false) }
   }
 
   const resolveConflict = async (id: string, resolution: 'keep_proma' | 'keep_system'): Promise<void> => {
     setSaving(true)
-    try { await window.electronAPI.resolvePlanningNativeSyncConflict({ id, resolution }); await refresh(); toast.success(resolution === 'keep_proma' ? '将以 Proma 版本覆盖系统项目' : '已保留系统版本') }
+    try { await window.electronAPI.resolvePlanningNativeSyncConflict({ id, resolution }); await refresh(); toast.success(resolution === 'keep_proma' ? '将以 LuxCoder 版本覆盖系统项目' : '已保留系统版本') }
     catch (error) { console.error('[Planning 同步] 解决冲突失败:', error); toast.error('解决同步冲突失败') }
     finally { setSaving(false) }
   }
