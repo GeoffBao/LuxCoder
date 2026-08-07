@@ -25,6 +25,7 @@ import {
   agentPendingPromptAtom,
   agentSessionDraftHtmlAtom,
   agentSessionDraftsAtom,
+  agentSessionDraftSyncVersionsAtom,
   agentSessionsAtom,
   currentAgentSessionIdAtom,
   agentChannelIdAtom,
@@ -36,6 +37,7 @@ import {
 import {
   chatPendingMessageAtom,
   conversationDraftsAtom,
+  conversationDraftSyncVersionsAtom,
   conversationsAtom,
   currentConversationIdAtom,
   selectedModelAtom,
@@ -501,6 +503,11 @@ export function GlobalShortcuts(): null {
           map.delete(sessionId)
           return map
         })
+        store.set(agentSessionDraftSyncVersionsAtom, (prev) => {
+          const map = new Map(prev)
+          map.set(sessionId, (map.get(sessionId) ?? 0) + 1)
+          return map
+        })
         window.dispatchEvent(new CustomEvent('luxcoder:focus-input'))
         acknowledgeDelivery(true)
         return
@@ -514,6 +521,11 @@ export function GlobalShortcuts(): null {
           const map = new Map(prev)
           const current = map.get(conversationId) ?? ''
           map.set(conversationId, current ? `${current}\n${trimmed}` : trimmed)
+          return map
+        })
+        store.set(conversationDraftSyncVersionsAtom, (prev) => {
+          const map = new Map(prev)
+          map.set(conversationId, (map.get(conversationId) ?? 0) + 1)
           return map
         })
         window.dispatchEvent(new CustomEvent('luxcoder:focus-input'))
