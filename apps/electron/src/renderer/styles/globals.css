@@ -2972,3 +2972,25 @@ html.theme-custom body {
 .ProseMirror-focused .ProseMirror-gapcursor {
   display: block;
 }
+
+/* ===== Reduced motion：全局兜底 =====
+ * prefers-reduced-motion: reduce 下，取消绝大多数装饰性过渡/动画，避免 vestibular 不适；
+ * 仅保留 spinner 等功能性指示器和内容光标闪烁。
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* 保留功能性动画：加载 spinner、内容光标 */
+  .spinner,
+  .spinner *,
+  .ProseMirror-gapcursor::after {
+    animation-duration: 1.3s !important;
+  }
+}

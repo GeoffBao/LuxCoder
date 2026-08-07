@@ -19,7 +19,7 @@ const SelectTrigger = React.forwardRef<
     className={cn(
       // 与 Input 同款 hairline + hover 加深 + 双层 focus glow，保证表单字段视觉一致
       "flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-border/60 bg-background/40 px-3 py-2 text-sm shadow-xs ring-offset-background",
-      "transition-[border-color,box-shadow,background-color] duration-150 ease-out",
+      "transition-[border-color,box-shadow,background-color,transform] duration-fast ease-out active:scale-[0.97]",
       "data-[placeholder]:text-muted-foreground/80",
       "hover:border-border",
       "focus:outline-none focus:border-ring focus:bg-background focus:ring-4 focus:ring-ring/15",
@@ -31,7 +31,7 @@ const SelectTrigger = React.forwardRef<
   >
     {children}
     <SelectPrimitive.Icon asChild>
-      <ChevronDown className="h-4 w-4 opacity-60 transition-transform duration-150 data-[state=open]:rotate-180" />
+      <ChevronDown className="h-4 w-4 opacity-60 transition-transform duration-fast data-[state=open]:rotate-180" />
     </SelectPrimitive.Icon>
   </SelectPrimitive.Trigger>
 ))
@@ -125,7 +125,7 @@ const SelectItem = React.forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-2 pr-8 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-2 pr-8 text-sm outline-none transition-[color,background-color,transform] duration-fast ease-out active:scale-[0.97] focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className
     )}
     {...props}

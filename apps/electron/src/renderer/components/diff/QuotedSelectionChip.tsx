@@ -72,7 +72,7 @@ export function QuotedSelectionChip({
           'absolute top-1 right-1 size-[18px] rounded-full',
           'bg-foreground/10 text-foreground/50',
           'flex items-center justify-center',
-          'opacity-0 group-hover/chip:opacity-100 transition-opacity duration-200',
+          'opacity-0 group-hover/chip:opacity-100 transition-opacity duration-base',
           'hover:bg-foreground/20 hover:text-foreground',
         )}
         aria-label="移除引用"

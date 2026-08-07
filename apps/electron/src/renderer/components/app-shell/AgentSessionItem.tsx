@@ -230,7 +230,7 @@ export function SessionItemActions({
           不占布局宽度——标题因此可以顶到行尾。 */}
       <div
         className={cn(
-          'flex items-center transition-opacity duration-100',
+          'flex items-center transition-opacity duration-fast',
           forceVisible
             ? 'opacity-100 pointer-events-auto'
             : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto',
@@ -565,7 +565,7 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
           onMouseEnter={preview.handleMouseEnter}
           onMouseLeave={preview.handleMouseLeave}
           className={cn(
-            'session-quick-switch-row group relative w-full flex items-center gap-1.5 rounded-md py-1 pl-2 pr-1.5 transition-colors duration-100 titlebar-no-drag text-left',
+            'session-quick-switch-row group relative w-full flex items-center gap-1.5 rounded-md py-1 pl-2 pr-1.5 transition-colors duration-fast titlebar-no-drag text-left',
             'hover:bg-foreground/[0.03]',
             active && 'agent-session-item-active',
             // 选中态背景：浅色叠加深色变深、深色叠加浅色变浅，自动适配主题。
@@ -656,7 +656,7 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
                     <ChevronRight
                       size={11}
                       className={cn(
-                        'transition-transform duration-150',
+                        'transition-transform duration-fast',
                         childSummary.expanded && 'rotate-90',
                       )}
                     />

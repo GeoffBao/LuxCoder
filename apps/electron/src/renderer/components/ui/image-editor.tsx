@@ -554,7 +554,7 @@ export function ImageEditor({ src, onSave, onCancel }: ImageEditorProps): React.
           type="button"
           onClick={() => { setTool(tool === 'crop' ? 'none' : 'crop'); setCropRect(null); cropStartRef.current = null }}
           className={cn(
-            'rounded-full p-2 text-white/70 transition-colors duration-150',
+            'rounded-full p-2 text-white/70 transition-colors duration-fast',
             'hover:bg-white/15 hover:text-white',
             'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
             tool === 'crop' && 'bg-white/20 text-white'
@@ -569,7 +569,7 @@ export function ImageEditor({ src, onSave, onCancel }: ImageEditorProps): React.
           type="button"
           onClick={handleRotate}
           className={cn(
-            'rounded-full p-2 text-white/70 transition-colors duration-150',
+            'rounded-full p-2 text-white/70 transition-colors duration-fast',
             'hover:bg-white/15 hover:text-white',
             'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40'
           )}
@@ -583,7 +583,7 @@ export function ImageEditor({ src, onSave, onCancel }: ImageEditorProps): React.
           type="button"
           onClick={() => setTool(tool === 'rect' ? 'none' : 'rect')}
           className={cn(
-            'rounded-full p-2 text-white/70 transition-colors duration-150',
+            'rounded-full p-2 text-white/70 transition-colors duration-fast',
             'hover:bg-white/15 hover:text-white',
             'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
             tool === 'rect' && 'bg-white/20 text-white'
@@ -598,7 +598,7 @@ export function ImageEditor({ src, onSave, onCancel }: ImageEditorProps): React.
           type="button"
           onClick={() => setTool(tool === 'draw' ? 'none' : 'draw')}
           className={cn(
-            'rounded-full p-2 text-white/70 transition-colors duration-150',
+            'rounded-full p-2 text-white/70 transition-colors duration-fast',
             'hover:bg-white/15 hover:text-white',
             'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
             tool === 'draw' && 'bg-white/20 text-white'
@@ -654,7 +654,7 @@ export function ImageEditor({ src, onSave, onCancel }: ImageEditorProps): React.
               type="button"
               onClick={applyCrop}
               className={cn(
-                'rounded-full p-2 text-[#34c759] transition-colors duration-150',
+                'rounded-full p-2 text-[#34c759] transition-colors duration-fast',
                 'hover:bg-white/15',
                 'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40'
               )}
@@ -672,7 +672,7 @@ export function ImageEditor({ src, onSave, onCancel }: ImageEditorProps): React.
           type="button"
           onClick={handleReset}
           className={cn(
-            'rounded-full p-2 text-white/70 transition-colors duration-150',
+            'rounded-full p-2 text-white/70 transition-colors duration-fast',
             'hover:bg-white/15 hover:text-white',
             'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40'
           )}
@@ -686,7 +686,7 @@ export function ImageEditor({ src, onSave, onCancel }: ImageEditorProps): React.
           type="button"
           onClick={onCancel}
           className={cn(
-            'rounded-full p-2 text-white/70 transition-colors duration-150',
+            'rounded-full p-2 text-white/70 transition-colors duration-fast',
             'hover:bg-white/15 hover:text-white',
             'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40'
           )}
@@ -703,7 +703,7 @@ export function ImageEditor({ src, onSave, onCancel }: ImageEditorProps): React.
           className={cn(
             'rounded-full px-3 py-2 text-sm font-medium',
             'bg-white/15 text-white hover:bg-white/25',
-            'transition-colors duration-150',
+            'transition-colors duration-fast',
             'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
             !imageLoaded && 'opacity-40 cursor-not-allowed hover:bg-white/15'
           )}

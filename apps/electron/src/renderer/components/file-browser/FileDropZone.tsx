@@ -261,7 +261,7 @@ export function FileDropZone({ workspaceSlug, sessionId, target = 'session', onF
 
   const zoneClass = (side: 'left' | 'right'): string =>
     cn(
-      'file-drop-zone flex-1 flex flex-col items-center justify-center gap-1 rounded-lg px-2 py-2.5 transition-colors duration-200 cursor-pointer',
+      'file-drop-zone flex-1 flex flex-col items-center justify-center gap-1 rounded-lg px-2 py-2.5 transition-colors duration-base cursor-pointer',
       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50',
       isDragOver === side
         ? 'file-drop-zone-active bg-primary/25 ring-2 ring-primary/50'

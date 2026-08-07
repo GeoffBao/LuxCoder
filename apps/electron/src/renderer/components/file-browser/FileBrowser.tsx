@@ -764,7 +764,7 @@ function FileTreeItem({
         {entry.isDirectory ? (
           <ChevronRight
             className={cn(
-              'relative z-10 size-3.5 text-muted-foreground flex-shrink-0 transition-transform duration-150',
+              'relative z-10 size-3.5 text-muted-foreground flex-shrink-0 transition-transform duration-fast',
               expanded && 'rotate-90',
             )}
           />

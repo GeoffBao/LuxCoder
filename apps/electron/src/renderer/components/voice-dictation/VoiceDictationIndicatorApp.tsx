@@ -45,7 +45,7 @@ export function VoiceDictationIndicatorApp(): React.ReactElement {
               {[0.65, 1, 0.78, 0.9].map((scale, index) => (
                 <span
                   key={index}
-                  className="w-[2px] rounded-full bg-current transition-[height] duration-100 ease-out"
+                  className="w-[2px] rounded-full bg-current transition-[height] duration-fast ease-out"
                   style={{
                     height: `${Math.max(3, Math.round((3 + volume * 11) * scale))}px`,
                     animationDelay: `${index * 80}ms`,
@@ -65,7 +65,7 @@ export function VoiceDictationIndicatorApp(): React.ReactElement {
         aria-live="polite"
       >
         {lines.length > 0 ? (
-          <div className="animate-in fade-in slide-in-from-bottom-1 duration-200">
+          <div className="animate-in fade-in slide-in-from-bottom-1 duration-base">
             {lines.map((line, index) => (
               <p key={`${index}-${line}`} className={index === 0 && lines.length > 1 ? 'truncate text-muted-foreground/70' : 'truncate'}>
                 {line}

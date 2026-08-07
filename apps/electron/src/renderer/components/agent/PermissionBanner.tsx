@@ -121,7 +121,7 @@ export function PermissionBanner({ sessionId }: PermissionBannerProps): React.Re
 
   return (
     <div
-      className="mx-4 mb-3 rounded-xl bg-card shadow-lg overflow-hidden animate-in slide-in-from-bottom-2 duration-200"
+      className="mx-4 mb-3 rounded-xl bg-card shadow-lg overflow-hidden animate-in slide-in-from-bottom-2 duration-base"
     >
       {/* 头部 */}
       <div className="flex items-center justify-between px-3 py-2">

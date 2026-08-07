@@ -146,7 +146,7 @@ export function CollapsedWorkspacePopover({
               type="button"
               onClick={() => handleSelect(ws.id)}
               className={cn(
-                'w-full flex items-center gap-2 px-2 py-[5px] rounded-md text-[13px] transition-colors duration-100 text-left',
+                'w-full flex items-center gap-2 px-2 py-[5px] rounded-md text-[13px] transition-colors duration-fast text-left',
                 ws.id === currentWorkspaceId
                   ? 'bg-foreground/[0.08] text-foreground shadow-[0_1px_2px_0_rgba(0,0,0,0.05)]'
                   : 'text-foreground/70 hover:bg-foreground/[0.04]',

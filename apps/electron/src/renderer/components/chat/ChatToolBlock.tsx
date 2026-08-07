@@ -54,7 +54,7 @@ export function ChatToolBlock({
   return (
     <div
       className={cn(
-        animate && 'animate-in fade-in slide-in-from-left-1 duration-150 fill-mode-both',
+        animate && 'animate-in fade-in slide-in-from-left-1 duration-fast fill-mode-both',
       )}
       style={animate ? { animationDelay: delay } : undefined}
     >
@@ -88,7 +88,7 @@ export function ChatToolBlock({
       </button>
 
       {expanded && result && (
-        <div className="ml-5.5 mt-1 mb-2 pl-3 border-l-2 border-border/30 animate-in fade-in slide-in-from-top-1 duration-150">
+        <div className="ml-5.5 mt-1 mb-2 pl-3 border-l-2 border-border/30 animate-in fade-in slide-in-from-top-1 duration-fast">
           <ToolResultRenderer
             toolName={toolName}
             input={input}

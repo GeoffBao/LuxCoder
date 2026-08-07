@@ -477,7 +477,7 @@ function TreeNodeList({
           {node.type === 'dir' && node.children.length > 0 ? (
             <ChevronRight
               className={cn(
-                'size-3 shrink-0 text-muted-foreground transition-transform duration-150',
+                'size-3 shrink-0 text-muted-foreground transition-transform duration-fast',
                 node.expanded && 'rotate-90',
               )}
             />

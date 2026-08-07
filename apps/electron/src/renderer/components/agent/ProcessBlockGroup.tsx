@@ -291,7 +291,7 @@ export function ProcessBlockGroup({ blocks, isStreaming, isMessageTail = false, 
           key={i}
           className={cn(
             dimmed && 'opacity-80',
-            isStreaming && 'animate-in fade-in slide-in-from-top-1 duration-200',
+            isStreaming && 'animate-in fade-in slide-in-from-top-1 duration-base',
           )}
         >
           {child}
@@ -316,7 +316,7 @@ export function ProcessBlockGroup({ blocks, isStreaming, isMessageTail = false, 
       >
         <ChevronRight
           className={cn(
-            'size-3 shrink-0 text-muted-foreground/40 transition-transform duration-150',
+            'size-3 shrink-0 text-muted-foreground/40 transition-transform duration-fast',
             expanded && 'rotate-90',
           )}
         />

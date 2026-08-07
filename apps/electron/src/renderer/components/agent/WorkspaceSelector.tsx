@@ -305,7 +305,7 @@ export function WorkspaceSelector(): React.ReactElement {
                 onDragEnd={handleDragEnd}
                 onClick={() => handleSelect(ws)}
                 className={cn(
-                  'group w-full flex items-center gap-1 px-1 py-[5px] rounded-md text-[13px] transition-colors duration-100 cursor-pointer titlebar-no-drag',
+                  'group w-full flex items-center gap-1 px-1 py-[5px] rounded-md text-[13px] transition-colors duration-fast cursor-pointer titlebar-no-drag',
                   ws.id === currentWorkspaceId
                     ? 'workspace-item-selected bg-foreground/[0.08] text-foreground shadow-[0_1px_2px_0_rgba(0,0,0,0.05)]'
                     : 'text-foreground/70 hover:bg-foreground/[0.04]',

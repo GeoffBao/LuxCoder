@@ -99,7 +99,7 @@ export function AutomationsListView(): React.ReactElement {
           <button
             type="button"
             onClick={handleCreate}
-            className="titlebar-no-drag flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors duration-100 shadow-sm"
+            className="titlebar-no-drag flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors duration-fast shadow-sm"
           >
             <Plus size={14} />
             <span>新建定时任务</span>

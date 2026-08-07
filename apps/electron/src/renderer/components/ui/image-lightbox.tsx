@@ -120,7 +120,7 @@ export function ImageLightbox({
   const showNav = mode === 'preview' && hasMultiple
   const navBtn = cn(
     'absolute top-1/2 -translate-y-1/2 z-10 rounded-full p-2',
-    'bg-black/50 text-white/80 backdrop-blur-md shadow-lg transition-colors duration-150',
+    'bg-black/50 text-white/80 backdrop-blur-md shadow-lg transition-colors duration-fast',
     'hover:bg-black/70 hover:text-white',
     'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black'
   )
@@ -142,7 +142,7 @@ export function ImageLightbox({
             'data-[state=open]:animate-in data-[state=closed]:animate-out',
             'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
             'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
-            'duration-200'
+            'duration-base'
           )}
           onClick={(e) => {
             if (e.target === e.currentTarget) onOpenChange(false)
@@ -186,11 +186,11 @@ export function ImageLightbox({
                 'bg-black/50 backdrop-blur-md shadow-lg',
                 'px-3 py-2.5'
               )}>
-                <DialogPrimitive.Close className={cn('rounded-full p-1.5 text-white/80 transition-colors duration-150', 'hover:bg-white/15 hover:text-white', 'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black')}>
+                <DialogPrimitive.Close className={cn('rounded-full p-1.5 text-white/80 transition-colors duration-fast', 'hover:bg-white/15 hover:text-white', 'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black')}>
                   <X className="size-5" /><span className="sr-only">关闭</span>
                 </DialogPrimitive.Close>
-                {showEdit && (<><div className="mx-1.5 h-5 w-px bg-white/20" aria-hidden /><button type="button" onClick={() => setMode('editing')} className={cn('rounded-full p-1.5 text-white/80 transition-colors duration-150', 'hover:bg-white/15 hover:text-white', 'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black')} title="编辑图片"><Pencil className="size-5" /></button></>)}
-                {current.onSave && (<><div className="mx-1.5 h-5 w-px bg-white/20" aria-hidden /><button type="button" onClick={current.onSave} className={cn('rounded-full p-1.5 text-white/80 transition-colors duration-150', 'hover:bg-white/15 hover:text-white', 'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black')} title="保存图片"><Download className="size-5" /></button></>)}
+                {showEdit && (<><div className="mx-1.5 h-5 w-px bg-white/20" aria-hidden /><button type="button" onClick={() => setMode('editing')} className={cn('rounded-full p-1.5 text-white/80 transition-colors duration-fast', 'hover:bg-white/15 hover:text-white', 'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black')} title="编辑图片"><Pencil className="size-5" /></button></>)}
+                {current.onSave && (<><div className="mx-1.5 h-5 w-px bg-white/20" aria-hidden /><button type="button" onClick={current.onSave} className={cn('rounded-full p-1.5 text-white/80 transition-colors duration-fast', 'hover:bg-white/15 hover:text-white', 'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black')} title="保存图片"><Download className="size-5" /></button></>)}
               </div>
               </div>
             </div>

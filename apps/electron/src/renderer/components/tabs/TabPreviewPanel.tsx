@@ -82,7 +82,7 @@ export function TabPreviewPanel({ title, items, isLeaving }: TabPreviewPanelProp
         'w-[280px] rounded-lg border bg-popover shadow-xl origin-top flex flex-col overflow-hidden',
         isLeaving
           ? 'animate-out fade-out-0 zoom-out-95 duration-75'
-          : 'animate-in fade-in-0 zoom-in-95 duration-150'
+          : 'animate-in fade-in-0 zoom-in-95 duration-fast'
       )}
       style={{ maxHeight: 'min(420px, 60vh)' }}
     >

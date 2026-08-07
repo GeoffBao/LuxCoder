@@ -120,7 +120,7 @@ interface SidebarProjectsTabProps {
 
 /** 项目行聚合注意力点的优先级：blocked > running > completed（学 Synara/Superset 聚合指示） */
 const ATTENTION_DOT_CLASS: Record<string, string> = {
-  blocked: 'bg-red-500',
+  blocked: 'bg-destructive',
   running: 'bg-amber-500 animate-pulse',
   completed: 'bg-emerald-500',
 }
@@ -500,7 +500,7 @@ export function SidebarProjectsTab({ workspaceRoot, sessionHandlers, status, sor
                           >
                             <ChevronRight
                               size={12}
-                              className={cn('transition-transform duration-150', expanded && 'rotate-90')}
+                              className={cn('transition-transform duration-fast', expanded && 'rotate-90')}
                             />
                           </button>
                         </span>

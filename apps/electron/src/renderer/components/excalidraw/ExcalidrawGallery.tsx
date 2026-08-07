@@ -401,7 +401,7 @@ export function ExcalidrawGallery(): React.ReactElement {
                     role="button"
                     tabIndex={0}
                     aria-label={`打开画布：${file.title || '未命名'}`}
-                    className="group flex flex-col rounded-lg border border-border/50 bg-card hover:border-primary/40 hover:shadow-sm transition-all text-left overflow-hidden cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="group flex flex-col rounded-lg border border-border/50 bg-card hover:border-primary/40 hover:shadow-sm transition-[border-color,box-shadow,transform] duration-fast text-left overflow-hidden cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     onClick={() => {
                       if (renamingSlug !== file.slug) handleOpen(file.slug)
                     }}

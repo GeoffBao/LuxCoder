@@ -212,7 +212,7 @@ export function FilePathChip({ filePath, basePath, basePaths, className }: FileP
           title={fileStatus === 'broken' ? `文件不存在: ${displayPath}` : displayPath}
           className={cn(
             'inline-flex items-center gap-[0.25em] rounded px-[0.35em] py-[0.15em] text-[0.875em] font-medium leading-none',
-            'cursor-pointer transition-colors duration-150',
+            'cursor-pointer transition-colors duration-fast',
             'align-baseline not-prose',
             fileStatus === 'broken'
               ? 'opacity-50 border border-dashed border-muted-foreground/30 text-muted-foreground hover:opacity-70 hover:bg-muted/20'

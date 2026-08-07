@@ -326,7 +326,7 @@ export function SettingsPanel({
                       key={tab.id}
                       onClick={() => handleTabChange(tab.id)}
                       className={cn(
-                        "flex items-center gap-2 px-3 py-1.5 rounded-lg text-[13px] transition-colors",
+                        "flex items-center gap-2 px-3 py-1.5 rounded-lg text-[13px] transition-[color,background-color,transform] duration-fast ease-out active:scale-[0.97]",
                         activeTab === tab.id
                           ? "bg-foreground/[0.08] text-foreground/90"
                           : "text-foreground/55 hover:bg-foreground/[0.04] hover:text-foreground/80",
@@ -335,7 +335,7 @@ export function SettingsPanel({
                       {tab.icon}
                       <span>{tab.label}</span>
                       {tab.id === "about" && (hasUpdate || hasEnvironmentIssues) && (
-                        <span className="w-2 h-2 rounded-full bg-red-500" />
+                        <span className="w-2 h-2 rounded-full bg-destructive" />
                       )}
                     </button>
                   ))}
@@ -346,7 +346,7 @@ export function SettingsPanel({
           <div className="flex-shrink-0 p-3">
             <button
               onClick={handleClose}
-              className="group flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-background/60 hover:text-foreground"
+              className="group flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-sm text-muted-foreground transition-[color,background-color,transform] duration-fast ease-out active:scale-[0.97] hover:bg-background/60 hover:text-foreground"
             >
               <ArrowLeft size={16} />
               <span>返回</span>
