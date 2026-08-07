@@ -18,7 +18,9 @@ import {
   ArrowLeftRight,
   AtSign,
   Blocks,
+  ListTodo,
   MessageSquarePlus,
+  MessageSquareText,
   Paperclip,
   Search,
   Sparkles,
@@ -59,6 +61,8 @@ function getGuideItems(uiMode: PrimaryUiMode, platform: Platform): GuideItem[] {
       { icon: AtSign, title: '引用文件', hint: '@' },
       { icon: Blocks, title: '调用 MCP 工具', hint: '#' },
       { icon: Sparkles, title: '使用 Skill', hint: '/' },
+      { icon: MessageSquareText, title: '引用会话', hint: '&' },
+      { icon: ListTodo, title: '引用待办/日程', hint: '～' },
       { icon: Paperclip, title: '上传附件' },
     ]
   }
