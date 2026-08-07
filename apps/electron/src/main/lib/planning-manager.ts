@@ -846,6 +846,9 @@ export function savePlanningSyncProfile(input: SavePlanningSyncProfileInput): Pl
   const targetId = assertText(input.target.id, '同步目标', 1_000)
   const targetTitle = assertText(input.target.title, '同步目标名称', 500)
   const sourceTitle = input.target.sourceTitle.trim().slice(0, 500)
+  // 与 connectPlanningNativeConnection 的反向对称检查：已作为外部连接接入的系统集合不能再被设为受管目标，
+  // 否则同一个 EventKit 集合会被两套独立的回流/出站机制同时管理，造成本地重复导入与写入互相踩踏。
+  if (getDatabase().prepare('SELECT id FROM planning_native_connections WHERE entity=:entity AND target_id=:targetId').get({ entity: input.entity, targetId })) throw new Error('该系统集合已作为外部连接接入，不能同时设为受管目标')
   const existing = getDatabase().prepare('SELECT * FROM planning_sync_profiles WHERE entity=:entity').get({ entity: input.entity }) as SyncProfileRow | undefined
   const now = Math.max(Date.now(), (existing?.updated_at ?? 0) + 1)
   const profile: PlanningSyncProfile = {

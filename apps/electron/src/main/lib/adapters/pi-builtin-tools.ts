@@ -827,6 +827,13 @@ export async function buildPiBuiltinTools(
     }
   }
 
+  // Planning（Todo/日程/分组/标签/提醒）不受 builtin MCP 开关控制，始终对 Pi Agent 可用。
+  try {
+    tools.push(...buildPlanningTools(sdk, ctx))
+  } catch (error) {
+    console.error('[Pi 桥接] 注入 planning 工具失败:', error)
+  }
+
   // collaboration 桥接
   const collaborationAvailable = isBuiltinMcpUserEnabled('collaboration') &&
     !!ctx.workspaceId &&

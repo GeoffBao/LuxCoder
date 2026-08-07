@@ -36,7 +36,7 @@ static NSDictionary *itemResponse(EKCalendarItem *item) { return @{ @"calendarIt
 static NSNumber *milliseconds(NSDate *value) { return value ? @((long long)llround(value.timeIntervalSince1970 * 1000.0)) : nil; }
 // 只回传 LuxCoder 自己写入的严格 UUID marker；用户的任意 EventKit URL 不得进入 JS 层。
 static NSString *promaIdentity(NSString *entity, EKCalendarItem *item) {
-  NSString *prefix = [NSString stringWithFormat:@"proma://planning/%@/", entity];
+  NSString *prefix = [NSString stringWithFormat:@"luxcoder://planning/%@/", entity];
   NSString *absolute = item.URL.absoluteString;
   if (![absolute hasPrefix:prefix]) return nil;
   NSString *identity = [absolute substringFromIndex:prefix.length];
