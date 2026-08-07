@@ -1243,7 +1243,7 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
                   </div>
                 ) : (
                   <div className="text-xs text-muted-foreground">
-                    使用 Claude Pro/Max/Team/Enterprise 订阅登录，通过官方浏览器授权，无需 API Key。仅支持 Code 模式。
+                    使用 Claude Pro/Max/Team/Enterprise 订阅登录，通过官方浏览器授权，无需 API Key。仅支持 Project 模式。
                   </div>
                 )}
               </div>

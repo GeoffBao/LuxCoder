@@ -2618,12 +2618,12 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
         <div className="my-3 h-px w-8 bg-border/70" />
 
-        {/* 主入口：Code 模式（悬停查看工作区）——Home 模式切换入口已下线，主入口固定 Code */}
+        {/* 主入口：Project 模式（悬停查看工作区）——Chat 模式切换入口已下线，主入口固定 Project */}
         <div className="flex flex-col items-center gap-1.5">
           <CollapsedWorkspacePopover>
             <button
               type="button"
-              aria-label="切换到 Code 模式（悬停查看空间）"
+              aria-label="切换到 Project 模式（悬停查看空间）"
               onClick={() => handleRailModeSwitch('agent')}
               className={cn(
                 'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag',
