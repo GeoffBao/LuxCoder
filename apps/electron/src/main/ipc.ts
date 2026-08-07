@@ -2000,7 +2000,7 @@ export function registerIpcHandlers(): void {
     }
   )
 
-  // ===== Excalidraw 画板 =====
+  // ===== Excalidraw 画布 =====
 
   // 列出 Workspace 下所有画板文件
   ipcMain.handle(
@@ -2163,7 +2163,7 @@ export function registerIpcHandlers(): void {
         if (!win) throw new Error('无活跃窗口')
 
         const result = await dialog.showSaveDialog(win, {
-          title: '导出 Excalidraw 画板',
+          title: '导出 Excalidraw 画布',
           defaultPath: `${title}.excalidraw`,
           filters: [
             { name: 'Excalidraw', extensions: ['excalidraw'] },
@@ -2187,7 +2187,7 @@ export function registerIpcHandlers(): void {
       const win = BrowserWindow.getFocusedWindow()
       if (!win) return null
       const result = await dialog.showSaveDialog(win, {
-        title: '保存 Excalidraw 画板',
+        title: '保存 Excalidraw 画布',
         defaultPath: defaultName || 'drawing.excalidraw',
         filters: [
           { name: 'Excalidraw', extensions: ['excalidraw'] },

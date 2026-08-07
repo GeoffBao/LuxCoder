@@ -611,7 +611,7 @@ export interface ElectronAPI {
   /** 将图片 data URL 写入系统剪贴板 */
   copyImageToClipboard: (dataUrl: string) => Promise<{ success: boolean; message?: string }>
 
-  // ===== Excalidraw 画板 =====
+  // ===== Excalidraw 画布 =====
 
   /** 列出 Workspace 下所有画板文件（elements 为缩略图用的精简元素快照，不含内嵌图片） */
   listExcalidrawFiles: (workspaceSlug: string) => Promise<Array<{ slug: string; title: string; elementCount: number; background: string; mtime: number; error?: boolean; elements?: unknown[] }>>
@@ -1954,7 +1954,7 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(SCRATCH_PAD_IPC_CHANNELS.COPY_IMAGE, dataUrl)
   },
 
-  // Excalidraw 画板
+  // Excalidraw 画布
   listExcalidrawFiles: (workspaceSlug: string) => {
     return ipcRenderer.invoke(EXCALIDRAW_IPC_CHANNELS.LIST, workspaceSlug)
   },

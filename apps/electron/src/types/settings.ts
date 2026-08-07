@@ -519,7 +519,7 @@ export const SCRATCH_PAD_IPC_CHANNELS = {
   COPY_IMAGE: 'scratch-pad:copy-image',
 } as const
 
-/** Excalidraw 画板 IPC 通道 */
+/** Excalidraw 画布 IPC 通道 */
 export const EXCALIDRAW_IPC_CHANNELS = {
   /** 列出 Workspace 下所有画板文件 */
   LIST: 'excalidraw:list',

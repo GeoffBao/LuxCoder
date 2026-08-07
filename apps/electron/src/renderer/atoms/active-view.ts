@@ -6,7 +6,7 @@
  * - planning: Task 日历视图（Todo / 日历 / 定时任务合一）
  * - agent-skills: Yoda 插件（专家 / 专家团 / Skills / MCP / API）全屏管理视图，Home / Code 共享
  * - workspace-context: Yoda 记忆（CLAUDE.md + auto-memory），已迁入设置面板；枚举保留兼容
- * - repo-wiki: Home 模式 Yoda 知识库（LLM 知识库）入口
+ * - repo-wiki: Project 模式 Yoda 知识库（LLM 知识库）入口
  * - projects: 遗留值（项目中心已移除；运行时回退到 conversations）
  * - excalidraw-gallery / excalidraw-editor: 手绘白板视图
  */

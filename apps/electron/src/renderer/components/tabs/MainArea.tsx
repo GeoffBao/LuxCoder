@@ -257,7 +257,7 @@ export function MainArea(): React.ReactElement {
               // Yoda 记忆：已迁入设置面板；全屏视图保留兼容（历史 deep-link）
               <WorkspaceContextView />
             ) : activeView === 'repo-wiki' ? (
-              // Yoda 知识库：Home 模式知识库入口（待开发占位）
+              // Yoda 知识库：Project 模式知识库入口（待开发占位）
               <RepoWikiView />
             ) : activeView === 'excalidraw-gallery' || activeView === 'excalidraw-editor' ? (
               <ExcalidrawView />

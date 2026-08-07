@@ -1,5 +1,5 @@
 /**
- * ExcalidrawView - Excalidraw 画板路由视图
+ * ExcalidrawView - Excalidraw 画布路由视图
  *
  * 根据 activeView 渲染画廊或编辑器（lazy load 编辑器以减小首屏体积）。
  */

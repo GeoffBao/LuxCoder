@@ -854,10 +854,10 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     return map
   }, [workspaces])
 
-  // Excalidraw 画布计数（仅 Home 模式，走当前工作区的 excalidraw 目录）
+  // Excalidraw 画布计数（仅 Project 模式，走当前工作区的 excalidraw 目录）
   const [excalidrawCount, setExcalidrawCount] = React.useState(0)
   React.useEffect(() => {
-    if (!currentWorkspaceSlug || mode !== 'chat') {
+    if (!currentWorkspaceSlug || mode !== 'agent') {
       setExcalidrawCount(0)
       return
     }
@@ -1027,7 +1027,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     setSettingsOpen(true)
   }, [setAgentSkillsTab, setSettingsOpen, setSettingsTab])
 
-  /** 打开/关闭 Yoda 知识库 视图（Home 模式知识库入口） */
+  /** 打开/关闭 Yoda 知识库 视图（Project 模式知识库入口） */
   const handleOpenRepoWiki = React.useCallback((): void => {
     if (activeView === 'repo-wiki') {
       setActiveView('conversations')
@@ -1044,7 +1044,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     setActiveView('conversations')
   }, [activeView, codeMainView, setActiveView, setAutomationForm, setCodeMainView])
 
-  /** 打开/关闭 Excalidraw 画板 */
+  /** 打开/关闭 Excalidraw 画布 */
   const handleOpenExcalidraw = React.useCallback((): void => {
     if (activeView === 'excalidraw-gallery' || activeView === 'excalidraw-editor') {
       setActiveView('conversations')
@@ -2734,13 +2734,13 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
           {/* 插件与 Yoda 记忆已并入设置面板（设置 > Yoda 插件 / Yoda 记忆），Home / Code 共享；左栏不再单独露出 */}
 
-          {/* Excalidraw 画板：仅 Home 模式可见 */}
-          {mode === 'chat' && (
+          {/* Excalidraw 画布：仅 Project 模式可见 */}
+          {mode === 'agent' && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  aria-label="Excalidraw 画板"
+                  aria-label="Excalidraw 画布"
                   onClick={handleOpenExcalidraw}
                   className={cn(
                     'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag border',
@@ -2764,12 +2764,12 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                   )}
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="right">Excalidraw 画板{excalidrawCount > 0 ? `（${excalidrawCount} 个画布）` : ''}</TooltipContent>
+              <TooltipContent side="right">Excalidraw 画布{excalidrawCount > 0 ? `（${excalidrawCount} 个画布）` : ''}</TooltipContent>
             </Tooltip>
           )}
 
-          {/* Yoda 知识库：Home 模式 LLM 知识库入口（待开发） */}
-          {mode === 'chat' && (
+          {/* Yoda 知识库：Project 模式 LLM 知识库入口（待开发） */}
+          {mode === 'agent' && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -3077,22 +3077,22 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
       {/* 插件与 Yoda 记忆已并入设置面板（设置 > Yoda 插件 / Yoda 记忆），Home / Code 共享；左栏不再单独露出 */}
 
-      {/* Excalidraw 画板：手绘风格白板，仅 Home 模式可见（通用创作工具） */}
-      {mode === 'chat' && (
+      {/* Excalidraw 画布：手绘风格白板，仅 Project 模式可见（通用创作工具） */}
+      {mode === 'agent' && (
         <div className="sidebar-module-zone px-3 pb-0.5">
           <SidebarModule
             icon={PenTool}
-            title="Excalidraw 画板"
+            title="Excalidraw 画布"
             count={excalidrawCount}
             active={activeView === 'excalidraw-gallery' || activeView === 'excalidraw-editor'}
             onClick={handleOpenExcalidraw}
-            ariaLabel={`Excalidraw 画板，${excalidrawCount} 个画布`}
+            ariaLabel={`Excalidraw 画布，${excalidrawCount} 个画布`}
           />
         </div>
       )}
 
-      {/* Yoda 知识库：LLM 知识库（Karpathy raw→wiki 范式，待开发），Home 模式入口 */}
-      {mode === 'chat' && (
+      {/* Yoda 知识库：LLM 知识库（Karpathy raw→wiki 范式，待开发），Project 模式入口 */}
+      {mode === 'agent' && (
         <div className="sidebar-module-zone px-3 pb-0.5">
           <SidebarModule
             icon={Library}

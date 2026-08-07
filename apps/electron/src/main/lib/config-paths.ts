@@ -794,7 +794,7 @@ export function getPlanningDatabasePath(): string {
 }
 
 /**
- * 获取 Excalidraw 画板文件目录路径（按 Workspace）
+ * 获取 Excalidraw 画布文件目录路径（按 Workspace）
  *
  * @param workspaceSlug 工作区 slug
  * @returns ~/.luxcoder/agent-workspaces/{slug}/excalidraw/
