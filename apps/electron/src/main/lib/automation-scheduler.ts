@@ -171,6 +171,12 @@ export async function runAutomation(automation: Automation, manual = false): Pro
         sdkSessionId: undefined,
       })
     }
+    // 同步项目挂载：新建会话创建时无 projectId（createAgentSession 不接收），
+    // daily/reuse 复用的旧会话也可能属于旧项目——统一在此对齐到任务当前 projectId，
+    // 使 orchestrator 的 resolveSessionCwd 按项目 workingDirectory 解析 cwd。
+    if (targetSessionMeta && targetSessionMeta.projectId !== automation.projectId) {
+      updateAgentSessionMeta(targetSessionId, { projectId: automation.projectId })
+    }
 
     await new Promise<void>((resolveRun) => {
       let settled = false

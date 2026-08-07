@@ -62,6 +62,16 @@ export interface AutomationFeishuNotificationTarget {
 /** 定时任务通知目标（钉钉/微信后续扩展） */
 export type AutomationNotificationTarget = AutomationFeishuNotificationTarget
 
+/**
+ * 定时任务的输出模式（对齐 Multica Autopilot 的 execution_mode）
+ * - create_task：每次运行创建可追踪的任务记录，并挂载到指定项目（cwd 用项目工作目录）
+ * - run_only：仅静默运行，不创建任务、不关联项目（默认在工作区目录下运行）
+ */
+export type AutomationExecutionMode = 'create_task' | 'run_only'
+
+/** 定时任务默认输出模式（向后兼容：历史任务无此字段时按 run_only 解释） */
+export const AUTOMATION_DEFAULT_EXECUTION_MODE: AutomationExecutionMode = 'run_only'
+
 /** 定时任务定义 */
 export interface Automation {
   id: string
@@ -97,6 +107,10 @@ export interface Automation {
   modelId?: string
   /** 工作区 ID（可选，决定子会话 cwd） */
   workspaceId?: string
+  /** 输出模式：create_task=每次运行创建任务并挂载项目；run_only=仅运行不关联项目。历史任务缺省按 run_only 兼容 */
+  executionMode?: AutomationExecutionMode
+  /** 绑定的 craft Project ID（可选，仅 executionMode==='create_task' 时生效）：运行时子会话挂载到该项目（cwd 用项目 workingDirectory） */
+  projectId?: string
   /** 权限模式（无人值守运行时的工具审批策略，默认 bypassPermissions） */
   permissionMode?: AutomationPermissionMode
   /** 会话模式：daily=同一自然日内复用子会话，跨日新建（默认）；reuse=始终复用同一个子会话 */
@@ -153,6 +167,10 @@ export interface CreateAutomationInput {
   channelId: string
   modelId?: string
   workspaceId?: string
+  /** 输出模式：create_task=每次运行创建任务并挂载项目；run_only=仅运行不关联项目。默认 run_only */
+  executionMode?: AutomationExecutionMode
+  /** 绑定的 craft Project ID（可选，仅 executionMode==='create_task' 时生效）：任务运行会话挂载到该项目（cwd 用项目 workingDirectory） */
+  projectId?: string
   permissionMode?: AutomationPermissionMode
   sessionMode?: AutomationSessionMode
   notificationTargets?: AutomationNotificationTarget[]
@@ -181,6 +199,10 @@ export interface UpdateAutomationInput {
   modelId?: string
   /** 工作区（用户可在创建后调整子会话归属的工作区） */
   workspaceId?: string
+  /** 输出模式：create_task=每次运行创建任务并挂载项目；run_only=仅运行不关联项目 */
+  executionMode?: AutomationExecutionMode
+  /** 绑定的 craft Project ID（可选，仅 executionMode==='create_task' 时生效）：任务运行会话挂载到该项目；传空字符串表示解除项目挂载 */
+  projectId?: string
   permissionMode?: AutomationPermissionMode
   sessionMode?: AutomationSessionMode
   notificationTargets?: AutomationNotificationTarget[]

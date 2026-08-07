@@ -14,6 +14,7 @@ import { getAutomationsPath } from './config-paths'
 import {
   AUTOMATION_MAX_HISTORY,
   AUTOMATION_DEFAULT_PERMISSION_MODE,
+  AUTOMATION_DEFAULT_EXECUTION_MODE,
   type Automation,
   type AutomationRun,
   type CreateAutomationInput,
@@ -261,6 +262,9 @@ export function createAutomation(input: CreateAutomationInput): Automation {
   const requestedActive = input.active ?? true
   const active = requestedActive && isAutomationRunnable(input)
 
+  // 用兜底后的有效值判断 run_only，而非原始 input.executionMode（未传时二者不等，会漏清 projectId）
+  const effectiveExecutionMode = input.executionMode ?? AUTOMATION_DEFAULT_EXECUTION_MODE
+
   const automation: Automation = {
     id: randomUUID(),
     name: input.name,
@@ -278,6 +282,9 @@ export function createAutomation(input: CreateAutomationInput): Automation {
     channelId: input.channelId,
     modelId: input.modelId,
     workspaceId: input.workspaceId,
+    executionMode: effectiveExecutionMode,
+    // run_only 模式不关联项目：即使误传 projectId 也清掉，保证脏数据不进调度
+    projectId: effectiveExecutionMode === 'run_only' ? undefined : input.projectId,
     permissionMode: input.permissionMode ?? AUTOMATION_DEFAULT_PERMISSION_MODE,
     sessionMode: input.sessionMode,
     notificationTargets: input.notificationTargets,
@@ -310,6 +317,18 @@ export function updateAutomation(input: UpdateAutomationInput): Automation | und
   // workspaceId 允许设为空字符串表示「无工作区」；用 undefined 区分「不修改」
   if (input.workspaceId !== undefined) {
     target.workspaceId = input.workspaceId || undefined
+  }
+  // projectId 允许设为空字符串表示「解除项目挂载」；用 undefined 区分「不修改」
+  if (input.projectId !== undefined) {
+    target.projectId = input.projectId || undefined
+  }
+  if (input.executionMode !== undefined) {
+    target.executionMode = input.executionMode
+  }
+  // 输出模式：run_only 强制不关联项目（清掉残留 projectId），与 create 的清理逻辑对齐。
+  // 挂在 executionMode 分支之外统一校验，避免「本次只传 projectId、不传 executionMode」时漏清历史 run_only 任务的残留 projectId。
+  if (target.executionMode === 'run_only') {
+    target.projectId = undefined
   }
   if (input.permissionMode !== undefined) target.permissionMode = input.permissionMode
   if (input.sessionMode !== undefined) target.sessionMode = input.sessionMode

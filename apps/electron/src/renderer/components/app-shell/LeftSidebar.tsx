@@ -2946,6 +2946,69 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
   // ===== 展开状态：完整侧边栏 =====
   const isPinnedAgentGroupCollapsed = collapsedFlatGroupIds.has(PINNED_AGENT_GROUP_KEY)
+
+  /**
+   * 渲染单个工作区组（真实工作区 or 合成「自动任务」组）。
+   * 自动任务组被提升到置顶分类上方常驻显示，滚动列表只渲染当前工作区组，二者共用此渲染，避免 JSX 重复。
+   */
+  const renderWorkspaceGroupItem = (group: AgentProjectGroup): React.ReactElement => {
+    const isAuto = group.workspace.id === AUTOMATION_GROUP_ID
+    return (
+      <AgentProjectGroupItem
+        key={group.workspace.id}
+        group={isAuto
+          ? group
+          : {
+              ...group,
+              sessions: buildRecentSessionList(group.sessions),
+            }}
+        isAutomationGroup={isAuto}
+        workspaceNameMap={isAuto ? workspaceNameMap : undefined}
+        currentWorkspaceId={currentWorkspaceId}
+        extraCount={expandedExtraCounts.get(group.workspace.id) ?? 0}
+        collapsed={isAuto ? collapsedWorkspaceIds.has(group.workspace.id) : false}
+        activeSessionId={activeSessionId}
+        agentIndicatorMap={agentIndicatorMap}
+        expandedDelegationParentIds={expandedDelegationParentIds}
+        collapsedDelegationParentIds={collapsedDelegationParentIds}
+        relativeTimeNow={relativeTimeNow}
+        dragging={false}
+        dropPosition={null}
+        onShowMore={handleShowMoreSessions}
+        onCollapseExtra={handleCollapseExtraSessions}
+        onSelectProject={isAuto ? handleToggleGroupCollapse : handleSelectProject}
+        onNewSession={isAuto ? noopAsync : createAgentSessionInWorkspace}
+        onDragStart={noopDragEvent}
+        onDragOver={noopDragEvent}
+        onDragLeave={noopDragEvent}
+        onDrop={noopDragEvent}
+        onDragEnd={noopVoid}
+        onConfigureProject={isAuto ? noopVoid : (workspaceId) => {
+          handleSelectProject(workspaceId)
+          handleOpenMcpManagement()
+        }}
+        onRenameWorkspace={isAuto ? noopAsync : handleWorkspaceRename}
+        onRequestDeleteWorkspace={isAuto ? noopVoid : handleRequestDeleteWorkspace}
+        canDeleteWorkspace={isAuto ? false : canDeleteWorkspace(group.workspace)}
+        projects={!isAuto && group.workspace.id === currentWorkspaceId ? currentWorkspaceProjects : EMPTY_PROJECTS}
+        hideWorkspaceHeader={!isAuto}
+        onMoveToProject={handleMoveToProject}
+        sessionGroups={sessionGroups}
+        onMoveToGroup={handleMoveToGroup}
+        onCreateGroup={handleRequestCreateGroup}
+        {...agentSessionItemLabelProps}
+        onSelectSession={handleSelectAgentSession}
+        onRequestDelete={handleRequestDelete}
+        onRequestMove={handleRequestMove}
+        onRename={handleAgentRename}
+        onTogglePin={handleTogglePinAgent}
+        onToggleStar={handleToggleStarAgent}
+        onToggleArchive={handleToggleArchiveAgent}
+        onToggleDelegationParent={handleToggleDelegationParent}
+      />
+    )
+  }
+
   return (
     <div
       ref={sidebarRootRef}
@@ -3105,6 +3168,13 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       )}
 
       {/* 项目中心入口已移除：Project 导航改由下方 Sessions | Projects Tab 承担 */}
+
+      {/* 自动任务组：聚合自动任务会话，常驻在置顶分类上方（跨所有分组模式可见，不进入下方列表区） */}
+      {mode === 'agent' && automationGroup && (
+        <div className="pt-1 pb-0.5 flex-shrink-0 titlebar-no-drag">
+          {renderWorkspaceGroupItem(automationGroup)}
+        </div>
+      )}
 
       {/* 置顶区：常驻在会话/项目 Tab 切换器上方，跨 Tab 可见 */}
       {mode === 'chat' && viewMode === 'active' && pinnedConversations.length > 0 && (
@@ -3325,67 +3395,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
           <div className="sidebar-workspace-list pt-2">
                 <div className="flex flex-col gap-0.5">
                   {displayProjectGroups
-                    .filter((group) =>
-                      group.workspace.id === AUTOMATION_GROUP_ID
-                      || group.workspace.id === currentWorkspaceId,
-                    )
-                    .map((group) => {
-                const isAuto = group.workspace.id === AUTOMATION_GROUP_ID
-                return (
-                  <AgentProjectGroupItem
-                    key={group.workspace.id}
-                    group={isAuto
-                      ? group
-                      : {
-                          ...group,
-                          sessions: buildRecentSessionList(group.sessions),
-                        }}
-                    isAutomationGroup={isAuto}
-                    workspaceNameMap={isAuto ? workspaceNameMap : undefined}
-                    currentWorkspaceId={currentWorkspaceId}
-                    extraCount={expandedExtraCounts.get(group.workspace.id) ?? 0}
-                    collapsed={isAuto ? collapsedWorkspaceIds.has(group.workspace.id) : false}
-                    activeSessionId={activeSessionId}
-                    agentIndicatorMap={agentIndicatorMap}
-                    expandedDelegationParentIds={expandedDelegationParentIds}
-                    collapsedDelegationParentIds={collapsedDelegationParentIds}
-                    relativeTimeNow={relativeTimeNow}
-                    dragging={false}
-                    dropPosition={null}
-                    onShowMore={handleShowMoreSessions}
-                    onCollapseExtra={handleCollapseExtraSessions}
-                    onSelectProject={isAuto ? handleToggleGroupCollapse : handleSelectProject}
-                    onNewSession={isAuto ? noopAsync : createAgentSessionInWorkspace}
-                    onDragStart={noopDragEvent}
-                    onDragOver={noopDragEvent}
-                    onDragLeave={noopDragEvent}
-                    onDrop={noopDragEvent}
-                    onDragEnd={noopVoid}
-                    onConfigureProject={isAuto ? noopVoid : (workspaceId) => {
-                      handleSelectProject(workspaceId)
-                      handleOpenMcpManagement()
-                    }}
-                    onRenameWorkspace={isAuto ? noopAsync : handleWorkspaceRename}
-                    onRequestDeleteWorkspace={isAuto ? noopVoid : handleRequestDeleteWorkspace}
-                    canDeleteWorkspace={isAuto ? false : canDeleteWorkspace(group.workspace)}
-                    projects={!isAuto && group.workspace.id === currentWorkspaceId ? currentWorkspaceProjects : EMPTY_PROJECTS}
-                    hideWorkspaceHeader={!isAuto}
-                    onMoveToProject={handleMoveToProject}
-                    sessionGroups={sessionGroups}
-                    onMoveToGroup={handleMoveToGroup}
-                    onCreateGroup={handleRequestCreateGroup}
-                    {...agentSessionItemLabelProps}
-                    onSelectSession={handleSelectAgentSession}
-                    onRequestDelete={handleRequestDelete}
-                    onRequestMove={handleRequestMove}
-                    onRename={handleAgentRename}
-                    onTogglePin={handleTogglePinAgent}
-                    onToggleStar={handleToggleStarAgent}
-                    onToggleArchive={handleToggleArchiveAgent}
-                    onToggleDelegationParent={handleToggleDelegationParent}
-                  />
-                )
-              })}
+                    .filter((group) => group.workspace.id === currentWorkspaceId)
+                    .map(renderWorkspaceGroupItem)}
                 </div>
           </div>
         </div>

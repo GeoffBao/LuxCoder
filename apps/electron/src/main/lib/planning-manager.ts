@@ -107,7 +107,7 @@ function withPlanningTransaction<T>(work: () => T): T {
   }
 }
 
-const PLANNING_SCHEMA_VERSION = 4
+const PLANNING_SCHEMA_VERSION = 9
 
 /**
  * Planning 在 v0.16.9 前没有 user_version；因此 migration 1 必须幂等地重建既有 schema，
@@ -257,6 +257,100 @@ function migrateDatabase(db: SqliteDatabase): void {
         CREATE INDEX IF NOT EXISTS planning_sync_cleanup_due_idx ON planning_sync_cleanup(next_attempt_at, created_at);
       `)
       db.exec('PRAGMA user_version = 4')
+      version = 4
+    }
+    // v5-v9 来自 upstream #1450（EventKit 外部连接双向同步）的 schema 增量；
+    // main 分支暂不实现 EventKit 外部连接功能，但必须识别这些增量 DDL，
+    // 否则读取被 #1450 升级过的 planning.db 会直接拒绝打开。全部为增量
+    // （ADD COLUMN + CREATE TABLE），旧代码读写既有列不受影响；#1450 合入后幂等跳过。
+    if (version < 5) {
+      db.exec(`
+        ALTER TABLE todos ADD COLUMN native_connection_id TEXT;
+        ALTER TABLE calendar_events ADD COLUMN native_connection_id TEXT;
+        CREATE TABLE IF NOT EXISTS planning_native_connections (
+          id TEXT PRIMARY KEY,
+          entity TEXT NOT NULL CHECK(entity IN ('calendar', 'reminder')),
+          target_id TEXT NOT NULL,
+          target_title TEXT NOT NULL,
+          source_title TEXT NOT NULL,
+          source_type TEXT NOT NULL,
+          can_write INTEGER NOT NULL DEFAULT 0 CHECK(can_write IN (0, 1)),
+          connected_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          UNIQUE(entity, target_id)
+        );
+        CREATE TABLE IF NOT EXISTS planning_native_bindings (
+          connection_id TEXT NOT NULL REFERENCES planning_native_connections(id) ON DELETE CASCADE,
+          proma_entity_id TEXT NOT NULL,
+          calendar_item_identifier TEXT NOT NULL,
+          last_native_hash TEXT,
+          last_synced_at INTEGER,
+          PRIMARY KEY(connection_id, proma_entity_id),
+          UNIQUE(connection_id, calendar_item_identifier)
+        );
+        CREATE TABLE IF NOT EXISTS planning_native_outbox (
+          id TEXT PRIMARY KEY,
+          connection_id TEXT NOT NULL REFERENCES planning_native_connections(id) ON DELETE CASCADE,
+          operation TEXT NOT NULL CHECK(operation IN ('upsert', 'hide')),
+          proma_entity_id TEXT NOT NULL,
+          attempts INTEGER NOT NULL DEFAULT 0,
+          next_attempt_at INTEGER NOT NULL,
+          revision INTEGER NOT NULL DEFAULT 1,
+          last_error TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          UNIQUE(connection_id, proma_entity_id)
+        );
+        CREATE INDEX IF NOT EXISTS planning_native_outbox_due_idx ON planning_native_outbox(next_attempt_at, created_at);
+        CREATE INDEX IF NOT EXISTS todos_native_connection_idx ON todos(native_connection_id);
+        CREATE INDEX IF NOT EXISTS calendar_events_native_connection_idx ON calendar_events(native_connection_id);
+      `)
+      db.exec('PRAGMA user_version = 5')
+      version = 5
+    }
+    if (version < 6) {
+      db.exec('ALTER TABLE planning_native_bindings ADD COLUMN due_date_only INTEGER NOT NULL DEFAULT 0; PRAGMA user_version = 6')
+      version = 6
+    }
+    if (version < 7) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS planning_native_sync_conflicts (
+          id TEXT PRIMARY KEY,
+          connection_id TEXT NOT NULL REFERENCES planning_native_connections(id) ON DELETE CASCADE,
+          entity TEXT NOT NULL CHECK(entity IN ('calendar', 'reminder')),
+          proma_entity_id TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK(kind IN ('changed', 'deleted')),
+          native_item_json TEXT,
+          detected_at INTEGER NOT NULL,
+          resolved_at INTEGER,
+          UNIQUE(connection_id, proma_entity_id)
+        );
+        CREATE INDEX IF NOT EXISTS planning_native_sync_conflicts_open_idx ON planning_native_sync_conflicts(resolved_at, detected_at);
+        PRAGMA user_version = 7;
+      `)
+      version = 7
+    }
+    if (version < 8) {
+      db.exec('ALTER TABLE planning_native_bindings ADD COLUMN recreate_pending INTEGER NOT NULL DEFAULT 0; PRAGMA user_version = 8')
+      version = 8
+    }
+    if (version < 9) {
+      // 受管 Calendar 与外部连接是两套模型；冲突账本不能复用 connection_id 外键。
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS planning_sync_profile_conflicts (
+          id TEXT PRIMARY KEY,
+          profile_id TEXT NOT NULL REFERENCES planning_sync_profiles(id) ON DELETE CASCADE,
+          proma_entity_id TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK(kind IN ('changed', 'deleted')),
+          native_item_json TEXT,
+          detected_at INTEGER NOT NULL,
+          UNIQUE(profile_id, proma_entity_id)
+        );
+        CREATE INDEX IF NOT EXISTS planning_sync_profile_conflicts_open_idx
+          ON planning_sync_profile_conflicts(profile_id, detected_at);
+        PRAGMA user_version = 9;
+      `)
+      version = 9
     }
     db.exec('COMMIT')
   } catch (error) {

@@ -6,7 +6,7 @@ import { PLANNING_CONFLICT_ERROR } from '@luxcoder/shared'
 import type { PlanningGroup, Todo } from '@luxcoder/shared'
 import { cn } from '@/lib/utils'
 import { automationsAtom, automationFormAtom, createEmptyDraft } from '@/atoms/automation-atoms'
-import { AutomationsListView } from '@/components/automation/AutomationsListView'
+import { AutomationsView } from '@/components/automation/AutomationsView'
 import { CalendarWorkspace } from '@/components/planning/CalendarWorkspace'
 import { PlanningFloatingInspector } from '@/components/planning/PlanningFloatingInspector'
 import { PlanningGroupManager } from '@/components/planning/PlanningGroupManager'
@@ -162,7 +162,7 @@ export function PlanningView({ standalone = false }: { standalone?: boolean } = 
         <div className={cn('w-full', (tab === 'calendar' || tab === 'todos') && 'h-full')}>
           {tab === 'todos' && <TodoWorkspace standalone={standalone} />}
           {tab === 'calendar' && <CalendarWorkspace />}
-          {tab === 'automations' && <AutomationsListView />}
+          {tab === 'automations' && <AutomationsView />}
         </div>
       </main>
     </div>

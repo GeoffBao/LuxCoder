@@ -50,6 +50,8 @@ export interface PiBuiltinToolsContext {
   agentRuntime?: AgentRuntime
   workspaceId?: string
   workspaceSlug?: string
+  /** 当前会话绑定的 craft Project ID（可选）：创建任务时默认挂载到当前项目 */
+  projectId?: string
   /** 图片外发前必须校验在这些已授权目录内。 */
   allowedRoots?: string[]
   permissionMode?: LuxCoderPermissionMode
@@ -177,6 +179,8 @@ function summarizeAutomation(a: import('@luxcoder/shared').Automation, includeHi
     completedAt: a.completedAt,
     sessionMode: a.sessionMode,
     workspaceId: a.workspaceId,
+    executionMode: a.executionMode ?? 'run_only',
+    projectId: a.projectId,
     sourceSessionId: a.sourceSessionId,
     lastSessionId: a.lastSessionId,
     createdAt: a.createdAt,
@@ -295,6 +299,8 @@ function buildAutomationTools(sdk: PiSdk, ctx: PiBuiltinToolsContext): ToolDefin
         active: Type.Optional(Type.Boolean({ description: '创建后是否启用，默认 true' })),
         agentRuntime: Type.Optional(Type.Union([Type.Literal('claude'), Type.Literal('pi')], { description: '运行该任务的 Agent runtime；不传则继承当前会话 runtime' })),
         sessionMode: Type.Optional(Type.Union([Type.Literal('daily'), Type.Literal('reuse')], { description: '会话模式' })),
+        projectId: Type.Optional(Type.String({ description: '绑定的项目 ID（可选，仅 executionMode=create_task 时生效）：任务运行会话挂载到该项目（cwd 用项目工作目录）。不传则挂在工作区根目录' })),
+        executionMode: Type.Optional(Type.Union([Type.Literal('create_task'), Type.Literal('run_only')], { description: '输出模式：create_task=每次运行创建可追踪的任务并挂载到项目；run_only=仅运行不关联项目（默认在工作区目录运行）。默认 run_only' })),
       }),
       async execute(_toolCallId: string, params: unknown) {
         const args = params as Record<string, unknown>
@@ -315,6 +321,8 @@ function buildAutomationTools(sdk: PiSdk, ctx: PiBuiltinToolsContext): ToolDefin
           channelId: ctx.channelId,
           modelId: ctx.modelId,
           workspaceId: ctx.workspaceId,
+          projectId: (args.executionMode as string) === 'run_only' ? undefined : ((args.projectId as string | undefined) ?? ctx.projectId),
+          executionMode: args.executionMode as 'create_task' | 'run_only' | undefined,
           sessionMode: args.sessionMode as 'daily' | 'reuse' | undefined,
           sourceSessionId: ctx.sessionId,
           active: (args.active as boolean) ?? true,
@@ -364,6 +372,8 @@ function buildAutomationTools(sdk: PiSdk, ctx: PiBuiltinToolsContext): ToolDefin
         active: Type.Optional(Type.Boolean({ description: '启用或暂停任务' })),
         agentRuntime: Type.Optional(Type.Union([Type.Literal('claude'), Type.Literal('pi')], { description: '新的 Agent runtime' })),
         sessionMode: Type.Optional(Type.Union([Type.Literal('daily'), Type.Literal('reuse')])),
+        projectId: Type.Optional(Type.String({ description: '新的绑定项目 ID（仅 create_task 模式生效）；传空字符串表示解除项目挂载（回到工作区根目录）' })),
+        executionMode: Type.Optional(Type.Union([Type.Literal('create_task'), Type.Literal('run_only')], { description: '新的输出模式：create_task=创建任务并挂载项目；run_only=仅运行不关联项目（切到 run_only 会自动解除项目挂载）' })),
       }),
       async execute(_toolCallId: string, params: unknown) {
         const args = params as Record<string, unknown>
@@ -383,6 +393,8 @@ function buildAutomationTools(sdk: PiSdk, ctx: PiBuiltinToolsContext): ToolDefin
           active: args.active as boolean | undefined,
           agentRuntime: args.agentRuntime as AgentRuntime | undefined,
           sessionMode: args.sessionMode as 'daily' | 'reuse' | undefined,
+          projectId: args.projectId as string | undefined,
+          executionMode: args.executionMode as 'create_task' | 'run_only' | undefined,
         }
         if (input.name !== undefined) assertNonBlank(input.name, 'name')
         if (input.prompt !== undefined) assertNonBlank(input.prompt, 'prompt')

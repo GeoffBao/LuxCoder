@@ -11,7 +11,7 @@
 import * as React from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { toast } from 'sonner'
-import { AlertTriangle, ArrowLeft, Bell, Box, Check, ChevronDown, Clock, Loader2, Pencil, Play, Settings, X } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Bell, Box, Check, ChevronDown, Clock, FileText, Loader2, Pencil, Play, Settings, X } from 'lucide-react'
 import { detectIsWindows, WINDOW_CONTROLS_INSET_RIGHT } from '@/lib/platform'
 import { cn } from '@/lib/utils'
 import { Label } from '@/components/ui/label'
@@ -35,6 +35,8 @@ import {
   type AutomationDraft,
 } from '@/atoms/automation-atoms'
 import { agentWorkspacesAtom, agentSessionsAtom, agentChannelIdsAtom, agentRuntimeAtom, currentAgentWorkspaceIdAtom } from '@/atoms/agent-atoms'
+import { serverKanbanProjectsAtom } from '@/atoms/project-atoms'
+import { filterPickableKanbanProjects } from '@/components/app-shell/kanban/types'
 import { planningWorkspaceScopeAtom } from '@/atoms/planning-atoms'
 import { activeSessionIdAtom } from '@/atoms/tab-atoms'
 import { activeViewAtom, agentSkillsTabAtom } from '@/atoms/active-view'
@@ -53,6 +55,22 @@ import type {
 import { CLAUDE_RUNTIME_ENABLED } from '@luxcoder/shared'
 
 const NO_FEISHU_BINDING = '__none__'
+// Radix Select 不允许 SelectItem 的 value 为空字符串（会在渲染时直接 throw），
+// 「无项目」选项必须用非空哨兵值，onValueChange 里再映射回 undefined。
+const NO_PROJECT = '__none__'
+
+/** 「填入模板」按钮预填内容，结构对齐编辑区空状态占位（# 目标 / # 上下文 / # 步骤） */
+const AUTOMATION_PROMPT_TEMPLATE = `# 目标
+
+
+# 上下文
+
+
+# 步骤
+
+1.
+2.
+`
 
 function formatTime(ts?: number): string {
   if (!ts) return '—'
@@ -116,6 +134,8 @@ function getDraftSignature(draft: AutomationDraft): string {
     channelId: draft.channelId,
     modelId: draft.modelId ?? '',
     workspaceId: draft.workspaceId ?? '',
+    executionMode: draft.executionMode,
+    projectId: draft.projectId ?? '',
     permissionMode: draft.permissionMode,
     sessionMode: draft.sessionMode,
     notificationTargets: draft.notificationTargets ?? [],
@@ -138,6 +158,8 @@ function draftToCreateInput(draft: AutomationDraft): CreateAutomationInput {
     channelId: draft.channelId,
     modelId: draft.modelId,
     workspaceId: draft.workspaceId,
+    executionMode: draft.executionMode,
+    projectId: draft.executionMode === 'run_only' ? undefined : draft.projectId,
     permissionMode: draft.permissionMode,
     sessionMode: draft.sessionMode,
     notificationTargets: draft.notificationTargets,
@@ -162,6 +184,8 @@ function draftToUpdateInput(draft: AutomationDraft): UpdateAutomationInput {
     channelId: draft.channelId,
     modelId: draft.modelId,
     workspaceId: draft.workspaceId ?? '',
+    executionMode: draft.executionMode,
+    projectId: draft.executionMode === 'run_only' ? '' : (draft.projectId ?? ''),
     permissionMode: draft.permissionMode,
     sessionMode: draft.sessionMode,
     notificationTargets: draft.notificationTargets ?? [],
@@ -384,6 +408,18 @@ export function AutomationFormView({ standalone = false }: { standalone?: boolea
   const [formState, setFormState] = useAtom(automationFormAtom)
   const setAutomations = useSetAtom(automationsAtom)
   const workspaces = useAtomValue(agentWorkspacesAtom)
+  const kanbanProjects = useAtomValue(serverKanbanProjectsAtom)
+  const pickableProjects = React.useMemo(
+    () => filterPickableKanbanProjects(kanbanProjects),
+    [kanbanProjects],
+  )
+  // 项目的 workspaceId 是 workspace slug（主进程 basename(workspaceRoot)），
+  // 表单里保存的是 AgentWorkspace.id（UUID），下拉过滤需先归一化到 slug 再比较。
+  const workspaceSlugById = React.useMemo(() => {
+    const map = new Map<string, string>()
+    for (const ws of workspaces) map.set(ws.id, ws.slug)
+    return map
+  }, [workspaces])
   const automations = useAtomValue(automationsAtom)
   const agentChannelIds = useAtomValue(agentChannelIdsAtom)
   const defaultAgentRuntime = useAtomValue(agentRuntimeAtom)
@@ -662,6 +698,13 @@ export function AutomationFormView({ standalone = false }: { standalone?: boolea
     openSession('agent', session.id, session.title)
   }
 
+  const handleFillTemplate = (): void => {
+    if (form.prompt.trim() && !window.confirm('填入模板将覆盖当前任务描述，确定继续吗？')) {
+      return
+    }
+    update({ prompt: AUTOMATION_PROMPT_TEMPLATE })
+  }
+
   const startEditName = (): void => {
     setEditingName(true)
     requestAnimationFrame(() => nameInputRef.current?.focus())
@@ -764,17 +807,26 @@ export function AutomationFormView({ standalone = false }: { standalone?: boolea
           <SaveStatusBadge status={saveStatus} lastSavedAt={lastSavedAt} />
         </div>
         <div className="flex-1 min-h-0 px-6 pb-6 flex flex-col gap-3">
-          <div className="flex items-center">
+          <div className="flex items-center gap-2">
             <Label htmlFor="automation-prompt" className="text-xs font-medium text-muted-foreground">
-              任务编写
+              任务描述
             </Label>
+            <span className="text-[11px] text-foreground/35 select-none">智能体每次运行时读取，支持 Markdown</span>
+            <button
+              type="button"
+              onClick={handleFillTemplate}
+              className="titlebar-no-drag ml-auto flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
+            >
+              <FileText className="size-3" />
+              <span>填入模板</span>
+            </button>
           </div>
           <div className="min-h-0 flex-1">
             <div className="flex h-full min-h-0 flex-col gap-3">
               <AutomationPromptEmptyGuide />
               <div
                 id="automation-prompt"
-                className="min-h-0 flex-1 overflow-y-auto rounded-xl bg-foreground/[0.03] shadow-inner scrollbar-thin"
+                className="relative min-h-0 flex-1 overflow-y-auto rounded-xl bg-foreground/[0.03] shadow-inner scrollbar-thin"
               >
                 <MarkdownRichEditor
                   value={form.prompt}
@@ -783,6 +835,21 @@ export function AutomationFormView({ standalone = false }: { standalone?: boolea
                   onSave={() => undefined}
                   onCancel={() => undefined}
                 />
+                {/* Runbook 空状态占位模板：对齐 Multica「自动化名称 / RUNBOOK 智能体每次运行时读取」的编辑区打样 */}
+                {!form.prompt.trim() && (
+                  <div
+                    className="pointer-events-none absolute inset-0 px-5 pt-4 pb-5 text-[13px] leading-[1.7] text-muted-foreground/45 select-none"
+                    aria-hidden="true"
+                  >
+                    <div className="text-sm font-semibold text-muted-foreground/60"># 目标</div>
+                    <div className="text-foreground/35">你希望智能体完成什么？</div>
+                    <div className="mt-4 text-sm font-semibold text-muted-foreground/60"># 上下文</div>
+                    <div className="text-foreground/35">这是给谁的？有什么约束？</div>
+                    <div className="mt-4 text-sm font-semibold text-muted-foreground/60"># 步骤</div>
+                    <div className="text-foreground/35">1. ...</div>
+                    <div className="text-foreground/35">2. ...</div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1108,7 +1175,18 @@ export function AutomationFormView({ standalone = false }: { standalone?: boolea
             ) : (
               <Select
                 value={form.workspaceId ?? ''}
-                onValueChange={(v) => update({ workspaceId: v })}
+                onValueChange={(v) => {
+                  // 切换空间时，若当前已选项目不属于新空间，则解除项目挂载
+                  const currentProject = form.projectId
+                    ? pickableProjects.find((p) => p.id === form.projectId)
+                    : undefined
+                  update({
+                    workspaceId: v,
+                    projectId: currentProject && currentProject.workspaceId === workspaceSlugById.get(v)
+                      ? form.projectId
+                      : undefined,
+                  })
+                }}
               >
                 <SelectTrigger><SelectValue placeholder="选择空间" /></SelectTrigger>
                 <SelectContent>
@@ -1119,6 +1197,88 @@ export function AutomationFormView({ standalone = false }: { standalone?: boolea
               </Select>
             )}
           </div>
+
+          {/* 输出模式（对齐 Multica Autopilot：创建任务关联项目 / 仅运行默认工作区） */}
+          <div className="flex flex-col gap-2">
+            <Label>输出模式</Label>
+            <div className="grid gap-1.5">
+              <button
+                type="button"
+                onClick={() => update({ executionMode: 'create_task' })}
+                className={cn(
+                  'w-full flex items-start gap-2.5 rounded-md border px-3 py-2 text-left cursor-pointer transition-colors titlebar-no-drag',
+                  form.executionMode === 'create_task'
+                    ? 'border-primary bg-primary/5'
+                    : 'bg-foreground/[0.02] hover:bg-foreground/[0.05]',
+                )}
+              >
+                <span
+                  className={cn(
+                    'mt-0.5 inline-flex size-4 shrink-0 items-center justify-center rounded-full border',
+                    form.executionMode === 'create_task'
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : 'border-muted-foreground/40 bg-background',
+                  )}
+                >
+                  {form.executionMode === 'create_task' ? <Check className="size-2.5" strokeWidth={3} /> : <Play className="size-2.5 opacity-0" />}
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[13px] font-medium">创建任务</span>
+                  <span className="block text-xs text-muted-foreground">每次运行都创建一个可追踪的任务，挂载到指定项目</span>
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => update({ executionMode: 'run_only', projectId: undefined })}
+                className={cn(
+                  'w-full flex items-start gap-2.5 rounded-md border px-3 py-2 text-left cursor-pointer transition-colors titlebar-no-drag',
+                  form.executionMode === 'run_only'
+                    ? 'border-primary bg-primary/5'
+                    : 'bg-foreground/[0.02] hover:bg-foreground/[0.05]',
+                )}
+              >
+                <span
+                  className={cn(
+                    'mt-0.5 inline-flex size-4 shrink-0 items-center justify-center rounded-full border',
+                    form.executionMode === 'run_only'
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : 'border-muted-foreground/40 bg-background',
+                  )}
+                >
+                  {form.executionMode === 'run_only' ? <Check className="size-2.5" strokeWidth={3} /> : <Play className="size-2.5 opacity-0" />}
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[13px] font-medium">仅运行</span>
+                  <span className="block text-xs text-muted-foreground">静默运行，不创建任务，默认在工作区目录下运行</span>
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* 项目（仅「创建任务」模式可选）：任务运行会话挂载到该项目（cwd 用项目工作目录） */}
+          {form.executionMode === 'create_task' && (
+          <div className="flex flex-col gap-2">
+            <Label>项目（可选）</Label>
+            {!form.workspaceId ? (
+              <div className="px-0.5 text-xs leading-relaxed text-foreground/35">请先选择空间</div>
+            ) : (
+              <Select
+                value={form.projectId ?? NO_PROJECT}
+                onValueChange={(v) => update({ projectId: v === NO_PROJECT ? undefined : v })}
+              >
+                <SelectTrigger><SelectValue placeholder="选择项目" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_PROJECT}>无项目（工作区根目录）</SelectItem>
+                  {pickableProjects
+                    .filter((p) => !p.archivedAt && p.workspaceId === workspaceSlugById.get(form.workspaceId ?? ''))
+                    .map((project) => (
+                      <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+          )}
 
           {/* 飞书通知 */}
           <div className="flex flex-col gap-2 rounded-lg bg-foreground/[0.03] p-3">

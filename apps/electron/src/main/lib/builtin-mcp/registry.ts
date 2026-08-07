@@ -52,6 +52,7 @@ export async function injectBuiltinMcpServers(ctx: BuiltinMcpInjectContext): Pro
       modelId: ctx.modelId,
       agentRuntime: ctx.agentRuntime,
       workspaceId: ctx.workspaceId,
+      projectId: ctx.sessionMeta?.projectId,
       triggeredBy: ctx.triggeredBy,
     }))
   }

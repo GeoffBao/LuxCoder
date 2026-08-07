@@ -1394,6 +1394,7 @@ export class AgentOrchestrator {
               agentRuntime,
               workspaceId,
               workspaceSlug,
+              projectId: sessionMeta?.projectId,
               allowedRoots: allAdditionalDirectories,
               permissionMode: permissionModeOverride ?? sessionMeta?.permissionMode ?? LUXCODER_DEFAULT_PERMISSION_MODE,
               triggeredBy: input.triggeredBy,

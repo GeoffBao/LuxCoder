@@ -31,6 +31,8 @@ interface AutomationAgentToolContext {
   modelId?: string
   agentRuntime?: AgentRuntime
   workspaceId?: string
+  /** 当前会话绑定的 craft Project ID（可选）：创建任务时默认挂载到当前项目 */
+  projectId?: string
   triggeredBy?: 'user' | 'automation' | 'delegation' | 'work'
 }
 
@@ -104,6 +106,8 @@ function summarizeAutomation(a: Automation, includeHistory: boolean): Record<str
     completedAt: a.completedAt,
     sessionMode: a.sessionMode,
     workspaceId: a.workspaceId,
+    executionMode: a.executionMode ?? 'run_only',
+    projectId: a.projectId,
     sourceSessionId: a.sourceSessionId,
     lastSessionId: a.lastSessionId,
     createdAt: a.createdAt,
@@ -135,6 +139,7 @@ function buildAutomationSchemas(z: ZodModule['z']) {
   const scheduleType = z.enum(['interval', 'daily', 'weekly', 'monthly', 'once'])
   const sessionMode = z.enum(['daily', 'reuse'])
   const agentRuntime = z.enum(['claude', 'pi'])
+  const executionMode = z.enum(['create_task', 'run_only'])
   return {
     list: {
       active: z.boolean().optional().describe('只列出启用或暂停任务；不传则列出全部'),
@@ -156,6 +161,8 @@ function buildAutomationSchemas(z: ZodModule['z']) {
       active: z.boolean().optional().describe('创建后是否启用，默认 true'),
       agentRuntime: agentRuntime.optional().describe('运行该任务的 Agent runtime：claude 或 pi。不传则继承当前会话 runtime'),
       sessionMode: sessionMode.optional().describe('会话模式：daily=同一自然日内的触发复用同一个子会话，跨日新建（默认）；reuse=始终复用同一个子会话（保留长期上下文，token 成本更高）'),
+      projectId: z.string().optional().describe('绑定的项目 ID（可选，仅 executionMode=create_task 时生效）：任务运行会话挂载到该项目（cwd 用项目工作目录）。不传则挂在工作区根目录'),
+      executionMode: executionMode.optional().describe('输出模式：create_task=每次运行创建可追踪的任务并挂载到项目；run_only=仅运行不关联项目（默认在工作区目录运行）。默认 run_only'),
     },
     update: {
       id: z.string().optional().describe('定时任务 ID；定时任务自动执行中可省略以更新当前任务'),
@@ -171,6 +178,8 @@ function buildAutomationSchemas(z: ZodModule['z']) {
       active: z.boolean().optional().describe('启用或暂停任务'),
       agentRuntime: agentRuntime.optional().describe('新的 Agent runtime：claude 或 pi'),
       sessionMode: sessionMode.optional().describe('新的会话模式：daily=同一自然日内复用，跨日新建；reuse=始终复用同一个子会话'),
+      projectId: z.string().optional().describe('新的绑定项目 ID（仅 create_task 模式生效）；传空字符串表示解除项目挂载（回到工作区根目录）'),
+      executionMode: executionMode.optional().describe('新的输出模式：create_task=创建任务并挂载项目；run_only=仅运行不关联项目（切到 run_only 会自动解除项目挂载）'),
     },
     delete: {
       id: z.string().describe('要删除的定时任务 ID'),
@@ -240,6 +249,8 @@ export async function injectAutomationMcpServer(
             channelId: ctx.channelId,
             modelId: ctx.modelId,
             workspaceId: ctx.workspaceId,
+            projectId: args.executionMode === 'run_only' ? undefined : (args.projectId ?? ctx.projectId),
+            executionMode: args.executionMode,
             sessionMode: args.sessionMode,
             sourceSessionId: ctx.sessionId,
             active: args.active ?? true,
@@ -286,6 +297,8 @@ export async function injectAutomationMcpServer(
             active: args.active,
             agentRuntime: args.agentRuntime,
             sessionMode: args.sessionMode,
+            projectId: args.projectId,
+            executionMode: args.executionMode,
           }
           if (input.name !== undefined) assertNonBlank(input.name, 'name')
           if (input.prompt !== undefined) assertNonBlank(input.prompt, 'prompt')

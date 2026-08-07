@@ -8,13 +8,14 @@
 import { atom } from 'jotai'
 import type {
   Automation,
+  AutomationExecutionMode,
   AutomationNotificationTarget,
   AutomationScheduleType,
   AutomationPermissionMode,
   AutomationSessionMode,
   AgentRuntime,
 } from '@luxcoder/shared'
-import { AUTOMATION_DEFAULT_PERMISSION_MODE, AUTOMATION_DEFAULT_SESSION_MODE } from '@luxcoder/shared'
+import { AUTOMATION_DEFAULT_PERMISSION_MODE, AUTOMATION_DEFAULT_SESSION_MODE, AUTOMATION_DEFAULT_EXECUTION_MODE } from '@luxcoder/shared'
 
 /** 全部定时任务列表 */
 export const automationsAtom = atom<Automation[]>([])
@@ -42,6 +43,10 @@ export interface AutomationDraft {
   channelId: string
   modelId?: string
   workspaceId?: string
+  /** 输出模式：create_task=每次运行创建任务并挂载项目；run_only=仅运行不关联项目 */
+  executionMode: AutomationExecutionMode
+  /** 绑定的 craft Project ID（可选，仅 create_task 模式生效）：不填则任务挂在工作区根目录 */
+  projectId?: string
   permissionMode: AutomationPermissionMode
   sessionMode: AutomationSessionMode
   notificationTargets?: AutomationNotificationTarget[]
@@ -72,6 +77,7 @@ export function createEmptyDraft(): AutomationDraft {
     dayOfMonth: 1,
     agentRuntime: 'pi',
     channelId: '',
+    executionMode: AUTOMATION_DEFAULT_EXECUTION_MODE,
     permissionMode: AUTOMATION_DEFAULT_PERMISSION_MODE,
     sessionMode: AUTOMATION_DEFAULT_SESSION_MODE,
     active: true,
@@ -98,6 +104,8 @@ export function automationToDraft(a: Automation): AutomationDraft {
     channelId: a.channelId,
     modelId: a.modelId,
     workspaceId: a.workspaceId,
+    executionMode: a.executionMode ?? AUTOMATION_DEFAULT_EXECUTION_MODE,
+    projectId: a.projectId,
     permissionMode: a.permissionMode ?? AUTOMATION_DEFAULT_PERMISSION_MODE,
     sessionMode: a.sessionMode ?? AUTOMATION_DEFAULT_SESSION_MODE,
     notificationTargets: a.notificationTargets,
