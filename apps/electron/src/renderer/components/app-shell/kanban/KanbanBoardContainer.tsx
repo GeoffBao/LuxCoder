@@ -2,7 +2,7 @@ import * as React from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { LayoutDashboard, Plus, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
-import type { AgentSessionMeta, TaskDeleteImpact } from '@luxcoder/shared'
+import type { AgentSessionMeta, TaskDeleteImpact } from '@myyoda/shared'
 import {
   agentModelIdAtom,
   agentSessionsAtom,
@@ -55,8 +55,8 @@ import { TaskFamilySheet } from './TaskFamilySheet'
 import { resolveTaskEditorTarget } from './task-editor-model'
 import { resolveTaskBoardEmptyState } from './task-board-empty-state'
 import { filterPickableKanbanProjects, type KanbanItem, type KanbanProject, type TaskEditorTarget } from './types'
-import type { TaskWorkflow } from '@luxcoder/shared/tasks'
-import type { KanbanColumnDef } from '@luxcoder/shared/projects'
+import type { TaskWorkflow } from '@myyoda/shared/tasks'
+import type { KanbanColumnDef } from '@myyoda/shared/projects'
 
 /** 任务创建/运行后回调；`ran` 为 true 时打开编排会话。 */
 export interface TaskCreatedEvent {

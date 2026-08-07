@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import type { GitBranchInfo } from '@luxcoder/shared'
+import type { GitBranchInfo } from '@myyoda/shared'
 import {
   filterGitBranches,
   formatGitBranchSubtitle,

@@ -15,7 +15,7 @@ import {
   setCodeClawSound,
   setCodeClawTheme,
 } from './lib/codeclaw-service'
-import { CODECLAW_THEMES, type CodeClawSize } from '@luxcoder/shared'
+import { CODECLAW_THEMES, type CodeClawSize } from '@myyoda/shared'
 
 let tray: Tray | null = null
 
@@ -183,13 +183,13 @@ function buildTrayMenu(actions: TrayActions): Menu {
     },
     { type: 'separator' },
     {
-      label: '打开 LuxCoder',
+      label: '打开 MyYoda',
       click: () => actions.showMainWindow(),
     },
     ...buildCodeClawTrayGroup(),
     { type: 'separator' },
     {
-      label: '退出 LuxCoder',
+      label: '退出 MyYoda',
       click: () => {
         app.quit()
       },
@@ -231,7 +231,7 @@ export function createTray(actionsInput?: Partial<TrayActions>): Tray | null {
     tray = new Tray(image)
 
     // 设置 tooltip
-    tray.setToolTip('LuxCoder')
+    tray.setToolTip('MyYoda')
 
     updateTrayMenu(actions)
 

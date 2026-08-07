@@ -27,7 +27,7 @@ import {
   isCodeClawSize,
   isCodeClawThemeId,
   type AgentStreamPayload,
-} from '@luxcoder/shared'
+} from '@myyoda/shared'
 import { agentEventBus } from './agent-service'
 import { getAgentSessionMeta } from './agent-session-manager'
 import { getSettings, updateSettings } from './settings-service'
@@ -217,7 +217,7 @@ function isDndEnabled(): boolean {
   return getSettings().codeClaw?.dnd === true
 }
 
-function handleLuxCoderEvent(sessionId: string, event: import('@luxcoder/shared').LuxCoderEvent): void {
+function handleMyYodaEvent(sessionId: string, event: import('@myyoda/shared').MyYodaEvent): void {
   switch (event.type) {
     case 'permission_request': {
       if (isDndEnabled()) {
@@ -282,10 +282,10 @@ function handleLuxCoderEvent(sessionId: string, event: import('@luxcoder/shared'
   }
 }
 
-function handleSdkMessage(sessionId: string, message: import('@luxcoder/shared').SDKMessage): void {
+function handleSdkMessage(sessionId: string, message: import('@myyoda/shared').SDKMessage): void {
   switch (message.type) {
     case 'assistant': {
-      const assistant = message as import('@luxcoder/shared').SDKAssistantMessage
+      const assistant = message as import('@myyoda/shared').SDKAssistantMessage
       if (assistant.isReplay) return
       const session = ensureSession(sessionId)
       if (assistant.error) {
@@ -316,7 +316,7 @@ function handleSdkMessage(sessionId: string, message: import('@luxcoder/shared')
       break
     }
     case 'result': {
-      const result = message as import('@luxcoder/shared').SDKResultMessage
+      const result = message as import('@myyoda/shared').SDKResultMessage
       const session = ensureSession(sessionId)
       if (result.subtype === 'success') {
         session.phase = 'completed'
@@ -334,7 +334,7 @@ function handleSdkMessage(sessionId: string, message: import('@luxcoder/shared')
       break
     }
     case 'system': {
-      const system = message as import('@luxcoder/shared').SDKSystemMessage
+      const system = message as import('@myyoda/shared').SDKSystemMessage
       const session = ensureSession(sessionId)
       switch (system.subtype) {
         case 'task_started':
@@ -364,7 +364,7 @@ function handleSdkMessage(sessionId: string, message: import('@luxcoder/shared')
 }
 
 function handleAgentEvent(sessionId: string, payload: AgentStreamPayload): void {
-  if (payload.kind === 'luxcoder_event') handleLuxCoderEvent(sessionId, payload.event)
+  if (payload.kind === 'myyoda_event') handleMyYodaEvent(sessionId, payload.event)
   else handleSdkMessage(sessionId, payload.message)
 }
 
@@ -481,7 +481,7 @@ function schedulePush(delay = PUSH_THROTTLE_MS): void {
 }
 
 function requiresImmediatePush(payload: AgentStreamPayload): boolean {
-  if (payload.kind !== 'luxcoder_event') return false
+  if (payload.kind !== 'myyoda_event') return false
   return payload.event.type === 'permission_request'
     || payload.event.type === 'ask_user_request'
     || payload.event.type === 'exit_plan_mode_request'
@@ -626,7 +626,7 @@ function buildCodeClawContextMenu(): Menu {
     },
     { type: 'separator' },
     {
-      label: '打开 LuxCoder',
+      label: '打开 MyYoda',
       click: () => serviceDeps?.showAndFocusMainWindow(),
     },
   ])

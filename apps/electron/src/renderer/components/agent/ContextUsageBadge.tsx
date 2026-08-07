@@ -19,7 +19,7 @@ import {
   calculatePiAutoCompactionThresholdTokens,
   type ChannelPlanQuotaResult,
   type ChannelPlanQuotaWindow,
-} from '@luxcoder/shared'
+} from '@myyoda/shared'
 import { fetchChannelPlanQuota } from '@/lib/channel-plan-quota'
 
 /** Claude Agent SDK 的自动压缩阈值比例；Pi 使用共享的 80% 策略。 */

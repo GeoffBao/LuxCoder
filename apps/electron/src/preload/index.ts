@@ -6,12 +6,12 @@
  */
 
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import { PROJECT_IPC_CHANNELS, TASK_IPC_CHANNELS, SESSION_COMMAND_CHANNEL, SESSION_GROUP_IPC_CHANNELS, TEAMBITION_IPC_CHANNELS, EXPERT_IPC_CHANNELS } from '@luxcoder/shared/channels'
-import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS, PLANNING_IPC_CHANNELS, CODECLAW_IPC_CHANNELS } from '@luxcoder/shared'
-import type { TaskAggregateSummary, TaskMetadataPatch, TaskWorkflow } from '@luxcoder/shared/tasks'
-import type { StartTodoAgentInput, StartTodoAgentResult, TodoAgentSessionActivation, PlanningWorkspaceScope } from '@luxcoder/shared'
-import { LABEL_IPC_CHANNELS } from '@luxcoder/shared/channels'
-import type { WorkspaceLabel } from '@luxcoder/shared/labels'
+import { PROJECT_IPC_CHANNELS, TASK_IPC_CHANNELS, SESSION_COMMAND_CHANNEL, SESSION_GROUP_IPC_CHANNELS, TEAMBITION_IPC_CHANNELS, EXPERT_IPC_CHANNELS } from '@myyoda/shared/channels'
+import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS, PLANNING_IPC_CHANNELS, CODECLAW_IPC_CHANNELS } from '@myyoda/shared'
+import type { TaskAggregateSummary, TaskMetadataPatch, TaskWorkflow } from '@myyoda/shared/tasks'
+import type { StartTodoAgentInput, StartTodoAgentResult, TodoAgentSessionActivation, PlanningWorkspaceScope } from '@myyoda/shared'
+import { LABEL_IPC_CHANNELS } from '@myyoda/shared/channels'
+import type { WorkspaceLabel } from '@myyoda/shared/labels'
 import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, SCRATCH_PAD_IPC_CHANNELS, EXCALIDRAW_IPC_CHANNELS, DOCK_BADGE_IPC_CHANNELS, STORAGE_IPC_CHANNELS } from '../types'
 import type {
   RuntimeStatus,
@@ -101,7 +101,7 @@ import type {
   PermissionResponse,
   ProjectDeleteImpact,
   TaskDeleteImpact,
-  LuxCoderPermissionMode,
+  MyYodaPermissionMode,
   AskUserRequest,
   AskUserResponse,
   ExitPlanModeResponse,
@@ -183,9 +183,9 @@ import type {
   CodeClawMiniRequest,
   CodeClawPeekRequest,
   CodeClawSize,
-} from '@luxcoder/shared'
-import type { ProjectConfig } from '@luxcoder/shared/projects'
-import type { ExpertManifest, ExpertPackage } from '@luxcoder/shared/experts'
+} from '@myyoda/shared'
+import type { ProjectConfig } from '@myyoda/shared/projects'
+import type { ExpertManifest, ExpertPackage } from '@myyoda/shared/experts'
 import type { ValidationResult } from '../../../../packages/shared/src/tasks/validate.ts'
 import type {
   UserProfile,
@@ -384,23 +384,23 @@ export interface ElectronAPI {
   getGitRepoStatus: (dirPath: string) => Promise<GitRepoStatus | null>
 
   /** 获取未暂存的变更文件列表 */
-  getUnstagedChanges: (dirPath: string, sessionPath?: string, workspaceFilesPath?: string, extraPaths?: string[], sessionId?: string) => Promise<import('@luxcoder/shared').UnstagedChangesResult>
+  getUnstagedChanges: (dirPath: string, sessionPath?: string, workspaceFilesPath?: string, extraPaths?: string[], sessionId?: string) => Promise<import('@myyoda/shared').UnstagedChangesResult>
   /** 获取单个文件的 diff */
-  getFileDiff: (input: import('@luxcoder/shared').GetFileDiffInput) => Promise<string>
+  getFileDiff: (input: import('@myyoda/shared').GetFileDiffInput) => Promise<string>
   /** 获取未追踪文件内容 */
-  getUntrackedContent: (input: import('@luxcoder/shared').GetFileDiffInput) => Promise<string>
+  getUntrackedContent: (input: import('@myyoda/shared').GetFileDiffInput) => Promise<string>
   /** 还原文件变更 */
-  revertFile: (input: import('@luxcoder/shared').RevertFileInput) => Promise<void>
+  revertFile: (input: import('@myyoda/shared').RevertFileInput) => Promise<void>
   /** 获取文件新旧版本内容 */
-  getDiffContents: (input: import('@luxcoder/shared').GetFileDiffInput) => Promise<{ oldContent: string; newContent: string } | null>
+  getDiffContents: (input: import('@myyoda/shared').GetFileDiffInput) => Promise<{ oldContent: string; newContent: string } | null>
   /** 列出 Git Worktree */
-  listWorktrees: (repoPath: string, sessionId: string) => Promise<import('@luxcoder/shared').WorktreeInfo[]>
+  listWorktrees: (repoPath: string, sessionId: string) => Promise<import('@myyoda/shared').WorktreeInfo[]>
   /** 列出新 Agent 会话可选择的 Git 分支 */
   listGitBranches: (input: ListGitBranchesInput) => Promise<GitBranchInfo[]>
   /** 准备新 Agent 会话 Git 上下文（Local checkout 或 Worktree 创建） */
   prepareSessionGitContext: (input: PrepareSessionGitContextInput) => Promise<PrepareSessionGitContextResult | null>
   /** 获取 Worktree 相对于基准分支的全量变更 */
-  getWorktreeChanges: (worktreePath: string, baseBranch: string, sessionId: string) => Promise<import('@luxcoder/shared').UnstagedChangesResult>
+  getWorktreeChanges: (worktreePath: string, baseBranch: string, sessionId: string) => Promise<import('@myyoda/shared').UnstagedChangesResult>
   /** 在独立窗口打开当前文件预览 */
   openDetachedPreview: (input: DetachedPreviewWindowInput) => Promise<string | null>
   /** 获取独立预览窗口数据 */
@@ -729,7 +729,7 @@ export interface ElectronAPI {
   updateSessionCodexFastMode: (sessionId: string, enabled: boolean) => Promise<AgentSessionMeta>
 
   /** 查询 Pi catalog 或专属 profile 支持的会话级推理档位 */
-  getPiReasoningCapability: (channelId: string, modelId: string) => Promise<import('@luxcoder/shared').ReasoningCapability | undefined>
+  getPiReasoningCapability: (channelId: string, modelId: string) => Promise<import('@myyoda/shared').ReasoningCapability | undefined>
 
   /** 更新当前会话的思考深度（Pi sticky） */
   updateSessionThinkingLevel: (sessionId: string, thinkingLevel: AgentThinkingLevel) => Promise<AgentSessionMeta>
@@ -825,9 +825,9 @@ export interface ElectronAPI {
   saveWorkspaceMcpConfig: (workspaceSlug: string, config: WorkspaceMcpConfig) => Promise<void>
 
   /** 测试 MCP 服务器连接 */
-  testMcpServer: (name: string, entry: import('@luxcoder/shared').McpServerEntry) => Promise<{ success: boolean; message: string }>
+  testMcpServer: (name: string, entry: import('@myyoda/shared').McpServerEntry) => Promise<{ success: boolean; message: string }>
 
-  /** 启用或关闭 LuxCoder 内置 MCP */
+  /** 启用或关闭 MyYoda 内置 MCP */
   setBuiltinMcpEnabled: (workspaceSlug: string, id: string, enabled: boolean) => Promise<WorkspaceCapabilities>
 
   /** 获取工作区 Skill 列表（含活跃和不活跃） */
@@ -845,14 +845,14 @@ export interface ElectronAPI {
   /** 获取其他工作区的 Skill 列表 */
   getOtherWorkspaceSkills: (currentSlug: string) => Promise<OtherWorkspaceSkillsGroup[]>
 
-  /** 获取默认 Skills 的 slug 列表（来自 ~/.luxcoder/default-skills/） */
+  /** 获取默认 Skills 的 slug 列表（来自 ~/.myyoda/default-skills/） */
   getDefaultSkillSlugs: () => Promise<string[]>
 
   /** 从其他工作区导入 Skill */
   importSkillFromWorkspace: (targetSlug: string, sourceSlug: string, skillSlug: string) => Promise<SkillMeta>
 
   /** 从其他工作区批量导入多个 Skill */
-  batchImportSkillsFromWorkspaces: (targetSlug: string, selections: import('@luxcoder/shared').BulkImportWorkspaceSelection[]) => Promise<import('@luxcoder/shared').BulkImportSkillsResult>
+  batchImportSkillsFromWorkspaces: (targetSlug: string, selections: import('@myyoda/shared').BulkImportWorkspaceSelection[]) => Promise<import('@myyoda/shared').BulkImportSkillsResult>
 
   /** 从源工作区同步更新已导入的 Skill */
   updateSkillFromSource: (targetSlug: string, skillSlug: string) => Promise<SkillMeta>
@@ -894,10 +894,10 @@ export interface ElectronAPI {
   writeSkillContent: (workspaceSlug: string, skillSlug: string, content: string) => Promise<void>
 
   /** 列出 Skill 目录下的子文件树（不含 SKILL.md） */
-  listSkillFiles: (workspaceSlug: string, skillSlug: string) => Promise<import('@luxcoder/shared').SkillFileNode[]>
+  listSkillFiles: (workspaceSlug: string, skillSlug: string) => Promise<import('@myyoda/shared').SkillFileNode[]>
 
   /** 读取 Skill 目录下的子文件内容 */
-  readSkillFile: (workspaceSlug: string, skillSlug: string, relativePath: string) => Promise<import('@luxcoder/shared').SkillFileContent>
+  readSkillFile: (workspaceSlug: string, skillSlug: string, relativePath: string) => Promise<import('@myyoda/shared').SkillFileContent>
 
   /** 写入 Skill 目录下的子文件内容（文本） */
   writeSkillFile: (workspaceSlug: string, skillSlug: string, relativePath: string, content: string) => Promise<void>
@@ -915,16 +915,16 @@ export interface ElectronAPI {
   getWorkspaceMemorySummary: (workspaceSlug: string) => Promise<WorkspaceMemorySummary>
 
   /** 读取工作区 CLAUDE.md */
-  readWorkspaceClaudeMd: (workspaceSlug: string) => Promise<import('@luxcoder/shared').SkillFileContent>
+  readWorkspaceClaudeMd: (workspaceSlug: string) => Promise<import('@myyoda/shared').SkillFileContent>
 
   /** 写入工作区 CLAUDE.md */
   writeWorkspaceClaudeMd: (workspaceSlug: string, content: string) => Promise<void>
 
   /** 列出工作区 auto memory 文件树 */
-  listWorkspaceAutoMemoryFiles: (workspaceSlug: string) => Promise<import('@luxcoder/shared').SkillFileNode[]>
+  listWorkspaceAutoMemoryFiles: (workspaceSlug: string) => Promise<import('@myyoda/shared').SkillFileNode[]>
 
   /** 读取工作区 auto memory 文件 */
-  readWorkspaceAutoMemoryFile: (workspaceSlug: string, relativePath: string) => Promise<import('@luxcoder/shared').SkillFileContent>
+  readWorkspaceAutoMemoryFile: (workspaceSlug: string, relativePath: string) => Promise<import('@myyoda/shared').SkillFileContent>
 
   /** 写入工作区 auto memory 文件 */
   writeWorkspaceAutoMemoryFile: (workspaceSlug: string, relativePath: string, content: string) => Promise<void>
@@ -947,7 +947,7 @@ export interface ElectronAPI {
   respondPermission: (response: PermissionResponse) => Promise<void>
 
   /** 热切换指定会话的权限模式（运行中生效，仅影响该 session） */
-  updateSessionPermissionMode: (sessionId: string, mode: LuxCoderPermissionMode) => Promise<void>
+  updateSessionPermissionMode: (sessionId: string, mode: MyYodaPermissionMode) => Promise<void>
 
   // ===== Chat 工具管理 =====
 
@@ -1036,11 +1036,11 @@ export interface ElectronAPI {
   /** 获取工作区附加文件列表 */
   getWorkspaceAttachedFiles: (workspaceSlug: string) => Promise<string[]>
   /** 获取工作区 worktree 仓库配置列表 */
-  getWorktreeRepos: (workspaceSlug: string) => Promise<import('@luxcoder/shared').WorkspaceWorktreeRepo[]>
+  getWorktreeRepos: (workspaceSlug: string) => Promise<import('@myyoda/shared').WorkspaceWorktreeRepo[]>
   /** 添加 worktree 仓库到工作区配置 */
-  addWorktreeRepo: (workspaceSlug: string, repo: import('@luxcoder/shared').WorkspaceWorktreeRepo) => Promise<import('@luxcoder/shared').WorkspaceWorktreeRepo[]>
+  addWorktreeRepo: (workspaceSlug: string, repo: import('@myyoda/shared').WorkspaceWorktreeRepo) => Promise<import('@myyoda/shared').WorkspaceWorktreeRepo[]>
   /** 从工作区配置移除 worktree 仓库 */
-  removeWorktreeRepo: (workspaceSlug: string, repoPath: string) => Promise<import('@luxcoder/shared').WorkspaceWorktreeRepo[]>
+  removeWorktreeRepo: (workspaceSlug: string, repoPath: string) => Promise<import('@myyoda/shared').WorkspaceWorktreeRepo[]>
 
   /** 获取工作区默认工作目录（未绑定项目的新会话回退使用） */
   getWorkspaceDefaultWorkingDirectory: (workspaceSlug: string) => Promise<string | undefined>
@@ -1057,28 +1057,28 @@ export interface ElectronAPI {
   listAgentSessionOutputs: (workspaceId: string, sessionId: string) => Promise<AgentOutputRecord[]>
 
   /** 列出目录内容 */
-  listDirectory: (dirPath: string, access?: import('@luxcoder/shared').FileAccessOptions) => Promise<FileEntry[]>
+  listDirectory: (dirPath: string, access?: import('@myyoda/shared').FileAccessOptions) => Promise<FileEntry[]>
 
   /** 删除文件/目录 */
-  deleteFile: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions) => Promise<void>
+  deleteFile: (filePath: string, access?: import('@myyoda/shared').FileAccessOptions) => Promise<void>
 
   /** 用系统默认应用打开文件 */
-  openFile: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions) => Promise<void>
+  openFile: (filePath: string, access?: import('@myyoda/shared').FileAccessOptions) => Promise<void>
 
   /** 将剪贴板文本写入临时预览文件并返回绝对路径 */
   writeClipboardPreview: (filename: string, content: string) => Promise<string>
 
   /** 用系统默认应用打开任意文件（无工作区限制） */
-  systemOpenFile: (filePath: string, appName?: string, access?: import('@luxcoder/shared').FileAccessOptions) => Promise<void>
+  systemOpenFile: (filePath: string, appName?: string, access?: import('@myyoda/shared').FileAccessOptions) => Promise<void>
 
   /** 扫描系统中可用的编辑器应用（仅 macOS） */
-  scanEditors: () => Promise<import('@luxcoder/shared').EditorApp[]>
+  scanEditors: () => Promise<import('@myyoda/shared').EditorApp[]>
 
   /** 查询本机为该文件类型注册的默认打开应用（含图标 dataURL） */
-  getDefaultAppForFile: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions) => Promise<import('@luxcoder/shared').DefaultAppInfo | null>
+  getDefaultAppForFile: (filePath: string, access?: import('@myyoda/shared').FileAccessOptions) => Promise<import('@myyoda/shared').DefaultAppInfo | null>
 
   /** 在系统文件管理器中显示文件 */
-  showInFolder: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions) => Promise<void>
+  showInFolder: (filePath: string, access?: import('@myyoda/shared').FileAccessOptions) => Promise<void>
 
   /** 使用系统终端打开文件夹（仅 macOS） */
   openFolderInTerminal: (folderPath: string) => Promise<void>
@@ -1087,52 +1087,52 @@ export interface ElectronAPI {
   showItemInFolder: (filePath: string, candidateBasePaths?: string[]) => Promise<boolean>
 
   /** 解析文件路径并读取内容（供内联预览使用） */
-  resolveAndReadFile: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions) => Promise<{ resolvedPath: string; content: string } | null>
+  resolveAndReadFile: (filePath: string, access?: import('@myyoda/shared').FileAccessOptions) => Promise<{ resolvedPath: string; content: string } | null>
 
   /** 写入文本文件（供 Markdown 内联编辑使用） */
-  writeTextFile: (filePath: string, content: string, access?: import('@luxcoder/shared').FileAccessOptions) => Promise<boolean>
+  writeTextFile: (filePath: string, content: string, access?: import('@myyoda/shared').FileAccessOptions) => Promise<boolean>
 
   /** 仅解析文件路径（供 PDF/图片等用 file:// 加载） */
-  resolveFilePath: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions) => Promise<import('@luxcoder/shared').ResolvedFileUrl | null>
+  resolveFilePath: (filePath: string, access?: import('@myyoda/shared').FileAccessOptions) => Promise<import('@myyoda/shared').ResolvedFileUrl | null>
 
   /** 为内联 PDF 预览生成临时 HTML 文件，返回文件路径 */
-  preparePdfPreview: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions) => Promise<{ tmpHtmlUrl: string } | null>
+  preparePdfPreview: (filePath: string, access?: import('@myyoda/shared').FileAccessOptions) => Promise<{ tmpHtmlUrl: string } | null>
 
   /** 为内联 HTML 预览注册文件所在目录 URL（相对路径资源自动解析） */
-  prepareHtmlPreview: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions) => Promise<{ tmpUrl: string } | null>
+  prepareHtmlPreview: (filePath: string, access?: import('@myyoda/shared').FileAccessOptions) => Promise<{ tmpUrl: string } | null>
 
   /** 读取文件为 base64（带路径校验，供内联图片预览等） */
-  readBinaryBase64: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions, maxSize?: number) => Promise<string | null>
+  readBinaryBase64: (filePath: string, access?: import('@myyoda/shared').FileAccessOptions, maxSize?: number) => Promise<string | null>
 
   /** DOCX 转 HTML（内联预览） */
-  docxToHtml: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions) => Promise<{ resolvedPath: string; html: string } | null>
+  docxToHtml: (filePath: string, access?: import('@myyoda/shared').FileAccessOptions) => Promise<{ resolvedPath: string; html: string } | null>
 
   /** XLSX/PPTX 转 HTML（内联预览） */
-  officeToHtml: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions) => Promise<import('@luxcoder/shared').OfficePreviewResult | null>
+  officeToHtml: (filePath: string, access?: import('@myyoda/shared').FileAccessOptions) => Promise<import('@myyoda/shared').OfficePreviewResult | null>
 
   /** 截图导出：将 HTML 渲染为 PNG 并复制到剪贴板或保存文件 */
   screenshotCapture: (input: { html: string; isDark: boolean; width?: number; mode: 'clipboard' | 'file'; css?: string; themeClass?: string }) => Promise<{ success: boolean; message: string; filePath?: string }>
 
   /** 重命名文件/目录 */
-  renameFile: (filePath: string, newName: string, access?: import('@luxcoder/shared').FileAccessOptions) => Promise<void>
+  renameFile: (filePath: string, newName: string, access?: import('@myyoda/shared').FileAccessOptions) => Promise<void>
 
   /** 移动文件/目录到目标目录 */
-  moveFile: (filePath: string, targetDir: string, access?: import('@luxcoder/shared').FileAccessOptions) => Promise<void>
+  moveFile: (filePath: string, targetDir: string, access?: import('@myyoda/shared').FileAccessOptions) => Promise<void>
 
   /** 列出附加目录内容 */
-  listAttachedDirectory: (dirPath: string, access?: import('@luxcoder/shared').FileAccessOptions) => Promise<FileEntry[]>
+  listAttachedDirectory: (dirPath: string, access?: import('@myyoda/shared').FileAccessOptions) => Promise<FileEntry[]>
 
   /** 读取附加目录文件内容为 base64（限制在已附加目录范围内） */
   readAttachedFile: (filePath: string, sessionId?: string, workspaceSlug?: string) => Promise<string>
 
   /** 在文件管理器中显示附加目录文件 */
-  showAttachedInFolder: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions) => Promise<void>
+  showAttachedInFolder: (filePath: string, access?: import('@myyoda/shared').FileAccessOptions) => Promise<void>
 
   /** 重命名附加目录文件/目录（无工作区路径限制） */
-  renameAttachedFile: (filePath: string, newName: string, access?: import('@luxcoder/shared').FileAccessOptions) => Promise<void>
+  renameAttachedFile: (filePath: string, newName: string, access?: import('@myyoda/shared').FileAccessOptions) => Promise<void>
 
   /** 移动附加目录文件/目录（无工作区路径限制） */
-  moveAttachedFile: (filePath: string, targetDir: string, access?: import('@luxcoder/shared').FileAccessOptions) => Promise<void>
+  moveAttachedFile: (filePath: string, targetDir: string, access?: import('@myyoda/shared').FileAccessOptions) => Promise<void>
 
   /** 检查路径类型（文件 or 目录），用于拖拽检测 */
   checkPathsType: (paths: string[]) => Promise<{ directories: string[]; files: string[] }>
@@ -1227,9 +1227,9 @@ export interface ElectronAPI {
   // --- 多 Bot v2 API ---
 
   /** 获取多 Bot 配置 */
-  getFeishuMultiConfig: () => Promise<import('@luxcoder/shared').FeishuMultiBotConfig>
+  getFeishuMultiConfig: () => Promise<import('@myyoda/shared').FeishuMultiBotConfig>
   /** 保存单个 Bot 配置 */
-  saveFeishuBotConfig: (input: import('@luxcoder/shared').FeishuBotConfigInput) => Promise<import('@luxcoder/shared').FeishuBotConfig>
+  saveFeishuBotConfig: (input: import('@myyoda/shared').FeishuBotConfigInput) => Promise<import('@myyoda/shared').FeishuBotConfig>
   /** 获取单个 Bot 解密后的 App Secret */
   getDecryptedFeishuBotSecret: (botId: string) => Promise<string>
   /** 删除 Bot */
@@ -1239,18 +1239,18 @@ export interface ElectronAPI {
   /** 停止单个 Bot */
   stopFeishuBot: (botId: string) => Promise<void>
   /** 获取多 Bot 状态 */
-  getFeishuMultiStatus: () => Promise<import('@luxcoder/shared').FeishuMultiBridgeState>
+  getFeishuMultiStatus: () => Promise<import('@myyoda/shared').FeishuMultiBridgeState>
 
   // --- 扫码注册 ---
 
   /** 启动扫码注册流程，等待用户扫码 + 飞书确认后返回 App ID/Secret */
-  registerFeishuApp: () => Promise<import('@luxcoder/shared').FeishuRegisterAppResult>
+  registerFeishuApp: () => Promise<import('@myyoda/shared').FeishuRegisterAppResult>
   /** 取消正在进行的扫码注册流程 */
   cancelFeishuRegistration: () => Promise<void>
   /** 监听二维码 URL 生成 */
-  onFeishuRegisterQrcode: (callback: (payload: import('@luxcoder/shared').FeishuRegisterAppQRCode) => void) => () => void
+  onFeishuRegisterQrcode: (callback: (payload: import('@myyoda/shared').FeishuRegisterAppQRCode) => void) => () => void
   /** 监听注册流程状态变化 */
-  onFeishuRegisterStatus: (callback: (payload: import('@luxcoder/shared').FeishuRegisterAppStatus) => void) => () => void
+  onFeishuRegisterStatus: (callback: (payload: import('@myyoda/shared').FeishuRegisterAppStatus) => void) => () => void
 
   // ===== 钉钉集成 =====
 
@@ -1274,9 +1274,9 @@ export interface ElectronAPI {
   // --- 钉钉多 Bot v2 API ---
 
   /** 获取多 Bot 配置 */
-  getDingTalkMultiConfig: () => Promise<import('@luxcoder/shared').DingTalkMultiBotConfig>
+  getDingTalkMultiConfig: () => Promise<import('@myyoda/shared').DingTalkMultiBotConfig>
   /** 保存单个 Bot 配置 */
-  saveDingTalkBotConfig: (input: import('@luxcoder/shared').DingTalkBotConfigInput) => Promise<import('@luxcoder/shared').DingTalkBotConfig>
+  saveDingTalkBotConfig: (input: import('@myyoda/shared').DingTalkBotConfigInput) => Promise<import('@myyoda/shared').DingTalkBotConfig>
   /** 获取单个 Bot 解密后的 Client Secret */
   getDecryptedDingTalkBotSecret: (botId: string) => Promise<string>
   /** 删除 Bot */
@@ -1286,7 +1286,7 @@ export interface ElectronAPI {
   /** 停止单个 Bot */
   stopDingTalkBot: (botId: string) => Promise<void>
   /** 获取多 Bot 状态 */
-  getDingTalkMultiStatus: () => Promise<import('@luxcoder/shared').DingTalkMultiBridgeState>
+  getDingTalkMultiStatus: () => Promise<import('@myyoda/shared').DingTalkMultiBridgeState>
 
   // ===== 微信集成 =====
 
@@ -1398,7 +1398,7 @@ export interface ElectronAPI {
   migrationParseImportFile: (filePath: string) => Promise<unknown>
   /** 确认导入 */
   migrationConfirmImport: (options: unknown) => Promise<{ success: boolean }>
-  /** 打开文件选择对话框（选择 .luxcoder-backup 或 .luxcoder-share） */
+  /** 打开文件选择对话框（选择 .myyoda-backup 或 .myyoda-share） */
   migrationOpenFileDialog: () => Promise<string | null>
   /** 打开文件保存对话框（选择导出路径） */
   migrationSaveFileDialog: (mode: string) => Promise<string | null>
@@ -1653,19 +1653,19 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(IPC_CHANNELS.GET_UNSTAGED_CHANGES, dirPath, sessionPath, workspaceFilesPath, extraPaths, sessionId)
   },
 
-  getFileDiff: (input: import('@luxcoder/shared').GetFileDiffInput) => {
+  getFileDiff: (input: import('@myyoda/shared').GetFileDiffInput) => {
     return ipcRenderer.invoke(IPC_CHANNELS.GET_FILE_DIFF, input)
   },
 
-  getUntrackedContent: (input: import('@luxcoder/shared').GetFileDiffInput) => {
+  getUntrackedContent: (input: import('@myyoda/shared').GetFileDiffInput) => {
     return ipcRenderer.invoke(IPC_CHANNELS.GET_UNTRACKED_CONTENT, input)
   },
 
-  revertFile: (input: import('@luxcoder/shared').RevertFileInput) => {
+  revertFile: (input: import('@myyoda/shared').RevertFileInput) => {
     return ipcRenderer.invoke(IPC_CHANNELS.REVERT_FILE, input)
   },
 
-  getDiffContents: (input: import('@luxcoder/shared').GetFileDiffInput) => {
+  getDiffContents: (input: import('@myyoda/shared').GetFileDiffInput) => {
     return ipcRenderer.invoke(IPC_CHANNELS.GET_DIFF_CONTENTS, input)
   },
 
@@ -2237,7 +2237,7 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.SAVE_MCP_CONFIG, workspaceSlug, config)
   },
 
-  testMcpServer: (name: string, entry: import('@luxcoder/shared').McpServerEntry) => {
+  testMcpServer: (name: string, entry: import('@myyoda/shared').McpServerEntry) => {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.TEST_MCP_SERVER, name, entry) as Promise<{ success: boolean; message: string }>
   },
 
@@ -2278,7 +2278,7 @@ const electronAPI: ElectronAPI = {
     )
   },
 
-  batchImportSkillsFromWorkspaces: (targetSlug: string, selections: import('@luxcoder/shared').BulkImportWorkspaceSelection[]) => {
+  batchImportSkillsFromWorkspaces: (targetSlug: string, selections: import('@myyoda/shared').BulkImportWorkspaceSelection[]) => {
     return ipcRenderer.invoke(
       AGENT_IPC_CHANNELS.BATCH_IMPORT_SKILLS_FROM_WORKSPACES,
       targetSlug,
@@ -2441,7 +2441,7 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.PERMISSION_RESPOND, response)
   },
 
-  updateSessionPermissionMode: (sessionId: string, mode: LuxCoderPermissionMode) => {
+  updateSessionPermissionMode: (sessionId: string, mode: MyYodaPermissionMode) => {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.UPDATE_SESSION_PERMISSION_MODE, sessionId, mode)
   },
 
@@ -2577,7 +2577,7 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.GET_WORKTREE_REPOS, workspaceSlug)
   },
 
-  addWorktreeRepo: (workspaceSlug: string, repo: import('@luxcoder/shared').WorkspaceWorktreeRepo) => {
+  addWorktreeRepo: (workspaceSlug: string, repo: import('@myyoda/shared').WorkspaceWorktreeRepo) => {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.ADD_WORKTREE_REPO, workspaceSlug, repo)
   },
 
@@ -2604,15 +2604,15 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.LIST_SESSION_OUTPUTS, workspaceId, sessionId) as Promise<AgentOutputRecord[]>
   },
 
-  listDirectory: (dirPath: string, access?: import('@luxcoder/shared').FileAccessOptions) => {
+  listDirectory: (dirPath: string, access?: import('@myyoda/shared').FileAccessOptions) => {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.LIST_DIRECTORY, dirPath, access)
   },
 
-  deleteFile: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions) => {
+  deleteFile: (filePath: string, access?: import('@myyoda/shared').FileAccessOptions) => {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.DELETE_FILE, filePath, access)
   },
 
-  openFile: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions) => {
+  openFile: (filePath: string, access?: import('@myyoda/shared').FileAccessOptions) => {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.OPEN_FILE, filePath, access)
   },
 
@@ -2620,7 +2620,7 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.WRITE_CLIPBOARD_PREVIEW, filename, content)
   },
 
-  systemOpenFile: (filePath: string, appName?: string, access?: import('@luxcoder/shared').FileAccessOptions) => {
+  systemOpenFile: (filePath: string, appName?: string, access?: import('@myyoda/shared').FileAccessOptions) => {
     return ipcRenderer.invoke(IPC_CHANNELS.SYSTEM_OPEN_FILE, filePath, appName, access)
   },
 
@@ -2628,11 +2628,11 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(IPC_CHANNELS.SCAN_EDITORS)
   },
 
-  getDefaultAppForFile: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions) => {
-    return ipcRenderer.invoke(IPC_CHANNELS.GET_DEFAULT_APP_FOR_FILE, filePath, access) as Promise<import('@luxcoder/shared').DefaultAppInfo | null>
+  getDefaultAppForFile: (filePath: string, access?: import('@myyoda/shared').FileAccessOptions) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.GET_DEFAULT_APP_FOR_FILE, filePath, access) as Promise<import('@myyoda/shared').DefaultAppInfo | null>
   },
 
-  showInFolder: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions) => {
+  showInFolder: (filePath: string, access?: import('@myyoda/shared').FileAccessOptions) => {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.SHOW_IN_FOLDER, filePath, access)
   },
 
@@ -2645,51 +2645,51 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(IPC_CHANNELS.SHOW_ITEM_IN_FOLDER, filePath, candidateBasePaths)
   },
 
-  resolveAndReadFile: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions) => {
+  resolveAndReadFile: (filePath: string, access?: import('@myyoda/shared').FileAccessOptions) => {
     return ipcRenderer.invoke('file:resolve-and-read', filePath, access) as Promise<{ resolvedPath: string; content: string } | null>
   },
 
-  writeTextFile: (filePath: string, content: string, access?: import('@luxcoder/shared').FileAccessOptions) => {
+  writeTextFile: (filePath: string, content: string, access?: import('@myyoda/shared').FileAccessOptions) => {
     return ipcRenderer.invoke('file:write-text', filePath, content, access) as Promise<boolean>
   },
 
-  resolveFilePath: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions) => {
-    return ipcRenderer.invoke('file:resolve-path', filePath, access) as Promise<import('@luxcoder/shared').ResolvedFileUrl | null>
+  resolveFilePath: (filePath: string, access?: import('@myyoda/shared').FileAccessOptions) => {
+    return ipcRenderer.invoke('file:resolve-path', filePath, access) as Promise<import('@myyoda/shared').ResolvedFileUrl | null>
   },
 
-  preparePdfPreview: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions) => {
+  preparePdfPreview: (filePath: string, access?: import('@myyoda/shared').FileAccessOptions) => {
     return ipcRenderer.invoke('file:prepare-pdf-preview', filePath, access) as Promise<{ tmpHtmlUrl: string } | null>
   },
 
-  prepareHtmlPreview: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions) => {
+  prepareHtmlPreview: (filePath: string, access?: import('@myyoda/shared').FileAccessOptions) => {
     return ipcRenderer.invoke('file:prepare-html-preview', filePath, access) as Promise<{ tmpUrl: string } | null>
   },
 
-  readBinaryBase64: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions, maxSize?: number) => {
+  readBinaryBase64: (filePath: string, access?: import('@myyoda/shared').FileAccessOptions, maxSize?: number) => {
     return ipcRenderer.invoke('file:read-binary-base64', filePath, access, maxSize) as Promise<string | null>
   },
 
-  docxToHtml: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions) => {
+  docxToHtml: (filePath: string, access?: import('@myyoda/shared').FileAccessOptions) => {
     return ipcRenderer.invoke('file:docx-to-html', filePath, access) as Promise<{ resolvedPath: string; html: string } | null>
   },
 
-  officeToHtml: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions) => {
-    return ipcRenderer.invoke('file:office-to-html', filePath, access) as Promise<import('@luxcoder/shared').OfficePreviewResult | null>
+  officeToHtml: (filePath: string, access?: import('@myyoda/shared').FileAccessOptions) => {
+    return ipcRenderer.invoke('file:office-to-html', filePath, access) as Promise<import('@myyoda/shared').OfficePreviewResult | null>
   },
 
   screenshotCapture: (input: { html: string; isDark: boolean; width?: number; mode: 'clipboard' | 'file'; css?: string; themeClass?: string }) => {
     return ipcRenderer.invoke(IPC_CHANNELS.SCREENSHOT_CAPTURE, input) as Promise<{ success: boolean; message: string; filePath?: string }>
   },
 
-  renameFile: (filePath: string, newName: string, access?: import('@luxcoder/shared').FileAccessOptions) => {
+  renameFile: (filePath: string, newName: string, access?: import('@myyoda/shared').FileAccessOptions) => {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.RENAME_FILE, filePath, newName, access)
   },
 
-  moveFile: (filePath: string, targetDir: string, access?: import('@luxcoder/shared').FileAccessOptions) => {
+  moveFile: (filePath: string, targetDir: string, access?: import('@myyoda/shared').FileAccessOptions) => {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.MOVE_FILE, filePath, targetDir, access)
   },
 
-  listAttachedDirectory: (dirPath: string, access?: import('@luxcoder/shared').FileAccessOptions) => {
+  listAttachedDirectory: (dirPath: string, access?: import('@myyoda/shared').FileAccessOptions) => {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.LIST_ATTACHED_DIRECTORY, dirPath, access)
   },
 
@@ -2697,15 +2697,15 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.READ_ATTACHED_FILE, filePath, sessionId, workspaceSlug)
   },
 
-  showAttachedInFolder: (filePath: string, access?: import('@luxcoder/shared').FileAccessOptions) => {
+  showAttachedInFolder: (filePath: string, access?: import('@myyoda/shared').FileAccessOptions) => {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.SHOW_ATTACHED_IN_FOLDER, filePath, access)
   },
 
-  renameAttachedFile: (filePath: string, newName: string, access?: import('@luxcoder/shared').FileAccessOptions) => {
+  renameAttachedFile: (filePath: string, newName: string, access?: import('@myyoda/shared').FileAccessOptions) => {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.RENAME_ATTACHED_FILE, filePath, newName, access)
   },
 
-  moveAttachedFile: (filePath: string, targetDir: string, access?: import('@luxcoder/shared').FileAccessOptions) => {
+  moveAttachedFile: (filePath: string, targetDir: string, access?: import('@myyoda/shared').FileAccessOptions) => {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.MOVE_ATTACHED_FILE, filePath, targetDir, access)
   },
 
@@ -2830,7 +2830,7 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(FEISHU_IPC_CHANNELS.GET_MULTI_CONFIG)
   },
 
-  saveFeishuBotConfig: (input: import('@luxcoder/shared').FeishuBotConfigInput) => {
+  saveFeishuBotConfig: (input: import('@myyoda/shared').FeishuBotConfigInput) => {
     return ipcRenderer.invoke(FEISHU_IPC_CHANNELS.SAVE_BOT_CONFIG, input)
   },
 
@@ -2864,14 +2864,14 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(FEISHU_IPC_CHANNELS.REGISTER_APP_CANCEL)
   },
 
-  onFeishuRegisterQrcode: (callback: (payload: import('@luxcoder/shared').FeishuRegisterAppQRCode) => void) => {
-    const listener = (_: unknown, payload: import('@luxcoder/shared').FeishuRegisterAppQRCode) => callback(payload)
+  onFeishuRegisterQrcode: (callback: (payload: import('@myyoda/shared').FeishuRegisterAppQRCode) => void) => {
+    const listener = (_: unknown, payload: import('@myyoda/shared').FeishuRegisterAppQRCode) => callback(payload)
     ipcRenderer.on(FEISHU_IPC_CHANNELS.REGISTER_APP_QRCODE, listener)
     return () => { ipcRenderer.removeListener(FEISHU_IPC_CHANNELS.REGISTER_APP_QRCODE, listener) }
   },
 
-  onFeishuRegisterStatus: (callback: (payload: import('@luxcoder/shared').FeishuRegisterAppStatus) => void) => {
-    const listener = (_: unknown, payload: import('@luxcoder/shared').FeishuRegisterAppStatus) => callback(payload)
+  onFeishuRegisterStatus: (callback: (payload: import('@myyoda/shared').FeishuRegisterAppStatus) => void) => {
+    const listener = (_: unknown, payload: import('@myyoda/shared').FeishuRegisterAppStatus) => callback(payload)
     ipcRenderer.on(FEISHU_IPC_CHANNELS.REGISTER_APP_STATUS, listener)
     return () => { ipcRenderer.removeListener(FEISHU_IPC_CHANNELS.REGISTER_APP_STATUS, listener) }
   },
@@ -2950,7 +2950,7 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(DINGTALK_IPC_CHANNELS.GET_MULTI_CONFIG)
   },
 
-  saveDingTalkBotConfig: (input: import('@luxcoder/shared').DingTalkBotConfigInput) => {
+  saveDingTalkBotConfig: (input: import('@myyoda/shared').DingTalkBotConfigInput) => {
     return ipcRenderer.invoke(DINGTALK_IPC_CHANNELS.SAVE_BOT_CONFIG, input)
   },
 
@@ -3010,7 +3010,7 @@ const electronAPI: ElectronAPI = {
     return () => { ipcRenderer.removeListener('quick-task:open-session', listener) }
   },
   onQuickTaskEvent: (callback: (event: QuickTaskWindowEvent) => void) => {
-    // LuxCoder: planning quick-task IPC stub, to be completed with quick-task window
+    // MyYoda: planning quick-task IPC stub, to be completed with quick-task window
     const listener = (_: unknown, event: QuickTaskWindowEvent): void => callback(event)
     ipcRenderer.on('quick-task:event', listener)
     return () => { ipcRenderer.removeListener('quick-task:event', listener) }
@@ -3548,17 +3548,17 @@ const electronAPI: ElectronAPI = {
 }
 
 const luxcoderWindowKind = process.argv
-  .find((arg) => arg.startsWith('--luxcoder-window='))
-  ?.slice('--luxcoder-window='.length)
+  .find((arg) => arg.startsWith('--myyoda-window='))
+  ?.slice('--myyoda-window='.length)
 
 // 将 API 暴露到渲染进程的 window 对象上
 contextBridge.exposeInMainWorld('electronAPI', electronAPI)
-contextBridge.exposeInMainWorld('__luxcoderWindowKind', luxcoderWindowKind)
+contextBridge.exposeInMainWorld('__myyodaWindowKind', luxcoderWindowKind)
 
 // 扩展 Window 接口的类型定义
 declare global {
   interface Window {
     electronAPI: ElectronAPI
-    __luxcoderWindowKind?: string
+    __myyodaWindowKind?: string
   }
 }

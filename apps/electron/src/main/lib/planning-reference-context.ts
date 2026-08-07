@@ -1,4 +1,4 @@
-import type { CalendarEvent, Todo } from "@luxcoder/shared";
+import type { CalendarEvent, Todo } from "@myyoda/shared";
 import { getCalendarEvent, getTodo } from "./planning-manager";
 
 const MAX_REFERENCED_PLANNING_ITEMS = 10;

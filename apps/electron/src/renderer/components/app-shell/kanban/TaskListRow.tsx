@@ -6,7 +6,7 @@ import { LabelChips } from '@/components/labels/LabelChips'
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { formatRelativeUpdatedAt } from '../AgentSessionItem'
 import { buildTaskCardViewModel } from './task-card-view-model'
-import type { TaskWorkflow } from '@luxcoder/shared/tasks'
+import type { TaskWorkflow } from '@myyoda/shared/tasks'
 import type { KanbanItem } from './types'
 
 interface TaskListRowProps {

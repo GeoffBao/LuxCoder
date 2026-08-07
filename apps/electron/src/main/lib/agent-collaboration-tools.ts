@@ -1,7 +1,7 @@
 /**
  * Agent 内置协作会话工具
  *
- * 通过 SDK MCP Server 暴露 LuxCoder Agent 子会话委派能力。
+ * 通过 SDK MCP Server 暴露 MyYoda Agent 子会话委派能力。
  * Skill 负责判断何时协作；这里负责受控创建真实 Agent 会话、运行、等待和停止。
  */
 
@@ -15,9 +15,9 @@ import type {
   AgentStreamPayload,
   AskUserRequest,
   PermissionRequest,
-  LuxCoderPermissionMode,
+  MyYodaPermissionMode,
   SDKMessage,
-} from '@luxcoder/shared'
+} from '@myyoda/shared'
 import {
   createAgentSession,
   getAgentSessionMeta,
@@ -44,7 +44,7 @@ interface CollaborationToolContext {
   channelId: string
   modelId?: string
   workspaceId?: string
-  permissionMode?: LuxCoderPermissionMode
+  permissionMode?: MyYodaPermissionMode
   agentRuntime?: AgentRuntime
   triggeredBy?: 'user' | 'automation' | 'delegation' | 'work'
 }
@@ -62,7 +62,7 @@ interface DelegationRecord {
   title: string
   role: AgentDelegationRole
   goal: string
-  permissionMode: LuxCoderPermissionMode
+  permissionMode: MyYodaPermissionMode
   status: AgentDelegationStatus
   startedAt: number
   completedAt?: number
@@ -114,7 +114,7 @@ export function registerCollaborationEventBus(eventBus: import('./agent-event-bu
   eventBus.on((sessionId: string, payload: AgentStreamPayload) => {
     const record = Array.from(delegations.values()).find((d) => d.childSessionId === sessionId)
     if (!record || record.status !== 'running') return
-    if (payload.kind !== 'luxcoder_event') return
+    if (payload.kind !== 'myyoda_event') return
 
     const event = payload.event
     if (event.type === 'ask_user_request') {
@@ -136,12 +136,12 @@ export function registerCollaborationEventBus(eventBus: import('./agent-event-bu
       blockedEvents.set(blocked.id, blocked)
 
       eventBus.emit(record.parentSessionId, {
-        kind: 'luxcoder_event',
+        kind: 'myyoda_event',
         event: {
           type: 'delegation_blocked' as const,
           delegationId: record.delegationId,
           blockedEvent: blocked,
-        } as import('@luxcoder/shared').LuxCoderEvent,
+        } as import('@myyoda/shared').MyYodaEvent,
       })
     }
 
@@ -160,12 +160,12 @@ export function registerCollaborationEventBus(eventBus: import('./agent-event-bu
       blockedEvents.set(blocked.id, blocked)
 
       eventBus.emit(record.parentSessionId, {
-        kind: 'luxcoder_event',
+        kind: 'myyoda_event',
         event: {
           type: 'delegation_blocked' as const,
           delegationId: record.delegationId,
           blockedEvent: blocked,
-        } as import('@luxcoder/shared').LuxCoderEvent,
+        } as import('@myyoda/shared').MyYodaEvent,
       })
     }
 
@@ -244,19 +244,19 @@ interface DelegateAgentArgs {
   role?: AgentDelegationRole
   task: string
   expectedOutput?: string
-  permissionMode?: LuxCoderPermissionMode
+  permissionMode?: MyYodaPermissionMode
   modelId?: string
 }
 
 interface StartDelegationResult {
   record: DelegationRecord
-  effectivePermissionMode: LuxCoderPermissionMode
+  effectivePermissionMode: MyYodaPermissionMode
   effectiveModelId?: string
 }
 
 interface PiDelegationToolResult {
   delegationId: string
-  effectivePermissionMode: LuxCoderPermissionMode
+  effectivePermissionMode: MyYodaPermissionMode
   effectiveModelId?: string
 }
 
@@ -464,7 +464,7 @@ function recoverDelegationRecordFromSession(
   parentSessionId: string,
   delegationId: string,
   session: AgentSessionMeta,
-  fallbackPermissionMode: LuxCoderPermissionMode | undefined,
+  fallbackPermissionMode: MyYodaPermissionMode | undefined,
   fallbackChannelId: string,
   fallbackModelId: string | undefined,
 ): DelegationRecord {
@@ -576,8 +576,8 @@ async function waitForLiveRecords(
 
 function getCurrentParentPermissionMode(
   parent: AgentSessionMeta | undefined,
-  fallback: LuxCoderPermissionMode | undefined,
-): LuxCoderPermissionMode | undefined {
+  fallback: MyYodaPermissionMode | undefined,
+): MyYodaPermissionMode | undefined {
   const latestParent = parent ? getAgentSessionMeta(parent.id) : undefined
   return latestParent?.permissionMode ?? parent?.permissionMode ?? fallback
 }
@@ -816,7 +816,7 @@ export async function injectAgentCollaborationMcpServer(
       ),
       sdk.tool(
         'delegate_agent',
-        '创建一个真实可见的 LuxCoder 协作子 Agent 会话来并行处理独立子任务。只用于长耗时、可并行、需要追踪的任务；简单搜索由父会话直接使用普通工具完成。',
+        '创建一个真实可见的 MyYoda 协作子 Agent 会话来并行处理独立子任务。只用于长耗时、可并行、需要追踪的任务；简单搜索由父会话直接使用普通工具完成。',
         schemas.delegate,
         async (args) => {
           const parent = assertCanCreateDelegation(ctx)
@@ -832,7 +832,7 @@ export async function injectAgentCollaborationMcpServer(
       ),
       sdk.tool(
         'delegate_agents',
-        '批量创建多个真实可见的 LuxCoder 协作子 Agent 会话。适合把同一大任务拆成多片并行处理，单个父会话运行中子会话最多 50 个。',
+        '批量创建多个真实可见的 MyYoda 协作子 Agent 会话。适合把同一大任务拆成多片并行处理，单个父会话运行中子会话最多 50 个。',
         schemas.delegateBatch,
         async (args) => {
           const parent = assertCanCreateDelegation(ctx, args.items.length)
@@ -879,7 +879,7 @@ export async function injectAgentCollaborationMcpServer(
       ),
       sdk.tool(
         'wait_for_delegations',
-        '等待一个或多个 LuxCoder 协作子会话完成，并返回结构化结果摘要。支持 all 等全部完成，或 any 等部分完成。',
+        '等待一个或多个 MyYoda 协作子会话完成，并返回结构化结果摘要。支持 all 等全部完成，或 any 等部分完成。',
         schemas.wait,
         async (args) => {
           const ids = args.delegationIds?.length
@@ -918,7 +918,7 @@ export async function injectAgentCollaborationMcpServer(
       ),
       sdk.tool(
         'list_delegations',
-        '列出当前父会话创建的 LuxCoder 协作子会话及状态。',
+        '列出当前父会话创建的 MyYoda 协作子会话及状态。',
         schemas.list,
         async (args) => {
           const items = listKnownDelegations(ctx.sessionId)
@@ -935,7 +935,7 @@ export async function injectAgentCollaborationMcpServer(
       ),
       sdk.tool(
         'get_delegation_results',
-        '按委派 ID 读取一个或多个 LuxCoder 协作子会话的结果摘要。适合先 list 后按需取结果，或父会话恢复后读取已完成子会话。',
+        '按委派 ID 读取一个或多个 MyYoda 协作子会话的结果摘要。适合先 list 后按需取结果，或父会话恢复后读取已完成子会话。',
         schemas.results,
         async (args) => {
           return jsonResult({
@@ -946,7 +946,7 @@ export async function injectAgentCollaborationMcpServer(
       ),
       sdk.tool(
         'stop_delegation',
-        '停止一个正在运行的 LuxCoder 协作子会话。',
+        '停止一个正在运行的 MyYoda 协作子会话。',
         schemas.stop,
         async (args) => {
           return jsonResult(stopDelegation(ctx.sessionId, args.delegationId))
@@ -954,7 +954,7 @@ export async function injectAgentCollaborationMcpServer(
       ),
       sdk.tool(
         'stop_delegations',
-        '批量停止多个正在运行的 LuxCoder 协作子会话。',
+        '批量停止多个正在运行的 MyYoda 协作子会话。',
         schemas.stopBatch,
         async (args) => {
           return jsonResult({
@@ -983,7 +983,7 @@ export async function injectAgentCollaborationMcpServer(
             blocked.resolved = !!sessionId
             if (blocked.resolved && _eventBusRef) {
               _eventBusRef.emit(blocked.childSessionId, {
-                kind: 'luxcoder_event',
+                kind: 'myyoda_event',
                 event: { type: 'ask_user_resolved', requestId: blocked.askUserRequestId },
               })
             }
@@ -997,7 +997,7 @@ export async function injectAgentCollaborationMcpServer(
             blocked.resolved = !!sessionId
             if (blocked.resolved && _eventBusRef) {
               _eventBusRef.emit(blocked.childSessionId, {
-                kind: 'luxcoder_event',
+                kind: 'myyoda_event',
                 event: { type: 'permission_resolved', requestId: blocked.permissionRequestId, behavior },
               })
             }
@@ -1123,7 +1123,7 @@ export function buildPiCollaborationTools(
     sdk.defineTool({
       name: 'mcp__collaboration__delegate_agent',
       label: '委派子 Agent',
-      description: '创建一个真实可见的 LuxCoder 协作子 Agent 会话来并行处理独立子任务。只用于长耗时、可并行、需要追踪的任务。',
+      description: '创建一个真实可见的 MyYoda 协作子 Agent 会话来并行处理独立子任务。只用于长耗时、可并行、需要追踪的任务。',
       parameters: Type.Object({
         title: Type.Optional(Type.String({ description: '子会话标题' })),
         role: roleType,
@@ -1153,7 +1153,7 @@ export function buildPiCollaborationTools(
     sdk.defineTool({
       name: 'mcp__collaboration__delegate_agents',
       label: '批量委派子 Agent',
-      description: '批量创建多个真实可见的 LuxCoder 协作子 Agent 会话。适合把同一大任务拆成多片并行处理。',
+      description: '批量创建多个真实可见的 MyYoda 协作子 Agent 会话。适合把同一大任务拆成多片并行处理。',
       parameters: Type.Object({
         sharedContext: Type.Optional(Type.String({ description: '批量子任务共用背景' })),
         items: Type.Array(delegateItemType, { description: '要创建的子会话列表，最多 50 个' }),
@@ -1208,7 +1208,7 @@ export function buildPiCollaborationTools(
     sdk.defineTool({
       name: 'mcp__collaboration__wait_for_delegations',
       label: '等待子会话完成',
-      description: '等待一个或多个 LuxCoder 协作子会话完成，并返回结构化结果摘要。',
+      description: '等待一个或多个 MyYoda 协作子会话完成，并返回结构化结果摘要。',
       parameters: Type.Object({
         delegationIds: Type.Optional(Type.Array(Type.String(), { description: '要等待的委派 ID' })),
         mode: Type.Optional(Type.Union([Type.Literal('all'), Type.Literal('any')])),
@@ -1248,7 +1248,7 @@ export function buildPiCollaborationTools(
     sdk.defineTool({
       name: 'mcp__collaboration__list_delegations',
       label: '列出协作子会话',
-      description: '列出当前父会话创建的 LuxCoder 协作子会话及状态。',
+      description: '列出当前父会话创建的 MyYoda 协作子会话及状态。',
       parameters: Type.Object({
         includeCompleted: Type.Optional(Type.Boolean({ description: '是否包含已完成委派，默认 true' })),
       }),
@@ -1268,7 +1268,7 @@ export function buildPiCollaborationTools(
     sdk.defineTool({
       name: 'mcp__collaboration__get_delegation_results',
       label: '读取子会话结果',
-      description: '按委派 ID 读取一个或多个 LuxCoder 协作子会话的结果摘要。',
+      description: '按委派 ID 读取一个或多个 MyYoda 协作子会话的结果摘要。',
       parameters: Type.Object({
         delegationIds: Type.Array(Type.String(), { description: '要读取结果的委派 ID 列表' }),
       }),
@@ -1282,7 +1282,7 @@ export function buildPiCollaborationTools(
     sdk.defineTool({
       name: 'mcp__collaboration__stop_delegation',
       label: '停止子会话',
-      description: '停止一个正在运行的 LuxCoder 协作子会话。',
+      description: '停止一个正在运行的 MyYoda 协作子会话。',
       parameters: Type.Object({
         delegationId: Type.String({ description: '要停止的委派 ID' }),
       }),
@@ -1294,7 +1294,7 @@ export function buildPiCollaborationTools(
     sdk.defineTool({
       name: 'mcp__collaboration__stop_delegations',
       label: '批量停止子会话',
-      description: '批量停止多个正在运行的 LuxCoder 协作子会话。',
+      description: '批量停止多个正在运行的 MyYoda 协作子会话。',
       parameters: Type.Object({
         delegationIds: Type.Array(Type.String(), { description: '要停止的委派 ID 列表' }),
       }),
@@ -1333,7 +1333,7 @@ export function buildPiCollaborationTools(
           blocked.resolved = !!sessionId
           if (blocked.resolved && _eventBusRef) {
             _eventBusRef.emit(blocked.childSessionId, {
-              kind: 'luxcoder_event',
+              kind: 'myyoda_event',
               event: { type: 'ask_user_resolved', requestId: blocked.askUserRequestId },
             })
           }
@@ -1347,7 +1347,7 @@ export function buildPiCollaborationTools(
           blocked.resolved = !!sessionId
           if (blocked.resolved && _eventBusRef) {
             _eventBusRef.emit(blocked.childSessionId, {
-              kind: 'luxcoder_event',
+              kind: 'myyoda_event',
               event: { type: 'permission_resolved', requestId: blocked.permissionRequestId, behavior },
             })
           }

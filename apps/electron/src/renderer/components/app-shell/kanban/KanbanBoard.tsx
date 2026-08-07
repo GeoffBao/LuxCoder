@@ -3,8 +3,8 @@ import { Plus } from 'lucide-react'
 import { activeBoardItems, buildKanbanBoardModel, type KanbanColumnDefinition } from './board-model'
 import { KanbanColumn } from './KanbanColumn'
 import { TaskListRow } from './TaskListRow'
-import type { TaskWorkflow } from '@luxcoder/shared/tasks'
-import type { KanbanColumnDef } from '@luxcoder/shared/projects'
+import type { TaskWorkflow } from '@myyoda/shared/tasks'
+import type { KanbanColumnDef } from '@myyoda/shared/projects'
 import type { KanbanBoardMode, KanbanItem } from './types'
 
 export interface KanbanBoardEmptyStateView {

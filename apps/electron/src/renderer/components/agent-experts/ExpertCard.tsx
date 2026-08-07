@@ -5,7 +5,7 @@
 import * as React from 'react'
 import { Bot, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { ExpertPackage } from '@luxcoder/shared/experts'
+import type { ExpertPackage } from '@myyoda/shared/experts'
 
 interface ExpertCardProps {
   expert: ExpertPackage

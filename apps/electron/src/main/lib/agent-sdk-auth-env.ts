@@ -1,4 +1,4 @@
-import { extractZhipuCodingTeamApiToken, type ProviderType } from '@luxcoder/shared'
+import { extractZhipuCodingTeamApiToken, type ProviderType } from '@myyoda/shared'
 
 export function usesAgentSdkBearerWithUserAgent(provider: ProviderType): boolean {
   return provider === 'kimi-coding'

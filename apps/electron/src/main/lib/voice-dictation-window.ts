@@ -1,7 +1,7 @@
 /**
  * 语音输入会话路由
  *
- * LuxCoder 前台时，听写状态内嵌在底部输入工具栏。
+ * MyYoda 前台时，听写状态内嵌在底部输入工具栏。
  * 外部应用前台时，显示无焦点、无转写文本的轻量状态条，避免用户失去听写反馈。
  */
 
@@ -30,12 +30,12 @@ let activeOutputContextId: string | null = null
 let voiceIndicatorWindow: BrowserWindow | null = null
 
 interface VoiceDictationToggleOptions {
-  targetIsLuxCoder?: boolean
+  targetIsMyYoda?: boolean
   sourceInputId?: string
 }
 
 /**
- * 保留原导出以兼容启动流程；LuxCoder 内部听写不再创建独立窗口。
+ * 保留原导出以兼容启动流程；MyYoda 内部听写不再创建独立窗口。
  */
 export function createVoiceDictationWindow(): void {
   const mainWindow = getMainWindow()
@@ -60,20 +60,20 @@ export function toggleVoiceDictationWindow(options: VoiceDictationToggleOptions 
     return
   }
 
-  const targetIsLuxCoder = captureVoiceDictationTarget(options.targetIsLuxCoder)
+  const targetIsMyYoda = captureVoiceDictationTarget(options.targetIsMyYoda)
   const outputMode = getSettings().voiceDictation?.outputMode ?? 'auto'
-  const routeToLuxCoderInput = shouldRouteVoiceDictationToLuxCoderInput(targetIsLuxCoder, outputMode)
+  const routeToMyYodaInput = shouldRouteVoiceDictationToMyYodaInput(targetIsMyYoda, outputMode)
   const outputContextId = randomUUID()
-  beginVoiceDictationOutputContext(outputContextId, { routeToLuxCoderInput, outputMode })
+  beginVoiceDictationOutputContext(outputContextId, { routeToMyYodaInput, outputMode })
   activeOutputContextId = outputContextId
   voiceDictationActive = true
-  usesExternalIndicator = !targetIsLuxCoder
+  usesExternalIndicator = !targetIsMyYoda
   indicatorState = 'recording'
   indicatorVolume = 0
   indicatorTranscript = ''
   if (usesExternalIndicator) showVoiceIndicator()
   const shownEvent: VoiceDictationShownEvent = {
-    routeToLuxCoderInput,
+    routeToMyYodaInput,
     outputContextId,
     sourceInputId: options.sourceInputId,
   }
@@ -127,11 +127,11 @@ function isVoiceDictationEnabled(): boolean {
   return getSettings().voiceDictation?.enabled === true
 }
 
-function shouldRouteVoiceDictationToLuxCoderInput(
-  targetIsLuxCoder: boolean,
+function shouldRouteVoiceDictationToMyYodaInput(
+  targetIsMyYoda: boolean,
   outputMode: VoiceDictationOutputMode,
 ): boolean {
-  return outputMode === 'luxcoder-input' || (outputMode === 'auto' && targetIsLuxCoder)
+  return outputMode === 'myyoda-input' || (outputMode === 'auto' && targetIsMyYoda)
 }
 
 function showVoiceIndicator(): void {

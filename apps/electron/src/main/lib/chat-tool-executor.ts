@@ -5,10 +5,10 @@
  * 替代 chat-service.ts 中硬编码的 if/else 分支。
  */
 
-import type { ToolCall, ToolResult } from '@luxcoder/core'
+import type { ToolCall, ToolResult } from '@myyoda/core'
 import type { WebContents } from 'electron'
-import type { FileAttachment } from '@luxcoder/shared'
-import { CHAT_IPC_CHANNELS } from '@luxcoder/shared'
+import type { FileAttachment } from '@myyoda/shared'
+import { CHAT_IPC_CHANNELS } from '@myyoda/shared'
 import { isWebSearchToolCall, executeWebSearchTool } from './chat-tools/web-search-tool'
 import { isCustomHttpToolCall, executeHttpTool } from './chat-tools/http-tool-executor'
 import { isAgentRecommendToolCall, executeAgentRecommendTool } from './chat-tools/agent-recommend-tool'

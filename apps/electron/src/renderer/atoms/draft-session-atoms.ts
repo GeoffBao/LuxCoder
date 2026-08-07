@@ -5,7 +5,7 @@
  * 但尚未发送任何消息，因此不在侧边栏中显示。
  * 当用户发送第一条消息后，会话从 draft 集合中移除，出现在侧边栏。
  *
- * 持久化到 localStorage（luxcoder-draft-sessions），
+ * 持久化到 localStorage（myyoda-draft-sessions），
  * 避免应用重启后空草稿会话重新出现在侧边栏列表。
  */
 
@@ -34,7 +34,7 @@ const draftSetStorage = {
 
 /** 草稿会话 ID 集合（Chat + Agent 共用）；持久化到 localStorage */
 export const draftSessionIdsAtom = atomWithStorage<Set<string>>(
-  'luxcoder-draft-sessions',
+  'myyoda-draft-sessions',
   new Set<string>(),
   draftSetStorage,
 )

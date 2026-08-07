@@ -1,4 +1,4 @@
-import type { FileEntry } from '@luxcoder/shared'
+import type { FileEntry } from '@myyoda/shared'
 
 /** Outbox 展示分组：按扩展名机械推断，不需要 Agent 或用户维护分类体系。 */
 export type OutboxFileGroup = 'document' | 'image' | 'data' | 'presentation' | 'code' | 'other'

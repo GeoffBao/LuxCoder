@@ -614,12 +614,12 @@ export type AgentEvent =
   // 模型确认（SDK 确认实际使用的模型）
   | { type: 'model_resolved'; model: string }
   // 权限模式变更（Plan → bypassPermissions 等）
-  | { type: 'permission_mode_changed'; mode: LuxCoderPermissionMode }
+  | { type: 'permission_mode_changed'; mode: MyYodaPermissionMode }
 
-// ===== LuxCoder 内部事件（SDK 不覆盖的场景） =====
+// ===== MyYoda 内部事件（SDK 不覆盖的场景） =====
 
-/** LuxCoder 内部事件类型 */
-export type LuxCoderEvent =
+/** MyYoda 内部事件类型 */
+export type MyYodaEvent =
   | { type: 'permission_request'; request: PermissionRequest }
   | { type: 'permission_resolved'; requestId: string; behavior: 'allow' | 'deny' }
   | { type: 'ask_user_request'; request: AskUserRequest }
@@ -631,7 +631,7 @@ export type LuxCoderEvent =
   | { type: 'retry'; status: 'starting' | 'attempt' | 'cleared' | 'failed' | 'cancelled'; attempt?: number; maxAttempts?: number; delaySeconds?: number; reason?: string; attemptData?: RetryAttempt; runStartedAt?: number; scheduledAt?: number; totalAttempt?: number; maxTotalAttempts?: number; error?: TypedError }
   | { type: 'model_resolved'; model: string }
   | { type: 'context_window'; contextWindow: number }
-  | { type: 'permission_mode_changed'; mode: LuxCoderPermissionMode }
+  | { type: 'permission_mode_changed'; mode: MyYodaPermissionMode }
   | { type: 'title_updated'; title: string }
   | { type: 'external_run_started'; source: AgentExternalRunSource; sessionId: string; title?: string; workspaceId?: string; modelId?: string; startedAt: number; session?: AgentSessionMeta }
   /** 普通桌面会话已开始执行；startedAt 用于区分同一会话的连续运行。 */
@@ -650,7 +650,7 @@ export type AgentExternalRunSource = 'feishu' | 'dingtalk' | 'wechat' | 'bridge'
 /** IPC 传输的统一 payload（替代 AgentEvent） */
 export type AgentStreamPayload =
   | { kind: 'sdk_message'; message: SDKMessage }
-  | { kind: 'luxcoder_event'; event: LuxCoderEvent }
+  | { kind: 'myyoda_event'; event: MyYodaEvent }
 
 // ===== Kanban / Projects / Tasks IPC 契约 =====
 
@@ -702,7 +702,7 @@ export type SessionKanbanCommand =
 /**
  * Agent 会话轻量索引项
  *
- * 存储在 ~/.luxcoder/agent-sessions.json 中，
+ * 存储在 ~/.myyoda/agent-sessions.json 中，
  * 类似 ConversationMeta，独立存储。
  */
 export interface AgentSessionMeta {
@@ -749,7 +749,7 @@ export interface AgentSessionMeta {
   attachedDirectories?: string[]
   /** 附加的外部文件路径列表（绝对路径，发送时以父目录作为 SDK additionalDirectories） */
   attachedFiles?: string[]
-  /** 分叉来源：源会话的 LuxCoder 工作目录（SDK session 文件在此目录的项目空间中，首次 resume 后清除） */
+  /** 分叉来源：源会话的 MyYoda 工作目录（SDK session 文件在此目录的项目空间中，首次 resume 后清除） */
   forkSourceDir?: string
   /** 分叉来源：源会话的 SDK session ID（用于 rewind 时读取源会话的 file-history-snapshot 和备份文件） */
   forkSourceSdkSessionId?: string
@@ -764,7 +764,7 @@ export interface AgentSessionMeta {
   /** Conductor 当前运行状态，与标题和看板列独立持久化 */
   sessionStatus?: string
   /** 该会话当前的权限模式（持久化到磁盘，重启后恢复）。未设置时新会话默认 auto */
-  permissionMode?: LuxCoderPermissionMode
+  permissionMode?: MyYodaPermissionMode
   /** 来源定时任务 ID（该会话由定时任务自动创建/复用时标记，用于侧栏显示钟表图标 + 跳转设置） */
   sourceAutomationId?: string
   /**
@@ -805,7 +805,7 @@ export interface AgentSessionMeta {
   gitBranch?: string
   /** Git 会话执行位置：local 表示项目主目录，worktree 表示隔离 worktree */
   gitExecutionMode?: import('./runtime').GitExecutionMode
-  /** LuxCoder 为该会话准备或复用的 worktree 路径 */
+  /** MyYoda 为该会话准备或复用的 worktree 路径 */
   gitWorktreePath?: string
   /** Worktree 的起始基线 ref；通常等于所选 branch */
   gitBaseRef?: string
@@ -838,7 +838,7 @@ export interface AgentSessionMeta {
 /**
  * 用户自建会话分组（侧边栏「移动到分组」/「分组方式：自定义分组」用）
  *
- * 按工作区隔离存储在 ~/.luxcoder/agent-workspaces/{slug}/session-groups.json。
+ * 按工作区隔离存储在 ~/.myyoda/agent-workspaces/{slug}/session-groups.json。
  */
 export interface SessionGroup {
   id: string
@@ -874,7 +874,7 @@ export type AgentDelegationStatus = 'running' | 'completed' | 'failed' | 'cancel
 /**
  * Agent 持久化消息
  *
- * 存储在 ~/.luxcoder/agent-sessions/{id}.jsonl 中。
+ * 存储在 ~/.myyoda/agent-sessions/{id}.jsonl 中。
  */
 export interface AgentMessage {
   /** 消息唯一标识 */
@@ -979,7 +979,7 @@ export interface AgentGenerateTitleInput {
 
 // ===== MCP 服务器配置 =====
 
-/** MCP 传输类型；LuxCoder 将 Streamable HTTP 规范化存储为 http */
+/** MCP 传输类型；MyYoda 将 Streamable HTTP 规范化存储为 http */
 export type McpTransportType = 'stdio' | 'http' | 'sse'
 
 /** 外部配置中常见的 Streamable HTTP 别名 */
@@ -1022,10 +1022,10 @@ export interface McpToolSummary {
   readOnly?: boolean
 }
 
-/** LuxCoder 内置 MCP 分类 */
+/** MyYoda 内置 MCP 分类 */
 export type BuiltinMcpCategory = 'system' | 'automation' | 'collaboration' | 'memory' | 'media' | 'browser' | 'task'
 
-/** LuxCoder 内置 MCP 摘要，不写入工作区 mcp.json */
+/** MyYoda 内置 MCP 摘要，不写入工作区 mcp.json */
 export interface BuiltinMcpServerSummary {
   id: string
   name: string
@@ -1081,7 +1081,7 @@ export interface SkillMeta {
   slug: string
   name: string
   description?: string
-  /** UI 分组名，用于把 LuxCoder 内嵌 Skills 收拢到同一组 */
+  /** UI 分组名，用于把 MyYoda 内嵌 Skills 收拢到同一组 */
   group?: string
   icon?: string
   version?: string
@@ -1101,7 +1101,7 @@ export interface OtherWorkspaceSkillsGroup {
 
 // ===== 企业版组织 Skills 分发 =====
 
-/** 组织连接配置（~/.luxcoder/org-settings.json） */
+/** 组织连接配置（~/.myyoda/org-settings.json） */
 export interface OrganizationConnection {
   serverUrl: string
   /** 认证方式：企业账号（JWT）或 API Key */
@@ -1308,7 +1308,7 @@ export interface AgentSendInput {
   /** 动态注入的 MCP 服务器（仅在本次会话中生效，如飞书群聊工具） */
   customMcpServers?: Record<string, Record<string, unknown>>
   /** 强制覆盖权限模式（飞书等无 UI 交互场景下强制 'bypassPermissions'） */
-  permissionModeOverride?: LuxCoderPermissionMode
+  permissionModeOverride?: MyYodaPermissionMode
   /** 用户通过 /skill:xxx 引用的 Skill slug 列表 */
   mentionedSkills?: string[]
   /** 用户通过 #mcp:xxx 引用的 MCP 服务器名称列表 */
@@ -1377,7 +1377,7 @@ export interface MoveSessionToWorkspaceInput {
 
 /** Fork（分叉）会话输入 */
 export interface ForkSessionInput {
-  /** LuxCoder 会话 ID */
+  /** MyYoda 会话 ID */
   sessionId: string
   /** SDK 消息 uuid（截断点，inclusive）。省略时复制全部历史 */
   upToMessageUuid?: string
@@ -1387,7 +1387,7 @@ export interface ForkSessionInput {
 
 /** 快照回退输入（同一会话内回退到指定点） */
 export interface RewindSessionInput {
-  /** LuxCoder 会话 ID */
+  /** MyYoda 会话 ID */
   sessionId: string
   /** 回退到哪条 assistant message（inclusive，截断该消息之后的一切） */
   assistantMessageUuid: string
@@ -1720,22 +1720,22 @@ export interface ExitPlanModeResponse {
 
 // ===== 权限系统类型 =====
 
-/** 当前 LuxCoder 支持的权限模式，值直接映射 SDK 原生 permissionMode */
-export const LUXCODER_PERMISSION_MODES = ['bypassPermissions', 'plan'] as const
+/** 当前 MyYoda 支持的权限模式，值直接映射 SDK 原生 permissionMode */
+export const MYYODA_PERMISSION_MODES = ['bypassPermissions', 'plan'] as const
 
-export type LuxCoderPermissionMode = typeof LUXCODER_PERMISSION_MODES[number]
+export type MyYodaPermissionMode = typeof MYYODA_PERMISSION_MODES[number]
 
-export const LUXCODER_DEFAULT_PERMISSION_MODE: LuxCoderPermissionMode = 'bypassPermissions'
+export const MYYODA_DEFAULT_PERMISSION_MODE: MyYodaPermissionMode = 'bypassPermissions'
 
-export interface LuxCoderPermissionModeConfig {
+export interface MyYodaPermissionModeConfig {
   /** 对应 Claude Agent SDK 的 permissionMode */
-  sdkMode: LuxCoderPermissionMode
+  sdkMode: MyYodaPermissionMode
   label: string
   description: string
 }
 
-/** LuxCoder 权限模式的单一配置来源 */
-export const LUXCODER_PERMISSION_MODE_CONFIG = {
+/** MyYoda 权限模式的单一配置来源 */
+export const MYYODA_PERMISSION_MODE_CONFIG = {
   bypassPermissions: {
     sdkMode: 'bypassPermissions',
     label: '完全自动',
@@ -1746,19 +1746,19 @@ export const LUXCODER_PERMISSION_MODE_CONFIG = {
     label: '计划模式',
     description: '仅规划不执行，查看工具使用计划',
   },
-} as const satisfies Record<LuxCoderPermissionMode, LuxCoderPermissionModeConfig>
+} as const satisfies Record<MyYodaPermissionMode, MyYodaPermissionModeConfig>
 
 /** 权限模式定义顺序（用于循环切换） */
-export const LUXCODER_PERMISSION_MODE_ORDER: readonly LuxCoderPermissionMode[] = LUXCODER_PERMISSION_MODES
+export const MYYODA_PERMISSION_MODE_ORDER: readonly MyYodaPermissionMode[] = MYYODA_PERMISSION_MODES
 
-export function isLuxCoderPermissionMode(mode: string): mode is LuxCoderPermissionMode {
-  return (LUXCODER_PERMISSION_MODES as readonly string[]).includes(mode)
+export function isMyYodaPermissionMode(mode: string): mode is MyYodaPermissionMode {
+  return (MYYODA_PERMISSION_MODES as readonly string[]).includes(mode)
 }
 
 /** 规范化权限模式：历史 auto 或其它非法值统一回到默认完全自动模式 */
-export function migratePermissionMode(mode: string): LuxCoderPermissionMode {
-  if (isLuxCoderPermissionMode(mode)) return mode
-  return LUXCODER_DEFAULT_PERMISSION_MODE
+export function migratePermissionMode(mode: string): MyYodaPermissionMode {
+  if (isMyYodaPermissionMode(mode)) return mode
+  return MYYODA_DEFAULT_PERMISSION_MODE
 }
 
 /** 危险等级 */
@@ -1774,7 +1774,7 @@ export interface PermissionRequest {
   toolName: string
   /** 工具输入参数 */
   toolInput: Record<string, unknown>
-  /** 操作描述（人类可读，LuxCoder 生成） */
+  /** 操作描述（人类可读，MyYoda 生成） */
   description: string
   /** 具体命令（Bash 工具时有值） */
   command?: string
@@ -1881,7 +1881,7 @@ export const AGENT_IPC_CHANNELS = {
   SAVE_MCP_CONFIG: 'agent:save-mcp-config',
   /** 测试 MCP 服务器连接 */
   TEST_MCP_SERVER: 'agent:test-mcp-server',
-  /** 启用或关闭 LuxCoder 内置 MCP */
+  /** 启用或关闭 MyYoda 内置 MCP */
   SET_BUILTIN_MCP_ENABLED: 'agent:set-builtin-mcp-enabled',
   /** 获取工作区 Skill 列表 */
   GET_SKILLS: 'agent:get-skills',
@@ -1893,7 +1893,7 @@ export const AGENT_IPC_CHANNELS = {
   TOGGLE_SKILL: 'agent:toggle-skill',
   /** 获取其他工作区的 Skill 列表 */
   GET_OTHER_WORKSPACE_SKILLS: 'agent:get-other-workspace-skills',
-  /** 获取默认 Skills 的 slug 列表（来自 ~/.luxcoder/default-skills/） */
+  /** 获取默认 Skills 的 slug 列表（来自 ~/.myyoda/default-skills/） */
   GET_DEFAULT_SKILL_SLUGS: 'agent:get-default-skill-slugs',
   /** 从其他工作区导入 Skill 到当前工作区 */
   IMPORT_SKILL_FROM_WORKSPACE: 'agent:import-skill-from-workspace',

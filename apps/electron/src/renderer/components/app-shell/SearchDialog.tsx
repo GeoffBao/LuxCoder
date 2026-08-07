@@ -46,7 +46,7 @@ import {
 import type {
   MessageSearchResult,
   AgentMessageSearchResult,
-} from '@luxcoder/shared'
+} from '@myyoda/shared'
 
 /** 标题搜索结果项 */
 interface TitleResult {
@@ -417,8 +417,8 @@ export function SearchDialog(): React.ReactElement {
     )
     const channelId = deepseekChannel?.id ?? currentAgentChannelId ?? undefined
 
-    const configDir = import.meta.env.DEV ? '.luxcoder-dev' : '.luxcoder'
-    const prompt = `请帮我在 LuxCoder 的全部会话历史中搜索与以下描述相关的内容：
+    const configDir = import.meta.env.DEV ? '.myyoda-dev' : '.myyoda'
+    const prompt = `请帮我在 MyYoda 的全部会话历史中搜索与以下描述相关的内容：
 
 "${q}"
 
@@ -588,7 +588,7 @@ export function SearchDialog(): React.ReactElement {
           <button
             onClick={() => void handleAgentSearch()}
             disabled={trimmedQuery.length < 2}
-            title="适合在精准搜索找不到的情况下使用，Agent 会帮助你搜索整个 LuxCoder 会话空间"
+            title="适合在精准搜索找不到的情况下使用，Agent 会帮助你搜索整个 MyYoda 会话空间"
             className={cn(
               'flex items-center gap-1 px-2 py-1 rounded text-[12px] font-medium transition-colors',
               trimmedQuery.length >= 2

@@ -15,7 +15,7 @@ import { verifyApiKey } from '../src/auth/api-key-service'
 
 describe('API Key 认证', () => {
   beforeAll(() => {
-    process.env.LUXCODER_SERVER_DB = ':memory:'
+    process.env.MYYODA_SERVER_DB = ':memory:'
     closeDb()
   })
 

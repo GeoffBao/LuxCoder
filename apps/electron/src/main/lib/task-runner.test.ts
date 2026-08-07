@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from 'bun:test'
 import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { TaskSpec } from '@luxcoder/shared/tasks/schema'
+import type { TaskSpec } from '@myyoda/shared/tasks/schema'
 import {
   appendRunLog,
   initializeRun,
@@ -13,7 +13,7 @@ import {
   saveTaskRecord,
   saveTaskSpec,
   writeRunSpecSnapshot,
-} from '@luxcoder/shared/tasks/storage'
+} from '@myyoda/shared/tasks/storage'
 import {
   TaskRunner,
   type ConductorSendMessageOptions,
@@ -26,7 +26,7 @@ import {
 const tempRoots: string[] = []
 
 function createTempWorkspaceRoot(): string {
-  const root = mkdtempSync(join(tmpdir(), 'luxcoder-task-runner-'))
+  const root = mkdtempSync(join(tmpdir(), 'myyoda-task-runner-'))
   tempRoots.push(root)
   return root
 }

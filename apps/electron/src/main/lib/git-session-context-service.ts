@@ -8,7 +8,7 @@ import type {
   PrepareSessionGitContextInput,
   PrepareSessionGitContextResult,
   SessionGitContext,
-} from '@luxcoder/shared'
+} from '@myyoda/shared'
 
 interface PrepareOptions {
   updateSessionMeta?: (sessionId: string, updates: Partial<AgentSessionMeta>) => AgentSessionMeta

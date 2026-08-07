@@ -1,7 +1,7 @@
 /**
  * AI Elements - 消息组件原语
  *
- * 简化迁移自 LuxCoder 前版本 的 ai-elements/message.tsx，
+ * 简化迁移自 MyYoda 前版本 的 ai-elements/message.tsx，
  * 保留核心消息展示组件，适配 Electron + Jotai 架构。
  *
  * 包含：
@@ -36,11 +36,11 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { LoadingIndicator } from '@/components/ui/loading-indicator'
-import { CodeBlock, MermaidBlock } from '@luxcoder/ui'
-import { detectLanguage } from '@luxcoder/core'
+import { CodeBlock, MermaidBlock } from '@myyoda/ui'
+import { detectLanguage } from '@myyoda/core'
 import { FilePathChip, isAbsoluteFilePath, isImageFilePath, isRelativeFilePath } from './file-path-chip'
 import type { HTMLAttributes, ComponentProps, ReactNode } from 'react'
-import type { FileAttachment } from '@luxcoder/shared'
+import type { FileAttachment } from '@myyoda/shared'
 
 // ===== Message 根容器 =====
 
@@ -677,7 +677,7 @@ export const MessageResponse = React.memo(
     const renderedMarkdown = (remarkPlugins?.includes(remarkMentions)
       ? normalizeNamedReferenceDelimiters(children)
       : children
-    ).replace(/<!--LUXCODER_AUTOMATION:[\s\S]*?-->/g, '').trim()
+    ).replace(/<!--MYYODA_AUTOMATION:[\s\S]*?-->/g, '').trim()
 
     return (
       <div

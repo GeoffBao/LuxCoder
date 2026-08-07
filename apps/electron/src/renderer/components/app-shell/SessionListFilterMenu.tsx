@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { useAtom, useAtomValue } from 'jotai'
 import { Check, SlidersHorizontal, Tag, X } from 'lucide-react'
-import type { SessionListGroupBy, SessionListSortBy, SessionListStatusFilter } from '@luxcoder/shared'
+import type { SessionListGroupBy, SessionListSortBy, SessionListStatusFilter } from '@myyoda/shared'
 import { sessionListPreferenceAtom } from '@/atoms/session-list-preference-atoms'
 import { workspaceLabelsAtom } from '@/atoms/workspace-labels-atoms'
 import { currentAgentWorkspaceIdAtom } from '@/atoms/agent-atoms'

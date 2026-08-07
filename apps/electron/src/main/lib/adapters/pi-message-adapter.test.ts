@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import type { AssistantMessage } from '@earendil-works/pi-ai/compat'
-import type { SDKAssistantMessage } from '@luxcoder/shared'
+import type { SDKAssistantMessage } from '@myyoda/shared'
 import {
   convertPiMessage,
   convertResultMessage,

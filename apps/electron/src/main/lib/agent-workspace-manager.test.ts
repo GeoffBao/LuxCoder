@@ -13,7 +13,7 @@ let configPaths: ConfigPathsModule
 let projectRepositoryModule: ProjectRepositoryModule
 let tempHome: string
 const originalHome = process.env.HOME
-const originalLuxcoderDev = process.env.LUXCODER_DEV
+const originalLuxcoderDev = process.env.MYYODA_DEV
 const originalPromaDev = process.env.PROMA_DEV
 
 mockElectronModule({
@@ -29,9 +29,9 @@ mock.module('node:os', () => ({
 }))
 
 beforeAll(async () => {
-  tempHome = mkdtempSync(join(os.tmpdir(), 'luxcoder-agent-workspace-manager-'))
+  tempHome = mkdtempSync(join(os.tmpdir(), 'myyoda-agent-workspace-manager-'))
   process.env.HOME = tempHome
-  delete process.env.LUXCODER_DEV
+  delete process.env.MYYODA_DEV
   process.env.PROMA_DEV = '0'
   configPaths = await import('./config-paths')
   manager = await import('./agent-workspace-manager')
@@ -51,9 +51,9 @@ afterAll(() => {
     process.env.HOME = originalHome
   }
   if (originalLuxcoderDev === undefined) {
-    delete process.env.LUXCODER_DEV
+    delete process.env.MYYODA_DEV
   } else {
-    process.env.LUXCODER_DEV = originalLuxcoderDev
+    process.env.MYYODA_DEV = originalLuxcoderDev
   }
   if (originalPromaDev === undefined) {
     delete process.env.PROMA_DEV

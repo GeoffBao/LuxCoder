@@ -16,7 +16,7 @@ import {
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { SettingsCard } from '@/components/settings/primitives'
-import type { ExpertPackage } from '@luxcoder/shared/experts'
+import type { ExpertPackage } from '@myyoda/shared/experts'
 import {
   mergeReferenceOptions,
   ReferenceMultiSelect,

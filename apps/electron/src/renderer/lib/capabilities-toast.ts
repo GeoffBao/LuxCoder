@@ -1,5 +1,5 @@
 import { toast } from 'sonner'
-import type { CapabilityChange } from '@luxcoder/shared'
+import type { CapabilityChange } from '@myyoda/shared'
 
 /** 变化类型 → 中文描述 */
 const CHANGE_LABELS: Record<CapabilityChange['type'], string> = {

@@ -7,7 +7,7 @@
  * slug 冲突去重也由 materializeTaskFromSpec 统一处理（见该函数注释）。
  */
 
-import { buildMinimalTaskSpec } from '@luxcoder/shared/tasks'
+import { buildMinimalTaskSpec } from '@myyoda/shared/tasks'
 import { getAgentSessionMeta } from './agent-session-manager'
 import { getAgentWorkspace, getWorkspaceMcpConfig, getWorkspaceSkills } from './agent-workspace-manager'
 import { getAgentWorkspacePath } from './config-paths'

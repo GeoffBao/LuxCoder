@@ -1,8 +1,8 @@
 import * as React from 'react'
 import { GitBranch, ChevronDown, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { WorktreeInfo, WorkspaceWorktreeRepo } from '@luxcoder/shared'
-import { normalizePathForCompare } from '@luxcoder/shared'
+import type { WorktreeInfo, WorkspaceWorktreeRepo } from '@myyoda/shared'
+import { normalizePathForCompare } from '@myyoda/shared'
 
 interface WorktreeSelectorProps {
   sessionId: string

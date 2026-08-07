@@ -12,7 +12,7 @@ import { CalendarDays, ListTodo, MessageSquareText, Sparkles, Server } from 'luc
 import { MentionList } from './MentionList'
 import type { MentionListRef } from './MentionList'
 import { createLatestSuggestionRequestGuard, createMentionPopup, positionPopup, isSuggestionTriggerPresent, shouldSuppressEscTrigger, shouldClearEscSuppressionOnExit, type EscSuppressedTrigger } from './mention-popup-utils'
-import type { AgentSessionReferenceSearchResult } from '@luxcoder/shared'
+import type { AgentSessionReferenceSearchResult } from '@myyoda/shared'
 import { shouldAllowMentionTrigger, shouldShowMentionSuggestion } from '@/components/ai-elements/mention-utils'
 import {
   buildPlanningReferenceItems,
@@ -354,7 +354,7 @@ export function createPlanningMentionSuggestion(
       requiresContext: false,
       fetchItems: async (_context, query) => {
         const { from, toExclusive } = getPlanningReferenceRange()
-        // LuxCoder: listTodos/listCalendarEvents 走 scope/workspaceId 签名（Planning Workspace 隔离）。
+        // MyYoda: listTodos/listCalendarEvents 走 scope/workspaceId 签名（Planning Workspace 隔离）。
         const [todos, events] = await Promise.all([
           window.electronAPI.listTodos('all'),
           window.electronAPI.listCalendarEvents('all'),

@@ -1,4 +1,4 @@
-import type { ProviderType } from '@luxcoder/shared'
+import type { ProviderType } from '@myyoda/shared'
 
 /**
  * 某些 OpenAI 兼容接口只接受 system、user、assistant 和 tool 角色。

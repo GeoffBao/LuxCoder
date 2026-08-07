@@ -1,9 +1,9 @@
 /**
  * AppearanceSettings - 外观设置页。
  *
- * "主题模式"只有浅色/深色/跟随系统三个标签；浅色、深色标签下面各自挂着「LuxCoder 精选」
+ * "主题模式"只有浅色/深色/跟随系统三个标签；浅色、深色标签下面各自挂着「MyYoda 精选」
  * （旧版具名主题）+「更多预设」（迁移自 Craft 的预设）两组卡片，只显示当前标签对应的那个
- * 变体。LuxCoder 精选旁提供 classic/modern 选择，Craft 更多预设固定使用现代工作台。
+ * 变体。MyYoda 精选旁提供 classic/modern 选择，Craft 更多预设固定使用现代工作台。
  * 均为完整预设、一键切换，不提供逐字段手动编辑。
  */
 
@@ -192,7 +192,7 @@ export function AppearanceSettings(): React.ReactElement {
               <div className="space-y-1.5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="text-xs font-medium text-muted-foreground">LuxCoder 精选</div>
+                    <div className="text-xs font-medium text-muted-foreground">MyYoda 精选</div>
                     <div className="mt-0.5 text-[11px] text-muted-foreground/70">经典布局与现代工作台均可使用</div>
                   </div>
                   <div className="shrink-0">

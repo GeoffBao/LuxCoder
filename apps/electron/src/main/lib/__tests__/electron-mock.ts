@@ -16,7 +16,7 @@ export function mockElectronModule(overrides: Record<string, unknown> = {}): voi
   mock.module('electron', () => ({
     app: {
       isPackaged: true,
-      getPath: () => '/tmp/luxcoder-test',
+      getPath: () => '/tmp/myyoda-test',
       whenReady: async () => undefined,
       quit: () => undefined,
       on: () => undefined,

@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import type { CommunitySkill } from '@luxcoder/shared'
+import type { CommunitySkill } from '@myyoda/shared'
 
 interface CommunityMarketDialogProps {
   open: boolean

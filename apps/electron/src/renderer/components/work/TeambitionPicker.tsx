@@ -2,7 +2,7 @@ import * as React from 'react'
 import { useAtomValue } from 'jotai'
 import { CloudDownload, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
-import type { AgentSessionMeta } from '@luxcoder/shared'
+import type { AgentSessionMeta } from '@myyoda/shared'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {

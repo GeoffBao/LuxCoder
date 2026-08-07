@@ -2,7 +2,7 @@ import * as React from 'react'
 import { useAtom, useAtomValue } from 'jotai'
 import { Check, Plus, Settings, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
-import type { WorkspaceLabel } from '@luxcoder/shared/labels'
+import type { WorkspaceLabel } from '@myyoda/shared/labels'
 import { workspaceLabelsAtom } from '@/atoms/workspace-labels-atoms'
 import { Button } from '@/components/ui/button'
 import {

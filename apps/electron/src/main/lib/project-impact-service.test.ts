@@ -2,14 +2,14 @@ import { afterEach, describe, expect, test } from 'bun:test'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { appendRunLog, saveTaskRecord, saveTaskSpec } from '@luxcoder/shared/tasks/storage'
-import type { TaskSpec } from '@luxcoder/shared/tasks/schema'
-import type { ProjectConfig } from '@luxcoder/shared/projects'
+import { appendRunLog, saveTaskRecord, saveTaskSpec } from '@myyoda/shared/tasks/storage'
+import type { TaskSpec } from '@myyoda/shared/tasks/schema'
+import type { ProjectConfig } from '@myyoda/shared/projects'
 import { analyzeProjectDeleteImpact, analyzeTaskDeleteImpact } from './project-impact-service'
 
 const roots: string[] = []
 function tempRoot(): string {
-  const root = mkdtempSync(join(tmpdir(), 'luxcoder-impact-'))
+  const root = mkdtempSync(join(tmpdir(), 'myyoda-impact-'))
   roots.push(root)
   return root
 }

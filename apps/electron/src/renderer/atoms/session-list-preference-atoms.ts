@@ -1,13 +1,13 @@
 /**
  * Code 侧边栏会话列表筛选/分组/排序偏好 Atoms
  *
- * 持久化到 ~/.luxcoder/settings.json 的 `sessionListPreference` 字段
+ * 持久化到 ~/.myyoda/settings.json 的 `sessionListPreference` 字段
  * （遵循"配置文件优于 localStorage"约束，与 sidebar-module-atoms.ts 同一套模式）。
  * 只影响 Project 模式的会话列表——Chat 模式的归档切换继续用独立的 sidebarViewModeAtom。
  */
 
 import { atom } from 'jotai'
-import type { SessionListPreference } from '@luxcoder/shared'
+import type { SessionListPreference } from '@myyoda/shared'
 
 const DEFAULT_PREFERENCE: SessionListPreference = { status: 'active', groupBy: 'date', sortBy: 'recency' }
 

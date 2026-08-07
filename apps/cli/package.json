@@ -1,11 +1,11 @@
 {
-  "name": "@luxcoder/cli",
+  "name": "@myyoda/cli",
   "version": "0.1.0",
   "license": "AGPL-3.0-only",
-  "description": "luxcoder — LuxCoder 命令行工具。面向有限上下文的 Agent 消费者，提供会话的渐进式读取（list / info / outline / search / export）。",
+  "description": "myyoda — MyYoda 命令行工具。面向有限上下文的 Agent 消费者，提供会话的渐进式读取（list / info / outline / search / export）。",
   "type": "module",
   "bin": {
-    "luxcoder": "./src/index.ts"
+    "myyoda": "./src/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -13,8 +13,8 @@
     "start": "bun src/index.ts"
   },
   "dependencies": {
-    "@luxcoder/session-core": "workspace:*",
-    "@luxcoder/shared": "workspace:*"
+    "@myyoda/session-core": "workspace:*",
+    "@myyoda/shared": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.0.0"

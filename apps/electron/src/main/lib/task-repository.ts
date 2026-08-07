@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { AgentSessionMeta } from '@luxcoder/shared'
+import type { AgentSessionMeta } from '@myyoda/shared'
 import type { NodeOutput } from '../../../../../packages/shared/src/tasks/refs.ts'
 import type { TaskSpec } from '../../../../../packages/shared/src/tasks/schema.ts'
 import type { ValidationResult } from '../../../../../packages/shared/src/tasks/validate.ts'

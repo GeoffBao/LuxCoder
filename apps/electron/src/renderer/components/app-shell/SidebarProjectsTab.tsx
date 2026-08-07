@@ -26,7 +26,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import type { AgentSessionMeta, ProjectDeleteImpact, SessionGroup, SessionListSortBy, SessionListStatusFilter } from '@luxcoder/shared'
+import type { AgentSessionMeta, ProjectDeleteImpact, SessionGroup, SessionListSortBy, SessionListStatusFilter } from '@myyoda/shared'
 import { cn } from '@/lib/utils'
 import {
   agentSessionsAtom,

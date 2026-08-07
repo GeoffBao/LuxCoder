@@ -38,7 +38,7 @@ import { getModelLogo, resolveModelDisplayName, resolveModelProvider } from '@/l
 import { cn } from '@/lib/utils'
 import { userProfileAtom } from '@/atoms/user-profile'
 import { channelsAtom } from '@/atoms/chat-atoms'
-import type { ChatMessage } from '@luxcoder/shared'
+import type { ChatMessage } from '@myyoda/shared'
 import type { InlineEditSubmitPayload } from './InlineEditForm'
 import { ChatToolActivityIndicator } from './ChatToolActivityIndicator'
 import { parseQuotedSelectionRefs } from '@/lib/quoted-selection'

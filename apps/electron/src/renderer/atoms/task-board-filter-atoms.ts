@@ -1,5 +1,5 @@
 import { atom } from 'jotai'
-import type { TaskWorkflow } from '@luxcoder/shared/tasks'
+import type { TaskWorkflow } from '@myyoda/shared/tasks'
 
 /** Workflow 筛选：'all' 表示不筛选。 */
 export const taskBoardWorkflowFilterAtom = atom<'all' | TaskWorkflow>('all')

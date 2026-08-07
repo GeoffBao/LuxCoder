@@ -12,7 +12,7 @@ import {
   SESSION_GROUP_IPC_CHANNELS,
   TASK_IPC_CHANNELS,
   TEAMBITION_IPC_CHANNELS,
-} from '@luxcoder/shared/channels'
+} from '@myyoda/shared/channels'
 import type {
   CreateProjectInput,
   AgentSessionMeta,
@@ -22,14 +22,14 @@ import type {
   TaskGeneratedEventPayload,
   UpdateProjectInput,
   UploadProjectAssetInput,
-} from '@luxcoder/shared'
-import type { TaskSpec } from '@luxcoder/shared/tasks/schema'
-import type { TaskMetadataPatch, TaskWorkflow } from '@luxcoder/shared/tasks/task-record'
+} from '@myyoda/shared'
+import type { TaskSpec } from '@myyoda/shared/tasks/schema'
+import type { TaskMetadataPatch, TaskWorkflow } from '@myyoda/shared/tasks/task-record'
 import {
   buildGeneratorPrompt,
   buildRepairPrompt,
   extractYaml,
-} from '@luxcoder/shared/tasks'
+} from '@myyoda/shared/tasks'
 import {
   getLatestRunId,
   listResumableRuns,
@@ -39,8 +39,8 @@ import {
   parseTaskYaml,
   readRunLog,
   readRunSpecSnapshot,
-} from '@luxcoder/shared/tasks/storage'
-import { createLuxCoderConductorSessionHost, type LuxCoderConductorSessionHost } from './conductor-session-host'
+} from '@myyoda/shared/tasks/storage'
+import { createMyYodaConductorSessionHost, type MyYodaConductorSessionHost } from './conductor-session-host'
 import { deleteAgentSession, getAgentSessionMeta, listAgentSessions, updateAgentSessionMeta } from './agent-session-manager'
 import { createSessionGroup, deleteSessionGroup, listSessionGroups, renameSessionGroup } from './agent-session-group-service'
 import { isAgentSessionActive } from './agent-service'
@@ -78,7 +78,7 @@ const GENERATE_TIMEOUT_MS = 180_000
 
 let handlersRegistered = false
 let mainWindow: BrowserWindow | null = null
-let sessionHostPromise: Promise<LuxCoderConductorSessionHost> | undefined
+let sessionHostPromise: Promise<MyYodaConductorSessionHost> | undefined
 
 const runners = new Map<string, TaskRunner>()
 
@@ -109,8 +109,8 @@ export async function stopTaskRun(
   await (await resolveRunner(workspaceRoot, workspaceId)).stop(slug, runId)
 }
 
-function getSessionHost(): Promise<LuxCoderConductorSessionHost> {
-  sessionHostPromise ??= createLuxCoderConductorSessionHost()
+function getSessionHost(): Promise<MyYodaConductorSessionHost> {
+  sessionHostPromise ??= createMyYodaConductorSessionHost()
   return sessionHostPromise
 }
 
@@ -451,7 +451,7 @@ export function buildTaskValidationPayload(result: ReturnType<typeof parseTaskYa
 
 /** 通过 Host 的完成事件等待一轮生成，避免悬挂监听器和未等待的 Agent 请求。 */
 async function sendGenerationPrompt(
-  host: LuxCoderConductorSessionHost,
+  host: MyYodaConductorSessionHost,
   sessionId: string,
   prompt: string,
 ): Promise<string> {

@@ -7,7 +7,7 @@
  */
 
 import { shell } from 'electron'
-import type { XaiOAuthCredentials, XaiOAuthDeviceCode } from '@luxcoder/shared'
+import type { XaiOAuthCredentials, XaiOAuthDeviceCode } from '@myyoda/shared'
 import { runWithOAuthProxyScope } from './oauth-proxy-scope'
 
 type PiSdk = typeof import('@earendil-works/pi-coding-agent')

@@ -2,7 +2,7 @@
  * 企业版组织 Skills 分发服务（客户端侧）
  *
  * 负责：
- * 1. 组织连接配置持久化（~/.luxcoder/org-settings.json）
+ * 1. 组织连接配置持久化（~/.myyoda/org-settings.json）
  * 2. 与服务端 REST API 通信（认证 header、错误归一化）
  * 3. 组织信息 / Skills 列表 / 成员列表查询
  * 4. 下载 Skill zip 并解压到工作区（复用 SkillImportSource 语义）
@@ -22,7 +22,7 @@ import type {
   OrganizationSkill,
   OrganizationSkillDetail,
   SkillImportSource,
-} from '@luxcoder/shared'
+} from '@myyoda/shared'
 
 const ORG_SETTINGS_FILE = 'org-settings.json'
 
@@ -30,11 +30,11 @@ const ORG_SETTINGS_FILE = 'org-settings.json'
 
 function getOrgSettingsPath(): string {
   // 环境变量覆盖（测试/CI/可移植部署用）
-  if (process.env.LUXCODER_ORG_SETTINGS_PATH) {
-    return process.env.LUXCODER_ORG_SETTINGS_PATH
+  if (process.env.MYYODA_ORG_SETTINGS_PATH) {
+    return process.env.MYYODA_ORG_SETTINGS_PATH
   }
-  // 与 config-paths 一致：开发模式 .luxcoder-dev，正式版本 .luxcoder
-  const dirName = process.env.LUXCODER_DEV === '1' ? '.luxcoder-dev' : '.luxcoder'
+  // 与 config-paths 一致：开发模式 .myyoda-dev，正式版本 .myyoda
+  const dirName = process.env.MYYODA_DEV === '1' ? '.myyoda-dev' : '.myyoda'
   return join(homedir(), dirName, ORG_SETTINGS_FILE)
 }
 

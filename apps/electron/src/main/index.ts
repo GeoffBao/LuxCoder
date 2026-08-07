@@ -6,9 +6,9 @@ import { existsSync } from 'fs'
 // 必须在任何会读取 userData 路径的模块加载之前执行
 if (!app.isPackaged) {
   // 多个 worktree 可显式隔离开发实例，避免其中一个分支抢走另一分支的 Chromium SingletonLock。
-  const instance = process.env.LUXCODER_DEV_INSTANCE?.replace(/[^a-zA-Z0-9_-]/g, '')
-  if (instance) app.setName(`LuxCoder-${instance}`)
-  app.setPath('userData', join(app.getPath('appData'), instance ? `@luxcoder/electron-dev-${instance}` : '@luxcoder/electron-dev'))
+  const instance = process.env.MYYODA_DEV_INSTANCE?.replace(/[^a-zA-Z0-9_-]/g, '')
+  if (instance) app.setName(`MyYoda-${instance}`)
+  app.setPath('userData', join(app.getPath('appData'), instance ? `@myyoda/electron-dev-${instance}` : '@myyoda/electron-dev'))
 }
 
 // 单实例锁：防止重复启动同一个版本（dev/prod 因 userData 已隔离，互不影响）
@@ -20,8 +20,8 @@ if (!app.isPackaged) {
 // second-instance 事件，由主实例负责显示窗口。
 if (!app.requestSingleInstanceLock()) {
   console.warn(
-    '[启动] 已有 LuxCoder 进程持有单实例锁，本次启动将退出。\n' +
-      '  如果窗口未出现，可能旧进程已卡死。请运行 `killall LuxCoder` 后重试。',
+    '[启动] 已有 MyYoda 进程持有单实例锁，本次启动将退出。\n' +
+      '  如果窗口未出现，可能旧进程已卡死。请运行 `killall MyYoda` 后重试。',
   )
   app.quit()
 } else {
@@ -31,9 +31,9 @@ if (!app.requestSingleInstanceLock()) {
 
 function registerProtocolsAndHandlers(): void {
   // 注册自定义协议方案为"特权"（必须在 app ready 之前）
-  // 用于内联预览本地文件（renderer 用 iframe 加载 luxcoder-file:// 资源）
+  // 用于内联预览本地文件（renderer 用 iframe 加载 myyoda-file:// 资源）
   protocol.registerSchemesAsPrivileged([
-    { scheme: 'luxcoder-file', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } },
+    { scheme: 'myyoda-file', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } },
   ])
 
   // Windows: 禁用 LCD 次像素抗锯齿（ClearType），改用灰度 AA。
@@ -55,7 +55,7 @@ function registerProtocolsAndHandlers(): void {
       return
     }
     showAndFocusMainWindow()
-    const fileArg = argv.find((arg) => arg.endsWith('.luxcoder-backup') || arg.endsWith('.luxcoder-share'))
+    const fileArg = argv.find((arg) => arg.endsWith('.myyoda-backup') || arg.endsWith('.myyoda-share'))
     if (fileArg) {
       handleMigrationFileOpen(fileArg)
     }
@@ -135,7 +135,7 @@ import {
   shouldSuppressVoiceDictationActivate,
 } from './lib/voice-dictation-window'
 import { registerGlobalShortcut, unregisterAllGlobalShortcuts } from './lib/global-shortcut-service'
-import { setAppVersion } from '@luxcoder/core'
+import { setAppVersion } from '@myyoda/core'
 import { TRAY_IPC_CHANNELS } from '../types'
 
 const MIGRATION_IPC_OPEN = 'migration:open-import-file'
@@ -148,7 +148,7 @@ function startCodeClawSurface(): void {
 
 /** 检查文件路径是否为迁移文件，如果是则通知渲染进程打开导入流程 */
 function handleMigrationFileOpen(filePath: string): void {
-  if (filePath.endsWith('.luxcoder-backup') || filePath.endsWith('.luxcoder-share')) {
+  if (filePath.endsWith('.myyoda-backup') || filePath.endsWith('.myyoda-share')) {
     sendToMainWindow(MIGRATION_IPC_OPEN, { filePath })
   }
 }
@@ -473,7 +473,7 @@ function createWindow(): void {
     }
 
     hasShownRendererFailure = true
-    const message = encodeURIComponent(`LuxCoder 无法加载主界面\n\n${reason}\n\n请重试；若问题持续，请检查应用安装文件。`)
+    const message = encodeURIComponent(`MyYoda 无法加载主界面\n\n${reason}\n\n请重试；若问题持续，请检查应用安装文件。`)
     mainWindow.loadURL(`data:text/plain;charset=utf-8,${message}`).catch((error) => {
       console.error('[启动] 降级错误页加载失败:', error)
       mainWindow?.show()
@@ -601,24 +601,24 @@ app.whenReady().then(bootstrap).catch(handleBootstrapFailure)
 async function bootstrap(): Promise<void> {
   migrateDataDirIfNeeded()
 
-  // 初始化 LuxCoder 版本号（供 User-Agent 等全局标识使用）
+  // 初始化 MyYoda 版本号（供 User-Agent 等全局标识使用）
   setAppVersion(app.getVersion())
 
   // 先显示不依赖 Renderer 的静态启动页；运行时检测耗时不会再变成用户可见的空白。
   createStartupSplashWindow()
 
-  // 注册自定义协议 luxcoder-file:// 用于内联预览本地文件。
+  // 注册自定义协议 myyoda-file:// 用于内联预览本地文件。
   // 协议只接受主进程签发的 opaque token，不解析 renderer 提供的绝对路径。
-  protocol.handle('luxcoder-file', handlePromaFileRequest)
+  protocol.handle('myyoda-file', handlePromaFileRequest)
 
   // 初始化运行时环境（Shell 环境 + Bun + Git 检测）
   // 必须在其他初始化之前执行，确保环境变量正确加载
   await safeAwait('initializeRuntime', () => initializeRuntime())
 
-  // 同步默认 Skills 模板到 ~/.luxcoder/default-skills/
+  // 同步默认 Skills 模板到 ~/.myyoda/default-skills/
   safeRun('seedDefaultSkills', seedDefaultSkills)
 
-  // 种子内置 Agent 专家包到 ~/.luxcoder/experts/
+  // 种子内置 Agent 专家包到 ~/.myyoda/experts/
   safeRun('seedBuiltinExperts', () => seedBuiltinExperts(getExpertsDir()))
 
   // 升级所有工作区中版本过旧的默认 Skills
@@ -691,7 +691,7 @@ async function bootstrap(): Promise<void> {
     safeRun('createVoiceDictationWindow', createVoiceDictationWindow)
   }
 
-  // CodeClaw：LuxCoder 内置桌面助手，替代旧 Agent 灵动岛。
+  // CodeClaw：MyYoda 内置桌面助手，替代旧 Agent 灵动岛。
   safeRun('initCodeClawService', () => {
     initCodeClawService({
       showAndFocusMainWindow,
@@ -719,7 +719,7 @@ async function bootstrap(): Promise<void> {
   )
   safeRun('registerGlobalShortcut:voice-dictation', () =>
     registerGlobalShortcut('voice-dictation', () => {
-      toggleVoiceDictationWindow({ targetIsLuxCoder: mainWindow?.isFocused() === true })
+      toggleVoiceDictationWindow({ targetIsMyYoda: mainWindow?.isFocused() === true })
     }),
   )
 
@@ -776,13 +776,13 @@ function handleBootstrapFailure(err: unknown): void {
   try {
     const message = err instanceof Error ? (err.stack ?? err.message) : String(err)
     dialog.showErrorBox(
-      'LuxCoder 启动遇到错误',
+      'MyYoda 启动遇到错误',
       `部分功能可能不可用：\n\n${message}\n\n` +
         `日志位置：${app.getPath('logs')}\n\n` +
         `常见原因与排查：\n` +
-        `1. 旧版 LuxCoder 进程未退出（终端运行 killall LuxCoder 后重试）\n` +
-        `2. ~/.luxcoder/ 配置损坏（重命名 ~/.luxcoder 后重启）\n` +
-        `3. 系统 Keychain 无法解密保存的凭证（删除 ~/.luxcoder/feishu.json 等后重新登录）\n\n` +
+        `1. 旧版 MyYoda 进程未退出（终端运行 killall MyYoda 后重试）\n` +
+        `2. ~/.myyoda/ 配置损坏（重命名 ~/.myyoda 后重启）\n` +
+        `3. 系统 Keychain 无法解密保存的凭证（删除 ~/.myyoda/feishu.json 等后重新登录）\n\n` +
         `如需协助请到 GitHub Issues 反馈。`,
     )
   } catch {

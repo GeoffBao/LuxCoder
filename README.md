@@ -1,12 +1,12 @@
-# LuxCoder
+# MyYoda
 
 > **Thinking More, Do More!**
 
-LuxCoder 是面向真实研发交付的本地优先 AI Coding 工作台。它把多模型对话、代码执行、项目上下文、任务编排、协作子 Agent、自动任务和持续知识沉淀整合在一个桌面应用中。
+MyYoda 是面向真实研发交付的本地优先 AI Coding 工作台。它把多模型对话、代码执行、项目上下文、任务编排、协作子 Agent、自动任务和持续知识沉淀整合在一个桌面应用中。
 
-**[English](./README.en.md)** · **[下载最新版本](https://github.com/GeoffBao/LuxCoder/releases)** · **[使用指南](./apps/electron/resources/tutorial.md)**
+**[English](./README.en.md)** · **[下载最新版本](https://github.com/GeoffBao/MyYoda/releases)** · **[使用指南](./apps/electron/resources/tutorial.md)**
 
-## 为什么选择 LuxCoder
+## 为什么选择 MyYoda
 
 优秀的 Coding 产品不应只给出答案，还应帮助用户把复杂工作真正完成。
 
@@ -69,7 +69,7 @@ Projects & Kanban 位于 Code 内。进入 Code 后，可在“会话”和“�
 
 ### 1. 安装
 
-从 [GitHub Releases](https://github.com/GeoffBao/LuxCoder/releases) 下载适用于 macOS 或 Windows 的安装包。
+从 [GitHub Releases](https://github.com/GeoffBao/MyYoda/releases) 下载适用于 macOS 或 Windows 的安装包。
 
 ### 2. 配置模型
 
@@ -100,7 +100,7 @@ Workspace、Project 和会话 cwd 不是同一个概念：
 
 | 概念 | 含义 |
 |------|------|
-| **Workspace** | LuxCoder 的顶层隔离与能力容器 |
+| **Workspace** | MyYoda 的顶层隔离与能力容器 |
 | **Project** | Workspace 内的工程或业务上下文 |
 | **Project workingDirectory** | 真实代码仓库或工程目录 |
 | **Session cwd** | 每个 Code 会话独立的临时工作台 |
@@ -108,7 +108,7 @@ Workspace、Project 和会话 cwd 不是同一个概念：
 | **Project assets / MEMORY.md** | Project 参考资料和长期上下文 |
 
 ```text
-~/.luxcoder/agent-workspaces/{workspace}/
+~/.myyoda/agent-workspaces/{workspace}/
 ├── {session-id}/
 │   └── .context/              # 当前会话的计划和临时记录
 ├── workspace-files/           # 跨会话共享资料
@@ -128,10 +128,10 @@ Workspace、Project 和会话 cwd 不是同一个概念：
 
 ## 本地数据与安全
 
-LuxCoder 的核心数据默认保存在 `~/.luxcoder/`：
+MyYoda 的核心数据默认保存在 `~/.myyoda/`：
 
 ```text
-~/.luxcoder/
+~/.myyoda/
 ├── settings.json
 ├── channels.json
 ├── conversations/
@@ -144,7 +144,7 @@ LuxCoder 的核心数据默认保存在 `~/.luxcoder/`：
 - API Key 和 OAuth Token 在系统支持 Electron `safeStorage` 时会加密后写入本地配置；如果操作系统加密能力不可用，当前版本可能降级为明文存储；
 - 会话主要使用 JSON / JSONL 文件保存，便于备份和审计；
 - 模型请求仍会将用户提交的 Prompt、所选附件内容或必要工具结果发送给用户选择的模型服务商；
-- LuxCoder 会向 Code Agent 明确提供当前 Workspace、Project、会话及附加目录；当前版本不提供 OS 级文件系统沙箱，完全自动模式只应在可信环境中使用；
+- MyYoda 会向 Code Agent 明确提供当前 Workspace、Project、会话及附加目录；当前版本不提供 OS 级文件系统沙箱，完全自动模式只应在可信环境中使用；
 - 对发布、付款、不可逆删除等高风险操作，产品要求 Agent 在执行前进行明确确认，但用户仍应核对实际工具调用。
 
 ## 从源码运行
@@ -186,10 +186,10 @@ bun run dist
 ## 仓库结构
 
 ```text
-LuxCoder/
+MyYoda/
 ├── apps/
 │   ├── electron/       # Electron 主进程、Preload、React Renderer 和资源
-│   └── cli/            # LuxCoder CLI 与渐进式会话读取工具
+│   └── cli/            # MyYoda CLI 与渐进式会话读取工具
 ├── packages/
 │   ├── shared/         # 共享类型、协议、IPC 常量和工具
 │   ├── core/           # Provider Adapter 和模型调用基础能力
@@ -226,9 +226,9 @@ Provider / Agent Runtime / Workspace / Task / Automation
 
 ## 致谢
 
-LuxCoder 基于开源社区持续演进，并受益于以下项目和生态：
+MyYoda 基于开源社区持续演进，并受益于以下项目和生态：
 
-- [Proma](https://github.com/proma-ai/Proma)：LuxCoder 的早期开源基础；
+- [Proma](https://github.com/proma-ai/Proma)：MyYoda 的早期开源基础；
 - [Pi Agent](https://github.com/badlogic/pi-mono)：Agent Runtime 生态；
 - [Claude Agent SDK](https://docs.anthropic.com/)：Claude 订阅兼容运行能力；
 - [Model Context Protocol](https://modelcontextprotocol.io/)：Agent 工具扩展标准；

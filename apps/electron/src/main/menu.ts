@@ -16,17 +16,17 @@ export function createApplicationMenu(): Menu {
     ...(isMac
       ? [
           {
-            label: 'LuxCoder',
+            label: 'MyYoda',
             submenu: [
-              { role: 'about' as const, label: '关于 LuxCoder' },
+              { role: 'about' as const, label: '关于 MyYoda' },
               { type: 'separator' as const },
               { role: 'services' as const, label: '服务' },
               { type: 'separator' as const },
-              { role: 'hide' as const, label: '隐藏 LuxCoder' },
+              { role: 'hide' as const, label: '隐藏 MyYoda' },
               { role: 'hideOthers' as const, label: '隐藏其他' },
               { role: 'unhide' as const, label: '显示全部' },
               { type: 'separator' as const },
-              { role: 'quit' as const, label: '退出 LuxCoder' },
+              { role: 'quit' as const, label: '退出 MyYoda' },
             ],
           },
         ]
@@ -123,7 +123,7 @@ export function createApplicationMenu(): Menu {
         {
           label: '了解更多',
           click: async () => {
-            await shell.openExternal('https://github.com/GeoffBao/LuxCoder')
+            await shell.openExternal('https://github.com/GeoffBao/MyYoda')
           },
         },
       ],

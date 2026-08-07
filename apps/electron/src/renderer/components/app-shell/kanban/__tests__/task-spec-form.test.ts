@@ -3,8 +3,8 @@ import {
   MAX_REPAIR_ATTEMPTS_CAP,
   PERMISSION_MODES,
   TaskSpecSchema,
-} from '@luxcoder/shared/tasks/schema'
-import type { PermissionMode } from '@luxcoder/shared/tasks/schema'
+} from '@myyoda/shared/tasks/schema'
+import type { PermissionMode } from '@myyoda/shared/tasks/schema'
 import {
   buildSpec,
   specToSubtasks,

@@ -1,4 +1,4 @@
-import type { Channel, ChannelModel, ProviderType } from '@luxcoder/shared'
+import type { Channel, ChannelModel, ProviderType } from '@myyoda/shared'
 
 export type TitleProviderSetting = 'session' | ProviderType
 

@@ -2,9 +2,9 @@ import { afterEach, describe, expect, test } from 'bun:test'
 import { existsSync, mkdtempSync, renameSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { AgentSessionMeta } from '@luxcoder/shared'
-import type { TaskSpec } from '@luxcoder/shared/tasks/schema'
-import { loadTaskRecord, loadTaskSpec, taskDir } from '@luxcoder/shared/tasks/storage'
+import type { AgentSessionMeta } from '@myyoda/shared'
+import type { TaskSpec } from '@myyoda/shared/tasks/schema'
+import { loadTaskRecord, loadTaskSpec, taskDir } from '@myyoda/shared/tasks/storage'
 import {
   materializeTaskTransaction,
   recoverTaskMaterializations,
@@ -12,7 +12,7 @@ import {
 } from './task-materialization-service'
 
 const roots: string[] = []
-function root(): string { const value = mkdtempSync(join(tmpdir(), 'luxcoder-materialize-')); roots.push(value); return value }
+function root(): string { const value = mkdtempSync(join(tmpdir(), 'myyoda-materialize-')); roots.push(value); return value }
 afterEach(() => { for (const value of roots.splice(0)) rmSync(value, { recursive: true, force: true }) })
 
 function spec(): TaskSpec {

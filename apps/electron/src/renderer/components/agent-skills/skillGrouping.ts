@@ -1,4 +1,4 @@
-import type { SkillMeta } from '@luxcoder/shared'
+import type { SkillMeta } from '@myyoda/shared'
 
 export interface SkillGroup {
   id: string

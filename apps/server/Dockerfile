@@ -1,4 +1,4 @@
-# LuxCoder Server — 企业版 Skills 分发注册中心
+# MyYoda Server — 企业版 Skills 分发注册中心
 #
 # 基于 oven/bun 官方镜像，安装依赖后复制源码运行。
 # 数据持久化到 /data（SQLite + Skills 存储）。
@@ -13,9 +13,9 @@ FROM oven/bun:1 AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=8787
-ENV LUXCODER_SERVER_DB=/data/luxcoder-server.db
-ENV LUXCODER_SERVER_SKILLS_DIR=/data/skills
-ENV LUXCODER_SERVER_JWT_SECRET=change-me-in-production
+ENV MYYODA_SERVER_DB=/data/myyoda-server.db
+ENV MYYODA_SERVER_SKILLS_DIR=/data/skills
+ENV MYYODA_SERVER_JWT_SECRET=change-me-in-production
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY apps/server ./apps/server

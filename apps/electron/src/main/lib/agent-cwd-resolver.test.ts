@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { resolveSessionCwd } from './agent-cwd-resolver'
 import type { EffectiveCwdResult } from './project-path-service'
 
-const SANDBOX = '/luxcoder/agent-workspaces/ws/session-1'
+const SANDBOX = '/myyoda/agent-workspaces/ws/session-1'
 const PROJECT_DIR = '/Users/dev/my-real-project'
 
 function projectResolver(result: EffectiveCwdResult | null) {
@@ -68,9 +68,9 @@ describe('resolveSessionCwd', () => {
     const result = resolveSessionCwd({
       agentCwdMode: 'project',
       projectId: 'proj-1',
-      resolveProjectCwd: projectResolver({ status: 'managed', cwd: '/luxcoder/projects/foo', displayPath: '/luxcoder/projects/foo' }),
+      resolveProjectCwd: projectResolver({ status: 'managed', cwd: '/myyoda/projects/foo', displayPath: '/myyoda/projects/foo' }),
       sandboxCwd: SANDBOX,
     })
-    expect(result).toEqual({ cwd: '/luxcoder/projects/foo', source: 'project' })
+    expect(result).toEqual({ cwd: '/myyoda/projects/foo', source: 'project' })
   })
 })

@@ -1,8 +1,8 @@
 /**
  * 定时任务主视图（AutomationsView）
  *
- * 作为「Task 日历」的定时任务 tab 内容（tab 内升级），参考 LuxCodercomp 的
- * AutomationsView 设计语言，适配 LuxCoder 定时任务数据模型：
+ * 作为「Task 日历」的定时任务 tab 内容（tab 内升级），参考 MyYodacomp 的
+ * AutomationsView 设计语言，适配 MyYoda 定时任务数据模型：
  * - 工具栏：状态筛选（全部/启用中/已暂停/已完成，带计数）+ 排序（下次运行/最近运行/创建时间/名称）
  * - 列表：表格化卡片行（状态点 / 名称 / 调度 / 上次运行 / 下次运行 / 模型·空间），
  *   hover 显示行操作（立即运行 / 删除），右侧固定暂停启用按钮，点击行进编辑表单
@@ -47,7 +47,7 @@ import { agentWorkspacesAtom, currentAgentWorkspaceIdAtom } from '@/atoms/agent-
 import { channelsAtom } from '@/atoms/chat-atoms'
 import { planningWorkspaceScopeAtom } from '@/atoms/planning-atoms'
 import { serverKanbanProjectsAtom } from '@/atoms/project-atoms'
-import type { Automation } from '@luxcoder/shared'
+import type { Automation } from '@myyoda/shared'
 
 /** 状态筛选维度（参考 multica autopilots 的 scope 语义） */
 type AutomationScope = 'all' | 'active' | 'paused' | 'completed'
@@ -604,7 +604,7 @@ function EmptyState({ onCreate, onPickTemplate }: { onCreate: () => void; onPick
       <div className="flex flex-col items-center pt-8 text-center">
         <p className="max-w-md text-[13px] leading-relaxed text-foreground/50">
           定时任务可以让 AI 周期性地执行某项任务，如每天总结邮件、每小时检查 GitHub 仓库等。
-          也可以直接在对话中说「以后每隔 X 分钟…」，LuxCoder 会自动识别并创建。
+          也可以直接在对话中说「以后每隔 X 分钟…」，MyYoda 会自动识别并创建。
         </p>
         <div className="mt-7 grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {TEMPLATES.map((tpl) => {

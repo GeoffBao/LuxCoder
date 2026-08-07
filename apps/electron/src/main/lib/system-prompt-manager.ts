@@ -2,7 +2,7 @@
  * 系统提示词管理服务
  *
  * 管理 Chat 模式的系统提示词 CRUD。
- * 存储在 ~/.luxcoder/system-prompts.json
+ * 存储在 ~/.myyoda/system-prompts.json
  */
 
 import { randomUUID } from 'node:crypto'
@@ -11,13 +11,13 @@ import { getSystemPromptsPath } from './config-paths'
 import {
   BUILTIN_DEFAULT_ID,
   BUILTIN_DEFAULT_PROMPT,
-} from '@luxcoder/shared'
+} from '@myyoda/shared'
 import type {
   SystemPrompt,
   SystemPromptConfig,
   SystemPromptCreateInput,
   SystemPromptUpdateInput,
-} from '@luxcoder/shared'
+} from '@myyoda/shared'
 
 /** 默认配置 */
 function getDefaultConfig(): SystemPromptConfig {

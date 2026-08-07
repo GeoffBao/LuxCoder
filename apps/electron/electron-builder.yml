@@ -1,8 +1,8 @@
 # electron-builder 配置
 # 文档: https://www.electron.build/configuration/configuration
 
-appId: com.luxshare.luxcoder
-productName: LuxCoder
+appId: com.luxshare.myyoda
+productName: MyYoda
 copyright: Copyright © 2024-2026 Luxshare
 
 # Electron 版本（CI 环境 bun workspace 下无法自动检测，需显式指定）
@@ -52,7 +52,7 @@ files:
   # PDF 内联预览使用本地 PDF.js 资源，避免运行时依赖 CDN。
   - node_modules/pdfjs-dist/**/*
   # 排除 workspace 包的 symlink（代码已被 esbuild/Vite 打包到 dist/ 中）
-  - "!node_modules/@luxcoder/**"
+  - "!node_modules/@myyoda/**"
   # 排除明确只在开发/构建期使用的大体积包。
   - "!node_modules/electron/**"
   - "!node_modules/electron-builder/**"
@@ -68,13 +68,13 @@ files:
 
 # 通用额外资源
 extraResources:
-  # luxcoder CLI 自包含二进制（build:cli 用 bun build --compile 产出到 resources/bin/）。
-  # 运行时由主进程注入 LUXCODER_CLI 环境变量，暴露给 skill / Agent 调用。
+  # myyoda CLI 自包含二进制（build:cli 用 bun build --compile 产出到 resources/bin/）。
+  # 运行时由主进程注入 MYYODA_CLI 环境变量，暴露给 skill / Agent 调用。
   - from: resources/bin
     to: bin
     filter:
       - "**/*"
-  # 默认 Skills 模板（首次启动时同步到 ~/.luxcoder/default-skills/）
+  # 默认 Skills 模板（首次启动时同步到 ~/.myyoda/default-skills/）
   - from: default-skills
     to: default-skills
     filter:
@@ -82,7 +82,7 @@ extraResources:
   # 教程文件（教程查看器 + 欢迎对话使用）
   - from: resources/tutorial.md
     to: tutorial.md
-  # LuxCoder 品牌 Logo 素材（品牌素材下载功能使用）
+  # MyYoda 品牌 Logo 素材（品牌素材下载功能使用）
   - from: resources/logos
     to: logos
     filter:
@@ -107,7 +107,7 @@ extraResources:
 mac:
   category: public.app-category.developer-tools
   icon: resources/icon.icns
-  # EventKit N-API bridge 在 Electron main 进程内执行，确保 TCC 归属 LuxCoder.app。
+  # EventKit N-API bridge 在 Electron main 进程内执行，确保 TCC 归属 MyYoda.app。
   extraResources:
     - from: resources/eventkit/macos-eventkit.node
       to: eventkit/macos-eventkit.node
@@ -118,15 +118,15 @@ mac:
   entitlements: resources/entitlements.mac.plist
   entitlementsInherit: resources/entitlements.mac.plist
   extendInfo:
-    NSMicrophoneUsageDescription: "LuxCoder 需要访问麦克风，用于将你的语音实时转写为文本。"
-    NSCalendarsFullAccessUsageDescription: "LuxCoder 需要访问你的日历，以显示、创建和同步你选择的日程。"
-    NSRemindersFullAccessUsageDescription: "LuxCoder 需要访问你的提醒事项，以同步 Todo 和你选择的列表。"
+    NSMicrophoneUsageDescription: "MyYoda 需要访问麦克风，用于将你的语音实时转写为文本。"
+    NSCalendarsFullAccessUsageDescription: "MyYoda 需要访问你的日历，以显示、创建和同步你选择的日程。"
+    NSRemindersFullAccessUsageDescription: "MyYoda 需要访问你的提醒事项，以同步 Todo 和你选择的列表。"
   fileAssociations:
-    - ext: luxcoder-backup
-      name: LuxCoder Personal Backup
+    - ext: myyoda-backup
+      name: MyYoda Personal Backup
       role: Editor
-    - ext: luxcoder-share
-      name: LuxCoder Share Package
+    - ext: myyoda-share
+      name: MyYoda Share Package
       role: Editor
   # 架构由 CLI 参数控制（CI 矩阵分别传 --arm64 / --x64），
   # 每个 runner 只构建其宿主架构对应的产物，与 bun 按 os/cpu 装好的
@@ -155,11 +155,11 @@ win:
   icon: resources/icon.ico
   artifactName: ${productName}-Setup-${version}-${arch}.${ext}
   fileAssociations:
-    - ext: luxcoder-backup
-      name: LuxCoder Personal Backup
+    - ext: myyoda-backup
+      name: MyYoda Personal Backup
       icon: resources/icon.ico
-    - ext: luxcoder-share
-      name: LuxCoder Share Package
+    - ext: myyoda-share
+      name: MyYoda Share Package
       icon: resources/icon.ico
   target:
     - target: nsis
@@ -199,5 +199,5 @@ linux:
 publish:
   provider: github
   owner: GeoffBao
-  repo: LuxCoder
+  repo: MyYoda
   releaseType: release

@@ -51,8 +51,8 @@ import type {
   FeishuChatBinding,
   UpdateAutomationInput,
   AgentRuntime,
-} from '@luxcoder/shared'
-import { CLAUDE_RUNTIME_ENABLED } from '@luxcoder/shared'
+} from '@myyoda/shared'
+import { CLAUDE_RUNTIME_ENABLED } from '@myyoda/shared'
 
 const NO_FEISHU_BINDING = '__none__'
 // Radix Select 不允许 SelectItem 的 value 为空字符串（会在渲染时直接 throw），
@@ -239,16 +239,16 @@ function AutomationPromptEmptyGuide(): React.ReactElement {
     <div className="rounded-xl bg-foreground/[0.035] p-4 shadow-inner">
       <div className="flex flex-col gap-3">
         <div>
-          <div className="text-[13px] font-semibold text-foreground">推荐：让 LuxCoder Agent 创建</div>
+          <div className="text-[13px] font-semibold text-foreground">推荐：让 MyYoda Agent 创建</div>
           <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            在左侧会话里说清目标，并明确表示要求创建定时任务，LuxCoder Agent 会生成任务描述，并补全周期、空间和模型等配置，手动编辑更适合微调任务描述。
+            在左侧会话里说清目标，并明确表示要求创建定时任务，MyYoda Agent 会生成任务描述，并补全周期、空间和模型等配置，手动编辑更适合微调任务描述。
           </div>
         </div>
         <div className="h-px bg-border/50" />
         <div>
           <div className="text-[13px] font-medium text-foreground/85">手动编写时，只写任务本身</div>
           <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            例：检查 LuxCoder 仓库新增 issue，主动回复问答类问题，不清楚的部分整理到空间目录下的 .context/issue-faq.md 文档；真正的 Bug 或请求罗列后发给我，不要记录任何重复的信息。
+            例：检查 MyYoda 仓库新增 issue，主动回复问答类问题，不清楚的部分整理到空间目录下的 .context/issue-faq.md 文档；真正的 Bug 或请求罗列后发给我，不要记录任何重复的信息。
           </div>
         </div>
       </div>
@@ -323,7 +323,7 @@ const AGENT_RUNTIME_OPTIONS: Array<{
   {
     value: 'pi',
     label: 'Pi',
-    description: 'Pi Agent SDK，LuxCoder 默认内核，新功能仅在 Pi 上提供；可选择任意已启用模型渠道',
+    description: 'Pi Agent SDK，MyYoda 默认内核，新功能仅在 Pi 上提供；可选择任意已启用模型渠道',
     badge: '推荐',
     badgeTone: 'recommended',
   },

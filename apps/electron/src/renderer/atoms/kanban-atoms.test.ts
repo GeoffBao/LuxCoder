@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { createStore } from 'jotai'
-import type { TaskAggregateSummary } from '@luxcoder/shared/tasks'
+import type { TaskAggregateSummary } from '@myyoda/shared/tasks'
 import {
   kanbanNotificationsAtom,
   moveCardAtom,

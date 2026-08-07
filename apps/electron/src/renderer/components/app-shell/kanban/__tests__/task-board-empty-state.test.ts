@@ -16,9 +16,9 @@ describe('resolveTaskBoardEmptyState', () => {
       totalCount: 3,
       filteredCount: 0,
       scope: { kind: 'project', projectId: 'project-a' },
-      projectName: 'LuxCoder',
+      projectName: 'MyYoda',
       hasSecondaryFilters: false,
-    })).toEqual({ kind: 'scope-empty', title: '“LuxCoder”中还没有 Task', action: 'create' })
+    })).toEqual({ kind: 'scope-empty', title: '“MyYoda”中还没有 Task', action: 'create' })
   })
 
   test('二级筛选无结果时提供清除筛选，而不是误导用户创建', () => {
@@ -26,7 +26,7 @@ describe('resolveTaskBoardEmptyState', () => {
       totalCount: 3,
       filteredCount: 0,
       scope: { kind: 'project', projectId: 'project-a' },
-      projectName: 'LuxCoder',
+      projectName: 'MyYoda',
       hasSecondaryFilters: true,
     })).toEqual({ kind: 'filter-empty', title: '没有符合当前筛选条件的 Task', action: 'clear-filters' })
   })

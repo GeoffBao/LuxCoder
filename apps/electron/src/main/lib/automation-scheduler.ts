@@ -22,7 +22,7 @@ import {
   type AgentRuntime,
   type Automation,
   type AutomationRun,
-} from '@luxcoder/shared'
+} from '@myyoda/shared'
 import {
   listAutomations,
   getAutomation,
@@ -219,8 +219,8 @@ export async function runAutomation(automation: Automation, manual = false): Pro
       runAgentHeadless(
         {
           sessionId: targetSessionId,
-          userMessage: automation.prompt + '\n<!--LUXCODER_SCHEDULED_RUN-->',
-          automationContext: `这是 LuxCoder 定时任务「${automation.name}」的自动执行（ID: ${automation.id}，${formatScheduleLabel(automation)}）。这本身就是定时任务，不要建议用户再创建定时任务。直接执行任务即可。如发现本任务连续失败、输出价值低、频率不合适或提示词不完整，可以使用 automation 工具读取并更新当前任务。`,
+          userMessage: automation.prompt + '\n<!--MYYODA_SCHEDULED_RUN-->',
+          automationContext: `这是 MyYoda 定时任务「${automation.name}」的自动执行（ID: ${automation.id}，${formatScheduleLabel(automation)}）。这本身就是定时任务，不要建议用户再创建定时任务。直接执行任务即可。如发现本任务连续失败、输出价值低、频率不合适或提示词不完整，可以使用 automation 工具读取并更新当前任务。`,
           channelId: automation.channelId,
           modelId: automation.modelId,
           agentRuntime,

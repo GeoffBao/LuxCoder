@@ -17,7 +17,7 @@ import {
   agentSessionsAtom,
 } from '@/atoms/agent-atoms'
 import { activeViewAtom } from '@/atoms/active-view'
-import type { AgentWorkspace } from '@luxcoder/shared'
+import type { AgentWorkspace } from '@myyoda/shared'
 import { SettingsSection, SettingsCard } from './primitives'
 import { useProjectActions } from '@/hooks/useProjectActions'
 import {

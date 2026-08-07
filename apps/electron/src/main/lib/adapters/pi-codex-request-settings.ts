@@ -2,7 +2,7 @@ import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import {
   isCodexFastModeSupportedModel,
   type AgentThinkingLevel,
-} from '@luxcoder/shared'
+} from '@myyoda/shared'
 
 type ProviderPayload = Record<string, unknown>
 

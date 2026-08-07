@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import * as protocolContracts from '@luxcoder/shared/protocol';
+import * as protocolContracts from '@myyoda/shared/protocol';
 import {
   LABEL_IPC_CHANNELS,
   PROJECT_IPC_CHANNELS,

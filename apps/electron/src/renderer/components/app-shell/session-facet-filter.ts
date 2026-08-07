@@ -1,4 +1,4 @@
-import type { AgentSessionMeta } from '@luxcoder/shared'
+import type { AgentSessionMeta } from '@myyoda/shared'
 
 /**
  * 纯函数：检查单个会话是否命中当前 Label 筛选。

@@ -1,5 +1,5 @@
 /**
- * CodeClaw —— LuxCoder 桌面助手
+ * CodeClaw —— MyYoda 桌面助手
  *
  * 移植自 clawd-on-desk（AGPL-3.0-only）的桌面宠物交互机制：
  * - 细粒度动画状态：消费 theme.json 的 states / workingTiers / idleAnimations
@@ -26,7 +26,7 @@ import {
   type CodeClawState,
   type CodeClawThemeId,
   type CodeClawVisual,
-} from '@luxcoder/shared'
+} from '@myyoda/shared'
 import './codeclaw.css'
 
 const SOUND_ASSETS = import.meta.glob<string>('../../assets/codeclaw-sounds/*.mp3', {
@@ -731,7 +731,7 @@ export function CodeClawApp(): React.ReactElement {
         onClick={handleClick}
         onDoubleClick={openMain}
         onContextMenu={handleContextMenu}
-        title="单击打开当前会话，拖动移动，双击打开 LuxCoder；拖到屏幕边缘进入 Mini 模式，右键打开菜单"
+        title="单击打开当前会话，拖动移动，双击打开 MyYoda；拖到屏幕边缘进入 Mini 模式，右键打开菜单"
       >
         <span className="codeclaw-glow" />
         {displaySrc && eyeTrackingEnabled && eyeSvgRaw

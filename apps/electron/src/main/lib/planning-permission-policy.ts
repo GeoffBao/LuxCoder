@@ -1,4 +1,4 @@
-import type { AgentSendInput, LuxCoderPermissionMode } from '@luxcoder/shared'
+import type { AgentSendInput, MyYodaPermissionMode } from '@myyoda/shared'
 
 const PLANNING_DELETION_TOOLS = new Set([
   'mcp__planning__delete_todo',
@@ -27,7 +27,7 @@ export type PlanningDeletionPermissionDecision =
  */
 export function resolvePlanningDeletionPermission(
   toolName: string,
-  permissionMode: LuxCoderPermissionMode,
+  permissionMode: MyYodaPermissionMode,
   triggeredBy: AgentSendInput['triggeredBy'],
 ): PlanningDeletionPermissionDecision {
   if (!PLANNING_DELETION_TOOLS.has(toolName)) return 'not-planning-deletion'
@@ -36,7 +36,7 @@ export function resolvePlanningDeletionPermission(
     return 'deny-unattended'
   }
 
-  // LuxCoder: plan 模式下只读，规划删除继续由只读策略拒绝。
+  // MyYoda: plan 模式下只读，规划删除继续由只读策略拒绝。
   if (permissionMode === 'plan') return 'defer-to-plan-mode'
 
   return FULLY_AUTOMATIC_PLANNING_DELETION_TOOLS.has(toolName)

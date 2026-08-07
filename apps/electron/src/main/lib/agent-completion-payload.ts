@@ -1,8 +1,8 @@
-import { AGENT_IPC_CHANNELS } from '@luxcoder/shared'
+import { AGENT_IPC_CHANNELS } from '@myyoda/shared'
 import type {
   AgentSendInput,
   AgentStreamCompletePayload,
-} from '@luxcoder/shared'
+} from '@myyoda/shared'
 
 export type AgentStreamCompletionDetails = Omit<
   AgentStreamCompletePayload,

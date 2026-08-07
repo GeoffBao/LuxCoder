@@ -2,14 +2,14 @@
  * 会话自定义分组服务
  *
  * 用户自建的会话分组（侧边栏「移动到分组」/「分组方式：自定义分组」），
- * 按工作区隔离存储在 ~/.luxcoder/agent-workspaces/{slug}/session-groups.json。
+ * 按工作区隔离存储在 ~/.myyoda/agent-workspaces/{slug}/session-groups.json。
  */
 
 import { randomUUID } from 'node:crypto'
 import { getSessionGroupsPath } from './config-paths'
 import { readJsonFileSafe, writeJsonFileAtomic } from './safe-file'
 import { listAgentSessions, updateAgentSessionMeta } from './agent-session-manager'
-import type { SessionGroup } from '@luxcoder/shared'
+import type { SessionGroup } from '@myyoda/shared'
 
 function readGroups(workspaceSlug: string): SessionGroup[] {
   return readJsonFileSafe<SessionGroup[]>(getSessionGroupsPath(workspaceSlug)) ?? []

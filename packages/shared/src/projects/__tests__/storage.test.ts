@@ -2,14 +2,14 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import type { ProjectConfig } from '@luxcoder/shared/projects';
-import * as projectContracts from '@luxcoder/shared/projects';
+import type { ProjectConfig } from '@myyoda/shared/projects';
+import * as projectContracts from '@myyoda/shared/projects';
 import * as projectStorage from '../storage.ts';
 
 const tempRoots: string[] = [];
 
 function createTempWorkspaceRoot(): string {
-  const root = mkdtempSync(join(tmpdir(), 'luxcoder-project-storage-'));
+  const root = mkdtempSync(join(tmpdir(), 'myyoda-project-storage-'));
   tempRoots.push(root);
   return root;
 }

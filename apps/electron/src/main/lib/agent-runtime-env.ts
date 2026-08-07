@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs'
 import { delimiter, dirname, join, win32 } from 'node:path'
-import type { RuntimeStatus, WindowsShellPreference } from '@luxcoder/shared'
+import type { RuntimeStatus, WindowsShellPreference } from '@myyoda/shared'
 import { getBundledCliPath } from './config-paths'
 import { selectWindowsShell, type WindowsShellKind } from './windows-shell-selection'
 

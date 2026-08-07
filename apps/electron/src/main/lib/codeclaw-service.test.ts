@@ -45,7 +45,7 @@ mockElectronModule()
 
 let tempHome: string
 const originalHome = process.env.HOME
-const originalLuxcoderDev = process.env.LUXCODER_DEV
+const originalLuxcoderDev = process.env.MYYODA_DEV
 const originalPromaDev = process.env.PROMA_DEV
 const realNow = Date.now
 
@@ -57,9 +57,9 @@ let service: CodeClawServiceModule
 let realEventBus: AgentServiceModule['agentEventBus']
 
 beforeAll(async () => {
-  tempHome = mkdtempSync(join(os.tmpdir(), 'luxcoder-codeclaw-'))
+  tempHome = mkdtempSync(join(os.tmpdir(), 'myyoda-codeclaw-'))
   process.env.HOME = tempHome
-  delete process.env.LUXCODER_DEV
+  delete process.env.MYYODA_DEV
   process.env.PROMA_DEV = '0'
   mock.module('node:os', () => ({ ...os, homedir: () => tempHome }))
   Date.now = mock(() => fakeNow)
@@ -72,8 +72,8 @@ beforeAll(async () => {
 afterAll(() => {
   Date.now = realNow
   process.env.HOME = originalHome
-  if (originalLuxcoderDev === undefined) delete process.env.LUXCODER_DEV
-  else process.env.LUXCODER_DEV = originalLuxcoderDev
+  if (originalLuxcoderDev === undefined) delete process.env.MYYODA_DEV
+  else process.env.MYYODA_DEV = originalLuxcoderDev
   if (originalPromaDev === undefined) delete process.env.PROMA_DEV
   else process.env.PROMA_DEV = originalPromaDev
   rmSync(tempHome, { recursive: true, force: true })
@@ -103,7 +103,7 @@ function resultSuccess(sessionId: string) {
 
 function externalRun(sessionId: string) {
   return {
-    kind: 'luxcoder_event' as const,
+    kind: 'myyoda_event' as const,
     event: {
       type: 'external_run_started' as const,
       source: 'feishu' as const,

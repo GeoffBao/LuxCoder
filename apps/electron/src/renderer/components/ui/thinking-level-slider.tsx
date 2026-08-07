@@ -1,7 +1,7 @@
 import * as React from 'react'
 import * as SliderPrimitive from '@radix-ui/react-slider'
 import { cn } from '@/lib/utils'
-import type { AgentThinkingLevel } from '@luxcoder/shared'
+import type { AgentThinkingLevel } from '@myyoda/shared'
 
 /**
  * 可用的思考深度选项（标准 5 档；GPT-5.6 系列可额外展示 max，minimal 合并到 low）

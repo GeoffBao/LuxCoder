@@ -37,7 +37,7 @@ import type {
   SDKUserMessage,
   SDKToolResultBlock,
   SDKSystemMessage,
-} from '@luxcoder/shared'
+} from '@myyoda/shared'
 
 // ===== useToolResult Hook =====
 

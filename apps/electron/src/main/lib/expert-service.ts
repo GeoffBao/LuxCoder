@@ -4,8 +4,8 @@ import {
   BUILTIN_EXPERT_DEFINITIONS,
   BUILTIN_EXPERT_TEAM_DEFINITIONS,
   parseExpertJson,
-} from '@luxcoder/shared/experts'
-import type { ExpertDefinition, ExpertManifest, ExpertPackage } from '@luxcoder/shared/experts'
+} from '@myyoda/shared/experts'
+import type { ExpertDefinition, ExpertManifest, ExpertPackage } from '@myyoda/shared/experts'
 
 const EXPERT_JSON = 'expert.json'
 const IDENTITY_MD = 'IDENTITY.md'

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useAtomValue } from 'jotai'
-import type { Channel, ChannelPlanQuotaResult, ChannelPlanQuotaWindow } from '@luxcoder/shared'
+import type { Channel, ChannelPlanQuotaResult, ChannelPlanQuotaWindow } from '@myyoda/shared'
 import { supportsChannelPlanQuota, fetchChannelPlanQuota, invalidateChannelPlanQuota, channelPlanQuotaRefreshVersionAtom } from '@/lib/channel-plan-quota'
 
 function formatWindow(window: ChannelPlanQuotaWindow): string {

@@ -4,7 +4,7 @@
  * 持久产出，未来由 Yoda 知识库按白名单读取。
  */
 
-import type { AgentOutputRecord, AgentSessionFileRoots } from '@luxcoder/shared'
+import type { AgentOutputRecord, AgentSessionFileRoots } from '@myyoda/shared'
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync, renameSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 

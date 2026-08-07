@@ -20,7 +20,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { allPendingExitPlanRequestsAtom, agentStreamingStatesAtom, finalizeStreamingActivities } from '@/atoms/agent-atoms'
-import type { ExitPlanModeAction, ExitPlanAllowedPrompt } from '@luxcoder/shared'
+import type { ExitPlanModeAction, ExitPlanAllowedPrompt } from '@myyoda/shared'
 
 /** 选项定义 */
 interface PlanOption {

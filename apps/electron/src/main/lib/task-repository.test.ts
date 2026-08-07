@@ -9,7 +9,7 @@ import { TaskRepository } from './task-repository'
 const tempRoots: string[] = []
 
 function createTempWorkspaceRoot(): string {
-  const root = mkdtempSync(join(tmpdir(), 'luxcoder-main-task-repo-'))
+  const root = mkdtempSync(join(tmpdir(), 'myyoda-main-task-repo-'))
   tempRoots.push(root)
   return root
 }

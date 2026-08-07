@@ -3,7 +3,7 @@ import type {
   PlanningNativeSyncPermission,
   PlanningNativeSyncStatus,
   PlanningNativeSyncTarget,
-} from '@luxcoder/shared'
+} from '@myyoda/shared'
 import { callMacEventKitNativeAddon, subscribeMacEventKitNativeChanges } from './mac-eventkit-native-addon'
 
 type NativePermissionResponse = {
@@ -95,10 +95,10 @@ export async function listPlanningNativeConnectionTargets(entity: PlanningNative
 
 export interface PlanningNativeSyncItem {
   targetId: string
-  /** LuxCoder UUID；仅用于新建项目的 crash-recovery marker，不覆盖用户已有 URL。 */
+  /** MyYoda UUID；仅用于新建项目的 crash-recovery marker，不覆盖用户已有 URL。 */
   identity: string
   calendarItemIdentifier?: string
-  /** 仅用户在冲突中明确选择“保留 LuxCoder”后才允许 locator 缺失时重建。 */
+  /** 仅用户在冲突中明确选择“保留 MyYoda”后才允许 locator 缺失时重建。 */
   allowRecreate?: boolean
   title: string
   notes?: string
@@ -141,7 +141,7 @@ export async function listPlanningNativeConnectionItems(entity: PlanningNativeSy
   return callMacEventKitNativeAddon<PlanningNativeExternalItem[]>('listItems', entity, { targetId, ...range })
 }
 
-/** 按 LuxCoder 已保存 locator 精确确认删除，不把有界 Calendar 查询误判成完整快照。 */
+/** 按 MyYoda 已保存 locator 精确确认删除，不把有界 Calendar 查询误判成完整快照。 */
 export async function listPlanningNativeConnectionItemsByIdentifier(entity: PlanningNativeSyncEntity, targetId: string, calendarItemIdentifiers: string[]): Promise<PlanningNativeExternalItem[]> {
   if (calendarItemIdentifiers.length === 0 || !eventKitSupported()) return []
   const permission = await getPermission(entity)
@@ -160,7 +160,7 @@ export async function upsertPlanningNativeSyncItem(entity: PlanningNativeSyncEnt
   return callMacEventKitNativeAddon<PlanningNativeSyncIdentifiers>('upsert', entity, item)
 }
 
-/** 删除必须带受管目标和 LuxCoder marker；locator 缺失时 native addon 可恢复定位，避免崩溃留下孤儿项。 */
+/** 删除必须带受管目标和 MyYoda marker；locator 缺失时 native addon 可恢复定位，避免崩溃留下孤儿项。 */
 export async function removePlanningNativeSyncItem(entity: PlanningNativeSyncEntity, item: Pick<PlanningNativeSyncItem, 'targetId' | 'identity' | 'calendarItemIdentifier' | 'startAt'>): Promise<void> {
   if (!eventKitSupported()) return
   await callMacEventKitNativeAddon<Record<string, never>>('remove', entity, item)

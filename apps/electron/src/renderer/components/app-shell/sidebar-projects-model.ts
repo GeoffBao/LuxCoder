@@ -4,7 +4,7 @@
  * 从 SidebarProjectsTab.tsx 抽出，便于 bun:test 单测（对齐 codebase 的 *-model.ts 模式）。
  */
 
-import type { AgentSessionMeta } from '@luxcoder/shared'
+import type { AgentSessionMeta } from '@myyoda/shared'
 import type { SessionIndicatorStatus } from '@/atoms/agent-atoms'
 import type { KanbanProject } from './kanban/types'
 import {

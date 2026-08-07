@@ -1,4 +1,4 @@
-import type { ChannelPlanQuotaResult } from '@luxcoder/shared'
+import type { ChannelPlanQuotaResult } from '@myyoda/shared'
 
 interface KimiApiBalanceResponse {
   available_balance?: unknown

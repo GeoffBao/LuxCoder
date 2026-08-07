@@ -24,7 +24,7 @@ export interface PlanningChange {
   resources: PlanningChangeResource[]
 }
 
-/** macOS 中用户可选、且当前允许 LuxCoder 写入的 Calendar / Reminders List。 */
+/** macOS 中用户可选、且当前允许 MyYoda 写入的 Calendar / Reminders List。 */
 export interface PlanningNativeSyncTarget {
   id: string
   title: string
@@ -51,7 +51,7 @@ export interface PlanningNativeSyncStatus {
 
 export type PlanningNativeConnectionRole = 'managed' | 'linked'
 
-/** 每类实体一个 LuxCoder 受管目标。 */
+/** 每类实体一个 MyYoda 受管目标。 */
 export interface PlanningSyncProfile {
   id: string
   entity: PlanningNativeSyncEntity
@@ -94,10 +94,10 @@ export interface PlanningNativeOrigin {
   canWrite: boolean
 }
 
-/** 同一已连接系统项被 LuxCoder 与系统并发修改时，必须由用户选择保留哪一侧。 */
+/** 同一已连接系统项被 MyYoda 与系统并发修改时，必须由用户选择保留哪一侧。 */
 export interface PlanningNativeSyncConflict {
   id: string
-  /** 已连接集合冲突；受管 LuxCoder Calendar 冲突则为 profileId。 */
+  /** 已连接集合冲突；受管 MyYoda Calendar 冲突则为 profileId。 */
   connectionId?: string
   profileId?: string
   entity: PlanningNativeSyncEntity

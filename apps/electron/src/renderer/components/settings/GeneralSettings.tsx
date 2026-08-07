@@ -50,8 +50,8 @@ import { cn } from '@/lib/utils'
 import { BUILTIN_AVATARS } from '@/lib/builtin-avatars'
 import { Button } from '../ui/button'
 import type { NotificationSoundId, NotificationSoundType, NotificationSoundSettings } from '@/types/settings'
-import type { AgentThinkingLevel, CodeClawThemeId } from '@luxcoder/shared'
-import { CODECLAW_THEMES, DEFAULT_AGENT_THINKING_LEVEL, DEFAULT_CODECLAW_THEME_ID, isCodeClawThemeId } from '@luxcoder/shared'
+import type { AgentThinkingLevel, CodeClawThemeId } from '@myyoda/shared'
+import { CODECLAW_THEMES, DEFAULT_AGENT_THINKING_LEVEL, DEFAULT_CODECLAW_THEME_ID, isCodeClawThemeId } from '@myyoda/shared'
 import { ThinkingLevelSlider, normalizeToUiIndex, uiIndexToLevel } from '@/components/ui/thinking-level-slider'
 
 export function GeneralSettings(): React.ReactElement {
@@ -419,7 +419,7 @@ export function GeneralSettings(): React.ReactElement {
           />
           <SettingsToggle
             label="CodeClaw"
-            description="在桌面显示 LuxCoder Agent 助手：执行中、完成、错误或需要你接手时用动画提醒"
+            description="在桌面显示 MyYoda Agent 助手：执行中、完成、错误或需要你接手时用动画提醒"
             checked={codeClawEnabled}
             onCheckedChange={(checked) => {
               void handleCodeClawChange(checked)
@@ -446,7 +446,7 @@ export function GeneralSettings(): React.ReactElement {
           </SettingsRow>
           <SettingsToggle
             label="Git/PR 标识"
-            description="Agent 代你提交 commit 或创建 PR 时，附加 Made-with: LuxCoder 与仓库链接，便于推广；可随时关闭"
+            description="Agent 代你提交 commit 或创建 PR 时，附加 Made-with: MyYoda 与仓库链接，便于推广；可随时关闭"
             checked={gitAttributionEnabled}
             onCheckedChange={(checked) => {
               void handleGitAttributionChange(checked)

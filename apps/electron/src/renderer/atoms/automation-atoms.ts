@@ -14,8 +14,8 @@ import type {
   AutomationPermissionMode,
   AutomationSessionMode,
   AgentRuntime,
-} from '@luxcoder/shared'
-import { AUTOMATION_DEFAULT_PERMISSION_MODE, AUTOMATION_DEFAULT_SESSION_MODE, AUTOMATION_DEFAULT_EXECUTION_MODE } from '@luxcoder/shared'
+} from '@myyoda/shared'
+import { AUTOMATION_DEFAULT_PERMISSION_MODE, AUTOMATION_DEFAULT_SESSION_MODE, AUTOMATION_DEFAULT_EXECUTION_MODE } from '@myyoda/shared'
 
 /** 全部定时任务列表 */
 export const automationsAtom = atom<Automation[]>([])

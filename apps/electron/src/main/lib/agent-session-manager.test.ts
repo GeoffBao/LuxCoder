@@ -11,7 +11,7 @@ let manager: AgentSessionManager
 let contextPrompt: AgentSessionContextPrompt
 let tempHome: string
 const originalHome = process.env.HOME
-const originalLuxcoderDev = process.env.LUXCODER_DEV
+const originalLuxcoderDev = process.env.MYYODA_DEV
 const originalPromaDev = process.env.PROMA_DEV
 const originalClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR
 
@@ -32,13 +32,13 @@ function jsonl(rows: string[]): string {
 }
 
 function writeAgentSessionJsonl(sessionId: string, rows: string[]): void {
-  const dir = join(tempHome, '.luxcoder', 'agent-sessions')
+  const dir = join(tempHome, '.myyoda', 'agent-sessions')
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, `${sessionId}.jsonl`), jsonl(rows), 'utf-8')
 }
 
 function writeSdkSessionJsonl(sdkSessionId: string, rows: string[]): void {
-  const dir = join(tempHome, '.luxcoder', 'sdk-config', 'projects', 'test-project')
+  const dir = join(tempHome, '.myyoda', 'sdk-config', 'projects', 'test-project')
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, `${sdkSessionId}.jsonl`), jsonl(rows), 'utf-8')
 }
@@ -50,7 +50,7 @@ function writeAgentSessionsIndex(sessions: Array<{
   createdAt: number
   updatedAt: number
 }>): void {
-  const dir = join(tempHome, '.luxcoder')
+  const dir = join(tempHome, '.myyoda')
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, 'agent-sessions.json'), JSON.stringify({ version: 1, sessions }), 'utf-8')
 }
@@ -62,7 +62,7 @@ function writeAgentWorkspacesIndex(workspaces: Array<{
   createdAt: number
   updatedAt: number
 }>): void {
-  const dir = join(tempHome, '.luxcoder')
+  const dir = join(tempHome, '.myyoda')
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, 'agent-workspaces.json'), JSON.stringify({ version: 2, workspaces }), 'utf-8')
 }
@@ -78,9 +78,9 @@ function createIndexedSessions(count: number) {
 }
 
 beforeAll(async () => {
-  tempHome = mkdtempSync(join(os.tmpdir(), 'luxcoder-agent-session-manager-'))
+  tempHome = mkdtempSync(join(os.tmpdir(), 'myyoda-agent-session-manager-'))
   process.env.HOME = tempHome
-  delete process.env.LUXCODER_DEV
+  delete process.env.MYYODA_DEV
   delete process.env.PROMA_DEV
   delete process.env.CLAUDE_CONFIG_DIR
   manager = await import('./agent-session-manager')
@@ -94,9 +94,9 @@ afterAll(() => {
     process.env.HOME = originalHome
   }
   if (originalLuxcoderDev === undefined) {
-    delete process.env.LUXCODER_DEV
+    delete process.env.MYYODA_DEV
   } else {
-    process.env.LUXCODER_DEV = originalLuxcoderDev
+    process.env.MYYODA_DEV = originalLuxcoderDev
   }
   if (originalPromaDev === undefined) {
     delete process.env.PROMA_DEV
@@ -161,10 +161,10 @@ describe('Agent 会话 JSONL 读取', () => {
 
 describe('Agent 会话 runtime 元数据', () => {
   test('Given 新安装用户将默认思考设为 off When 连续新建并读取会话 Then 不被旧版迁移改回 high', () => {
-    const settingsPath = join(tempHome, '.luxcoder', 'settings.json')
-    const indexPath = join(tempHome, '.luxcoder', 'agent-sessions.json')
+    const settingsPath = join(tempHome, '.myyoda', 'settings.json')
+    const indexPath = join(tempHome, '.myyoda', 'agent-sessions.json')
     const indexBackupPath = `${indexPath}.bak`
-    mkdirSync(join(tempHome, '.luxcoder'), { recursive: true })
+    mkdirSync(join(tempHome, '.myyoda'), { recursive: true })
     rmSync(indexPath, { force: true })
     rmSync(indexBackupPath, { force: true })
     writeFileSync(settingsPath, JSON.stringify({ defaultThinkingLevel: 'off' }), 'utf-8')
@@ -191,9 +191,9 @@ describe('Agent 会话 runtime 元数据', () => {
   })
 
   test('Given 历史索引没有迁移标记 When 读取旧版 off 会话 Then 仍执行一次 high 默认升级', () => {
-    const indexPath = join(tempHome, '.luxcoder', 'agent-sessions.json')
+    const indexPath = join(tempHome, '.myyoda', 'agent-sessions.json')
     const indexBackupPath = `${indexPath}.bak`
-    mkdirSync(join(tempHome, '.luxcoder'), { recursive: true })
+    mkdirSync(join(tempHome, '.myyoda'), { recursive: true })
     writeFileSync(indexPath, JSON.stringify({
       version: 1,
       sessions: [{
@@ -349,15 +349,15 @@ describe('Agent 会话 fork 元数据继承', () => {
     const source = manager.createAgentSession('项目旧会话', undefined, undefined, undefined, 'claude')
     manager.updateAgentSessionMeta(source.id, {
       sdkSessionId: 'source-sdk-session-1',
-      projectId: 'proj-luxcoder',
+      projectId: 'proj-myyoda',
     })
 
     const forked = await manager.forkAgentSession({ sessionId: source.id })
 
-    expect(forked.projectId).toBe('proj-luxcoder')
+    expect(forked.projectId).toBe('proj-myyoda')
     expect(forked.agentCwdMode).toBe('session')
     expect(manager.getAgentSessionMeta(forked.id)).toMatchObject({
-      projectId: 'proj-luxcoder',
+      projectId: 'proj-myyoda',
       agentCwdMode: 'session',
     })
   })

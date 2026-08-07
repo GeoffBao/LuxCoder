@@ -5,16 +5,16 @@ import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { PRESET_COLORS } from '@/components/work/AccentColorPicker'
 import type { KanbanColumnDefinition } from './board-model'
-import type { TaskWorkflow } from '@luxcoder/shared/tasks'
+import type { TaskWorkflow } from '@myyoda/shared/tasks'
 
 /**
  * 看板列编辑弹层（仅项目自定义列可用）
  *
- * 对齐 craft 的 ColumnHeader 三段式布局，但用 LuxCoder 现有 Popover/Input/Button 组件：
+ * 对齐 craft 的 ColumnHeader 三段式布局，但用 MyYoda 现有 Popover/Input/Button 组件：
  * - 改名：受控输入，onBlur / Enter 提交
  * - 改色：复用 AccentColorPicker 的 PRESET_COLORS 色板
  * - drop-status：固定四选一（todo / in-progress / needs-review / done）+「不自动改变状态」
- *   （LuxCoder workflow 是固定 5 态，cancelled 不作为可选自动目标）
+ *   （MyYoda workflow 是固定 5 态，cancelled 不作为可选自动目标）
  * - 删除列：危险态按钮，仅当父级传入 onRemove 时渲染
  */
 export interface KanbanColumnEditorPopoverProps {

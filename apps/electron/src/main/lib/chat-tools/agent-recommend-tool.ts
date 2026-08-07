@@ -6,8 +6,8 @@
  * 由渲染进程的 AgentRecommendBanner 负责展示和执行迁移。
  */
 
-import type { ToolCall, ToolResult, ToolDefinition } from '@luxcoder/core'
-import type { ChatToolMeta } from '@luxcoder/shared'
+import type { ToolCall, ToolResult, ToolDefinition } from '@myyoda/core'
+import type { ChatToolMeta } from '@myyoda/shared'
 
 // ===== 工具元数据 =====
 

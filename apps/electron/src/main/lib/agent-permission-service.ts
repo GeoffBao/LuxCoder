@@ -12,17 +12,17 @@
 
 import { randomUUID } from 'node:crypto'
 import type {
-  LuxCoderPermissionMode,
+  MyYodaPermissionMode,
   PermissionRequest,
   DangerLevel,
   AskUserRequest,
-} from '@luxcoder/shared'
+} from '@myyoda/shared'
 import {
   SAFE_TOOLS,
   isSafeBashCommand,
   isDangerousCommand,
   hasDangerousStructure,
-} from '@luxcoder/shared'
+} from '@myyoda/shared'
 
 /** SDK PermissionBehavior */
 type PermissionBehavior = 'allow' | 'deny'

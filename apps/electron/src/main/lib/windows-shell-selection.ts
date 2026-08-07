@@ -1,4 +1,4 @@
-import type { ShellEnvironmentStatus, WindowsShellPreference } from '@luxcoder/shared'
+import type { ShellEnvironmentStatus, WindowsShellPreference } from '@myyoda/shared'
 
 export type WindowsShellKind = 'git-bash' | 'wsl'
 

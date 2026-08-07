@@ -4,8 +4,8 @@ import { resolveKanbanColumnColor } from './kanban-colors'
 import { KanbanColumnEditorPopover } from './KanbanColumnEditorPopover'
 import { TaskTile } from './TaskTile'
 import type { KanbanBoardColumn } from './board-model'
-import type { KanbanColumnDef } from '@luxcoder/shared/projects'
-import type { TaskWorkflow } from '@luxcoder/shared/tasks'
+import type { KanbanColumnDef } from '@myyoda/shared/projects'
+import type { TaskWorkflow } from '@myyoda/shared/tasks'
 import type { KanbanItem } from './types'
 
 interface KanbanColumnProps {

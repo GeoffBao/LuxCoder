@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import type { AgentSessionMeta } from '@luxcoder/shared'
+import type { AgentSessionMeta } from '@myyoda/shared'
 import { collectTaskFamilySessions } from '../task-family-model'
 
 function createSession(overrides: Partial<AgentSessionMeta> & { id: string }): AgentSessionMeta {

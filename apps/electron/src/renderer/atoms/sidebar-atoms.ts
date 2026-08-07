@@ -15,7 +15,7 @@ export const sidebarViewModeAtom = atom<SidebarViewMode>('active')
 
 /** 项目列表高度（px），用户可拖拽调整，持久化到 localStorage */
 export const projectListHeightAtom = atomWithStorage<number>(
-  'luxcoder-workspace-list-height',
+  'myyoda-workspace-list-height',
   120,
 )
 
@@ -24,6 +24,6 @@ export const MIN_LEFT_SIDEBAR_WIDTH = 240
 
 /** 左侧边栏宽度（px），用户可拖拽调整，持久化到 localStorage */
 export const leftSidebarWidthAtom = atomWithStorage<number>(
-  'luxcoder-left-sidebar-width',
+  'myyoda-left-sidebar-width',
   260,
 )

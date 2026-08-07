@@ -1,7 +1,7 @@
 /**
  * 主题领域逻辑。
  *
- * 旧主题负责表达 LuxCoder 的鲜明视觉个性；ThemePack 负责让用户像 Craft 一样
+ * 旧主题负责表达 MyYoda 的鲜明视觉个性；ThemePack 负责让用户像 Craft 一样
  * 自定义整块画布、前景、强调色和窗口材质。两者通过同一批 CSS token 汇合。
  */
 
@@ -47,7 +47,7 @@ export interface CodeThemeOption {
   variants: readonly ThemeVariant[]
 }
 
-export const THEME_SHARE_PREFIX = 'luxcoder-theme-v1:'
+export const THEME_SHARE_PREFIX = 'myyoda-theme-v1:'
 
 // 主题初始化是异步的；如果用户在 getSettings() 返回前切换界面风格，
 // 旧的持久化值不能在请求完成后覆盖用户刚选中的值。
@@ -66,7 +66,7 @@ export function canApplyHydratedInterfaceVariant(epoch: number): boolean {
 }
 
 export const CODE_THEME_OPTIONS: readonly CodeThemeOption[] = [
-  { id: 'luxcoder', label: 'LuxCoder', variants: ['light', 'dark'] },
+  { id: 'myyoda', label: 'MyYoda', variants: ['light', 'dark'] },
   { id: 'codex', label: 'Codex', variants: ['light', 'dark'] },
   { id: 'github', label: 'GitHub', variants: ['light', 'dark'] },
   { id: 'nord', label: 'Nord', variants: ['dark'] },
@@ -159,8 +159,8 @@ export const DEFAULT_THEME_STATE: ThemeState = {
   mode: DEFAULT_MODE,
   style: DEFAULT_THEME_STYLE,
   packs: {
-    light: { codeThemeId: 'luxcoder', theme: DEFAULT_CHROME_THEMES.light },
-    dark: { codeThemeId: 'luxcoder', theme: DEFAULT_CHROME_THEMES.dark },
+    light: { codeThemeId: 'myyoda', theme: DEFAULT_CHROME_THEMES.light },
+    dark: { codeThemeId: 'myyoda', theme: DEFAULT_CHROME_THEMES.dark },
   },
 }
 
@@ -267,7 +267,7 @@ export function normalizeChromeTheme(value: unknown, variant: ThemeVariant): Chr
 export function normalizeThemePack(value: unknown, variant: ThemeVariant): ThemePack {
   const pack = isRecord(value) ? value : {}
   return {
-    codeThemeId: typeof pack.codeThemeId === 'string' ? pack.codeThemeId : 'luxcoder',
+    codeThemeId: typeof pack.codeThemeId === 'string' ? pack.codeThemeId : 'myyoda',
     theme: normalizeChromeTheme(pack.theme, variant),
   }
 }
@@ -282,7 +282,7 @@ export function normalizeThemeState(value: unknown): ThemeState {
   const readPack = (variant: ThemeVariant): unknown => {
     if (packs[variant] !== undefined) return packs[variant]
     const legacyTheme = legacyChromeThemes[variant]
-    return legacyTheme === undefined ? undefined : { codeThemeId: 'luxcoder', theme: legacyTheme }
+    return legacyTheme === undefined ? undefined : { codeThemeId: 'myyoda', theme: legacyTheme }
   }
   return {
     mode: state.mode === 'light' || state.mode === 'dark' || state.mode === 'system' || state.mode === 'special'
@@ -299,7 +299,7 @@ export function normalizeThemeState(value: unknown): ThemeState {
 export function getLegacyThemePack(style: ThemeStyle, variant: ThemeVariant): ThemePack {
   const seed = LEGACY_THEME_SEEDS[style]?.[variant] ?? LEGACY_THEME_SEEDS.default?.[variant] ?? DEFAULT_CHROME_THEMES[variant]
   return {
-    codeThemeId: style === 'terminal-dark' ? 'matrix' : 'luxcoder',
+    codeThemeId: style === 'terminal-dark' ? 'matrix' : 'myyoda',
     theme: normalizeChromeTheme(seed, variant),
   }
 }

@@ -3,7 +3,7 @@ import { mkdirSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { diffOutputSnapshots, snapshotOutputFiles } from './agent-output-capture'
 
-const tempRoot = '/tmp/luxcoder-agent-output-capture-test'
+const tempRoot = '/tmp/myyoda-agent-output-capture-test'
 
 function reset(): void {
   rmSync(tempRoot, { recursive: true, force: true })

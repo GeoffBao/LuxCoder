@@ -11,11 +11,11 @@
 import { Type } from 'typebox'
 import type { ToolDefinition } from '@earendil-works/pi-coding-agent'
 import type { AgentToolResult } from '@earendil-works/pi-agent-core'
-import type { AgentRuntime, LuxCoderPermissionMode } from '@luxcoder/shared'
+import type { AgentRuntime, MyYodaPermissionMode } from '@myyoda/shared'
 import type {
   CreateAutomationInput,
   UpdateAutomationInput,
-} from '@luxcoder/shared'
+} from '@myyoda/shared'
 import {
   createAutomation,
   deleteAutomation,
@@ -82,7 +82,7 @@ export interface PiBuiltinToolsContext {
   projectId?: string
   /** 图片外发前必须校验在这些已授权目录内。 */
   allowedRoots?: string[]
-  permissionMode?: LuxCoderPermissionMode
+  permissionMode?: MyYodaPermissionMode
   triggeredBy?: 'user' | 'automation' | 'delegation' | 'work'
 }
 
@@ -142,7 +142,7 @@ function buildWebTools(sdk: PiSdk): ToolDefinition[] {
     sdk.defineTool({
       name: 'WebSearch',
       label: '搜索网页',
-      description: 'Search the web for up-to-date information through LuxCoder Tavily integration. Use for current events, recent data, facts that may be stale, or when the user explicitly asks to search.',
+      description: 'Search the web for up-to-date information through MyYoda Tavily integration. Use for current events, recent data, facts that may be stale, or when the user explicitly asks to search.',
       promptSnippet: 'WebSearch: search the web for current information and cite source URLs in the final answer.',
       parameters: Type.Object({
         query: Type.String({ description: 'Search query. Keep it concise and avoid including private local file contents, API keys, tokens, or secrets.' }),
@@ -169,7 +169,7 @@ function buildWebTools(sdk: PiSdk): ToolDefinition[] {
     sdk.defineTool({
       name: 'WebFetch',
       label: '抓取网页',
-      description: 'Fetch and extract readable Markdown content from a URL through LuxCoder Tavily integration. Use after WebSearch or when the user gives a URL and asks to inspect page content.',
+      description: 'Fetch and extract readable Markdown content from a URL through MyYoda Tavily integration. Use after WebSearch or when the user gives a URL and asks to inspect page content.',
       promptSnippet: 'WebFetch: fetch readable webpage content by URL. Use it to inspect source pages and cite URLs.',
       parameters: Type.Object({
         url: Type.String({ description: 'HTTP/HTTPS URL to fetch.' }),
@@ -209,7 +209,7 @@ interface AutomationSummary {
   [key: string]: unknown
 }
 
-function summarizeAutomation(a: import('@luxcoder/shared').Automation, includeHistory: boolean): AutomationSummary {
+function summarizeAutomation(a: import('@myyoda/shared').Automation, includeHistory: boolean): AutomationSummary {
   return {
     id: a.id,
     name: a.name,
@@ -294,7 +294,7 @@ function buildAutomationTools(sdk: PiSdk, ctx: PiBuiltinToolsContext): ToolDefin
     sdk.defineTool({
       name: 'mcp__automation__list_automations',
       label: '列出定时任务',
-      description: '列出 LuxCoder 持久化定时任务。用于查看已有长期反复任务、判断是否需要新建任务、检查运行状态和最近失败情况。',
+      description: '列出 MyYoda 持久化定时任务。用于查看已有长期反复任务、判断是否需要新建任务、检查运行状态和最近失败情况。',
       parameters: Type.Object({
         active: Type.Optional(Type.Boolean({ description: '只列出启用或暂停任务；不传则列出全部' })),
         includeHistory: Type.Optional(Type.Boolean({ description: '是否包含运行历史，默认 false' })),
@@ -310,7 +310,7 @@ function buildAutomationTools(sdk: PiSdk, ctx: PiBuiltinToolsContext): ToolDefin
     sdk.defineTool({
       name: 'mcp__automation__get_automation',
       label: '查看定时任务',
-      description: '读取单个 LuxCoder 定时任务详情和运行记录。定时任务自动执行中可以省略 id 来读取当前任务，用于自检和自迭代。',
+      description: '读取单个 MyYoda 定时任务详情和运行记录。定时任务自动执行中可以省略 id 来读取当前任务，用于自检和自迭代。',
       parameters: Type.Object({
         id: Type.Optional(Type.String({ description: '定时任务 ID；定时任务自动执行中可省略以读取当前任务' })),
       }),
@@ -326,7 +326,7 @@ function buildAutomationTools(sdk: PiSdk, ctx: PiBuiltinToolsContext): ToolDefin
     sdk.defineTool({
       name: 'mcp__automation__create_automation',
       label: '创建定时任务',
-      description: '创建 LuxCoder 持久化定时任务。适合无人值守、有稳定价值的场景。纯提醒/闹钟、需要用户实时参与判断、或现在就该做完即终结的事不要创建。',
+      description: '创建 MyYoda 持久化定时任务。适合无人值守、有稳定价值的场景。纯提醒/闹钟、需要用户实时参与判断、或现在就该做完即终结的事不要创建。',
       parameters: Type.Object({
         name: Type.String({ description: '任务名，简短说明长期反复执行的目标' }),
         prompt: Type.String({ description: '每次触发时发送给 Agent 的完整自然语言指令' }),
@@ -398,7 +398,7 @@ function buildAutomationTools(sdk: PiSdk, ctx: PiBuiltinToolsContext): ToolDefin
     sdk.defineTool({
       name: 'mcp__automation__update_automation',
       label: '修改定时任务',
-      description: '修改 LuxCoder 定时任务，包括名称、执行提示词、频率和启用状态。定时任务自动执行中可以省略 id 来修改当前任务。',
+      description: '修改 MyYoda 定时任务，包括名称、执行提示词、频率和启用状态。定时任务自动执行中可以省略 id 来修改当前任务。',
       parameters: Type.Object({
         id: Type.Optional(Type.String({ description: '定时任务 ID；定时任务自动执行中可省略以更新当前任务' })),
         name: Type.Optional(Type.String({ description: '新的任务名' })),
@@ -461,7 +461,7 @@ function buildAutomationTools(sdk: PiSdk, ctx: PiBuiltinToolsContext): ToolDefin
     sdk.defineTool({
       name: 'mcp__automation__delete_automation',
       label: '删除定时任务',
-      description: '删除 LuxCoder 定时任务。只在用户明确要求删除，或任务已经长期无价值且用户确认后使用。',
+      description: '删除 MyYoda 定时任务。只在用户明确要求删除，或任务已经长期无价值且用户确认后使用。',
       parameters: Type.Object({
         id: Type.String({ description: '要删除的定时任务 ID' }),
       }),
@@ -475,7 +475,7 @@ function buildAutomationTools(sdk: PiSdk, ctx: PiBuiltinToolsContext): ToolDefin
     sdk.defineTool({
       name: 'mcp__automation__run_automation_now',
       label: '立即运行定时任务',
-      description: '立即运行 LuxCoder 定时任务。用于用户要求马上验证，或修改任务后需要试跑一次。',
+      description: '立即运行 MyYoda 定时任务。用于用户要求马上验证，或修改任务后需要试跑一次。',
       parameters: Type.Object({
         id: Type.Optional(Type.String({ description: '要立即运行的定时任务 ID；定时任务自动执行中可省略以运行当前任务' })),
       }),
@@ -504,7 +504,7 @@ function buildPlanningTools(sdk: PiSdk, ctx: PiBuiltinToolsContext): ToolDefinit
   return [
     sdk.defineTool({
       name: 'mcp__planning__list_todos', label: '列出 Todo',
-      description: '列出 LuxCoder Todo（包含用户明确连接的系统提醒事项投影）。返回项的 nativeOrigin 表示编辑会写回系统；对该类项单项编辑/完成先征得用户确认，批量修改和删除必须明确确认。仅 Pi Agent 可用。',
+      description: '列出 MyYoda Todo（包含用户明确连接的系统提醒事项投影）。返回项的 nativeOrigin 表示编辑会写回系统；对该类项单项编辑/完成先征得用户确认，批量修改和删除必须明确确认。仅 Pi Agent 可用。',
       parameters: Type.Object({
         status: Type.Optional(Type.Union([Type.Literal('open'), Type.Literal('completed')])),
         dueBefore: Type.Optional(Type.Number({ description: '仅返回此截止时间之前的 Todo，Unix 毫秒时间戳' })),
@@ -528,7 +528,7 @@ function buildPlanningTools(sdk: PiSdk, ctx: PiBuiltinToolsContext): ToolDefinit
     }),
     sdk.defineTool({
       name: 'mcp__planning__create_todo', label: '创建 Todo',
-      description: '创建 LuxCoder 本地 Todo。调用前必须先用 list_todos(status=open) 检查重复，并用 list_groups({ scope: todo }) 查询并优先复用 Todo 分组；用户明确提出待办，或可合理确定下一步时使用。未传 dueAt 时默认当天结束前；仅 Pi Agent 可用。',
+      description: '创建 MyYoda 本地 Todo。调用前必须先用 list_todos(status=open) 检查重复，并用 list_groups({ scope: todo }) 查询并优先复用 Todo 分组；用户明确提出待办，或可合理确定下一步时使用。未传 dueAt 时默认当天结束前；仅 Pi Agent 可用。',
       parameters: Type.Object({ title: Type.String(), ...optionalPlanningFields, priority: Type.Optional(Type.Union([Type.Literal('low'), Type.Literal('medium'), Type.Literal('high')])), dueAt: Type.Optional(Type.Number({ description: '截止时间 Unix 毫秒时间戳' })) }),
       async execute(_id: string, params: unknown) {
         const args = params as Record<string, unknown>
@@ -592,7 +592,7 @@ function buildPlanningTools(sdk: PiSdk, ctx: PiBuiltinToolsContext): ToolDefinit
     }),
     sdk.defineTool({
       name: 'mcp__planning__list_calendar_events', label: '列出日程',
-      description: '列出 LuxCoder 日程（包含用户明确连接的系统日历投影）。nativeOrigin 表示编辑会写回系统；Agent 修改前必须先取得用户确认。仅 Pi Agent 可用。',
+      description: '列出 MyYoda 日程（包含用户明确连接的系统日历投影）。nativeOrigin 表示编辑会写回系统；Agent 修改前必须先取得用户确认。仅 Pi Agent 可用。',
       parameters: Type.Object({
         startAt: Type.Optional(Type.Number({ description: '查询范围起点，Unix 毫秒时间戳' })),
         endAt: Type.Optional(Type.Number({ description: '查询范围终点，Unix 毫秒时间戳' })),
@@ -616,7 +616,7 @@ function buildPlanningTools(sdk: PiSdk, ctx: PiBuiltinToolsContext): ToolDefinit
     }),
     sdk.defineTool({
       name: 'mcp__planning__create_calendar_event', label: '创建日程',
-      description: '创建 LuxCoder 本地日程。分组必须来自 list_groups({ scope: calendar })；用户明确提供时间安排时使用。仅 Pi Agent 可用。',
+      description: '创建 MyYoda 本地日程。分组必须来自 list_groups({ scope: calendar })；用户明确提供时间安排时使用。仅 Pi Agent 可用。',
       parameters: Type.Object({ title: Type.String(), startAt: Type.Number({ description: '开始时间 Unix 毫秒时间戳' }), endAt: Type.Optional(Type.Number()), allDay: Type.Optional(Type.Boolean()), ...optionalPlanningFields, todoId: Type.Optional(Type.String()) }),
       async execute(_id: string, params: unknown) {
         const args = params as Record<string, unknown>

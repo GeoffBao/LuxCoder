@@ -11,7 +11,7 @@ export function PlanningWindowApp(): React.ReactElement {
   const automationFormOpen = useAtomValue(automationFormAtom).open
 
   useEffect(() => {
-    document.title = 'LuxCoder · 规划中心'
+    document.title = 'MyYoda · 规划中心'
   }, [])
 
   return <TooltipProvider delayDuration={200}><div className="relative h-screen overflow-hidden bg-content-area"><WindowControls />{automationFormOpen ? <AutomationFormView standalone /> : <PlanningView standalone />}</div></TooltipProvider>

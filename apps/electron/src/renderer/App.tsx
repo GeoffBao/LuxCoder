@@ -10,7 +10,7 @@ import { conversationsAtom } from './atoms/chat-atoms'
 import { environmentCheckDialogOpenAtom } from './atoms/environment'
 import { settingsOpenAtom, settingsTabAtom } from './atoms/settings-tab'
 import { tabsAtom, activeTabIdAtom, openTab, TUTORIAL_TAB_ID } from './atoms/tab-atoms'
-import luxcoderMarkWhite from './assets/brand/luxcoder-mark-white.svg'
+import myyodaMarkWhite from './assets/brand/myyoda-mark-white.svg'
 import type { AppShellContextType } from './contexts/AppShellContext'
 
 export default function App(): React.ReactElement {
@@ -51,7 +51,7 @@ export default function App(): React.ReactElement {
 
     if (action === 'tutorial') {
       const tabs = store.get(tabsAtom)
-      const result = openTab(tabs, { type: 'tutorial', sessionId: TUTORIAL_TAB_ID, title: 'LuxCoder 使用指南' })
+      const result = openTab(tabs, { type: 'tutorial', sessionId: TUTORIAL_TAB_ID, title: 'MyYoda 使用指南' })
       store.set(tabsAtom, result.tabs)
       store.set(activeTabIdAtom, result.activeTabId)
       return
@@ -126,11 +126,11 @@ function StartupLoadingScreen(): React.ReactElement {
       <div className="relative flex w-full max-w-sm flex-col items-center px-8 text-center">
         <div className="flex items-center gap-3">
           <img
-            src={luxcoderMarkWhite}
+            src={myyodaMarkWhite}
             alt=""
             className="h-9 w-9 object-contain drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]"
           />
-          <span className="text-xl font-light tracking-wide">LuxCoder</span>
+          <span className="text-xl font-light tracking-wide">MyYoda</span>
         </div>
 
         <p className="mt-6 max-w-xs text-balance text-lg font-light leading-relaxed tracking-[0.04em] text-white/95">
@@ -140,7 +140,7 @@ function StartupLoadingScreen(): React.ReactElement {
         <div className="mt-7 h-px w-24 overflow-hidden bg-white/35">
           <div className="h-full w-2/5 animate-pulse bg-white/90" />
         </div>
-        <p className="mt-4 text-sm font-medium tracking-[0.08em] text-white/95">正在启动 LuxCoder</p>
+        <p className="mt-4 text-sm font-medium tracking-[0.08em] text-white/95">正在启动 MyYoda</p>
         <p className="mt-2 text-xs tracking-[0.12em] text-white/70">正在初始化你的空间</p>
       </div>
 

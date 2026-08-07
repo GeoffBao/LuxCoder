@@ -35,7 +35,7 @@ interface CraftPresetEntry extends Omit<CraftThemePreset, 'interfacePolicy'> {
 }
 
 // 每个双模式预设的 light/dark 配色分别取自该主题官方调色板（如 Catppuccin Latte/Mocha、Nord、
-// Solarized、GitHub、One Dark/Light、Gruvbox、Rosé Pine Dawn/主色）；两个 LuxCoder 原创预设
+// Solarized、GitHub、One Dark/Light、Gruvbox、Rosé Pine Dawn/主色）；两个 MyYoda 原创预设
 // （default/pierre）的深色变体按现有浅色配色的思路手工设计协调值。单模式预设（dracula/ghostty/
 // night-owl/tokyo-night/haze）只填一份配色，不受此约束。
 const PRESETS: readonly CraftPresetEntry[] = [

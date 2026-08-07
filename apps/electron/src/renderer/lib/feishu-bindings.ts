@@ -1,4 +1,4 @@
-import type { FeishuChatBinding } from '@luxcoder/shared'
+import type { FeishuChatBinding } from '@myyoda/shared'
 
 export type FeishuBindingViewMode = 'active' | 'archived'
 export type FeishuBindingTypeFilter = 'all' | 'group' | 'p2p'

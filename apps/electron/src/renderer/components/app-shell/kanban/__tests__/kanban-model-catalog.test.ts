@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import type { Channel } from '@luxcoder/shared'
+import type { Channel } from '@myyoda/shared'
 import {
   buildKanbanModelCatalog,
   formatModelChipLabel,

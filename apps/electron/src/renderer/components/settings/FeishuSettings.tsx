@@ -55,7 +55,7 @@ import {
   type FeishuBindingTypeFilter,
   type FeishuBindingViewMode,
 } from '@/lib/feishu-bindings'
-import type { AgentSessionMeta, AgentWorkspace, FeishuTestResult, FeishuChatBinding, FeishuBotConfig, FeishuBotBridgeState, FeishuRegisterAppQRCode, FeishuRegisterAppStatus, FeishuSessionMirrorSettings, FeishuSessionSyncMode } from '@luxcoder/shared'
+import type { AgentSessionMeta, AgentWorkspace, FeishuTestResult, FeishuChatBinding, FeishuBotConfig, FeishuBotBridgeState, FeishuRegisterAppQRCode, FeishuRegisterAppStatus, FeishuSessionMirrorSettings, FeishuSessionSyncMode } from '@myyoda/shared'
 
 // ===== 常量 =====
 
@@ -335,7 +335,7 @@ npm install -g @larksuite/cli
 2. 将 SKILL 配置到本空间（默认配置本空间，但请提醒用户是否需要额外安装到全局，会使得预置上下文增加，造成不必要的Token消耗）
 npx skills add https://github.com/larksuite/cli -y -g
 
-3. 初始化 CLI 配置（创建一个全新的飞书 CLI 应用，与 LuxCoder 飞书 Bot 互不影响）
+3. 初始化 CLI 配置（创建一个全新的飞书 CLI 应用，与 MyYoda 飞书 Bot 互不影响）
 lark-cli config init --new
 
 4. 一键申请全部领域的所有权限（文档/表格/日历/任务/邮件/通讯录/会议/审批/OKR/Wiki/多维表格/幻灯片/考勤/项目板等都包含在内）
@@ -362,11 +362,11 @@ function FeishuCliSection(): React.ReactElement {
   return (
     <SettingsSection
       title="配置飞书 CLI"
-      description="飞书官方开源的命令行工具，配置后 LuxCoder Agent 将可以直接读消息、查日历、写文档、建多维表格、发邮件，把任务真正落到飞书里完成。"
+      description="飞书官方开源的命令行工具，配置后 MyYoda Agent 将可以直接读消息、查日历、写文档、建多维表格、发邮件，把任务真正落到飞书里完成。"
     >
       <SettingsCard divided={false}>
         <div className="px-4 py-4 space-y-2 text-sm text-muted-foreground">
-          <p className="text-xs">复制配置提示词，并前往飞书Bot日常绑定的<strong>空间</strong>，创建新的 LuxCoder Agent 对话并发送即可让 LuxCoder 协助完成配置。</p>
+          <p className="text-xs">复制配置提示词，并前往飞书Bot日常绑定的<strong>空间</strong>，创建新的 MyYoda Agent 对话并发送即可让 MyYoda 协助完成配置。</p>
           <button
             type="button"
             className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
@@ -382,7 +382,7 @@ function FeishuCliSection(): React.ReactElement {
               <div className="pl-3 text-foreground/60">npm install -g @larksuite/cli</div>
               <div className="pt-1"><span className="text-foreground/70 font-semibold">步骤 2</span> — 将 SKILL 配置到本空间（默认本空间；如需全局会增加 Token 消耗）</div>
               <div className="pl-3 text-foreground/60">npx skills add https://github.com/larksuite/cli -y -g</div>
-              <div className="pt-1"><span className="text-foreground/70 font-semibold">步骤 3</span> — 初始化 CLI（新建独立 CLI 应用，不影响 LuxCoder 飞书 Bot）</div>
+              <div className="pt-1"><span className="text-foreground/70 font-semibold">步骤 3</span> — 初始化 CLI（新建独立 CLI 应用，不影响 MyYoda 飞书 Bot）</div>
               <div className="pl-3 text-foreground/60">lark-cli config init --new</div>
               <div className="pt-1"><span className="text-foreground/70 font-semibold">步骤 4</span> — 一键申请全部领域权限（文档/表格/日历/任务/邮件/通讯录/会议等）</div>
               <div className="pl-3 text-foreground/60">lark-cli auth login --domain all</div>
@@ -848,7 +848,7 @@ function CliRecommendationCard(): React.ReactElement {
       <div className="flex items-start gap-2">
         <div className="flex-1 text-xs text-foreground/80 leading-relaxed">
           <div className="font-medium text-foreground mb-0.5">想要更完整的飞书生态体验？</div>
-          补全飞书 CLI 后 LuxCoder Agent 还可以直接读写你的文档、查日历、发邮件等。
+          补全飞书 CLI 后 MyYoda Agent 还可以直接读写你的文档、查日历、发邮件等。
           复制下方提示词到任意空间的新对话发送即可，Agent 会全程引导完成。
         </div>
       </div>
@@ -946,7 +946,7 @@ function RegisterFeishuDialog({ open, onOpenChange, onSuccess }: RegisterFeishuD
             扫码创建飞书 Bot
           </DialogTitle>
           <DialogDescription>
-            飞书后端将自动创建一个 PersonalAgent 应用，扫码完成后 LuxCoder 会自动保存凭证并启动 Bot，整个过程无需手动复制 App ID / Secret。
+            飞书后端将自动创建一个 PersonalAgent 应用，扫码完成后 MyYoda 会自动保存凭证并启动 Bot，整个过程无需手动复制 App ID / Secret。
           </DialogDescription>
         </DialogHeader>
 
@@ -1100,7 +1100,7 @@ function SessionMirrorSection({ bots }: { bots: FeishuBotConfig[] }): React.Reac
   return (
     <SettingsSection
       title="同步到飞书"
-      description="开启后，每个新的 LuxCoder Agent Session 会创建一个仅包含你和指定 Bot 的飞书群，并把输出同步到群内卡片，同时默认阻止电脑自动休眠，方便你脱离电脑在飞书上继续完成工作。"
+      description="开启后，每个新的 MyYoda Agent Session 会创建一个仅包含你和指定 Bot 的飞书群，并把输出同步到群内卡片，同时默认阻止电脑自动休眠，方便你脱离电脑在飞书上继续完成工作。"
     >
       <SettingsCard divided={false}>
         <div className="px-4 py-4 space-y-4">
@@ -1138,7 +1138,7 @@ function SessionMirrorSection({ bots }: { bots: FeishuBotConfig[] }): React.Reac
           <div className="flex items-start gap-2 rounded-lg bg-blue-500/10 px-3 py-3 text-xs text-blue-700 dark:text-blue-300">
             <MessageSquare size={15} className="mt-0.5 flex-shrink-0" />
             <div className="leading-relaxed">
-              实时同步模式下，一个 LuxCoder Session 对应一个飞书群。即使配置了多个 Bot，也只会使用这里选中的 Bot，避免同一 Session 被多个 Bot 重复建群或拆散上下文。
+              实时同步模式下，一个 MyYoda Session 对应一个飞书群。即使配置了多个 Bot，也只会使用这里选中的 Bot，避免同一 Session 被多个 Bot 重复建群或拆散上下文。
             </div>
           </div>
 
@@ -1152,7 +1152,7 @@ function SessionMirrorSection({ bots }: { bots: FeishuBotConfig[] }): React.Reac
               <div className="flex flex-col gap-1 pl-1">
                 <div>
                   <code className="rounded bg-amber-500/15 px-1 py-0.5 text-[11px] text-amber-900 dark:text-amber-100">im:message.group_msg</code>
-                  {' '}— 接收群聊中所有用户消息（否则飞书不会把非 @ 的群消息推送给 LuxCoder）
+                  {' '}— 接收群聊中所有用户消息（否则飞书不会把非 @ 的群消息推送给 MyYoda）
                 </div>
                 <div>
                   <code className="rounded bg-amber-500/15 px-1 py-0.5 text-[11px] text-amber-900 dark:text-amber-100">im:chat</code>
@@ -1169,7 +1169,7 @@ function SessionMirrorSection({ bots }: { bots: FeishuBotConfig[] }): React.Reac
             <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 px-3 py-3 text-xs text-amber-800 dark:text-amber-300">
               <AlertTriangle size={15} className="mt-0.5 flex-shrink-0" />
               <div className="leading-relaxed">
-                当前同步 Bot 还没有历史聊天绑定。通过 LuxCoder「扫码创建」的 Bot 已保存扫码账号的当前组织身份，可直接为新 Session 建群；手动填写 App ID/Secret 添加的 Bot，请先在飞书里向「{selectedBot?.name ?? '该 Bot'}」发送一条消息，让 LuxCoder 记录当前组织的 open_id。
+                当前同步 Bot 还没有历史聊天绑定。通过 MyYoda「扫码创建」的 Bot 已保存扫码账号的当前组织身份，可直接为新 Session 建群；手动填写 App ID/Secret 添加的 Bot，请先在飞书里向「{selectedBot?.name ?? '该 Bot'}」发送一条消息，让 MyYoda 记录当前组织的 open_id。
               </div>
             </div>
           )}
@@ -1649,7 +1649,7 @@ function FeishuConfigTab(): React.ReactElement {
                     <li>
                       添加回调{' '}
                       <code className="bg-muted/50 px-1.5 py-0.5 rounded text-xs text-foreground/80">card.action.trigger</code>
-                      {' '}（卡片按钮回调，LuxCoder 的流式卡片交互依赖此项）
+                      {' '}（卡片按钮回调，MyYoda 的流式卡片交互依赖此项）
                     </li>
                   </ol>
                 </div>
@@ -1673,7 +1673,7 @@ function FeishuConfigTab(): React.ReactElement {
             {/* 提示 */}
             <div className="pl-7 p-3 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs">
               版本审核通过并发布后，在飞书中搜索机器人名称添加到聊天，
-              即可通过飞书向 LuxCoder Agent 发送指令。
+              即可通过飞书向 MyYoda Agent 发送指令。
             </div>
           </div>
         </SettingsCard>

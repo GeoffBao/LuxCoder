@@ -1,5 +1,5 @@
 /**
- * luxcoder session list — 列出会话索引（便宜，不读 JSONL 正文）。
+ * myyoda session list — 列出会话索引（便宜，不读 JSONL 正文）。
  */
 import { register } from '../registry'
 import { listSessions } from '../sessions'

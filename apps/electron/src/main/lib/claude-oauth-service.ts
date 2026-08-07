@@ -22,8 +22,8 @@
 
 import { randomBytes, createHash } from 'node:crypto'
 import { shell } from 'electron'
-import type { ClaudeOAuthCredentials } from '@luxcoder/shared'
-import { getAppUserAgent } from '@luxcoder/core'
+import type { ClaudeOAuthCredentials } from '@myyoda/shared'
+import { getAppUserAgent } from '@myyoda/core'
 import pkg from '../../../package.json' with { type: 'json' }
 
 /** 官方 claude 二进制自己使用的 public client id（实测从其 setup-token 生成的授权 URL 抓取）。 */

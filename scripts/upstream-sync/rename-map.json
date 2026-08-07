@@ -1,5 +1,5 @@
 {
-  "$comment": "Proma → LuxCoder 同步后 rename / 门禁规则。apply-renames 与 sync:check 共用。",
+  "$comment": "Proma → MyYoda 同步后 rename / 门禁规则。apply-renames 与 sync:check 共用。",
   "skipDirNames": [
     ".git",
     "node_modules",
@@ -59,23 +59,23 @@
     },
     {
       "from": "@proma/",
-      "to": "@luxcoder/"
+      "to": "@myyoda/"
     },
     {
       "from": "~/.proma",
-      "to": "~/.luxcoder"
+      "to": "~/.myyoda"
     },
     {
       "from": ".proma-dev",
-      "to": ".luxcoder-dev"
+      "to": ".myyoda-dev"
     },
     {
       "from": "/.proma/",
-      "to": "/.luxcoder/"
+      "to": "/.myyoda/"
     },
     {
       "from": "\"@proma/",
-      "to": "\"@luxcoder/"
+      "to": "\"@myyoda/"
     },
     {
       "from": "requiresPromaUserAgent",
@@ -91,23 +91,23 @@
     },
     {
       "from": "PromaPermissionMode",
-      "to": "LuxCoderPermissionMode"
+      "to": "MyYodaPermissionMode"
     },
     {
       "from": "proma_event",
-      "to": "luxcoder_event"
+      "to": "myyoda_event"
     }
   ],
   "forbiddenPatterns": [
     {
       "id": "pkg-scope",
       "regex": "@proma/",
-      "message": "残留 @proma/ 包作用域，应改为 @luxcoder/"
+      "message": "残留 @proma/ 包作用域，应改为 @myyoda/"
     },
     {
       "id": "home-proma",
       "regex": "~/.proma",
-      "message": "残留 ~/.proma 路径，应改为 ~/.luxcoder"
+      "message": "残留 ~/.proma 路径，应改为 ~/.myyoda"
     },
     {
       "id": "dot-proma",
@@ -127,7 +127,7 @@
     "@anthropic-ai/claude-agent-sdk-win32-arm64"
   ],
   "luxOnlySkills": [
-    "luxcoder-coach",
+    "myyoda-coach",
     "guizang-ppt-skill"
   ]
 }

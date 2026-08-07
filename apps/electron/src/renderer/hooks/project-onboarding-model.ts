@@ -7,7 +7,7 @@
  */
 
 export function getProjectOnboardingStorageKey(workspaceId: string): string {
-  return `luxcoder:workspace:${workspaceId}:projectOnboardingSeen`
+  return `myyoda:workspace:${workspaceId}:projectOnboardingSeen`
 }
 
 /**

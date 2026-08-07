@@ -1,14 +1,14 @@
 #!/bin/bash
 
-# 从统一的 LuxCoder L 母版生成设置页与品牌下载使用的全部图标变体。
+# 从统一的 MyYoda 母版生成设置页与品牌下载使用的全部图标变体。
 # Requires: ImageMagick (magick)
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOGOS_DIR="$SCRIPT_DIR/logos"
-MARK_SVG="$LOGOS_DIR/luxcoder-mark.svg"
-TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/luxcoder-logo-variants.XXXXXX")"
+MARK_SVG="$LOGOS_DIR/myyoda-mark.svg"
+TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/myyoda-logo-variants.XXXXXX")"
 
 cleanup() {
   rm -rf "$TEMP_DIR"
@@ -21,7 +21,7 @@ if ! command -v magick >/dev/null 2>&1; then
 fi
 
 if [ ! -f "$MARK_SVG" ]; then
-  echo "❌ LuxCoder mark not found: $MARK_SVG"
+  echo "❌ MyYoda mark not found: $MARK_SVG"
   exit 1
 fi
 
@@ -128,4 +128,4 @@ magick "$LOGOS_DIR/futuristic.png" \
   -colorspace HSL -channel G -evaluate multiply 1.18 +channel -colorspace sRGB \
   "$LOGOS_DIR/futuristic.png"
 
-echo "✅ Generated 14 LuxCoder logo variants in $LOGOS_DIR"
+echo "✅ Generated 14 MyYoda logo variants in $LOGOS_DIR"

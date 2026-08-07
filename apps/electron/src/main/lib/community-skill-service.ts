@@ -107,7 +107,7 @@ async function downloadAndExtractMarket(): Promise<string> {
     throw new Error(`下载社区市场失败 (${res.status})`)
   }
   const buf = Buffer.from(await res.arrayBuffer())
-  const tmpDir = join(tmpdir(), `luxcoder-market-${randomUUID()}`)
+  const tmpDir = join(tmpdir(), `myyoda-market-${randomUUID()}`)
   mkdirSync(tmpDir, { recursive: true })
   try {
     await decompress(buf, tmpDir, { plugins: [decompressTargz()] })

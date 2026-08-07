@@ -2,7 +2,7 @@
  * 文件处理工具函数
  */
 
-import { MAX_ATTACHMENT_SIZE } from '@luxcoder/shared'
+import { MAX_ATTACHMENT_SIZE } from '@myyoda/shared'
 
 export function formatFileNames(names: string[], max = 3): string {
   if (names.length <= max) return names.join('、')
