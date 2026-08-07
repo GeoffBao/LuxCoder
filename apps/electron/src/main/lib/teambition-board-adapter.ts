@@ -24,6 +24,7 @@ import type {
   TbWorkflow,
   TbWorkflowStatus,
 } from '@luxcoder/shared/teambition-defect'
+import { inferStatusStage } from '@luxcoder/shared/teambition-defect'
 import { normalizeTeambitionTaskType } from './teambition-adapter'
 import type { TeambitionBoardGateway } from './teambition-board-service'
 
@@ -42,6 +43,10 @@ export interface TeambitionBoardToolNames {
   getTaskDetail?: string
   /** 项目自定义字段（SearchProjectCustomFiledsV3）；cfId→字段名映射 */
   listProjectCustomFields?: string
+  /** 企业级 TQL 搜索（SearchTasksByTQLV2）；已关闭区按时间窗口直接查询用 */
+  searchTasksByTql?: string
+  /** 项目详情（QueryProjectsV3）；projectId→项目名映射用 */
+  queryProjects?: string
 }
 
 export interface McpTeambitionBoardAdapterConfig {
@@ -230,6 +235,27 @@ export class McpTeambitionBoardAdapter implements TeambitionBoardGateway {
     return map
   }
 
+  /** 批量查询项目名（QueryProjectsV3，projectId → name；失败返回空映射，UI 可降级不显示标签） */
+  async listProjectNames(projectIds: string[]): Promise<Map<string, string>> {
+    if (this.fallback) return this.fallback.listProjectNames(projectIds)
+    const toolName = this.config.toolNames.queryProjects
+    if (!toolName || projectIds.length === 0) return new Map()
+    try {
+      const payload = await this.call(toolName, { projectIds: projectIds.join(','), pageSize: projectIds.length })
+      const list = Array.isArray(payload)
+        ? payload as Array<Record<string, unknown>>
+        : (asObject(payload)?.result as Array<Record<string, unknown>> | undefined) ?? []
+      const map = new Map<string, string>()
+      for (const project of list) {
+        if (project?.id && project?.name) map.set(String(project.id), String(project.name))
+      }
+      return map
+    } catch (error) {
+      console.warn('[TbBoard] 项目名查询失败（降级不显示项目标签）:', error)
+      return new Map()
+    }
+  }
+
   async listMyDefects(roleTypes?: string): Promise<TbDefectItem[]> {
     if (this.fallback) return this.fallback.listMyDefects(roleTypes)
     // 分页全量拉取（对齐任务看板同步：SearchUserTasksV3 executor 角色，最多 50 页×100）
@@ -249,6 +275,73 @@ export class McpTeambitionBoardAdapter implements TeambitionBoardGateway {
       nextPageToken = next
     }
     return this.mapTaskList(collected.filter((task) => task.isDone !== true && task.isArchived !== true))
+  }
+
+  /** 近 N 天内已关闭的我的任务（已关闭区懒加载用）：直接用 TQL 带时间窗口查询，不拉全量再过滤 */
+  async listClosedDefects(days: number): Promise<TbDefectItem[]> {
+    if (this.fallback) return this.fallback.listClosedDefects(days)
+    const since = new Date(Date.now() - days * 86_400_000).toISOString()
+    const userId = await this.getCurrentUserId()
+
+    // 主路径：TQL 直接按「已关闭 + 我执行 + updated 时间窗口」查询（服务端过滤，零全量拉取）
+    const tqlTool = this.config.toolNames.searchTasksByTql
+    if (tqlTool) {
+      try {
+        const tql = `isDone = true AND executorId = "${userId}" AND updated >= "${since}"`
+        const payload = await this.call(tqlTool, { tql, pageSize: 100 })
+        const ids = Array.isArray(payload)
+          ? payload.map(String)
+          : (asObject(payload)?.result as unknown[] | undefined)?.map(String) ?? []
+        const items: TbDefectItem[] = []
+        // SearchTasksByTQLV2 只返回 ID；逐条 QueryTaskV3 拉详情（上限 50，避免刷屏）
+        for (const taskId of ids.slice(0, 50)) {
+          try {
+            const raw = await this.fetchTaskRaw(taskId)
+            if (raw) {
+              const [mapped] = await this.mapTaskList([raw])
+              if (mapped) items.push(mapped)
+            }
+          } catch (error) {
+            console.warn(`[TbBoard] 查询已关闭任务详情失败 ${taskId}:`, error)
+          }
+        }
+        return items
+      } catch (error) {
+        console.warn('[TbBoard] TQL 查询已关闭任务失败，回退分页过滤:', error)
+      }
+    }
+
+    // 回退：分页拉取后按 isDone=true + 关闭时间窗口过滤（仅 TQL 不可用时）
+    const collected: Array<Record<string, unknown>> = []
+    let nextPageToken: string | undefined
+    for (let page = 0; page < 50; page++) {
+      const args: Record<string, unknown> = {
+        roleTypes: 'executor',
+        pageSize: 100,
+      }
+      if (nextPageToken) args.pageToken = nextPageToken
+      const payload = await this.call(this.config.toolNames.listMyOpenTasks, args)
+      const rawTasks = asTaskRawList(payload)
+      collected.push(...rawTasks)
+      const next = asObject(payload)?.nextPageToken
+      if (typeof next !== 'string' || !next) break
+      nextPageToken = next
+    }
+    const closedRaw = collected.filter((task) => {
+      if (task.isDone !== true || task.isArchived === true) return false
+      const closedAt = String(task.accomplishTime ?? task.updated ?? '')
+      return Boolean(closedAt) && closedAt >= since
+    })
+    return this.mapTaskList(closedRaw)
+  }
+
+  /** 按 taskId 拉单个任务详情（已关闭列表用） */
+  private async fetchTaskRaw(taskId: string): Promise<Record<string, unknown> | undefined> {
+    const toolName = this.config.toolNames.getTaskDetail
+    if (!toolName) return undefined
+    const payload = await this.call(toolName, { taskId })
+    const raws = asTaskRawList(payload)
+    return raws[0]
   }
 
   async listProjectDefects(projectId: string): Promise<TbDefectItem[]> {
@@ -272,13 +365,20 @@ export class McpTeambitionBoardAdapter implements TeambitionBoardGateway {
         typeNamesByProject.set(projectId, new Map())
       }
     }
+    // 批量补项目名（一次 QueryProjectsV3；失败则降级不显示）
+    const projectNames = await this.listProjectNames(projectIds)
     const items: TbDefectItem[] = []
     for (const raw of raws) {
-      const typeNameById = typeNamesByProject.get(String(raw.projectId ?? ''))
+      const projectId = String(raw.projectId ?? '')
+      const typeNameById = typeNamesByProject.get(projectId)
       const sfcId = String(raw.sfcId ?? '')
       const typeName = (sfcId && typeNameById) ? typeNameById.get(sfcId) : undefined
       const item = McpTeambitionBoardAdapter.mapDefect(raw, typeName)
-      if (item) items.push(item)
+      if (item) {
+        const projectName = projectNames.get(projectId)
+        if (projectName) item.projectName = projectName
+        items.push(item)
+      }
     }
     return items
   }
@@ -292,12 +392,14 @@ export class McpTeambitionBoardAdapter implements TeambitionBoardGateway {
       const id = String(raw.id ?? '')
       const name = String(raw.name ?? '')
       if (!id || !name) continue
+      const kind = raw.kind === 'end' ? 'end' : raw.kind === 'start' ? 'start' : 'unset'
       statuses.push({
         id,
         name,
-        kind: raw.kind === 'end' ? 'end' : raw.kind === 'start' ? 'start' : 'unset',
+        kind,
         pos: toNumber(raw.pos) ?? 0,
         rejectStatusIds: Array.isArray(raw.rejectStatusIds) ? raw.rejectStatusIds.map(String) : [],
+        stage: inferStatusStage(name, kind),
       })
     }
     if (statuses.length === 0) return undefined
@@ -528,13 +630,13 @@ export class MockTeambitionBoardAdapter implements TeambitionBoardGateway {
     return {
       taskflowId: 'mock-defect-flow',
       statuses: [
-        { id: 's-audit', name: '待审核', kind: 'start', pos: 65536, rejectStatusIds: ['s-new'] },
-        { id: 's-new', name: 'New', kind: 'unset', pos: 131072, rejectStatusIds: ['s-audit', 's-close'] },
-        { id: 's-open', name: 'Open', kind: 'unset', pos: 851968, rejectStatusIds: ['s-new', 's-fixed'] },
-        { id: 's-fixed', name: 'Fixed', kind: 'unset', pos: 786432, rejectStatusIds: ['s-open', 's-reopen', 's-close'] },
-        { id: 's-reopen', name: 'Reopen', kind: 'unset', pos: 917504, rejectStatusIds: ['s-open', 's-close'] },
-        { id: 's-close', name: 'Close', kind: 'end', pos: 983040, rejectStatusIds: [] },
-        { id: 's-postpone', name: 'Postpone', kind: 'end', pos: 1048576, rejectStatusIds: [] },
+        { id: 's-audit', name: '待审核', kind: 'start', pos: 65536, rejectStatusIds: ['s-new'], stage: 'waiting' },
+        { id: 's-new', name: 'New', kind: 'unset', pos: 131072, rejectStatusIds: ['s-audit', 's-close'], stage: 'dev' },
+        { id: 's-open', name: 'Open', kind: 'unset', pos: 851968, rejectStatusIds: ['s-new', 's-fixed'], stage: 'dev' },
+        { id: 's-fixed', name: 'Fixed', kind: 'unset', pos: 786432, rejectStatusIds: ['s-open', 's-reopen', 's-close'], stage: 'waiting' },
+        { id: 's-reopen', name: 'Reopen', kind: 'unset', pos: 917504, rejectStatusIds: ['s-open', 's-close'], stage: 'dev' },
+        { id: 's-close', name: 'Close', kind: 'end', pos: 983040, rejectStatusIds: [], stage: 'closed' },
+        { id: 's-postpone', name: 'Postpone', kind: 'end', pos: 1048576, rejectStatusIds: [], stage: 'closed' },
       ],
     }
   }
@@ -555,8 +657,18 @@ export class MockTeambitionBoardAdapter implements TeambitionBoardGateway {
     ])
   }
 
+  async listProjectNames(_projectIds: string[]): Promise<Map<string, string>> {
+    // Mock：返回演示项目名
+    return new Map([['mock-project', 'Mock 项目']])
+  }
+
   async listMyDefects(_roleTypes?: string): Promise<TbDefectItem[]> {
     return this.defects
+  }
+
+  async listClosedDefects(_days: number): Promise<TbDefectItem[]> {
+    // Mock：返回终态缺陷（s-close / s-postpone）作为演示
+    return this.defects.filter((item) => item.tfsId === 's-close' || item.tfsId === 's-postpone')
   }
 
   async listProjectDefects(_projectId: string): Promise<TbDefectItem[]> {

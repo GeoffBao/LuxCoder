@@ -10,12 +10,12 @@ import { TeambitionBoardService, type TeambitionBoardGateway } from './teambitio
 const bugWorkflow: TbWorkflow = {
   taskflowId: 'defect-flow',
   statuses: [
-    { id: 's-audit', name: '待审核', kind: 'start', pos: 65536, rejectStatusIds: ['s-new'] },
-    { id: 's-new', name: 'New', kind: 'unset', pos: 131072, rejectStatusIds: ['s-close'] },
-    { id: 's-open', name: 'Open', kind: 'unset', pos: 851968, rejectStatusIds: ['s-new', 's-fixed'] },
-    { id: 's-fixed', name: 'Fixed', kind: 'unset', pos: 786432, rejectStatusIds: ['s-open', 's-reopen', 's-close'] },
-    { id: 's-reopen', name: 'Reopen', kind: 'unset', pos: 917504, rejectStatusIds: ['s-open', 's-close'] },
-    { id: 's-close', name: 'Close', kind: 'end', pos: 983040, rejectStatusIds: [] },
+    { id: 's-audit', name: '待审核', kind: 'start', pos: 65536, rejectStatusIds: ['s-new'], stage: 'waiting' },
+    { id: 's-new', name: 'New', kind: 'unset', pos: 131072, rejectStatusIds: ['s-close'], stage: 'dev' },
+    { id: 's-open', name: 'Open', kind: 'unset', pos: 851968, rejectStatusIds: ['s-new', 's-fixed'], stage: 'dev' },
+    { id: 's-fixed', name: 'Fixed', kind: 'unset', pos: 786432, rejectStatusIds: ['s-open', 's-reopen', 's-close'], stage: 'waiting' },
+    { id: 's-reopen', name: 'Reopen', kind: 'unset', pos: 917504, rejectStatusIds: ['s-open', 's-close'], stage: 'dev' },
+    { id: 's-close', name: 'Close', kind: 'end', pos: 983040, rejectStatusIds: [], stage: 'closed' },
   ],
 }
 
@@ -39,7 +39,13 @@ class StubGateway implements TeambitionBoardGateway {
   async listProjectCustomFields(_projectId: string): Promise<Map<string, string>> {
     return new Map()
   }
+  async listProjectNames(_projectIds: string[]): Promise<Map<string, string>> {
+    return new Map()
+  }
   async listMyDefects(_roleTypes?: string): Promise<TbDefectItem[]> {
+    return []
+  }
+  async listClosedDefects(_days: number): Promise<TbDefectItem[]> {
     return []
   }
   async listProjectDefects(_projectId: string): Promise<TbDefectItem[]> {
@@ -70,6 +76,8 @@ describe('TeambitionBoardService', () => {
       listTaskTypeNames: async () => new Map(),
       listProjectCustomFields: async () => new Map(),
       listMyDefects: async () => [],
+      listClosedDefects: async () => [],
+      listProjectNames: async () => new Map(),
       listProjectDefects: async () => [],
       getTaskWorkflow: async () => undefined,
       listTransitions: async () => [],

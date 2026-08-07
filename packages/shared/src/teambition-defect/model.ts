@@ -6,8 +6,8 @@
  *
  * 关键业务规则（对齐 TB 缺陷工作流实测）：
  * - 状态机每个状态有 kind（start/unset/end）、pos（顺序位）、rejectStatusIds（合法回跳目标）
- * - 授权跟随 TB 状态级执行者集合（P1 简化：executor==当前用户 或 未认领且在参与者中）
- * - 研发视图三区：mine-actionable（我可流转）/ handed-off（已移交他人，只读跟踪）/ closed（终态）
+ * - 研发视图三区按「状态阶段」划分（不按 executor，因数据源=我执行未关闭，executor 恒为我）：
+ *   dev（研发责任段，待我处理）/ waiting（等待他人：审核·测试·SE）/ closed（终态）
  */
 
 import type { TaskType } from '../tasks/task-record'
@@ -16,6 +16,9 @@ import type { TaskType } from '../tasks/task-record'
 // TB 状态机
 // ---------------------------------------------------------------------------
 
+/** 状态归属阶段：dev=研发责任段 / waiting=等待他人段 / closed=终态 */
+export type TbStatusStage = 'dev' | 'waiting' | 'closed'
+
 export interface TbWorkflowStatus {
   id: string
   name: string
@@ -23,7 +26,93 @@ export interface TbWorkflowStatus {
   pos: number
   /** 合法回跳目标（rejectStatusIds 实测字段） */
   rejectStatusIds: string[]
+  /** 状态阶段归属（三区分类依据；可由 inferStatusStage 推导或显式指定） */
+  stage: TbStatusStage
 }
+
+/**
+ * 状态阶段归属（三区分类依据）。
+ * 规则来源：对齐 Teambition 问题单管理规范（teambition-issue-management.md v1.0）：
+ * 标准流转 New → In Progress → Resolved → Review → [To Be Integrated/Completed]
+ * - 开发执行段（责任人=开发执行人，我可流转）→ dev（待我处理）
+ * - 他人处理段（责任人=测试/评审/集成，需他人流转）→ waiting（待他人处理）
+ * - 终态 → closed（已关闭）
+ * 实现：显式状态名精确匹配（大小写不敏感），避免关键词 includes 误判（如 Assign 是开发段却含 assign 关键词）。
+ */
+const DEV_STAGE_STATUSES = new Set([
+  // 文档：开发执行人责任段（我可流转）
+  'new', 'assign', 'in progress', 'open', 'reopen', '待处理', '进行中', '处理中', '正在处理',
+  'clarified', 'great', 'changed',
+])
+
+/** 他人处理段（测试/评审/集成/等待信息/驳回等，责任人非我，需他人流转下一状态） */
+const WAITING_STAGE_STATUSES = new Set([
+  // 文档：Resolved 后必须经 Review；Review → To Be Integrated / Won't Fix / Invalid
+  'review', 'resolved', 'fixed', 'done', 'completed', 'to be integrated',
+  // 文档：Wait For Info（等更多信息）、自动指派前阶段
+  'wait for info', 'pending', 'commited', 'nextspinfix', '待审核', '待测试', '待验证', '等待',
+  '已提交', '已修', '已解决', '已完成', 'reject', 'invalid', 'duplicate', 'wontfix', 'worksforme',
+  'not an issue', 'delayed clone', 'need clone', 'low value fix', 'postponed',
+])
+
+export function inferStatusStage(name: string, kind: 'start' | 'unset' | 'end'): TbStatusStage {
+  if (kind === 'end') return 'closed'
+  const lower = name.trim().toLowerCase()
+  if (DEV_STAGE_STATUSES.has(lower)) return 'dev'
+  if (WAITING_STAGE_STATUSES.has(lower)) return 'waiting'
+  // 未知状态兜底：非终态默认 dev（研发优先展示），避免误藏任务
+  return 'dev'
+}
+
+// ---------------------------------------------------------------------------
+// 角色视图（按「当前状态的处理人是否可流转」分类）
+// ---------------------------------------------------------------------------
+
+/** 看板视图角色：研发 / 测试（后续可扩展 SPM 等） */
+export type TbViewRole = 'developer' | 'tester'
+
+/** 角色数据范围 */
+export type TbRoleScope = 'my-executed' | 'my-involved'
+
+/**
+ * 角色视图配置：决定「该角色待我处理的是哪些状态」以及三区标题。
+ * 依据 Teambition 问题单管理规范（teambition-issue-management.md v1.0）各流转段责任人：
+ * - 研发：开发执行人责任段（New→In Progress→Resolved 前段）
+ * - 测试：评审/验证责任段（Resolved→Review→To Be Integrated）
+ */
+export interface TbRoleView {
+  /** 该角色「待我处理/我可流转」的状态名集合（精确匹配，小写） */
+  actionableStatuses: ReadonlySet<string>
+  /** 数据范围：my-executed 我执行 / my-involved 我参与 */
+  scope: TbRoleScope
+  /** 三区标题（随角色变） */
+  sectionTitles: { mine: string; handedOff: string; closed: string }
+}
+
+/** 测试角色「待我验证」的状态集（评审/验证段，责任人=测试） */
+const TESTER_ACTIONABLE_STATUSES = new Set([
+  'review', 'resolved', 'fixed', 'done', 'completed', 'to be integrated',
+  '待测试', '待验证', '待审核', 'commited', 'nextspinfix', 'pending', 'wait for info',
+  'reject', 'invalid', 'duplicate', 'wontfix', 'worksforme', 'not an issue',
+  '已提交', '已修', '已解决', '已完成', 'low value fix', 'postponed',
+])
+
+/** 角色视图配置表（渲染层直接消费） */
+export const TB_ROLE_VIEWS: Record<TbViewRole, TbRoleView> = {
+  developer: {
+    actionableStatuses: DEV_STAGE_STATUSES,
+    scope: 'my-executed',
+    sectionTitles: { mine: '待我处理', handedOff: '待他人处理', closed: '已关闭' },
+  },
+  tester: {
+    actionableStatuses: TESTER_ACTIONABLE_STATUSES,
+    scope: 'my-involved',
+    sectionTitles: { mine: '待我验证', handedOff: '待开发处理', closed: '已关闭' },
+  },
+}
+
+/** 统一的 TB 问题分析 skill（分析 + 流转双模式；TB 看板加入本地任务的必选技能） */
+export const TB_CONNECT_SKILL_SLUG = 'connect-tb-workflow'
 
 export interface TbWorkflow {
   /** 工作流 ID（taskflowId） */
@@ -51,6 +140,8 @@ export interface TbDefectItem {
   uniqueId?: number
   content: string
   projectId: string
+  /** 项目名（由 QueryProjectsV3 批量映射；可能缺失） */
+  projectName?: string
   /** 当前状态 ID */
   tfsId: string
   /** 当前状态名（由状态机映射，可能为 undefined 若映射失败） */
@@ -257,35 +348,45 @@ export function deriveLegalTargets(
 // ---------------------------------------------------------------------------
 
 /**
- * 研发视图三区划分（纯函数，可单测）。
+ * 按角色视图三区划分（纯函数，可单测）。
  *
- * - 终态（kind=end）→ closed
- * - executor == 当前用户 → mine-actionable（我可流转）
- * - executor 为空且当前用户在参与人 → mine-actionable（可认领）
- * - 否则 → handed-off（已移交他人，只读跟踪）
+ * 语义：当前状态是否属于「该角色可流转」→ mine-actionable；否则 handed-off；终态 → closed。
+ * - closed：stage=closed（终态）
+ * - mine-actionable：当前状态名命中 roleView.actionableStatuses
+ * - 其余非终态 → handed-off
+ *
+ * 兼容：状态机缺失时按 executor 兜底（未认领且我在参与人可认领）。
  */
 export function classifyTbDefect(
   item: Pick<TbDefectItem, 'tfsId' | 'executorId' | 'involveMembers'>,
   workflow: TbWorkflow | undefined,
+  roleView: TbRoleView,
   currentUserId: string,
 ): TbSection {
   const status = findWorkflowStatus(workflow, item.tfsId)
-  if (status?.kind === 'end') return 'closed'
+  if (status) {
+    const stage = status.stage ?? (status.kind === 'end' ? 'closed' : undefined)
+    if (stage === 'closed') return 'closed'
+    if (roleView.actionableStatuses.has(status.name.trim().toLowerCase())) return 'mine-actionable'
+    return 'handed-off'
+  }
+  // 兜底：状态机缺失时按 executor（历史语义）
   if (item.executorId === currentUserId) return 'mine-actionable'
   if (!item.executorId && item.involveMembers.includes(currentUserId)) return 'mine-actionable'
   return 'handed-off'
 }
 
 /**
- * 当前用户是否可对该任务执行流转（即存在合法目标且当前在我端）。
+ * 当前用户是否可对该任务执行流转（即存在合法目标且当前在该角色待处理端）。
  * 返回可流转的目标状态列表；空数组 = 不可流转。
  */
 export function canTransition(
   item: Pick<TbDefectItem, 'tfsId' | 'executorId' | 'involveMembers'>,
   workflow: TbWorkflow | undefined,
+  roleView: TbRoleView,
   currentUserId: string,
 ): TbWorkflowStatus[] {
-  if (classifyTbDefect(item, workflow, currentUserId) !== 'mine-actionable') return []
+  if (classifyTbDefect(item, workflow, roleView, currentUserId) !== 'mine-actionable') return []
   return deriveLegalTargets(workflow, item.tfsId)
 }
 
@@ -355,26 +456,323 @@ export function resolveSkillMatches(
   const isBug = detail.type === 'bug'
 
   const matches: TbSkillMatch[] = []
+  const seen = new Set<string>()
   for (const skill of enabled) {
     const name = skill.name.toLowerCase()
     const slug = skill.slug.toLowerCase()
     const description = (skill.description ?? '').toLowerCase()
+    // 每个 skill 的综合证据文本（名称+描述），用于「问题内容命中」判断；
+    // 不把宽泛词（缺陷/bug/TB/问题单）作为触发词，避免误配大量 skill。
+    const skillEvidence = `${name} ${description}`
+    const hitKeywords: string[] = []
+    let kind: TbSkillMatch['kind'] | undefined
+    let reason = ''
 
-    // 1. 日志类 skill：有附件时优先匹配描述含「日志/log/问题单/TB/缺陷」的 skill
-    if (hasLog && /日志|log|问题单|teambition|tb|缺陷|分析/.test(description)) {
-      matches.push({ slug: skill.slug, name: skill.name, reason: '问题单带有日志附件，适配日志/问题单分析类 skill', kind: 'exact' })
-      continue
+    // 1. 日志/附件类：问题带日志附件，且 skill 明确专注「日志/信令/抓包」分析
+    //    （要求强信号：slug/名含 log/trace/signal/抓包/信令，或描述含「下载日志/日志分析/抓包/信令」等复合动作词；
+    //    不能只靠描述含通用词「日志/bug/崩溃」，否则会误配 systematic-debugging 等调试类 skill）
+    if (hasLog) {
+      const nameSlug = `${name} ${slug}`
+      const logStrongSignal = /(^|[\s_-])(log|trace|signal|pcap|抓包|信令)/.test(nameSlug)
+        || /下载日志|日志分析|抓包|信令分析|logcat|串口日志/.test(skillEvidence)
+      if (logStrongSignal) {
+        hitKeywords.push('log')
+        kind = 'exact'
+        reason = '问题单带有日志附件，适配日志/信令分析类 skill'
+      }
     }
-    // 2. 缺陷类 skill：类型是 bug 时匹配描述含「缺陷/bug/流转」的 skill
-    if (isBug && /缺陷|bug|流转|问题单|teambition|tb/.test(description)) {
-      matches.push({ slug: skill.slug, name: skill.name, reason: '缺陷类型问题单，适配缺陷流转/分析类 skill', kind: 'exact' })
-      continue
+
+    // 2. 问题内容关键词命中 skill 特征词（精确匹配，避免误配）
+    if (!kind && haystack.trim()) {
+      // 从 skill 名/描述提取「特征词」：优先长词/专业词，避免命中通用词
+      const featureWords = extractSkillFeatureWords(skill.name, skill.description ?? '')
+      const matchedFeature = featureWords.find((word) => word.length >= 2 && haystack.toLowerCase().includes(word.toLowerCase()))
+      if (matchedFeature) {
+        hitKeywords.push(matchedFeature)
+        kind = 'keyword'
+        reason = `问题内容命中 skill 特征词「${matchedFeature}」`
+      }
     }
-    // 3. 关键词兜底：skill 名出现在问题文本中
-    const nameWord = name.replace(/[^a-z0-9\u4e00-\u9fa5]/g, '').trim()
-    if (nameWord && haystack.toLowerCase().includes(nameWord)) {
-      matches.push({ slug: skill.slug, name: skill.name, reason: `问题描述命中 skill 关键词「${skill.name}」`, kind: 'keyword' })
+
+    // 3. 缺陷类型 + skill 明确专注缺陷（名称含 tb/缺陷/bug 且描述专注缺陷流转/分析/编排）
+    if (!kind && isBug) {
+      const bugFocused = /(^|[\s_-])(bug|tb)|缺陷/.test(skill.name)
+        && /缺陷|流转|编排|分析|定位|根因|修复|排查|认领|关闭/.test(description)
+      if (bugFocused) {
+        hitKeywords.push('bug')
+        kind = 'exact'
+        reason = '缺陷类型问题单，适配缺陷流转/分析类 skill'
+      }
+    }
+
+    if (kind && !seen.has(slug)) {
+      seen.add(slug)
+      matches.push({ slug: skill.slug, name: skill.name, reason, kind })
     }
   }
   return matches
+}
+
+/** 提取 skill 名/描述中的特征词（去除停用词，保留专业词/中文词/长英文词） */
+function extractSkillFeatureWords(name: string, description: string): string[] {
+  const combined = `${name} ${description}`
+  const words = combined.match(/[a-zA-Z][a-zA-Z0-9_-]{2,}|[\u4e00-\u9fa5]{2,}/g) ?? []
+  const stopwords = new Set([
+    'skill', 'skills', 'the', 'and', 'for', 'with', 'from', 'this', 'that', '使用', '进行',
+    '帮助', '提供', '用于', '支持', '相关', '问题', '任务', '分析', '处理', '工作', '流程',
+    'teambition', 'tb', '系统', '场景', '调用', '接入', '工具', '能力',
+  ])
+  return words.filter((word) => !stopwords.has(word.toLowerCase()) && word.length >= 2)
+}
+
+/**
+ * 把 AI 预分析结果整理为「书面四段式」回传评论草稿。
+ * 顺序固定：结论先行 → 证据日志 → 下一步动作 → 修复建议。
+ * - 若原文已含四段标题（结论/证据日志/下一步/修复），直接按原文返回；
+ * - 否则生成四段骨架，把原文内容放进「结论」，其余段落标注待补充/见报告。
+ */
+export function buildTbCommentDraft(analysis: string): string {
+  const text = (analysis ?? '').trim()
+  if (!text) {
+    return [
+      '## 🔍 结论',
+      '',
+      '**待补充**（尚未执行 AI 分析，或分析结果为空）',
+      '',
+      '## 📎 证据日志',
+      '',
+      '```',
+      '无',
+      '```',
+      '',
+      '## ➡️ 下一步动作',
+      '',
+      '| 优先级 | 动作 | 责任方 |',
+      '|--------|------|--------|',
+      '| P0 | 待补充 | 待补充 |',
+      '',
+      '## 🛠 修复建议',
+      '',
+      '**短期**：待补充',
+      '**长期**：待补充',
+      '**验证**：待补充',
+    ].join('\n')
+  }
+
+  // 已含四段标题 → 直接返回原文（Agent 分析时已按模板输出）
+  const hasConclusion = /结论|核心结论/.test(text)
+  const hasEvidence = /证据|日志/.test(text)
+  const hasNext = /下一步|动作/.test(text)
+  const hasFix = /修复建议|修复|建议/.test(text)
+  if (hasConclusion && hasEvidence && hasNext && hasFix) {
+    return text
+  }
+
+  // 未按四段式输出 → 组织为四段骨架，原文放「结论」，其余标注
+  return [
+    '## 🔍 结论',
+    '',
+    text,
+    '',
+    '## 📎 证据日志',
+    '',
+    '```',
+    '待补充（详见详细分析报告）',
+    '```',
+    '',
+    '## ➡️ 下一步动作',
+    '',
+    '| 优先级 | 动作 | 责任方 |',
+    '|--------|------|--------|',
+    '| P0 | 待补充 | 待补充 |',
+    '',
+    '## 🛠 修复建议',
+    '',
+    '**短期**：待补充',
+    '**长期**：待补充',
+    '**验证**：待补充',
+  ].join('\n')
+}
+
+/**
+ * 从会话 SDK 消息中提取「分析结论文本」。
+ * 不能机械取最后一条 assistant——TaskRunner 执行完成后会追加验收消息
+ * （“验证最终结果与任务标准”表格），它不是分析结论。
+ * 因此从后往前找**最后一条含分析结论特征**的 assistant 文本：
+ * 命中「结论先行 / 根因 / 证据 / 下一步动作 / 修复建议 / 分析结论」等标记即视为分析结论。
+ * 兼容 SDKMessage.message 为 string（部分消息类型）或 { content: [...] } 两种形态。
+ */
+export function extractAnalysisText(messages: Array<{ type?: string; message?: unknown }>): string {
+  const analysisMarkers = /结论先行|分析结论|根因|证据日志|下一步动作|修复建议|🔍|📎|➡️|🛠/
+  const assistantText = (msg: { type?: string; message?: unknown }): string => {
+    if (msg?.type !== 'assistant') return ''
+    const raw = msg.message
+    if (typeof raw === 'string') return raw.trim()
+    if (raw && typeof raw === 'object') {
+      const content = (raw as { content?: Array<{ type?: string; text?: string }> }).content
+      if (Array.isArray(content)) {
+        return content
+          .filter((block) => block.type === 'text' && typeof block.text === 'string')
+          .map((block) => block.text)
+          .join('\n')
+          .trim()
+      }
+    }
+    return ''
+  }
+  // 第一遍：找最后一条含分析结论特征的 assistant 文本
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const text = assistantText(messages[i]!)
+    if (text && analysisMarkers.test(text)) return text
+  }
+  // 兜底：没有明显分析标记时取最后一条非空 assistant 文本
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const text = assistantText(messages[i]!)
+    if (text) return text
+  }
+  return ''
+}
+
+/**
+ * 从分析报告（markdown）中提取「四段式」内容用于 AI 分析预览。
+ * 报告文件是权威源（AI 会话总结可能被验收回复污染/格式不定），
+ * 因此优先从报告提取：
+ * - 结论：报告标题 + 元数据中的问题编号；若报告含「根因」段落则取根因要点
+ * - 根因：
+ * - 证据日志：
+ * - 下一步动作：
+ * - 修复建议：
+ * 兼容 qxdm_sim_analysis_report.md 与 connect-tb-workflow 的 HTML/通用报告标题风格。
+ */
+export function extractReportSections(report: string): {
+  conclusion: string
+  rootCause: string
+  evidence: string
+  nextSteps: string
+  fixSuggestions: string
+} {
+  // 兼容 HTML 报告：<h1>/<h2> 标题转 markdown，正文标签剥离
+  let text = (report ?? '').replace(/\r\n/g, '\n')
+  if (/<h[12]/i.test(text)) {
+    text = text
+      .replace(/<h1[^>]*>([^<]*)<\/h1>/gi, (_m, t: string) => `\n# ${t.trim()}\n`)
+      .replace(/<h2[^>]*>([^<]*)<\/h2>/gi, (_m, t: string) => `\n## ${t.trim()}\n`)
+      .replace(/<h3[^>]*>([^<]*)<\/h3>/gi, (_m, t: string) => `\n### ${t.trim()}\n`)
+      .replace(/<\/p>/gi, '\n')
+      .replace(/<\/pre>/gi, '\n')
+      .replace(/<\/li>/gi, '\n')
+      .replace(/<\/tr>/gi, '\n')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&amp;/gi, '&')
+      .replace(/&#39;/gi, "'")
+      .replace(/&quot;/gi, '"')
+  }
+  const sections: Record<string, string> = {}
+  // 按 markdown 标题（## / ###）切段，标题名做归一化后归档
+  const lines = text.split('\n')
+  let currentHeading = ''
+  const headingBuf: string[] = []
+  const flush = (): void => {
+    if (!currentHeading) return
+    const key = normalizeReportHeading(currentHeading)
+    if (key && !sections[key]) sections[key] = headingBuf.join('\n').trim()
+    headingBuf.length = 0
+  }
+  for (const line of lines) {
+    const m = line.match(/^#{1,4}\s+(.+)$/)
+    if (m) {
+      flush()
+      currentHeading = m[1]!.trim()
+    } else {
+      headingBuf.push(line)
+    }
+  }
+  flush()
+
+  const pick = (...keys: string[]): string => {
+    for (const key of keys) {
+      if (sections[key]) return sections[key]!
+    }
+    return ''
+  }
+
+  // 结论：四段式报告优先取「结论」段全文（一句话核心判定）；老报告（无结论段）回退从根因段提取
+  const explicitConclusion = pick('结论', '核心结论', '分析结论')
+  const rootCause = pick('根因', '根因定位', '现象与解读')
+  const evidence = pick('证据摘要', '证据日志', '关键证据', '证据')
+  const nextSteps = pick('下一步动作', '建议下一步', '下一步', '后续动作')
+  const fixSuggestions = pick('修复建议', '解决建议', '建议修复')
+
+  let conclusion = explicitConclusion
+  if (conclusion) {
+    // 清理：去掉加粗/列表标记，保留核心判定文字
+    conclusion = conclusion
+      .replace(/\*\*/g, '')
+      .replace(/^[-*]\s+/gm, '')
+      .replace(/[。；;\s]+$/, '')
+      .trim()
+    conclusion = `**结论**：${conclusion}`
+  } else {
+    // 老报告回退：从根因段提取「根因定位/根因：」后的核心一句话
+    const rootCauseCore =
+      rootCause.match(/根因(?:定位)?\s*[:：]?\s*([^\n]*ATR[^\n]*)/) ??
+      rootCause.match(/根因(?:定位)?\s*[:：]?\s*([^\n]{5,160})/)
+    let conclusionLine = rootCauseCore?.[1]?.trim() ?? ''
+    conclusionLine = conclusionLine
+      .replace(/\*\*/g, '')
+      .replace(/^[（(]?[^）)]*[）)]\s*[:：]?\s*/, '')
+      .replace(/[。；;\s]+$/, '')
+    if (/落在[:：]?$|可能(?:是|为)?$|推测[:：]?$/.test(conclusionLine)) {
+      const suspect = rootCause.match(/\*\*([^\n*]*(?:嫌疑|可能|疑似)[^\n*]{2,60})\*\*/)
+      if (suspect?.[1]) conclusionLine = `${conclusionLine} ${suspect[1].replace(/\*\*/g, '')}`
+    }
+    if (!conclusionLine) {
+      const bold = rootCause.match(/\*\*([^\n*]{5,160})\*\*/)
+      conclusionLine = bold?.[1]?.trim() ?? ''
+    }
+    conclusion = conclusionLine ? `**结论**：${conclusionLine}` : ''
+  }
+
+  return {
+    conclusion,
+    rootCause: rootCause.slice(0, 500),
+    evidence: evidence.slice(0, 800),
+    nextSteps: nextSteps.slice(0, 500),
+    fixSuggestions: fixSuggestions.slice(0, 500),
+  }
+}
+
+/** 报告标题归一化：去序号、去 emoji，匹配常见标题写法 */
+function normalizeReportHeading(heading: string): string {
+  const h = heading.replace(/^\d+\.\s*/, '').replace(/^#{1,4}\s*/, '').replace(/[🔴🟠🟡🔵📌✅➡️🛠📎🔬🔍]/g, '').trim()
+  // 结论单独优先（避免「结论」误入根因分支）
+  if (/^(核心结论|结论|分析结论)$/.test(h)) return '结论'
+  if (/(根因|核心结论|现象与解读|分析结论)/.test(h)) return '根因'
+  if (/(证据摘要|证据日志|关键证据|证据)/.test(h)) return '证据'
+  if (/(下一步动作|建议下一步|下一步|后续动作)/.test(h)) return '下一步'
+  if (/(修复建议|解决建议|建议修复)/.test(h)) return '修复'
+  if (/(元数据)/.test(h)) return '元数据'
+  return ''
+}
+
+/** 把分析报告四段式组织成书面评论草稿（结论先行/根因/证据日志/下一步动作/修复建议） */
+export function buildReportCommentDraft(report: string): string {
+  const s = extractReportSections(report)
+  const block = (title: string, body: string, fallback = '待补充'): string =>
+    `## ${title}\n\n${body.trim() || fallback}`
+  return [
+    block('🔍 结论', s.conclusion),
+    '',
+    block('🔬 根因', s.rootCause),
+    '',
+    block('📎 证据日志', s.evidence),
+    '',
+    block('➡️ 下一步动作', s.nextSteps),
+    '',
+    block('🛠 修复建议', s.fixSuggestions),
+  ].join('\n')
 }

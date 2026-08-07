@@ -229,6 +229,8 @@ class ActiveRun {
   private settled = false;
   private nextLogSequence = 1;
   private settleResolvers: ((s: RunSnapshot) => void)[] = [];
+  /** 单会话直跑模式：仅 1 个节点且存在编排器会话时，直接复用编排器会话执行节点（不创建子会话） */
+  private readonly singleSessionMode: boolean;
 
   constructor(
     private readonly spec: TaskSpec,
@@ -237,6 +239,7 @@ class ActiveRun {
     private readonly opts: ActiveRunOptions,
     private readonly deps: TaskRunnerDeps,
   ) {
+    this.singleSessionMode = Boolean(this.opts.orchestratorSessionId && spec.nodes.length === 1);
     this.edges = materializeDeps(spec);
     this.maxParallel = spec.max_parallel ?? deps.defaultMaxParallel ?? DEFAULT_MAX_PARALLEL;
     this.maxRepairs = Math.min(spec.max_iterations ?? DEFAULT_REPAIR_ATTEMPTS, MAX_REPAIR_ATTEMPTS_CAP);
@@ -502,6 +505,20 @@ class ActiveRun {
         return
       }
 
+      // 单会话直跑模式：单节点任务直接复用编排器会话执行（不创建子会话），
+      // 用户在看板打开的就是这个会话，执行过程直接可见；验收仍在同一会话进行。
+      if (this.singleSessionMode && this.opts.orchestratorSessionId) {
+        const orchestrator = this.opts.orchestratorSessionId;
+        st.sessionId = orchestrator;
+        this.sessionToNode.set(orchestrator, node.id);
+        this.log({ kind: 'node-spawned', nodeId: node.id, sessionId: orchestrator });
+        await this.deps.host.sendMessage(orchestrator, prompt, {
+          ...(mergedSkills.length > 0 ? { mentionedSkills: mergedSkills } : {}),
+          ...(mergedMcps.length > 0 ? { mentionedMcpServers: mergedMcps } : {}),
+        });
+        return;
+      }
+
       const options: CreateSessionOptions = {
         parentSessionId: this.opts.orchestratorSessionId,
         taskSlug: this.slug, taskRunId: this.runId, taskNodeId: node.id,
@@ -551,6 +568,11 @@ class ActiveRun {
   // --- 完成处理 ---
 
   private onSessionComplete(evt: SessionCompletionEvent): void {
+    // 单会话直跑模式：verifying 阶段的 orchestrator 完成是「验收回复」，由 verdict 监听器处理，
+    // 不在此按节点完成处理（否则会把验收回复误当成节点输出）。
+    if (this.singleSessionMode && this.runStatus === 'verifying' && evt.sessionId === this.opts.orchestratorSessionId) {
+      return;
+    }
     const nodeId = this.sessionToNode.get(evt.sessionId);
     if (!nodeId) return;
     const st = this.state.get(nodeId);

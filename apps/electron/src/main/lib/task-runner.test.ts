@@ -786,4 +786,38 @@ describe('TaskRunner', () => {
     await flushAsyncWork()
     expect(host.sentMessages.get('session-1')?.[0]).toContain('qa identity')
   })
+
+  test('单会话直跑：单节点 + orchestrator 时复用编排会话，不创建子会话', async () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    saveTaskSpec(workspaceRoot, buildSpec())
+    const host = new FakeConductorSessionHost()
+    const runner = createRunner(workspaceRoot, host, 'run-single')
+
+    runner.run('demo-task', { verifyOnComplete: false, orchestratorSessionId: 'orch-1' })
+    await flushAsyncWork()
+
+    // 不创建任何子会话；节点 prompt 直接发给编排会话
+    expect(host.createdSessions).toEqual([])
+    expect(host.sentMessages.get('orch-1')?.[0]).toContain('draft the task')
+  })
+
+  test('多节点任务仍创建子会话（DAG 编排保留）', async () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    saveTaskSpec(workspaceRoot, buildSpec({
+      nodes: [
+        { id: 'draft', kind: 'session', prompt: 'draft the task' },
+        { id: 'review', kind: 'session', prompt: 'review', depends_on: ['draft'] },
+      ],
+    }))
+    const host = new FakeConductorSessionHost()
+    const runner = createRunner(workspaceRoot, host, 'run-multi')
+
+    runner.run('demo-task', { verifyOnComplete: false, orchestratorSessionId: 'orch-1' })
+    await flushAsyncWork()
+
+    // 多节点任务不启用单会话模式：draft 先派发为子会话（parent=orchestrator）
+    expect(host.createdSessions.length).toBe(1)
+    expect(host.createdSessions[0]?.options.parentSessionId).toBe('orch-1')
+    expect(host.createdSessions[0]?.options.taskNodeId).toBe('draft')
+  })
 })

@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { Bot, CheckCircle2, FileText, Loader2, Sparkles, X, XCircle } from 'lucide-react'
 import type { BrowserTbDefectItem, BrowserTbStatusTransition, BrowserTbTaskDetail, BrowserTbWorkflow } from '@/../preload/index'
-import type { TbSkillMatch } from '@luxcoder/shared/teambition-defect'
+import { buildTbCommentDraft, type TbSkillMatch } from '@luxcoder/shared/teambition-defect'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { analyzeCompleteness } from './tb-defect-model'
@@ -54,7 +54,26 @@ export function TbDefectDetailDrawer({
   const [comment, setComment] = React.useState('')
   const [editingAnalysis, setEditingAnalysis] = React.useState(false)
   const [analysisDraft, setAnalysisDraft] = React.useState(analysis)
+  const [commentUpdating, setCommentUpdating] = React.useState(false)
+  const [commentUpdated, setCommentUpdated] = React.useState(false)
   const completeness = analyzeCompleteness(detail ?? undefined)
+
+  /** 四段式预览（结论先行 → 证据日志 → 下一步动作 → 修复建议）；无分析时为空串 */
+  const commentDraft = buildTbCommentDraft(analysis)
+
+  const updateTbComment = async (): Promise<void> => {
+    if (!onComment) return
+    setCommentUpdating(true)
+    try {
+      await onComment(commentDraft)
+      setCommentUpdated(true)
+      window.setTimeout(() => setCommentUpdated(false), 1600)
+    } catch (cause) {
+      console.error('[TbBoard] 更新 TB 评论失败:', cause)
+    } finally {
+      setCommentUpdating(false)
+    }
+  }
 
   const startEditAnalysis = (): void => {
     setAnalysisDraft(analysis)
@@ -77,7 +96,7 @@ export function TbDefectDetailDrawer({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 rounded-2xl bg-card p-4 shadow-sm ring-1 ring-border/30">
+    <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto rounded-2xl bg-card p-4 shadow-sm ring-1 ring-border/30">
       <header className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -147,12 +166,17 @@ export function TbDefectDetailDrawer({
           ))}
         </div>
 
-        {/* Skill 适配判断 */}
+        {/* Skill 适配判断（按标题判断；connect-tb-workflow 为 TB 问题必选） */}
         <div className="mt-2 space-y-1 border-t border-border/40 pt-2">
           <p className="text-[11px] font-medium text-foreground/70">Skill 适配</p>
-          {skillMatches.length === 0 ? (
-            <p className="text-[11px] leading-4 text-muted-foreground/70">暂无 Skill 适配</p>
-          ) : (
+          <div className="flex items-start gap-1.5 text-[11px] leading-4">
+            <Bot className="mt-0.5 size-3 shrink-0 text-primary" />
+            <span className="text-foreground/80">
+              <span className="font-medium">connect-TB-workflow</span>
+              <span className="ml-1 text-muted-foreground/70">TB 问题分析必选（分析 + 流转）</span>
+            </span>
+          </div>
+          {skillMatches.length === 0 ? null : (
             skillMatches.map((match) => (
               <div key={match.slug} className="flex items-start gap-1.5 text-[11px] leading-4">
                 <Bot className="mt-0.5 size-3 shrink-0 text-primary" />
@@ -166,11 +190,11 @@ export function TbDefectDetailDrawer({
         </div>
       </section>
 
-      {/* AI 预分析窗口：执行过分析后展示结果（可编辑）；未执行为空态 */}
+      {/* AI 分析预览：执行过分析后按四段式展示（结论/证据/下一步/修复）；未执行为空态 */}
       <section className="space-y-1.5 rounded-xl bg-muted/20 p-3">
         <div className="flex items-center justify-between">
           <p className="inline-flex items-center gap-1 text-xs font-medium text-foreground/70">
-            <Sparkles className="size-3.5 text-primary" /> AI 预分析
+            <Sparkles className="size-3.5 text-primary" /> AI 分析预览
           </p>
           {/* 本地 Agent 执行状态联动（与 Agent 看板执行状态实时同步） */}
           {execution && execution.status !== 'idle' && (
@@ -190,7 +214,13 @@ export function TbDefectDetailDrawer({
             </span>
           )}
           {analysis && !editingAnalysis && (
-            <Button variant="ghost" size="sm" onClick={startEditAnalysis} disabled={busy}>编辑</Button>
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" onClick={() => void updateTbComment()} disabled={busy || commentUpdating} title="把四段式分析结果作为评论更新到 TB 问题单">
+                {commentUpdated ? <CheckCircle2 className="size-3.5 text-emerald-500" /> : <FileText className="size-3.5" />}
+                {commentUpdating ? '更新中…' : commentUpdated ? '已更新' : '更新评论'}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={startEditAnalysis} disabled={busy}>编辑</Button>
+            </div>
           )}
           {editingAnalysis && (
             <div className="flex items-center gap-1">
@@ -214,7 +244,7 @@ export function TbDefectDetailDrawer({
           />
         ) : (
           <div className="whitespace-pre-wrap rounded-lg bg-background/60 px-3 py-2.5 text-[11px] leading-5 text-foreground/80">
-            {analysis}
+            {commentDraft}
           </div>
         )}
       </section>

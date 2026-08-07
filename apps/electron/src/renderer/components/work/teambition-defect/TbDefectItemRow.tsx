@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Check, ChevronDown, Loader2, MessageSquare, Pencil, Plus } from 'lucide-react'
+import { Check, ChevronDown, Folder, Loader2, MessageSquare, Pencil, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { BrowserTbDefectItem, BrowserTbWorkflow } from '@/../preload/index'
 import { isOverdue, isReopened } from './tb-defect-model'
@@ -35,6 +35,8 @@ interface TbDefectItemRowProps {
   workflow?: BrowserTbWorkflow
   currentUserId?: string
   selected?: boolean
+  /** 是否显示批量选择复选框（多选模式下显示，默认隐藏） */
+  showCheckbox?: boolean
   /** 批量选择态 */
   checked?: boolean
   onCheckChange?: (checked: boolean) => void
@@ -55,6 +57,7 @@ export function TbDefectItemRow({
   workflow,
   currentUserId,
   selected = false,
+  showCheckbox = false,
   checked = false,
   onCheckChange,
   onClick,
@@ -97,6 +100,15 @@ export function TbDefectItemRow({
             <span className={cn('inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium leading-none', typeBadge(item).className)}>
               {typeBadge(item).label}
             </span>
+            {item.projectName && (
+              <span
+                className="inline-flex shrink-0 items-center gap-0.5 rounded-md bg-foreground/[0.06] px-1.5 py-0.5 text-[10px] font-medium leading-none text-foreground/70"
+                title={`项目：${item.projectName}`}
+              >
+                <Folder className="size-2.5" />
+                <span className="max-w-[9rem] truncate">{item.projectName}</span>
+              </span>
+            )}
             <span
               className={cn(
                 'inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium leading-none',
@@ -123,7 +135,7 @@ export function TbDefectItemRow({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-0.5" onClick={(event) => event.stopPropagation()}>
-          {onCheckChange && (
+          {showCheckbox && onCheckChange && (
             <button
               type="button"
               title={alreadyInLocal ? '已加入本地看板，无法选择' : (checked ? '取消选择' : '选择（可批量加入本地任务）')}
@@ -200,6 +212,7 @@ export function TbSectionHeader({
   count,
   defaultOpen = false,
   accent,
+  hint,
   onToggle,
   open,
 }: {
@@ -207,6 +220,8 @@ export function TbSectionHeader({
   count: number
   defaultOpen?: boolean
   accent?: string
+  /** 区语义提示（如「审核·测试·SE 等」「近 3 天」） */
+  hint?: string
   onToggle: (open: boolean) => void
   open: boolean
 }): React.ReactElement {
@@ -219,6 +234,7 @@ export function TbSectionHeader({
       <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform', open && 'rotate-180')} />
       <span className={cn('size-2 rounded-full', accent ?? 'bg-foreground/30')} />
       <span>{title}</span>
+      {hint && <span className="text-[10px] font-normal text-muted-foreground/60">{hint}</span>}
       <span className="ml-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">{count}</span>
     </button>
   )
