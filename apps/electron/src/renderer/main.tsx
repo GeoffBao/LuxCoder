@@ -587,13 +587,27 @@ function AutomationInitializer(): null {
       window.electronAPI.listAutomations(workspaceScope, currentWorkspaceId ?? undefined).then(setAutomations).catch(console.error)
       window.electronAPI.listAgentSessions().then((sessions) => {
         setAgentSessions(sessions)
-        // 一次性迁移：将未发送过消息的空 draft 会话补入持久化 draft 集合
-        // （createdAt === updatedAt → 创建后从未更新过，视为空会话）
+        // 双向对账 draft 集合（防漂移，自愈历史脏数据）：
+        // 1) 补入：真空会话（未发消息、无 SDK 运行痕迹、标题仍为默认）补入 draft；
+        // 2) 移除：已真正发过消息 / 已绑定 SDK 运行 / 已重命名的会话从 draft 移除。
+        // 背景：draft 标记在 useCreateSession 创建时默认写入，正常由 AgentView handleSend
+        // 等发送路径移除；但 PlanningView 启动 Todo Agent、external run、automation 注入等
+        // 路径可能漏掉移除，导致已发消息的会话被持久化 draft 标记永久隐藏（重启也无效）。
+        // 此处以索引权威状态为准双向收敛：不用 createdAt !== updatedAt 判定（历史空会话
+        // 的 updatedAt 可能被 touch，仅凭时间差会误移出 draft），改用 messageCount/sdkSessionId/
+        // piSessionFile/title 等“确已发消息”信号。
         setDraftSessionIds((prev) => {
           const next = new Set(prev)
           let changed = false
+          const isActiveSession = (s: { messageCount?: number; sdkSessionId?: string; piSessionFile?: string; title?: string }): boolean =>
+            (s.messageCount ?? 0) > 0 || !!s.sdkSessionId || !!s.piSessionFile || s.title !== '新 Agent 会话'
           for (const s of sessions) {
-            if (s.createdAt === s.updatedAt && s.title === '新 Agent 会话' && !next.has(s.id)) {
+            if (isActiveSession(s)) {
+              if (next.has(s.id)) {
+                next.delete(s.id)
+                changed = true
+              }
+            } else if (!next.has(s.id)) {
               next.add(s.id)
               changed = true
             }
