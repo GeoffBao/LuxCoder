@@ -16,7 +16,7 @@ import type {
   ThemeStyle,
   ThemeVariant,
 } from '../../types'
-// Craft 预设通过下方 re-export 暴露给设置页。
+// Craft 预设通过下方 re-export 暴露给设置页；同时本文件内部也要用 getCraftThemePack 做存量迁移。
 import {
   DEFAULT_CHROME_THEMES,
   DEFAULT_INTERFACE_VARIANT,
@@ -24,6 +24,7 @@ import {
   DEFAULT_THEME_MODE as DEFAULT_MODE,
   THEME_STYLES,
 } from '../../types'
+import { getCraftThemePack } from './theme.seed'
 
 export type { ChromeTheme, ThemeCanvas, ThemeFonts, ThemePack, ThemeSemanticColors, ThemeState, ThemeSurfaces, ThemeVariant }
 export type { CraftThemePreset } from './theme.seed'
@@ -205,7 +206,14 @@ function normalizeCanvas(value: unknown, fallback: ThemeCanvas, surface: string)
     mode,
     backgroundImage,
     backgroundAlpha: normalizeUnit(canvas.backgroundAlpha, fallback.backgroundAlpha ?? (mode === 'scenic' ? 0.4 : 1)),
+    backgroundOverlayColor: normalizeOptionalCssColor(canvas.backgroundOverlayColor, fallback.backgroundOverlayColor),
   }
+}
+
+/** 与 normalizeCssColor 相同的校验，但缺失时返回 undefined 而非强制回退值。 */
+function normalizeOptionalCssColor(value: unknown, fallback: string | undefined): string | undefined {
+  const normalized = typeof value === 'string' ? value.trim() : ''
+  return normalized && normalized.length <= 120 && CSS_COLOR_RE.test(normalized) ? normalized : fallback
 }
 
 function normalizeSurfaces(value: unknown, fallback: string): ThemeSurfaces | undefined {
@@ -237,26 +245,22 @@ export function normalizeChromeTheme(value: unknown, variant: ThemeVariant): Chr
   const surface = normalizeHex(theme.surface, fallback.surface)
   const canvas = normalizeCanvas(theme.canvas, fallback.canvas, surface)
   const surfaces = normalizeSurfaces(theme.surfaces, surface)
-  // 第九轮曾把 Haze 持久化为 0.62/0.72 的较厚表面；读取存量配置时同步到
-  // Craft Scenic 的 55% background，避免用户必须再次点击预设才能看到修复后的效果。
+  // Haze 的调色板会持续演进（如本轮从冷黑改暖褐玻璃）；读取存量持久化配置时始终同步到
+  // getCraftThemePack('haze', 'dark') 的当前权威值，避免用户必须再次点击预设才能看到更新。
   const isPersistedHaze = canvas.mode === 'scenic' && canvas.backgroundImage?.includes('theme-haze-scenic')
-  const migratedSurfaces = isPersistedHaze
-    ? {
-        ...surfaces,
-        paper: 'rgba(25, 25, 29, 0.55)',
-        navigator: 'rgba(12, 12, 16, 0.55)',
-      }
-    : surfaces
+  const hazeCanonical = isPersistedHaze ? getCraftThemePack('haze', 'dark')?.theme : undefined
   return {
-    accent: normalizeHex(theme.accent, fallback.accent),
+    accent: hazeCanonical?.accent ?? normalizeHex(theme.accent, fallback.accent),
     contrast: normalizeNumber(theme.contrast, fallback.contrast),
     fonts: normalizeFonts(theme.fonts, fallback.fonts),
-    ink: normalizeHex(theme.ink, fallback.ink),
+    ink: hazeCanonical?.ink ?? normalizeHex(theme.ink, fallback.ink),
     opaqueWindows: typeof theme.opaqueWindows === 'boolean' ? theme.opaqueWindows : fallback.opaqueWindows,
     semanticColors: normalizeSemantics(theme.semanticColors, fallback.semanticColors),
-    surface,
-    surfaces: migratedSurfaces,
-    canvas,
+    surface: hazeCanonical?.surface ?? surface,
+    surfaces: hazeCanonical?.surfaces ?? surfaces,
+    canvas: hazeCanonical
+      ? { ...canvas, background: hazeCanonical.canvas.background, backgroundOverlayColor: hazeCanonical.canvas.backgroundOverlayColor }
+      : canvas,
   }
 }
 
@@ -394,7 +398,7 @@ export function buildThemeCssVariables(
     ? 'transparent'
     : `linear-gradient(135deg, hsl(${rgbToHsl(hexToRgb(theme.canvas.shellFrom))}) 0%, hsl(${rgbToHsl(hexToRgb(theme.canvas.shellTo))}) 100%)`
   const backgroundOverlay = scenic
-    ? `rgba(0, 0, 0, ${theme.canvas.backgroundAlpha ?? 0.4})`
+    ? theme.canvas.backgroundOverlayColor ?? `rgba(0, 0, 0, ${theme.canvas.backgroundAlpha ?? 0.4})`
     : 'transparent'
   // Craft Scenic 的面板毛玻璃是 8px；普通 translucent surface 保持原有 16px，避免 Haze
   // 把低对比的雾景进一步糊成一整块灰色。

@@ -1073,6 +1073,14 @@ html.theme-custom body {
   backdrop-filter: var(--app-sidebar-backdrop-filter, none);
 }
 
+/* Markdown 链接默认无自定义色，会退化成浏览器原生蓝/紫，与 Scenic 暖色玻璃背景冲突；
+   统一走主题 accent（Haze 为暖琥珀）。当前只有 Haze 是 Scenic，不影响其他主题。 */
+.theme-scenic .message-response a,
+.theme-scenic .message-response a:visited {
+  color: hsl(var(--accent));
+  text-decoration-color: hsl(var(--accent) / 0.5);
+}
+
 :root:not(.ui-classic) .refined-sidebar {
   background: var(--app-navigator-background, hsl(var(--sidebar-surface) / 0.94));
   box-shadow: inset -1px 0 0 hsl(var(--foreground) / 0.045);
