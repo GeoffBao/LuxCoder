@@ -60,6 +60,7 @@ import {
 } from '@/atoms/notifications'
 import { appModeAtom } from '@/atoms/app-mode'
 import { tabsAtom, activeTabIdAtom, openTab, updateTabTitle } from '@/atoms/tab-atoms'
+import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
 import type { AgentStreamState } from '@/atoms/agent-atoms'
 import { agentDiffUnseenChangesAtom, agentDiffUnseenFilesAtom } from '@/atoms/agent-atoms'
 import { channelsAtom } from '@/atoms/chat-atoms'
@@ -536,6 +537,14 @@ export function useGlobalAgentListeners(): void {
           updatedAt: event.startedAt,
         }
         store.set(agentSessionsAtom, (prev) => upsertAgentSession(prev, upserted))
+        // 外部 run 已真正开始（有消息进入）——该会话不再是空 draft，移除 draft 标记
+        // （避免漏掉移除导致会话被侧边栏 draft 过滤永久隐藏）。
+        store.set(draftSessionIdsAtom, (prev) => {
+          if (!prev.has(event.sessionId)) return prev
+          const next = new Set(prev)
+          next.delete(event.sessionId)
+          return next
+        })
         const activationModelId = activation.modelId
         if (activationModelId) {
           store.set(agentSessionModelMapAtom, (prev) => {
@@ -1206,6 +1215,14 @@ export function useGlobalAgentListeners(): void {
         // 同时将所有未完成的工具活动标记为已完成，防止 subagent spinner 继续转动
         // （complete 事件只清除 retrying，保持 running: true 以防竞态）
         // 竞态保护：通过 startedAt 区分新旧流，防止旧流的 complete 事件重置新流的 running 状态
+        // 注意：此会话已真正发送并完成了至少一轮消息，若仍残留 draft 标记（例如由非
+        // AgentView 路径启动的 run），这里兜底移除，避免被侧边栏 draft 过滤隐藏。
+        store.set(draftSessionIdsAtom, (prev) => {
+          if (!prev.has(data.sessionId)) return prev
+          const next = new Set(prev)
+          next.delete(data.sessionId)
+          return next
+        })
         store.set(agentStreamingStatesAtom, (prev) => {
           const current = prev.get(data.sessionId)
           // 既非运行中、也非软空闲态 → 已彻底结束，忽略重复/陈旧的完成事件。
