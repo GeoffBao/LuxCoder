@@ -1,5 +1,8 @@
 /**
- * ModeSwitcher - Home/Code 双模式切换（带滑动指示器）
+ * ModeSwitcher - Project/Chat 双模式切换（带滑动指示器）
+ *
+ * 左边 Project（agent）：Agent 深度工作，承载工作区 / 项目 / 看板
+ * 右边 Chat（chat）：轻量对话，多 Provider 问答与写作
  *
  * 切换模式时自动恢复上一次在该模式下查看的对话/会话：
  * 1. 优先恢复上次选中的对话 ID
@@ -18,12 +21,12 @@ import { agentSessionsAtom, currentAgentSessionIdAtom } from '@/atoms/agent-atom
 import { tabsAtom } from '@/atoms/tab-atoms'
 import { useOpenSession } from '@/hooks/useOpenSession'
 import { normalizeAppModeForUi } from '@/components/app-shell/code-main-view-model'
-import { Code2, House } from 'lucide-react'
+import { FolderKanban, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const modes: { value: 'chat' | 'agent'; label: string; icon: React.ReactNode }[] = [
-  { value: 'chat', label: 'Home', icon: <House size={15} /> },
-  { value: 'agent', label: 'Code', icon: <Code2 size={15} /> },
+  { value: 'agent', label: 'Project', icon: <FolderKanban size={15} /> },
+  { value: 'chat', label: 'Chat', icon: <MessageSquare size={15} /> },
 ]
 
 const SLIDER_TRANSLATE = ['translate-x-0', 'translate-x-full'] as const

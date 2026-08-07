@@ -2990,7 +2990,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         <TabNavigationControls className="h-7 gap-0" />
       </div>
 
-      {/* 模式切换器：Home | Code（ModeSwitcher 自带 pt-2 + 拖拽区，这里只补水平内边距） */}
+      {/* 模式切换器：Project | Chat（ModeSwitcher 自带 pt-2 + 拖拽区，这里只补水平内边距） */}
       <div className="px-3">
         <ModeSwitcher />
       </div>
