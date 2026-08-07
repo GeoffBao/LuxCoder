@@ -52,7 +52,7 @@ export interface ProjectConfig {
   /**
    * Project 归属类型；缺省（undefined）等价于 'project'，即用户创建的普通项目。
    * 'home' / 'ad-hoc' 是每个 Workspace 自动维护的单例隐藏 Project，不可删除/重命名，
-   * 承载 Home 模式对话与未绑定真实 Project 的临时 Code 会话。
+   * 承载 Chat 模式对话与未绑定真实 Project 的临时 Project 会话。
    */
   kind?: 'project' | 'home' | 'ad-hoc';
   /** 项目自定义看板列；未设置时用全局默认列（列即状态） */

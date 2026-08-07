@@ -2584,7 +2584,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             <TooltipTrigger asChild>
               <button
                 type="button"
-                aria-label="切换到 Home 模式"
+                aria-label="切换到 Chat 模式"
                 onClick={() => handleRailModeSwitch('chat')}
                 className={cn(
                   'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag',
@@ -2596,13 +2596,13 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                 <House size={17} />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="right">Home 模式</TooltipContent>
+            <TooltipContent side="right">Chat 模式</TooltipContent>
           </Tooltip>
 
           <CollapsedWorkspacePopover>
             <button
               type="button"
-              aria-label="切换到 Code 模式（悬停查看空间）"
+              aria-label="切换到 Project 模式（悬停查看空间）"
               onClick={() => handleRailModeSwitch('agent')}
               className={cn(
                 'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag',

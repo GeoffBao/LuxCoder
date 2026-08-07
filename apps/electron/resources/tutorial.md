@@ -14,32 +14,32 @@ LuxCoder 是一个本地优先的 AI 工作台，面向研发、产品、测试�
 
 | 模式 | 核心定位 | 典型场景 |
 |------|----------|----------|
-| **Home** | 思考、阅读、分析和表达 | 问答、翻译、写作、附件阅读、多模型比较、方案讨论、轻量技术问题 |
-| **Code** | 执行、交付和持续推进 | 读写文件、运行命令、浏览器/MCP、项目上下文、任务编排、自动化、代码与文档产出 |
+| **Chat** | 思考、阅读、分析和表达 | 问答、翻译、写作、附件阅读、多模型比较、方案讨论、轻量技术问题 |
+| **Project** | 执行、交付和持续推进 | 读写文件、运行命令、浏览器/MCP、项目上下文、任务编排、自动化、代码与文档产出 |
 
-### Home 还是 Code？
+### Chat 还是 Project？
 
 不要按“是否是程序员”来区分，而要看任务是否需要接触本地环境和持续执行：
 
 | 需求 | 推荐模式 |
 |------|----------|
-| 问答、解释、翻译、头脑风暴 | Home |
-| 阅读附件并总结、改写或比较回答 | Home |
-| 只做研究和分析，不保存本地产物 | 通常 Home |
-| 讨论代码方案，但暂时不打开工程 | Home |
-| 读取或修改本地文件 | Code |
-| 运行 Shell、Git、构建或测试 | Code |
-| 绑定 Workspace / Project | Code |
-| 调用浏览器、MCP 或外部工具并持续操作 | Code |
-| 生成并保存可复查的项目文件 | Code |
-| 使用 Project 看板、正式 Task、Automation 或协作子会话 | Code |
-| 研究后生成报告、保存资料并持续迭代 | Code |
+| 问答、解释、翻译、头脑风暴 | Chat |
+| 阅读附件并总结、改写或比较回答 | Chat |
+| 只做研究和分析，不保存本地产物 | 通常 Chat |
+| 讨论代码方案，但暂时不打开工程 | Chat |
+| 读取或修改本地文件 | Project |
+| 运行 Shell、Git、构建或测试 | Project |
+| 绑定 Workspace / Project | Project |
+| 调用浏览器、MCP 或外部工具并持续操作 | Project |
+| 生成并保存可复查的项目文件 | Project |
+| 使用 Project 看板、正式 Task、Automation 或协作子会话 | Project |
+| 研究后生成报告、保存资料并持续迭代 | Project |
 
-一句话：**Home 是默认的思考与表达入口；Code 是可执行、可追踪、可交付的工作入口。Code 不限于写代码，办公和知识工作同样可以使用 Code。**
+一句话：**Chat 是默认的思考与表达入口；Project 是可执行、可追踪、可交付的工作入口。Project 不限于写代码，办公和知识工作同样可以使用 Project。**
 
-![Code 模式界面](https://github.com/GeoffBao/LuxCoder/releases/download/tutorial-assets/code-mode-empty-state.png)
+![Project 模式界面](https://github.com/GeoffBao/LuxCoder/releases/download/tutorial-assets/code-mode-empty-state.png)
 
-Project 看板和 Task 不再是独立顶层模式，而是 Code 内的工作区域。进入 Code 后，可以在会话、项目和 Project 看板之间切换。
+Project 看板和 Task 不再是独立顶层模式，而是 Project 内的工作区域。进入 Project 后，可以在会话、项目和 Project 看板之间切换。
 
 ---
 
@@ -55,26 +55,26 @@ Project 看板和 Task 不再是独立顶层模式，而是 Code 内的工作区
 - **ChatGPT 订阅登录**：通过 Codex OAuth 使用支持的 ChatGPT 订阅能力；
 - **Claude Pro / Max 订阅登录**：通过浏览器授权使用 Claude 订阅能力。
 
-订阅登录渠道当前主要用于 Code。API Key 渠道能否在 Home 使用，取决于协议、模型和渠道配置；如果某个渠道不支持 Home，界面会提示切换到 Code。
+订阅登录渠道当前主要用于 Project。API Key 渠道能否在 Chat 使用，取决于协议、模型和渠道配置；如果某个渠道不支持 Chat，界面会提示切换到 Project。
 
 ### 第二步：选择工作模式
 
-- 想讨论、阅读、分析、写作或比较多个模型：选择 **Home**；
-- 想修改文件、运行命令、绑定工程、生成文件或执行多步骤工作：选择 **Code**。
+- 想讨论、阅读、分析、写作或比较多个模型：选择 **Chat**；
+- 想修改文件、运行命令、绑定工程、生成文件或执行多步骤工作：选择 **Project**。
 
-如果 Home 判断当前请求需要工具执行，可能会显示“切换到 Code”建议。迁移会保留原对话历史，把建议提示预填到 Code 输入区，**不会未经确认自动继续执行**。
+如果 Chat 判断当前请求需要工具执行，可能会显示“切换到 Project”建议。迁移会保留原对话历史，把建议提示预填到 Project 输入区，**不会未经确认自动继续执行**。
 
 ### 第三步：确认 Workspace
 
 Workspace 是 LuxCoder 的隔离与能力容器，管理会话、Projects、Skills、MCP、Yoda 记忆、附加资料和自动任务。
 
-默认用户通常只需要一个 Workspace。创建、重命名、切换或删除多工作区，请打开 **设置 → 连接与数据 → 工作区**。Code 折叠侧栏的 Code 图标也可能提供快速切换入口，但 Workspace 的正式管理入口是设置页。
+默认用户通常只需要一个 Workspace。创建、重命名、切换或删除多工作区，请打开 **设置 → 连接与数据 → 工作区**。Project 折叠侧栏的 Project 图标也可能提供快速切换入口，但 Workspace 的正式管理入口是设置页。
 
 Workspace 不等于某个代码仓库，也不等于某个 Project。一个 Workspace 可以包含多个 Project、多个会话和多种共享能力。
 
 ### 第四步：为工程或业务创建 Project
 
-进入 Code，在左栏切换到“项目”投影或从项目入口创建 Project。Project 通常对应一个代码仓库、一个业务工作流或一个长期资料集合。
+进入 Project，在左栏切换到“项目”投影或从项目入口创建 Project。Project 通常对应一个代码仓库、一个业务工作流或一个长期资料集合。
 
 Project 可以配置：
 
@@ -104,7 +104,7 @@ Project 可以配置：
 | **模型** | 渠道下可用的具体模型 |
 | **Agent Runtime** | 负责工具调用、文件操作、会话恢复和流式执行的运行内核 |
 
-Code 当前默认使用 **Pi Agent Runtime**。Pi 可以使用已启用的多种模型渠道，不要求渠道必须采用 Anthropic 协议。
+Project 当前默认使用 **Pi Agent Runtime**。Pi 可以使用已启用的多种模型渠道，不要求渠道必须采用 Anthropic 协议。
 
 Claude Pro / Max 订阅渠道是特殊情况：应用会透明使用与订阅凭据兼容的 Claude Runtime。一般用户不需要手动管理 Runtime，只需选择可用渠道和模型。
 
@@ -121,14 +121,14 @@ Claude Pro / Max 订阅渠道是特殊情况：应用会透明使用与订阅凭
 
 ## 4. Workspace、Project 与目录模型
 
-这是使用 Code 时最重要的心智模型。
+这是使用 Project 时最重要的心智模型。
 
 ### Workspace
 
 Workspace 是顶层隔离容器，负责：
 
-- Home / Code 共享的能力配置；
-- Code 会话和未归类会话；
+- Chat / Project 共享的能力配置；
+- Project 会话和未归类会话；
 - Skills、MCP、专家绑定和标签；
 - Yoda 记忆（Workspace `CLAUDE.md` 与 auto-memory）；
 - Projects、Tasks、Automation 和 Workspace Files；
@@ -150,7 +150,7 @@ Project 不复制 Workspace 的 Skills/MCP。它引用 Workspace 能力，并在
 
 ### Session cwd
 
-每个 Code 会话都有自己的隔离目录，作为临时工作台和会话 cwd。它不是你的代码仓库。
+每个 Project 会话都有自己的隔离目录，作为临时工作台和会话 cwd。它不是你的代码仓库。
 
 当会话绑定 Project 时，LuxCoder 会把 Project 的有效工作目录明确注入上下文，告诉 Agent 应在哪里读代码、改文件和运行命令，同时保留会话目录存放 `.context/` 等临时资料。
 
@@ -189,17 +189,17 @@ Project 不复制 Workspace 的 Skills/MCP。它引用 Workspace 能力，并在
 | 某个 Project 的架构、命令、技术决策 | Project → 知识 |
 | Project 的参考规范、样例和必要设计资料 | Project → 资料 / `assets/` |
 | 真实代码和工程文件 | Project `workingDirectory` |
-| Workspace 级手绘画布 | Home → Excalidraw 画板 |
+| Workspace 级手绘画布 | Chat → Excalidraw 画板 |
 
 不要把临时过程、项目专属事实和可复用 SOP 全部写进同一份记忆。它们分别属于 Session Context、Project Knowledge、Yoda 记忆或 Yoda 插件中的 Skill。
 
 ---
 
-## 5. Home 模式
+## 5. Chat 模式
 
-![Home 模式界面](https://github.com/GeoffBao/LuxCoder/releases/download/tutorial-assets/chat-mode-empty-state.png)
+![Chat 模式界面](https://github.com/GeoffBao/LuxCoder/releases/download/tutorial-assets/chat-mode-empty-state.png)
 
-Home 面向日常工作、知识处理和轻量创作。它默认不要求绑定本地工程，也不会因为一次普通问答就修改你的代码仓库。
+Chat 面向日常工作、知识处理和轻量创作。它默认不要求绑定本地工程，也不会因为一次普通问答就修改你的代码仓库。
 
 ### 主要能力
 
@@ -208,12 +208,12 @@ Home 面向日常工作、知识处理和轻量创作。它默认不要求绑定
 - 图片、PDF、Office、代码和文本附件；
 - Markdown、Mermaid、KaTeX 和代码高亮；
 - 思考模式与上下文长度控制；
-- Home 提示词管理；
-- 已配置的 Home/API 工具；
+- Chat 提示词管理；
+- 已配置的 Chat/API 工具；
 - 清空上下文或插入上下文分割；
-- 将对话迁移到 Code 继续执行。
+- 将对话迁移到 Project 继续执行。
 
-### 适合 Home 的例子
+### 适合 Chat 的例子
 
 - 阅读一份合同、论文或会议纪要并总结；
 - 翻译、改写、润色和写作；
@@ -222,13 +222,13 @@ Home 面向日常工作、知识处理和轻量创作。它默认不要求绑定
 - 对一个问题做研究并直接在对话中得到结论；
 - 处理不需要写回本地文件的轻量技术问题。
 
-如果任务开始需要保存报告、批量修改文件、调用浏览器、运行命令或持续维护，就切换到 Code。
+如果任务开始需要保存报告、批量修改文件、调用浏览器、运行命令或持续维护，就切换到 Project。
 
 ---
 
-## 6. Code 模式
+## 6. Project 模式
 
-Code 是可执行、可追踪的 Agent 工作台，不限于程序员写代码。它适合任何需要工作区、文件、工具或长流程的任务。
+Project 是可执行、可追踪的 Agent 工作台，不限于程序员写代码。它适合任何需要工作区、文件、工具或长流程的任务。
 
 ### 主要能力
 
@@ -242,7 +242,7 @@ Code 是可执行、可追踪的 Agent 工作台，不限于程序员写代码�
 - Project 看板、正式 Task、Automation；
 - 研究后生成报告、整理资料或交付项目文件。
 
-### 非编程场景也可以使用 Code
+### 非编程场景也可以使用 Project
 
 - 批量整理本地会议资料并生成报告；
 - 浏览网页、收集资料并保存为项目文档；
@@ -263,7 +263,7 @@ Code 是可执行、可追踪的 Agent 工作台，不限于程序员写代码�
 
 ### 权限模式
 
-普通 Code 会话提供两种主要模式：
+普通 Project 会话提供两种主要模式：
 
 | 模式 | 行为 |
 |------|------|
@@ -292,7 +292,7 @@ Code 是可执行、可追踪的 Agent 工作台，不限于程序员写代码�
 打开 Project 后，可以看到：
 
 - **概览**：项目描述、工作目录和基本信息；
-- **会话**：属于该 Project 的 Code 会话；
+- **会话**：属于该 Project 的 Project 会话；
 - **知识**：Project Knowledge，保存工程架构、命令、技术决策和注意事项；
 - **资料**：Project assets 和参考文件；
 - **设置**：Project 工作目录、颜色、描述和默认专家等配置。
@@ -301,18 +301,18 @@ Project 页的“查看任务”会回到唯一的 Project 看板，并自动带
 
 ### 右侧 Files 面板
 
-Code 会话的右侧面板按当前 Session 展示两类主要文件来源：
+Project 会话的右侧面板按当前 Session 展示两类主要文件来源：
 
 - **会话文件**：会话隔离目录中的临时文件；
 - **项目文件**：当前会话绑定的 Project 工作目录或 worktree；未绑定 Project 时不会把 Workspace Files 冒充为项目文件。
 
 面板还保留 Workspace 附加目录/文件作为辅助访问入口，并支持文件预览、引用到输入框和代码改动 Diff。需要浏览当前 Workspace Files 时，应使用输入框的 `@` 选择器；它与右侧 Files 的“项目文件”不是同一个来源。
 
-当前右侧面板是 Code 会话的文件面板，不是 Excalidraw 画布面板。Project 工作目录可能是外部目录，也可能是 LuxCoder 为 Project 创建的托管目录。
+当前右侧面板是 Project 会话的文件面板，不是 Excalidraw 画布面板。Project 工作目录可能是外部目录，也可能是 LuxCoder 为 Project 创建的托管目录。
 
 ### Excalidraw 画板
 
-Home 左栏的 **Excalidraw 画板**用于创建、编辑、重命名、删除和导出手绘画布，支持自动保存和 Cmd/Ctrl+S 手动保存。
+Chat 左栏的 **Excalidraw 画板**用于创建、编辑、重命名、删除和导出手绘画布，支持自动保存和 Cmd/Ctrl+S 手动保存。
 
 当前画布按 **Workspace** 存储在 `excalidraw/`，还没有 Project 归属字段。因此它是 Workspace 级创作资产：可以在同一 Workspace 中使用，但不会自动出现在某个 Project 的右侧 Files 面板或 Project → 资料中。需要让某个项目使用画布时，可以导出后放入 Project assets，或在项目资料中保存引用。
 
@@ -322,7 +322,7 @@ Home 左栏的 **Excalidraw 画板**用于创建、编辑、重命名、删除�
 
 ## 8. Project 看板与 Task
 
-进入 Code 后打开 **Project 看板**。看板负责展示正式 Task，并按 Project、Workspace、状态和标签筛选。
+进入 Project 后打开 **Project 看板**。看板负责展示正式 Task，并按 Project、Workspace、状态和标签筛选。
 
 ### Workspace、Project 与 Task 的关系
 
@@ -407,13 +407,13 @@ LuxCoder collaboration 子会话：
 
 ## 11. Yoda 插件：专家、Skills、MCP 与 API
 
-打开 **设置 → 模型与工具 → Yoda 插件**。Yoda 插件是 Home 与 Code 共享的能力配置中心，不是某个单独模型，也不等于一个额外的 Agent 会话。
+打开 **设置 → 模型与工具 → Yoda 插件**。Yoda 插件是 Chat 与 Project 共享的能力配置中心，不是某个单独模型，也不等于一个额外的 Agent 会话。
 
 ### 专家
 
 专家是角色、身份和工作原则的组合。内置方向包括通用软件、驱动、应用、系统、通信、交付管理、架构、测试和代码审查等。
 
-Project 可以设置默认专家，Task 也可以单独选择专家。当前专家注入和 Skills/MCP 合并最明确的使用路径是 Project Task / TaskRunner；普通 Code 会话不要假设一定自动绑定了 Project 专家，应在任务或会话中明确说明需要的角色。
+Project 可以设置默认专家，Task 也可以单独选择专家。当前专家注入和 Skills/MCP 合并最明确的使用路径是 Project Task / TaskRunner；普通 Project 会话不要假设一定自动绑定了 Project 专家，应在任务或会话中明确说明需要的角色。
 
 ### Skills
 
@@ -467,11 +467,11 @@ Brave Search 是独立的 MCP Server，不等同于应用内 Tavily 联网搜索
 - 用户画像和跨会话稳定经验；
 - Workspace 默认工作目录。
 
-Yoda 记忆适合保存跨 Home/Code、跨 Project 都成立的规则、偏好、能力约束和稳定经验。它不应变成所有项目过程的流水账。
+Yoda 记忆适合保存跨 Chat/Project、跨 Project 都成立的规则、偏好、能力约束和稳定经验。它不应变成所有项目过程的流水账。
 
 ### Project Knowledge
 
-打开 **Code → Project → 知识**。它保存在 `projects/{project}/MEMORY.md`，适合记录：
+打开 **Project → Project → 知识**。它保存在 `projects/{project}/MEMORY.md`，适合记录：
 
 - 当前工程架构；
 - 常用命令；
@@ -495,7 +495,7 @@ Yoda 记忆适合保存跨 Home/Code、跨 Project 都成立的规则、偏好�
 
 ## 13. Yoda 知识库（Preview）
 
-Home 左栏的 **Yoda 知识库**是 Workspace 级知识库入口，设计目标是聚合 Home 与 Code 产出的计划、规范、Project Knowledge 和其他知识产物，供未来跨 Project 检索。
+Chat 左栏的 **Yoda 知识库**是 Workspace 级知识库入口，设计目标是聚合 Chat 与 Project 产出的计划、规范、Project Knowledge 和其他知识产物，供未来跨 Project 检索。
 
 **当前版本仍是占位/规划页面，不提供真正的索引、搜索或 Agent 查询能力。** 当前尚未实现：
 
@@ -538,7 +538,7 @@ Home 左栏的 **Yoda 知识库**是 Workspace 级知识库入口，设计目标
 - 现在就能完成且不会重复的任务；
 - 高风险发布、付款或不可逆操作，除非边界已经明确授权。
 
-你可以打开 Code 左栏的 **Task 日历**，也可以直接告诉 Code Agent：“把刚才的流程改成每周一上午自动执行”。
+你可以打开 Project 左栏的 **Task 日历**，也可以直接告诉 Project Agent：“把刚才的流程改成每周一上午自动执行”。
 
 ---
 
@@ -553,7 +553,7 @@ Home 左栏的 **Yoda 知识库**是 Workspace 级知识库入口，设计目标
 | **模型配置** | API 渠道、订阅登录、模型管理 |
 | **Yoda 插件** | 专家、专家团、Skills、MCP、API/增强工具 |
 | **Yoda 记忆** | Workspace `CLAUDE.md`、auto-memory 和默认工作目录 |
-| **提示词管理** | Home 提示词配置 |
+| **提示词管理** | Chat 提示词配置 |
 | **语音输入** | 语音输入配置 |
 | **代理设置** | 网络代理 |
 | **工作区** | Workspace 创建、切换、重命名和删除 |
@@ -570,10 +570,10 @@ Home 左栏的 **Yoda 知识库**是 Workspace 级知识库入口，设计目标
 
 ### 先按环境边界选择模式
 
-- 先在 Home 讨论、阅读和形成结论；
-- 需要本地文件、工具、Project 或可保存产物时进入 Code；
-- 程序员可以先在 Home 讨论方案，再迁移到 Code 实施；
-- 产品、运营、研究和管理用户也可以在 Code 中处理资料、报告和长期工作流。
+- 先在 Chat 讨论、阅读和形成结论；
+- 需要本地文件、工具、Project 或可保存产物时进入 Project；
+- 程序员可以先在 Chat 讨论方案，再迁移到 Project 实施；
+- 产品、运营、研究和管理用户也可以在 Project 中处理资料、报告和长期工作流。
 
 ### 给任务明确边界
 
@@ -624,11 +624,11 @@ Home 左栏的 **Yoda 知识库**是 Workspace 级知识库入口，设计目标
 
 ## 17. 常见问题排查
 
-### Home 和 Code 的区别是什么？
+### Chat 和 Project 的区别是什么？
 
-Home 适合思考、阅读、分析和表达；Code 适合接触工作区、文件、工具和持续执行。两者不是“非程序员 vs 程序员”的区别。需要保存本地结果、修改文件或运行命令时，优先选择 Code。
+Chat 适合思考、阅读、分析和表达；Project 适合接触工作区、文件、工具和持续执行。两者不是“非程序员 vs 程序员”的区别。需要保存本地结果、修改文件或运行命令时，优先选择 Project。
 
-### Code 找不到项目代码
+### Project 找不到项目代码
 
 检查会话是否绑定 Project，以及 Project 的 `workingDirectory` 是否正确。会话 cwd 是隔离工作台，不是代码仓库。还要在右侧 Files 面板确认当前查看的是“项目文件”，而不是“会话文件”。
 
@@ -638,7 +638,7 @@ Home 适合思考、阅读、分析和表达；Code 适合接触工作区、文�
 
 ### Project Knowledge 和 Yoda 记忆有什么区别？
 
-Project Knowledge 保存单个 Project 的工程事实；Yoda 记忆保存跨 Home/Code、跨 Project 的稳定规则和用户偏好。不要把所有项目内容都写进 Workspace 级 Yoda 记忆。
+Project Knowledge 保存单个 Project 的工程事实；Yoda 记忆保存跨 Chat/Project、跨 Project 的稳定规则和用户偏好。不要把所有项目内容都写进 Workspace 级 Yoda 记忆。
 
 ### Yoda 知识库为什么没有搜索？
 
@@ -650,7 +650,7 @@ Yoda 插件 → API 中的应用内联网搜索使用 Tavily Key。Brave Search 
 
 ### Agent 专家什么时候生效？
 
-Project 可以设置默认专家，正式 Project Task 也可以单独选择专家。当前专家、Skills 和 MCP 的注入路径在 TaskRunner 中最明确；普通 Code 会话如需特定专家，应在任务中明确说明。
+Project 可以设置默认专家，正式 Project Task 也可以单独选择专家。当前专家、Skills 和 MCP 的注入路径在 TaskRunner 中最明确；普通 Project 会话如需特定专家，应在任务中明确说明。
 
 ### 画布为什么不在 Project 文件面板里？
 
@@ -669,7 +669,7 @@ Project 可以设置默认专家，正式 Project Task 也可以单独选择专�
 
 ### Agent 工具或 MCP 不可用
 
-在 **设置 → Yoda 插件 → MCP** 中确认已启用，并检查外部命令、Node、npx、API Key 或服务地址是否可用。修改后重新发起一轮 Code 请求；如果外部 MCP 进程或环境仍未刷新，再尝试新建会话或重启应用。
+在 **设置 → Yoda 插件 → MCP** 中确认已启用，并检查外部命令、Node、npx、API Key 或服务地址是否可用。修改后重新发起一轮 Project 请求；如果外部 MCP 进程或环境仍未刷新，再尝试新建会话或重启应用。
 
 ### 自动任务没有运行
 
@@ -685,6 +685,6 @@ Project 可以设置默认专家，正式 Project Task 也可以单独选择专�
 
 ---
 
-如有疑问，可以直接在 Code 中问：
+如有疑问，可以直接在 Project 中问：
 
-> 请根据当前 LuxCoder 功能告诉我应该用 Home、Code、Project Task、collaboration 还是 Automation，并说明原因。
+> 请根据当前 LuxCoder 功能告诉我应该用 Chat、Project、Project Task、collaboration 还是 Automation，并说明原因。

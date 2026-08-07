@@ -1,8 +1,8 @@
 /**
- * MigrateToAgentButton — 切换到 Code 模式按钮
+ * MigrateToAgentButton — 切换到 Project 模式按钮
  *
  * 常驻在助手消息 Action Bar 中，点击后：
- * 1. 创建 Agent 会话（绑定默认工作区）
+ * 1. 创建 Agent 会话（绑定当前空间）
  * 2. 迁移当前 Chat 对话历史到新 Agent 会话
  * 3. 打开 Agent 会话 Tab 并自动激活
  * 4. 通过 Sonner 通知用户已完成切换
@@ -46,13 +46,14 @@ export function MigrateToAgentButton({ conversationId }: MigrateToAgentButtonPro
     setMigrating(true)
     try {
       const workspaces = store.get(agentWorkspacesAtom)
-      const defaultWorkspaceId = workspaces[0]?.id ?? null
+      // 优先使用用户当前所在的空间，避免迁移后跳去列表第一个空间（workspaces[0]）
+      const targetWorkspaceId = store.get(currentAgentWorkspaceIdAtom) ?? workspaces[0]?.id ?? null
 
       // 1. 创建 Agent 会话
       const session = await window.electronAPI.createAgentSession(
         undefined,
         agentChannelId,
-        defaultWorkspaceId ?? undefined,
+        targetWorkspaceId ?? undefined,
         store.get(agentModelIdAtom) || undefined,
       )
 
@@ -63,15 +64,15 @@ export function MigrateToAgentButton({ conversationId }: MigrateToAgentButtonPro
       const sessions = await window.electronAPI.listAgentSessions()
       store.set(agentSessionsAtom, sessions)
 
-      // 4. 切换到默认工作区
-      if (defaultWorkspaceId) {
-        store.set(currentAgentWorkspaceIdAtom, defaultWorkspaceId)
+      // 4. 切换到目标空间（保持用户当前所在空间）
+      if (targetWorkspaceId) {
+        store.set(currentAgentWorkspaceIdAtom, targetWorkspaceId)
         window.electronAPI.updateSettings({
-          agentWorkspaceId: defaultWorkspaceId,
+          agentWorkspaceId: targetWorkspaceId,
         }).catch(console.error)
       }
 
-      // 5. 切换到 Code 模式
+      // 5. 切换到 Project 模式
       store.set(appModeAtom, 'agent')
       store.set(activeViewAtom, 'conversations')
 
@@ -88,12 +89,12 @@ export function MigrateToAgentButton({ conversationId }: MigrateToAgentButtonPro
       store.set(currentAgentSessionIdAtom, session.id)
 
       // 7. 通知用户
-      toast.success('已切换到 Code 模式', {
+      toast.success('已切换到 Project 模式', {
         description: '对话历史已迁移到新的 Agent 会话',
       })
     } catch (error) {
       console.error('[MigrateToAgentButton] 迁移失败:', error)
-      toast.error('切换到 Code 模式失败')
+      toast.error('切换到 Project 模式失败')
     } finally {
       setMigrating(false)
     }
@@ -101,7 +102,7 @@ export function MigrateToAgentButton({ conversationId }: MigrateToAgentButtonPro
 
   return (
     <MessageAction
-      tooltip={migrating ? '切换中...' : '切换到 Code 模式'}
+      tooltip={migrating ? '切换中...' : '切换到 Project 模式'}
       onClick={() => { void handleMigrate() }}
       disabled={migrating}
     >

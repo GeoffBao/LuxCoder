@@ -1,7 +1,7 @@
 /**
  * ToolSettings - 工具设置页
  *
- * Home 模式「增强工具」统一管理 tab。
+ * Chat 模式「增强工具」统一管理 tab。
  * 联网搜索 + Nano Banana 生图 + 自定义 HTTP 工具配置。
  */
 
@@ -420,7 +420,7 @@ function CustomToolsSection(): React.ReactElement | null {
   return (
     <SettingsSection
       title="自定义工具"
-      description="通过 Code 模式创建的 HTTP API 工具"
+      description="通过 Project 模式创建的 HTTP API 工具"
     >
       <SettingsCard divided>
         {customTools.map((tool) => (

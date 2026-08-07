@@ -253,7 +253,7 @@ export class ProjectRepository {
     return this.createProjectAtRoot(workspaceRoot, { ...input, kind }).config
   }
 
-  /** Home 模式对话的隐藏容器；workingDirectory 固定为该 Workspace 的 workspace-files/ 目录。 */
+  /** Chat 模式对话的隐藏容器；workingDirectory 固定为该 Workspace 的 workspace-files/ 目录。 */
   ensureHomeProject(workspaceRoot: string): ProjectConfig {
     const workspaceFilesDir = join(workspaceRoot, 'workspace-files')
     mkdirSync(workspaceFilesDir, { recursive: true })
