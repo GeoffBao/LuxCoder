@@ -262,6 +262,8 @@ export interface ThemeCanvas {
   backgroundImage?: string | null
   /** Scenic 背景遮罩透明度（0~1）。 */
   backgroundAlpha?: number
+  /** Scenic 背景遮罩颜色（rgb/rgba）；缺省时回退到黑色遮罩。 */
+  backgroundOverlayColor?: string
   mode?: ThemeCanvasMode
 }
 

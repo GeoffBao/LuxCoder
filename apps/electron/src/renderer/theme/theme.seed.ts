@@ -13,6 +13,12 @@ export interface CraftThemePreset {
   backgroundImage?: string
 }
 
+/** Scenic 主题的专属表面/遮罩覆盖；缺省时回退到通用 Scenic 值。 */
+interface ScenicOverrides {
+  surfaces?: ThemeSurfaces
+  backgroundOverlayColor?: string
+}
+
 interface CraftThemeColors {
   background: string
   foreground: string
@@ -25,6 +31,7 @@ interface CraftThemeColors {
 
 interface CraftPresetEntry extends Omit<CraftThemePreset, 'interfacePolicy'> {
   colors: Partial<Record<ThemeVariant, CraftThemeColors>>
+  scenicOverrides?: ScenicOverrides
 }
 
 // 每个双模式预设的 light/dark 配色分别取自该主题官方调色板（如 Catppuccin Latte/Mocha、Nord、
@@ -73,7 +80,20 @@ const PRESETS: readonly CraftPresetEntry[] = [
     // URL（即使网络可达，打包后的可靠性也无法保证），现在把同一张图打包进本地 assets，
     // 效果不变但不再依赖任何网络请求。
     id: 'haze', name: 'Haze', description: 'Scenic 玻璃主题，保留桌面背景氛围', supportedModes: ['dark'], shikiTheme: { dark: 'github-dark' }, mode: 'scenic', backgroundImage: themeHazeScenic,
-    colors: { dark: { background: '#17171a', foreground: '#f5f5f7', accent: '#a78bfa', info: '#fbbf24', success: '#22c55e', destructive: '#ef4444', popoverSolid: '#2a2a2e' } },
+    colors: { dark: { background: '#1e1814', foreground: '#f5f2ef', accent: '#f2a668', info: '#fbbf24', success: '#22c55e', destructive: '#ef4444', popoverSolid: '#4a3c34' } },
+    // 通用 Scenic 表面偏冷黑，Haze 的夕阳建筑背景需要暖灰褐玻璃才协调。
+    // 表面层级从背景到交互核心自然递进：侧栏/顶栏最透、内容区次之、输入框稍实、弹层最实，
+    // 背景遮罩尽量轻，保证壁纸在玻璃面板后若隐若现而非被压成纯色。
+    scenicOverrides: {
+      surfaces: {
+        paper: 'rgba(58, 48, 42, 0.50)',
+        navigator: 'rgba(62, 52, 46, 0.44)',
+        input: 'rgba(58, 48, 42, 0.58)',
+        popover: 'rgba(66, 56, 50, 0.84)',
+        popoverSolid: '#4a3c34',
+      },
+      backgroundOverlayColor: 'rgba(18, 10, 6, 0.20)',
+    },
   },
   {
     id: 'night-owl', name: 'Night Owl', description: '降低蓝光的夜猫子主题', supportedModes: ['dark'], shikiTheme: { light: 'github-light', dark: 'night-owl' },
@@ -162,6 +182,7 @@ function buildSurfaces(preset: CraftPresetEntry, colors: CraftThemeColors): Them
       input: 'rgba(0, 0, 0, 0.15)',
       popover: 'rgba(24, 24, 30, 0.84)',
       popoverSolid: colors.popoverSolid ?? '#2a2a2e',
+      ...preset.scenicOverrides?.surfaces,
     }
   }
   return {
@@ -186,6 +207,7 @@ export function getCraftThemePack(id: string, variant: ThemeVariant): ThemePack 
     mode: preset.mode ?? 'solid',
     backgroundImage: preset.backgroundImage ?? null,
     backgroundAlpha: preset.mode === 'scenic' ? 0.4 : 1,
+    backgroundOverlayColor: preset.scenicOverrides?.backgroundOverlayColor,
   }
   return {
     codeThemeId: preset.shikiTheme[variant] ?? (dark ? 'github-dark' : 'github-light'),

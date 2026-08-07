@@ -75,18 +75,19 @@ describe('Craft 主题预设', () => {
     expect(haze?.theme.canvas.mode).toBe('scenic')
     expect(haze?.theme.canvas.backgroundImage).not.toBeNull()
     expect(haze?.theme.canvas.backgroundImage).not.toContain('pexels.com')
-    expect(haze?.theme.surfaces?.popoverSolid).toBe('#2a2a2e')
+    expect(haze?.theme.surfaces?.popoverSolid).toBe('#4a3c34')
   })
 
   test('更多预设统一使用现代工作台策略', () => {
     expect(CRAFT_THEME_PRESETS.every((preset) => preset.interfacePolicy === 'modern')).toBe(true)
   })
 
-  test('存量 Haze Scenic 配置会迁移到 Craft 的 55% 玻璃表面', () => {
+  test('Haze 使用暖色调专属玻璃表面（区别于通用 Scenic 冷黑值）', () => {
     const haze = getCraftThemePack('haze', 'dark')
     const state = normalizeThemeState({ packs: { dark: haze } })
-    expect(state.packs.dark.theme.surfaces?.paper).toBe('rgba(25, 25, 29, 0.55)')
-    expect(state.packs.dark.theme.surfaces?.navigator).toBe('rgba(12, 12, 16, 0.55)')
+    expect(state.packs.dark.theme.surfaces?.paper).toBe('rgba(58, 48, 42, 0.50)')
+    expect(state.packs.dark.theme.surfaces?.navigator).toBe('rgba(62, 52, 46, 0.44)')
+    expect(state.packs.dark.theme.canvas.backgroundOverlayColor).toBe('rgba(18, 10, 6, 0.20)')
   })
 
   test('双模式预设的浅色/深色画布颜色彼此独立，不共用同一组数值', () => {
