@@ -77,13 +77,13 @@ export function buildPickerSections(input: {
 
   // 动作标签对齐 Cursor/Codex/Kimi：新建优先、浏览次之、会话可跳过
   const actions: PickerAction[] = [
-    { id: 'create', label: '新建项目…' },
+    { id: 'create', label: '新建工作区…' },
     { id: 'browse', label: '使用现有文件夹…' },
   ]
-  // Task 首屏不再暴露“无项目”入口：新建任务优先绑定/创建 Project；底层仍允许 Task 编辑器保存为工作区级任务作为 fallback。
-  // Session 已绑定项目时才需要“清除”；未绑定时它和直接关闭面板效果一样。
+  // Task 首屏不再暴露“无工作区”入口：新建任务优先绑定/创建工作区；底层仍允许 Task 编辑器保存为工作区级任务作为 fallback。
+  // Session 已绑定工作区时才需要“清除”；未绑定时它和直接关闭面板效果一样。
   if (allowsSkipProject(input.mode) && input.selectedProjectId) {
-    actions.push({ id: 'skip', label: '清除项目' })
+    actions.push({ id: 'skip', label: '清除工作区' })
   }
 
   return { projects, actions }

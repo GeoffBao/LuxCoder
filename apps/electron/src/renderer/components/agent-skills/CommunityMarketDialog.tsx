@@ -2,7 +2,7 @@
  * CommunityMarketDialog — 技能市场（企业 SkillHub）
  *
  * 公司内网技能分发入口：GET /index.json 清单 + 逐文件下载安装。
- * 展示下载数/收藏数/发布者，一键安装到当前工作区。
+ * 展示下载数/收藏数/发布者，一键安装到当前空间。
  */
 
 import * as React from 'react'
@@ -85,7 +85,7 @@ export function CommunityMarketDialog({ open, onOpenChange, workspaceSlug, insta
             社区市场
           </DialogTitle>
           <DialogDescription>
-            公司内网技能市场，浏览同事发布的 Agent Skills，一键安装到当前工作区。
+            公司内网技能市场，浏览同事发布的 Agent Skills，一键安装到当前空间。
           </DialogDescription>
         </DialogHeader>
 

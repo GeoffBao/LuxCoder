@@ -80,14 +80,14 @@ export function formatProjectContextForPrompt(ctx: ProjectPromptContext): string
   }
 
   lines.push('');
-  lines.push('当前会话已绑定到上述项目。');
+  lines.push('当前会话已绑定到上述工作区。');
   if (ctx.workingDirectory?.trim()) {
-    lines.push('`<project_working_directory>` 是用户指定的项目工程代码根目录；会话 cwd 是会话隔离目录，不要在这里找代码。需要读代码、改代码、跑命令时，直接以该目录为基准，不要猜测或搜索其他路径。');
+    lines.push('`<project_working_directory>` 是用户指定的工作区工程代码根目录；会话 cwd 是会话隔离目录，不要在这里找代码。需要读代码、改代码、跑命令时，直接以该目录为基准，不要猜测或搜索其他路径。');
   }
   if (ctx.assets.length > 0) {
     lines.push('`<project_assets>` 列出用户提供的参考文件；仅在相关时按绝对路径按需读取，不必全部读完。');
   }
-  lines.push('`<project_memory>` 是该项目的权威累积知识；学到持久决策、约定或偏好时，用 Write/Edit 写入 MEMORY.md（最新/重要优先，约 5000 token 内）。');
+  lines.push('`<project_memory>` 是该工作区的权威累积知识；学到持久决策、约定或偏好时，用 Write/Edit 写入 MEMORY.md（最新/重要优先，约 5000 token 内）。');
   lines.push('</project_context>');
   return lines.join('\n');
 }

@@ -280,7 +280,7 @@ export function updateProject(
   patch: UpdateProjectInput,
 ): ProjectConfig {
   const existing = loadProjectConfig(workspaceRootPath, projectSlug);
-  if (!existing) throw new Error(`项目不存在: ${projectSlug}`);
+  if (!existing) throw new Error(`工作区不存在: ${projectSlug}`);
 
   const updated: ProjectConfig = {
     ...existing,
@@ -340,10 +340,10 @@ export function readProjectMemory(workspaceRootPath: string, projectSlug: string
   }
 }
 
-/** 原子覆盖项目 MEMORY.md；项目不存在时拒绝创建游离目录。 */
+/** 原子覆盖项目 MEMORY.md；工作区不存在时拒绝创建游离目录。 */
 export function writeProjectMemory(workspaceRootPath: string, projectSlug: string, content: string): void {
   if (!projectExists(workspaceRootPath, projectSlug)) {
-    throw new Error(`项目不存在: ${projectSlug}`);
+    throw new Error(`工作区不存在: ${projectSlug}`);
   }
   atomicWriteFileSync(getProjectMemoryPath(workspaceRootPath, projectSlug), content);
 }
@@ -383,7 +383,7 @@ export function uploadProjectAsset(
   input: UploadProjectAssetInput,
 ): ProjectAsset {
   if (!projectExists(workspaceRootPath, projectSlug)) {
-    throw new Error(`项目不存在: ${projectSlug}`);
+    throw new Error(`工作区不存在: ${projectSlug}`);
   }
 
   ensureProjectAssetsDir(workspaceRootPath, projectSlug);

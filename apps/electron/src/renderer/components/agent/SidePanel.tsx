@@ -697,7 +697,7 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
                           />
                         </div>
                         {hasVisibleWorkspaceAttachedItems && (
-                          <div className="text-[11px] font-medium text-muted-foreground mb-1 px-3 pt-2">工作区附加文件（项目外）</div>
+                          <div className="text-[11px] font-medium text-muted-foreground mb-1 px-3 pt-2">工作区附加文件（空间外）</div>
                         )}
                         <FileBrowser rootPath={projectFilesPath} access={fileAccess} hideToolbar embedded hideEmpty={hasVisibleWorkspaceAttachedItems} onAddToChat={handleAddToChat} onFilePreview={handleFilePreview} />
                       </>
@@ -707,7 +707,7 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
                         <div className="flex items-start gap-1.5">
                           <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
                           <div className="min-w-0">
-                            <div>项目目录不可用，可能已被移动或删除：</div>
+                            <div>工作区目录不可用，可能已被移动或删除：</div>
                             <div className="mt-0.5 truncate font-mono text-[11px] opacity-80" title={projectUnavailablePath}>{projectUnavailablePath}</div>
                           </div>
                         </div>
@@ -718,13 +718,13 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
                           className="mt-2 h-6 border-destructive/30 px-2 text-[11px] text-destructive hover:bg-destructive/10"
                           onClick={openProjectSettings}
                         >
-                          前往项目设置重新关联
+                          前往工作区设置重新关联
                         </Button>
                       </div>
                     )}
                     {showProjectFiles && !projectFilesPath && !projectUnavailablePath && (
                       <div className="mx-2 my-2 px-3 py-2 text-xs text-muted-foreground bg-muted/40 rounded-md">
-                        当前会话尚未绑定可用项目目录；可切回会话文件查看沙箱内容。
+                        当前会话尚未绑定可用工作区目录；可切回会话文件查看沙箱内容。
                       </div>
                     )}
                     {showSessionFiles && (

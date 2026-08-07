@@ -634,12 +634,12 @@ export function SearchDialog(): React.ReactElement {
             </div>
           )}
 
-          {/* 项目匹配区域 */}
+          {/* 工作区匹配区域 */}
           {projectResults.length > 0 && (
             <div className="py-1 animate-in fade-in duration-fast">
               <div className="flex items-center gap-1.5 px-4 pt-2 pb-1 text-[11px] font-medium text-foreground/40 select-none">
                 <FolderKanban size={11} />
-                <span>项目</span>
+                <span>工作区</span>
               </div>
               {projectResults.map((result, idx) => (
                 <SearchResultRow

@@ -302,7 +302,7 @@ export interface AgentSessionItemProps {
   /** 所属项目主题色（已移除：原左缘 2px 色条随竖条一起去掉）
    * @deprecated 不再渲染任何色条 */
   projectColor?: never
-  /** 当前工作区项目列表；空数组时不渲染「移动到项目」入口 */
+  /** 当前工作区列表；空数组时不渲染「移动到工作区」入口 */
   projects?: KanbanProject[]
   onMoveToProject?: (sessionId: string, projectId?: string) => void | Promise<void>
   /** 当前工作区自定义分组列表；undefined 时不渲染「移动到分组」入口 */
@@ -440,7 +440,7 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
         <MenuSub>
           <MenuSubTrigger className="text-xs py-1 [&>svg]:size-3.5">
             <FolderInput size={14} />
-            移动到项目
+            移动到工作区
           </MenuSubTrigger>
           <MenuSubContent className="w-44 z-[9999] min-w-0 p-0.5">
             {projects.map((project) => (
@@ -458,7 +458,7 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
               <>
                 <MenuSeparator className="my-0.5" />
                 <MenuItem className="text-xs py-1" onSelect={() => onMoveToProject(session.id, undefined)}>
-                  移出项目
+                  移出工作区
                 </MenuItem>
               </>
             )}

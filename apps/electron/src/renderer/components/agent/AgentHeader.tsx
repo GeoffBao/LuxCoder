@@ -2,7 +2,7 @@
  * AgentHeader — Agent 会话头部
  *
  * 复用 SessionHeader；重命名时同步更新 Tab 标题和会话列表的新鲜度排序。
- * 若会话绑定了项目，在标题旁显示项目名 badge（含颜色圆点）。
+ * 若会话绑定了工作区，在标题旁显示工作区名 badge（含颜色圆点）。
  */
 
 import * as React from 'react'
@@ -60,10 +60,28 @@ export function AgentHeader({ sessionId }: AgentHeaderProps): React.ReactElement
     <SessionHeader
       title={session.title}
       onRename={handleRename}
-      badge={(project || gitBadgeText)
+      breadcrumb={project
+        ? (
+          <span className="flex min-w-0 items-center gap-1 truncate" title={project.workingDirectory}>
+            {project.color && (
+              <span
+                className="inline-block size-1.5 shrink-0 rounded-full"
+                style={{ backgroundColor: project.color }}
+              />
+            )}
+            <span className="truncate">{project.name}</span>
+            {project.workingDirectory ? (
+              <>
+                <span className="shrink-0 text-muted-foreground/35">·</span>
+                <span className="truncate text-muted-foreground/70">{project.workingDirectory}</span>
+              </>
+            ) : null}
+          </span>
+        )
+        : undefined}
+      badge={gitBadgeText
         ? (
           <>
-            {project && <ProjectBadge name={project.name} color={project.color} />}
             {gitBadgeText && <GitContextBadge text={gitBadgeText} worktree={session.gitExecutionMode === 'worktree'} />}
           </>
         )
@@ -87,21 +105,6 @@ export function AgentHeader({ sessionId }: AgentHeaderProps): React.ReactElement
         )
         : undefined}
     />
-  )
-}
-
-/** 标题旁的项目名标签，样式与 TabBar workspace badge 一致 */
-function ProjectBadge({ name, color }: { name: string; color?: string }): React.ReactElement {
-  return (
-    <span className="titlebar-no-drag shrink-0 inline-flex items-center gap-1 px-1.5 py-0 rounded-full bg-primary/10 text-[10px] leading-4 font-medium truncate max-w-[100px]">
-      {color && (
-        <span
-          className="inline-block size-1.5 rounded-full shrink-0"
-          style={{ backgroundColor: color }}
-        />
-      )}
-      {name}
-    </span>
   )
 }
 
