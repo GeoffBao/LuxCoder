@@ -4,6 +4,7 @@
 
 import * as React from 'react'
 import { useAtomValue, useSetAtom } from 'jotai'
+import * as PopoverPrimitive from '@radix-ui/react-popover'
 import {
   Check,
   ChevronDown,
@@ -262,7 +263,9 @@ export function ProjectContextPicker({
     <div
       className={cn(
         'flex flex-col overflow-hidden rounded-xl border border-border/60 bg-background/95 shadow-lg backdrop-blur-sm',
-        defaultOpen ? 'w-full' : 'w-[min(100%,280px)]',
+        // 固定宽度而非跟随触发器宽度百分比：触发器（尤其 inline 变体）宽度随文字内容变化，
+        // 用 100% 算面板宽会导致面板被压得很窄，装不下筛选框/长项目名
+        defaultOpen ? 'w-full' : 'w-[280px]',
       )}
       role="listbox"
       aria-label="选择工作区上下文"
@@ -347,59 +350,65 @@ export function ProjectContextPicker({
   const defaultPlaceholder = variant === 'inline' ? '选择工作区' : '选择/新建工作区'
   const triggerLabel = selectedName ?? placeholderLabel ?? defaultPlaceholder
   // chip 贴在 composer 底部，面板向上展开；inline 嵌在页面中部的问候语里，向下展开更自然
-  const panelPositionClass = variant === 'inline' ? 'top-[calc(100%+6px)] left-0' : 'bottom-[calc(100%+6px)] left-0'
+  // （Radix 会在首选方向空间不够时自动翻转，这里只是首选方向）
+  const preferredSide = variant === 'inline' ? 'bottom' : 'top'
 
   return (
-    <div className={cn('relative', className)}>
-      {variant === 'inline' ? (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => setOpen((value) => !value)}
-          className={cn(
-            'underline decoration-dotted decoration-1 underline-offset-4 outline-none transition-opacity hover:opacity-70 disabled:opacity-60',
+    // span 而非 div：inline 变体嵌在 <h1> 句子中间，div 是块级元素会打断文字流（把一句话拆成三行）；
+    // 作为 flex 容器子项时（chip 变体），span 会被自动块级化，视觉行为与之前的 div 完全一致。
+    <span className={cn('relative', className)}>
+      <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
+        <PopoverPrimitive.Trigger asChild>
+          {variant === 'inline' ? (
+            <button
+              type="button"
+              disabled={busy}
+              className={cn(
+                'underline decoration-dotted decoration-1 underline-offset-4 outline-none transition-opacity hover:opacity-70 disabled:opacity-60',
+              )}
+              aria-label="选择/新建工作区"
+              title={selectedName ?? '选择或新建工作区'}
+            >
+              {triggerLabel}
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={busy}
+              className={cn(
+                'inline-flex h-7 max-w-[200px] items-center gap-1 rounded-md px-1.5 text-[12px] text-foreground/70 outline-none hover:bg-foreground/[0.05] hover:text-foreground',
+                busy && 'opacity-60',
+              )}
+              aria-label="选择/新建工作区"
+              title={selectedName ?? '选择或新建工作区'}
+            >
+              <FolderKanban size={12} className="shrink-0 text-foreground/40" />
+              <span className="truncate">{triggerLabel}</span>
+              <ChevronDown size={11} className="shrink-0 text-foreground/35" />
+            </button>
           )}
-          aria-expanded={open}
-          aria-haspopup="listbox"
-          aria-label="选择/新建工作区"
-          title={selectedName ?? '选择或新建工作区'}
-        >
-          {triggerLabel}
-        </button>
-      ) : (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => setOpen((value) => !value)}
-          className={cn(
-            'inline-flex h-7 max-w-[200px] items-center gap-1 rounded-md px-1.5 text-[12px] text-foreground/70 outline-none hover:bg-foreground/[0.05] hover:text-foreground',
-            busy && 'opacity-60',
-          )}
-          aria-expanded={open}
-          aria-haspopup="listbox"
-          aria-label="选择/新建工作区"
-          title={selectedName ?? '选择或新建工作区'}
-        >
-          <FolderKanban size={12} className="shrink-0 text-foreground/40" />
-          <span className="truncate">{triggerLabel}</span>
-          <ChevronDown size={11} className="shrink-0 text-foreground/35" />
-        </button>
-      )}
-      {open ? (
-        <>
-          <button
-            type="button"
-            className="fixed inset-0 z-40 cursor-default"
-            aria-label="关闭工作区选择器"
-            onClick={() => setOpen(false)}
-          />
-          <div className={cn('absolute z-50', panelPositionClass)}>
+        </PopoverPrimitive.Trigger>
+        {/* Portal 到 document.body：逃离 Conversation（overflow-y-hidden）等祖先容器的裁切；
+            avoidCollisions（默认开）在首选方向空间不够时自动翻到另一侧；
+            maxHeight 兜底绑定 Radix 计算出的可用高度，极端情况下面板整体可滚动，而不是被祖先无声裁掉 */}
+        <PopoverPrimitive.Portal>
+          {/* Portal 到 body 后与 AppShell 同级比较 z-index：AppShell 中间容器是 z-[60]，
+              用 z-50 会被整个盖住（点击项目名"没反应"其实是面板被遮挡）；
+              项目内 Radix dropdown 统一约定 z-[9999]（见 AgentSessionItem / LeftSidebar） */}
+          <PopoverPrimitive.Content
+            side={preferredSide}
+            align="start"
+            sideOffset={6}
+            collisionPadding={12}
+            className="z-[9999] overflow-y-auto outline-none"
+            style={{ maxHeight: 'var(--radix-popover-content-available-height, 400px)' }}
+          >
             {panel}
-          </div>
-        </>
-      ) : null}
+          </PopoverPrimitive.Content>
+        </PopoverPrimitive.Portal>
+      </PopoverPrimitive.Root>
       {createDialog}
-    </div>
+    </span>
   )
 }
 
