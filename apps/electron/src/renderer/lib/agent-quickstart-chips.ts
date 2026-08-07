@@ -58,6 +58,7 @@ export const QUICKSTART_CATEGORIES: QuickstartCategoryDef[] = [
 
 export const QUICKSTART_CHIPS: Record<QuickstartCategory, QuickstartChip[]> = {
   office: [
+    { id: 'office-skill', label: '技能开发', icon: Blocks, action: { type: 'invokeSkill', skillSlug: 'skill-creator' } },
     { id: 'office-docx', label: '文档处理', icon: FileText, action: { type: 'invokeSkill', skillSlug: 'docx' } },
     { id: 'office-xlsx', label: '表格分析', icon: Table, action: { type: 'invokeSkill', skillSlug: 'xlsx' } },
     { id: 'office-pdf', label: 'PDF 处理', icon: FileSearch, action: { type: 'invokeSkill', skillSlug: 'pdf' } },
@@ -66,13 +67,13 @@ export const QUICKSTART_CHIPS: Record<QuickstartCategory, QuickstartChip[]> = {
     { id: 'office-session-clean', label: '会话清洗', icon: Eraser, action: { type: 'invokeSkill', skillSlug: 'session-cleaner' } },
   ],
   dev: [
+    { id: 'dev-skill', label: '技能开发', icon: Blocks, action: { type: 'invokeSkill', skillSlug: 'skill-creator' } },
     { id: 'dev-daily', label: '日常开发', icon: Code2, action: { type: 'insertPrompt', text: '帮我实现：' } },
     { id: 'dev-review', label: '代码审查', icon: GitPullRequest, action: { type: 'invokeSkill', skillSlug: 'staged-review-and-fix' } },
     { id: 'dev-debug', label: '排查 Bug', icon: Bug, action: { type: 'invokeSkill', skillSlug: 'systematic-debugging' } },
     { id: 'dev-tdd', label: 'TDD 开发', icon: FlaskConical, action: { type: 'invokeSkill', skillSlug: 'test-driven-development' } },
     { id: 'dev-plan', label: '制定计划', icon: ListChecks, action: { type: 'invokeSkill', skillSlug: 'writing-plans' } },
     { id: 'dev-execute-plan', label: '执行计划', icon: PlayCircle, action: { type: 'invokeSkill', skillSlug: 'executing-plans' } },
-    { id: 'dev-skill', label: 'Skill 开发', icon: Blocks, action: { type: 'invokeSkill', skillSlug: 'skill-creator' } },
     { id: 'dev-collab', label: '多 Agent 协作', icon: Users, action: { type: 'invokeSkill', skillSlug: 'agent-collaboration' } },
   ],
   design: [

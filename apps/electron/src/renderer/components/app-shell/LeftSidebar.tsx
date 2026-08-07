@@ -2665,7 +2665,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               </button>
             </TooltipTrigger>
             <TooltipContent side="right">
-              {mode === 'agent' ? '新会话' : '新对话'} ({getAcceleratorDisplay(getActiveAccelerator('new-session'))})
+              {mode === 'agent' ? '新建会话' : '新对话'} ({getAcceleratorDisplay(getActiveAccelerator('new-session'))})
             </TooltipContent>
           </Tooltip>
 
@@ -3083,11 +3083,11 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               className="flex-1 flex items-center gap-2 h-9 px-3 rounded-[10px] text-[13px] font-medium text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-fast titlebar-no-drag"
             >
               <Plus size={14} />
-              <span>{mode === 'agent' ? '新会话' : '新对话'}</span>
+              <span>{mode === 'agent' ? '新建会话' : '新对话'}</span>
             </button>
           </TooltipTrigger>
           <TooltipContent side="bottom">
-            {mode === 'agent' ? '新会话' : '新对话'} ({getAcceleratorDisplay(getActiveAccelerator('new-session'))})
+            {mode === 'agent' ? '新建会话' : '新对话'} ({getAcceleratorDisplay(getActiveAccelerator('new-session'))})
           </TooltipContent>
         </Tooltip>
         {/* 新任务入口（暂隐藏，功能保留）：与「新会话」平级按钮，改 SHOW_NEW_TASK_ENTRY=true 恢复 */}
