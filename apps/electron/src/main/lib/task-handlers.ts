@@ -5,6 +5,7 @@
  */
 import { BrowserWindow, ipcMain } from 'electron'
 import { basename, join, resolve } from 'node:path'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import {
   LABEL_IPC_CHANNELS,
   PROJECT_IPC_CHANNELS,
@@ -27,7 +28,7 @@ import type {
 import type { TaskSpec } from '@luxcoder/shared/tasks/schema'
 import type { TaskMetadataPatch, TaskWorkflow } from '@luxcoder/shared/tasks/task-record'
 import { slugify } from '@luxcoder/shared/utils'
-import { resolveSkillMatches } from '@luxcoder/shared/teambition-defect'
+import { resolveSkillMatches, TB_CONNECT_SKILL_SLUG } from '@luxcoder/shared/teambition-defect'
 import {
   buildGeneratorPrompt,
   buildRepairPrompt,
@@ -955,7 +956,7 @@ export function registerTaskHandlers(window: BrowserWindow): void {
   })
 
   // 手动创建选中的 TB 任务为本地看板 Task（不自动运行、不开会话窗口）
-  ipcMain.handle(TEAMBITION_IPC_CHANNELS.CREATE_SYNCED_TASKS, async (_event, workspaceRoot: string, workspaceId: string, selected: TeambitionRemoteTask[], options?: { expertId?: string; projectId?: string; workingDirectory?: string }) => {
+  ipcMain.handle(TEAMBITION_IPC_CHANNELS.CREATE_SYNCED_TASKS, async (_event, workspaceRoot: string, workspaceId: string, selected: TeambitionRemoteTask[], options?: { expertId?: string; projectId?: string; workingDirectory?: string; skills?: string[]; skillsByTask?: Record<string, string[]> }) => {
     const repo = new TaskRepository({ resolveWorkspaceRoot: () => workspaceRoot })
     const created: Array<{ taskId: string; slug: string; title: string }> = []
     const skipped: string[] = []
@@ -963,6 +964,10 @@ export function registerTaskHandlers(window: BrowserWindow): void {
     const expertId = options?.expertId
     const projectId = options?.projectId
     const workingDirectory = options?.workingDirectory
+    /** 用户手动勾选的技能（覆盖 AI 自动匹配；未提供时用 AI 结果） */
+    const manualSkills = options?.skills
+    /** 逐条技能（taskId → 用户勾选；批量逐条确认时使用，优先级最高） */
+    const skillsByTask = options?.skillsByTask
 
     // 工作区 Skills（用于把适配的技能写进任务 spec，执行时会话自动带技能上下文）
     const workspaceSlug = workspaceIdFor(workspaceRoot)
@@ -981,17 +986,42 @@ export function registerTaskHandlers(window: BrowserWindow): void {
       const slug = `${slugify(task.title) || 'tb-task'}-${shortId}`
       try {
         const localType = normalizeTeambitionTaskType(task.type)
-        // 技能匹配：基于标题/类型（列表已含信息），把适配技能写入 spec.skills
+        // 拉取 TB 任务详情（问题描述/备注/附件/关键字段），让执行会话充分了解具体问题
+        let tbDetail: Awaited<ReturnType<typeof getTeambitionBoardDetail>> | undefined
+        try {
+          tbDetail = await getTeambitionBoardDetail(workspaceRoot, task.id)
+        } catch (detailError) {
+          console.warn(`[Teambition] 拉取任务详情失败（跳过详情填充）${task.id}:`, detailError)
+        }
+        // 技能匹配：基于标题/类型 + 详情内容（更严谨），把适配技能写入 spec.skills
         const skillMatches = resolveSkillMatches(
           {
             content: task.title,
             type: localType,
+            ...(tbDetail?.description ? { description: tbDetail.description } : {}),
+            ...(tbDetail?.note ? { note: tbDetail.note } : {}),
+            ...(tbDetail?.attachments ? { attachments: tbDetail.attachments } : {}),
+            ...(tbDetail?.fields ? { fields: tbDetail.fields } : {}),
           },
           workspaceSkills.map((skill) => ({ slug: skill.slug, name: skill.name, description: skill.description, enabled: skill.enabled })),
         )
-        // 内容：标题 + 编号 + 项目 + 类型组合，作为任务 goal 与首节点 prompt（执行时会话自带完整上下文）
+        // 内容：标题 + 编号 + 项目 + 类型 + 详情（问题描述/复现步骤/附件/关键字段），作为任务 goal 与首节点 prompt
         // 缺陷类任务：明确「分析该缺陷」意图，让 Agent 第一步就进入问题分析而非泛泛执行
         const isBug = localType === 'bug'
+        const detailSections = [
+          // 问题描述（rtf/note 提取，可能很长）
+          tbDetail?.description ? `【问题描述】\n${tbDetail.description}` : '',
+          // 备注
+          tbDetail?.note && tbDetail.note !== tbDetail.description ? `【备注】\n${tbDetail.note}` : '',
+          // 附件（日志等）
+          tbDetail && tbDetail.attachments.length > 0
+            ? `【附件】${tbDetail.attachments.map((a) => a.name).join('、')}`
+            : '',
+          // 关键自定义字段（出现几率/严重程度/软件版本等）
+          tbDetail && tbDetail.fields.length > 0
+            ? `【关键字段】${tbDetail.fields.map((f) => `${f.name}:${f.value}`).join('；')}`
+            : '',
+        ].filter(Boolean).join('\n')
         const taskDescription = [
           isBug ? '请分析以下 TB 缺陷问题，定位根因并输出分析结论：' : '请处理以下 TB 任务：',
           `【TB 任务】${task.title}`,
@@ -999,6 +1029,7 @@ export function registerTaskHandlers(window: BrowserWindow): void {
           task.projectId ? `TB 项目 ID：${task.projectId}` : '',
           `类型：${localType}`,
           `来源：Teambition（taskId=${task.id}）`,
+          detailSections,
           `适配技能：${skillMatches.length > 0 ? skillMatches.map((match) => match.name).join('、') : '无（按通用任务处理）'}`,
         ].filter(Boolean).join('\n')
         const spec = buildMinimalTaskSpec({
@@ -1012,8 +1043,15 @@ export function registerTaskHandlers(window: BrowserWindow): void {
           teambitionTaskId: task.id,
           // TB 任务类型（缺陷/需求/任务等）映射到本地 TaskType，避免全部落成默认“任务”
           type: localType,
-          // 适配的技能写入 spec.skills（执行时会话自动加载）
-          skills: skillMatches.map((match) => match.slug),
+          // 适配的技能写入 spec.skills（执行时会话自动加载）：
+          // 1) connect-tb-workflow 为 TB 问题必选（工作区存在时）——分析/流转流程对所有 TB 问题一致
+          // 2) 该条任务用户勾选的技能（skillsByTask[task.id] 优先，其次 manualSkills）
+          skills: [
+            ...(workspaceSkills.some((s) => s.slug === TB_CONNECT_SKILL_SLUG) ? [TB_CONNECT_SKILL_SLUG] : []),
+            ...((skillsByTask?.[task.id] ?? manualSkills)?.length
+              ? (skillsByTask?.[task.id] ?? manualSkills)!.filter((slug) => slug !== TB_CONNECT_SKILL_SLUG)
+              : []),
+          ],
           // 自动选 Agent 结果：写入 defaults.expertId（无则用默认，不传）
           ...(expertId ? { expertId } : {}),
         })
@@ -1110,6 +1148,10 @@ export function registerTaskHandlers(window: BrowserWindow): void {
     return (await boardService(workspaceRoot)).listMyDefects(roleTypes)
   })
 
+  ipcMain.handle(TEAMBITION_BOARD_IPC_CHANNELS.LIST_CLOSED_DEFECTS, async (_event, workspaceRoot: string, days: number) => {
+    return (await boardService(workspaceRoot)).listClosedDefects(days)
+  })
+
   ipcMain.handle(TEAMBITION_BOARD_IPC_CHANNELS.LIST_PROJECT_DEFECTS, async (_event, workspaceRoot: string, projectId: string) => {
     return (await boardService(workspaceRoot)).listProjectDefects(projectId)
   })
@@ -1155,6 +1197,109 @@ export function registerTaskHandlers(window: BrowserWindow): void {
   ipcMain.handle(TEAMBITION_BOARD_IPC_CHANNELS.CLEAR_CACHE, async (_event, workspaceRoot: string) => {
     ;(await boardService(workspaceRoot)).clearCache()
   })
+
+  // 按会话读取分析报告文件（log/**/ 下的 qxdm 报告 / HTML 报告），供 TB 详情「AI 分析预览」展示
+  ipcMain.handle(
+    TEAMBITION_BOARD_IPC_CHANNELS.RESOLVE_ANALYSIS_REPORT,
+    async (_event, workspaceRoot: string, workspaceSlug: string, sessionId: string): Promise<string> => {
+      try {
+        const sessionDir = getAgentSessionWorkspacePath(workspaceSlug, sessionId)
+        if (!sessionDir || !existsSync(sessionDir)) return ''
+        // ① 约定路径优先：log/{shortId}/分析报告.md → 分析报告.html
+        //    报告路径契约见 connect-tb-workflow SKILL.md（v2.8.0+），避免 AI 写偏导致预览取不到
+        const candidates = await findReportAtConvention(sessionDir)
+        for (const candidate of candidates) {
+          if (candidate && existsSync(candidate)) {
+            const text = readFileSync(candidate, 'utf-8').trim()
+            if (text) return text
+          }
+        }
+        // ② 兜底：递归扫描 log 目录（兼容旧报告位置，如 diag_logs/qxdm_sim_analysis_report.md）
+        const reportNames = /(analysis_report|分析报告|_SIM_Analysis_Report|evidence)\.(md|html|markdown)$/i
+        const found = findReportInDir(sessionDir, reportNames)
+        return found ? readFileSync(found, 'utf-8') : ''
+      } catch {
+        return ''
+      }
+    },
+  )
+}
+
+/** 按约定路径查找报告：log 目录下的分析报告（优先 md）；返回按优先级排序的候选绝对路径 */
+export async function findReportAtConvention(sessionDir: string): Promise<string[]> {
+  const { readdir } = await import('node:fs/promises')
+  const out: string[] = []
+  const logDirs: string[] = []
+  try {
+    const entries = await readdir(sessionDir, { withFileTypes: true })
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue
+      if (entry.name === 'log') logDirs.push(join(sessionDir, entry.name))
+      // 兼容工作区根直接放报告的场景（如历史版本）
+      for (const name of ['分析报告.md', '分析报告.html']) {
+        const p = join(sessionDir, entry.name, name)
+        if (existsSync(p)) out.push(p)
+      }
+    }
+  } catch {
+    return []
+  }
+  // 在 log 及其一层子目录找约定文件名
+  for (const logDir of logDirs) {
+    for (const name of ['分析报告.md', '分析报告.html']) {
+      const p = join(logDir, name)
+      if (existsSync(p)) out.push(p)
+    }
+    try {
+      const subs = await readdir(logDir, { withFileTypes: true })
+      for (const sub of subs) {
+        if (!sub.isDirectory()) continue
+        for (const name of ['分析报告.md', '分析报告.html']) {
+          const p = join(logDir, sub.name, name)
+          if (existsSync(p)) out.push(p)
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return out
+}
+
+/** 递归在目录下查找第一个匹配报告文件名的文件 */
+export function findReportInDir(dir: string, namePattern: RegExp, depth = 0): string | null {
+  if (depth > 5) return null
+  let entries: Array<{ name: string; path: string; isDir: boolean }> = []
+  try {
+    entries = readdirSync(dir, { withFileTypes: true }).map((entry) => ({
+      name: entry.name,
+      path: join(dir, entry.name),
+      isDir: entry.isDirectory(),
+    }))
+  } catch {
+    return null
+  }
+  // 优先当前层的报告文件，再递归子目录（log 目录优先）
+  // 注意：md 报告（四段式，可解析）优先于 HTML；HTML 仅兜底（结构为 <h2> 标题）
+  const files = entries.filter((e) => !e.isDir)
+  // 第一轮：md/markdown 报告
+  for (const file of files) {
+    if (/\.(md|markdown)$/i.test(file.name) && namePattern.test(file.name)) return file.path
+  }
+  const dirs = entries.filter((e) => e.isDir).sort((a, b) => (a.name === 'log' ? -1 : b.name === 'log' ? 1 : 0))
+  for (const d of dirs) {
+    const hit = findReportInDir(d.path, namePattern, depth + 1)
+    if (hit) return hit
+  }
+  // 第二轮：HTML 报告（当前层 + 递归）
+  for (const file of files) {
+    if (/\.html?$/i.test(file.name) && namePattern.test(file.name)) return file.path
+  }
+  for (const d of dirs) {
+    const hit = findReportInDir(d.path, namePattern, depth + 1)
+    if (hit) return hit
+  }
+  return null
 }
 
 async function generateTaskForSession(
@@ -1230,6 +1375,11 @@ async function getTeambitionBoardService(workspaceRoot: string): Promise<Teambit
   return service
 }
 
+/** 拉取 TB 任务详情（CREATE_SYNCED_TASKS 填充问题描述用；失败抛出由调用方降级） */
+async function getTeambitionBoardDetail(workspaceRoot: string, taskId: string) {
+  return (await getTeambitionBoardService(workspaceRoot)).getTaskDetail(taskId)
+}
+
 /** 构造看板网关：优先真实 TB MCP，未配置则 Mock 兜底。 */
 async function getTeambitionBoardAdapter(workspaceRoot: string): Promise<TeambitionBoardGateway> {
   try {
@@ -1256,6 +1406,8 @@ async function getTeambitionBoardAdapter(workspaceRoot: string): Promise<Teambit
           postComment: 'CreateTaskCommentV3',
           getTaskDetail: 'QueryTaskV3',
           listProjectCustomFields: 'SearchProjectCustomFiledsV3',
+          searchTasksByTql: 'SearchTasksByTQLV2',
+          queryProjects: 'QueryProjectsV3',
         },
       })
       console.warn(`[TbBoard] 已连接真实 TB MCP (${tb.name})`)

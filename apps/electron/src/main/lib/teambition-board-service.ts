@@ -28,12 +28,16 @@ export interface TeambitionBoardGateway {
   getCurrentUserId(): Promise<string>
   /** 用户名下未完成任务（SearchUserTasksV3 分页全量，含全部类型） */
   listMyDefects(roleTypes?: string): Promise<TbDefectItem[]>
+  /** 近 N 天内已关闭的我的任务（已关闭区懒加载） */
+  listClosedDefects(days: number): Promise<TbDefectItem[]>
   /** 项目内任务（SearchProjectTasksV3，含全部类型） */
   listProjectDefects(projectId: string): Promise<TbDefectItem[]>
   /** 项目任务类型（GetScenarioFieldsMCP），返回 id → name 映射 */
   listTaskTypeNames(projectId: string): Promise<Map<string, string>>
   /** 项目自定义字段（SearchProjectCustomFiledsV3），返回 cfId → 字段名 映射 */
   listProjectCustomFields(projectId: string): Promise<Map<string, string>>
+  /** 批量项目名（QueryProjectsV3），返回 projectId → 项目名 映射（卡片项目标签用） */
+  listProjectNames(projectIds: string[]): Promise<Map<string, string>>
   /** 任务所在工作流状态集（QueryTaskTfs 或 SearchTaskflowStatusesV3） */
   getTaskWorkflow(taskId: string): Promise<TbWorkflow | undefined>
   /** 任务流转历史（ListTaskActivitiesV3 update.taskflowstatus） */
@@ -109,6 +113,11 @@ export class TeambitionBoardService {
     return this.options.gateway.listMyDefects(roleTypes)
   }
 
+  /** 近 N 天内已关闭的我的任务（已关闭区懒加载；默认 3 天） */
+  async listClosedDefects(days = 3): Promise<TbDefectItem[]> {
+    return this.options.gateway.listClosedDefects(days)
+  }
+
   /** 项目内任务列表（SPM/全量场景，含全部类型） */
   async listProjectDefects(projectId: string): Promise<TbDefectItem[]> {
     return this.options.gateway.listProjectDefects(projectId)
@@ -157,6 +166,11 @@ export class TeambitionBoardService {
       console.warn(`[TbBoard] 项目自定义字段加载失败 ${projectId}:`, cause)
       return new Map()
     }
+  }
+
+  /** 批量项目名（projectId → name）；失败返回空 Map（UI 降级不显示项目标签） */
+  async listProjectNames(projectIds: string[]): Promise<Map<string, string>> {
+    return this.options.gateway.listProjectNames(projectIds)
   }
 
   /**

@@ -14,7 +14,7 @@ import {
   isTbDefectReopened as sharedIsReopened,
   resolveSkillMatches as sharedResolveSkillMatches,
 } from '@luxcoder/shared/teambition-defect'
-import type { TbDefectItem, TbSection, TbSkillMatch, TbTaskDetail, TbWorkflow } from '@luxcoder/shared/teambition-defect'
+import type { TbDefectItem, TbRoleView, TbSection, TbSkillMatch, TbTaskDetail, TbWorkflow } from '@luxcoder/shared/teambition-defect'
 import type { BrowserTbCompletenessResult, BrowserTbDefectItem, BrowserTbTaskDetail, BrowserTbWorkflow } from '@/../preload/index'
 
 /** 渲染层 Skill 匹配结果（与 shared TbSkillMatch 对齐） */
@@ -43,30 +43,33 @@ function toSharedWorkflow(workflow: BrowserTbWorkflow | undefined): TbWorkflow |
       kind: status.kind,
       pos: status.pos,
       rejectStatusIds: status.rejectStatusIds,
+      stage: status.stage,
     })),
   }
 }
 
 export type { TbSection }
 
-/** 三区划分（纯函数） */
+/** 三区划分（纯函数；按角色视图分类） */
 export function classifyDefect(
   item: BrowserTbDefectItem,
   workflow: BrowserTbWorkflow | undefined,
+  roleView: TbRoleView,
   currentUserId: string | undefined,
 ): TbSection {
   if (!currentUserId) return 'handed-off'
-  return sharedClassify(toSharedItem(item), toSharedWorkflow(workflow), currentUserId)
+  return sharedClassify(toSharedItem(item), toSharedWorkflow(workflow), roleView, currentUserId)
 }
 
 /** 合法目标状态列表（空数组 = 不可流转） */
 export function legalTargets(
   item: BrowserTbDefectItem,
   workflow: BrowserTbWorkflow | undefined,
+  roleView: TbRoleView,
   currentUserId: string | undefined,
 ): Array<{ id: string; name: string; kind: 'start' | 'unset' | 'end' }> {
   if (!currentUserId) return []
-  return sharedCanTransition(toSharedItem(item), toSharedWorkflow(workflow), currentUserId)
+  return sharedCanTransition(toSharedItem(item), toSharedWorkflow(workflow), roleView, currentUserId)
     .map((status) => ({ id: status.id, name: status.name, kind: status.kind }))
 }
 
@@ -74,9 +77,10 @@ export function legalTargets(
 export function canFlow(
   item: BrowserTbDefectItem,
   workflow: BrowserTbWorkflow | undefined,
+  roleView: TbRoleView,
   currentUserId: string | undefined,
 ): boolean {
-  return legalTargets(item, workflow, currentUserId).length > 0
+  return legalTargets(item, workflow, roleView, currentUserId).length > 0
 }
 
 /** Reopen 被打回高亮 */
@@ -105,22 +109,13 @@ export function analyzeCompleteness(detail: BrowserTbTaskDetail | undefined): Br
   return sharedAnalyzeCompleteness(toSharedDetail(detail))
 }
 
-/** 工作区 Skill 匹配（渲染层适配：Browser 详情 + 条目类型 → 共享模型 → 匹配结果） */
-export function resolveSkillMatchesForDetail(
-  detail: BrowserTbTaskDetail | undefined,
-  type: BrowserTbDefectItem['type'],
+/** 列表级 Skill 匹配（无详情，仅标题/类型；用于加入本地任务对话框的 AI 预勾选） */
+export function resolveSkillMatchesForItem(
+  item: Pick<BrowserTbDefectItem, 'content' | 'type'>,
   skills: Array<{ slug: string; name: string; description?: string; enabled: boolean }>,
 ): BrowserTbSkillMatch[] {
-  if (!detail) return []
   return sharedResolveSkillMatches(
-    {
-      content: detail.content,
-      note: detail.note,
-      description: detail.description,
-      attachments: detail.attachments,
-      type,
-      fields: detail.fields,
-    },
+    { content: item.content, type: item.type },
     skills,
   )
 }

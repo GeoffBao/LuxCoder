@@ -325,6 +325,8 @@ export interface BrowserTbDefectItem {
   uniqueId?: number
   content: string
   projectId: string
+  /** 项目名（卡片项目标签；可能缺失） */
+  projectName?: string
   tfsId: string
   tfsName?: string
   executorId?: string
@@ -354,6 +356,7 @@ export interface BrowserTbWorkflow {
     kind: 'start' | 'unset' | 'end'
     pos: number
     rejectStatusIds: string[]
+    stage: 'dev' | 'waiting' | 'closed'
   }>
 }
 
@@ -1625,7 +1628,7 @@ export interface ElectronAPI {
     /** 一键同步用户名下未 close 任务到看板（拉取候选，不自动创建） */
     syncMyOpenTasks: (workspaceRoot: string, workspaceId: string) => Promise<BrowserTeambitionSyncResult>
     /** 手动创建选中的 TB 任务为本地看板 Task（不自动运行） */
-    createSyncedTasks: (workspaceRoot: string, workspaceId: string, selected: BrowserTeambitionTask[], options?: { expertId?: string; projectId?: string; workingDirectory?: string }) => Promise<BrowserTeambitionCreateResult>
+    createSyncedTasks: (workspaceRoot: string, workspaceId: string, selected: BrowserTeambitionTask[], options?: { expertId?: string; projectId?: string; workingDirectory?: string; skills?: string[]; skillsByTask?: Record<string, string[]> }) => Promise<BrowserTeambitionCreateResult>
     /** 识别当前工作区 Teambition MCP 配置状态 */
     recognize: (workspaceRoot: string) => Promise<BrowserTeambitionRecognition>
     claimTask: (workspaceRoot: string, input: BrowserTeambitionClaimInput) => Promise<BrowserTeambitionBinding>
@@ -1640,6 +1643,8 @@ export interface ElectronAPI {
   teambitionBoard: {
     getCurrentUser: (workspaceRoot: string) => Promise<string>
     listMyDefects: (workspaceRoot: string, roleTypes?: string) => Promise<BrowserTbDefectItem[]>
+    /** 近 N 天内已关闭的我的任务（已关闭区懒加载） */
+    listClosedDefects: (workspaceRoot: string, days: number) => Promise<BrowserTbDefectItem[]>
     listProjectDefects: (workspaceRoot: string, projectId: string) => Promise<BrowserTbDefectItem[]>
     getWorkflow: (workspaceRoot: string, taskId: string, projectId?: string) => Promise<BrowserTbWorkflow | undefined>
     getWorkflowsBatch: (workspaceRoot: string, taskIds: string[], projectId?: string) => Promise<Record<string, BrowserTbWorkflow | undefined>>
@@ -1651,6 +1656,8 @@ export interface ElectronAPI {
     postComment: (workspaceRoot: string, taskId: string, text: string) => Promise<void>
     /** 是否 Mock 网关（无真实 TB 配置时本地兜底，UI 展示「演示数据」角标） */
     isMock: (workspaceRoot: string) => Promise<boolean>
+    /** 读取会话分析报告文件（log 目录下 qxdm 报告/HTML 报告），返回报告文本；无则空串 */
+    resolveAnalysisReport: (workspaceRoot: string, workspaceSlug: string, sessionId: string) => Promise<string>
     clearCache: (workspaceRoot: string) => Promise<void>
   }
 
@@ -3539,7 +3546,7 @@ const electronAPI: ElectronAPI = {
       invokeTyped<BrowserTeambitionTaskList>(TEAMBITION_IPC_CHANNELS.LIST_TASKS, workspaceRoot, projectId),
     syncMyOpenTasks: (workspaceRoot: string, workspaceId: string): Promise<BrowserTeambitionSyncResult> =>
       invokeTyped<BrowserTeambitionSyncResult>(TEAMBITION_IPC_CHANNELS.SYNC_MY_OPEN_TASKS, workspaceRoot, workspaceId),
-    createSyncedTasks: (workspaceRoot: string, workspaceId: string, selected: BrowserTeambitionTask[], options?: { expertId?: string; projectId?: string; workingDirectory?: string }): Promise<BrowserTeambitionCreateResult> =>
+    createSyncedTasks: (workspaceRoot: string, workspaceId: string, selected: BrowserTeambitionTask[], options?: { expertId?: string; projectId?: string; workingDirectory?: string; skills?: string[]; skillsByTask?: Record<string, string[]> }): Promise<BrowserTeambitionCreateResult> =>
       invokeTyped<BrowserTeambitionCreateResult>(TEAMBITION_IPC_CHANNELS.CREATE_SYNCED_TASKS, workspaceRoot, workspaceId, selected, options),
     recognize: (workspaceRoot: string): Promise<BrowserTeambitionRecognition> =>
       invokeTyped<BrowserTeambitionRecognition>(TEAMBITION_IPC_CHANNELS.RECOGNIZE, workspaceRoot),
@@ -3563,6 +3570,8 @@ const electronAPI: ElectronAPI = {
       invokeTyped<string>(TEAMBITION_BOARD_IPC_CHANNELS.GET_CURRENT_USER, workspaceRoot),
     listMyDefects: (workspaceRoot: string, roleTypes?: string): Promise<BrowserTbDefectItem[]> =>
       invokeTyped<BrowserTbDefectItem[]>(TEAMBITION_BOARD_IPC_CHANNELS.LIST_MY_DEFECTS, workspaceRoot, roleTypes),
+    listClosedDefects: (workspaceRoot: string, days: number): Promise<BrowserTbDefectItem[]> =>
+      invokeTyped<BrowserTbDefectItem[]>(TEAMBITION_BOARD_IPC_CHANNELS.LIST_CLOSED_DEFECTS, workspaceRoot, days),
     listProjectDefects: (workspaceRoot: string, projectId: string): Promise<BrowserTbDefectItem[]> =>
       invokeTyped<BrowserTbDefectItem[]>(TEAMBITION_BOARD_IPC_CHANNELS.LIST_PROJECT_DEFECTS, workspaceRoot, projectId),
     getWorkflow: (workspaceRoot: string, taskId: string, projectId?: string): Promise<BrowserTbWorkflow | undefined> =>
@@ -3583,6 +3592,8 @@ const electronAPI: ElectronAPI = {
       invokeTyped<void>(TEAMBITION_BOARD_IPC_CHANNELS.POST_COMMENT, workspaceRoot, taskId, text),
     isMock: (workspaceRoot: string): Promise<boolean> =>
       invokeTyped<boolean>(TEAMBITION_BOARD_IPC_CHANNELS.IS_MOCK, workspaceRoot),
+    resolveAnalysisReport: (workspaceRoot: string, workspaceSlug: string, sessionId: string): Promise<string> =>
+      invokeTyped<string>(TEAMBITION_BOARD_IPC_CHANNELS.RESOLVE_ANALYSIS_REPORT, workspaceRoot, workspaceSlug, sessionId),
     clearCache: (workspaceRoot: string): Promise<void> =>
       invokeTyped<void>(TEAMBITION_BOARD_IPC_CHANNELS.CLEAR_CACHE, workspaceRoot),
   },

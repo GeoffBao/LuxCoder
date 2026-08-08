@@ -86,6 +86,7 @@ export const TEAMBITION_IPC_CHANNELS = {
 export const TEAMBITION_BOARD_IPC_CHANNELS = {
   GET_CURRENT_USER: 'tbBoard:getCurrentUser',
   LIST_MY_DEFECTS: 'tbBoard:listMyDefects',
+  LIST_CLOSED_DEFECTS: 'tbBoard:listClosedDefects',
   LIST_PROJECT_DEFECTS: 'tbBoard:listProjectDefects',
   GET_WORKFLOW: 'tbBoard:getWorkflow',
   GET_WORKFLOWS_BATCH: 'tbBoard:getWorkflowsBatch',
@@ -98,6 +99,8 @@ export const TEAMBITION_BOARD_IPC_CHANNELS = {
   POST_COMMENT: 'tbBoard:postComment',
   /** 是否 Mock 网关（无真实 TB 配置时本地兜底，UI 展示「演示数据」角标） */
   IS_MOCK: 'tbBoard:isMock',
+  /** 按会话读取分析报告文件（log 目录下的 qxdm 报告 / HTML 报告），返回文本 */
+  RESOLVE_ANALYSIS_REPORT: 'tbBoard:resolveAnalysisReport',
   CLEAR_CACHE: 'tbBoard:clearCache',
 } as const;
 

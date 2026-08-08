@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useAtom, useAtomValue, useSetAtom, useStore } from 'jotai'
+import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { FolderKanban } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -72,7 +72,6 @@ export function WorkBoardView(): React.ReactElement {
   const kanbanItems = useAtomValue(kanbanItemsAtom)
   const streamStates = useAtomValue(agentStreamingStatesAtom)
   const openSession = useOpenSession()
-  const store = useStore()
   const [workspaceRoot, setWorkspaceRoot] = React.useState<string | null>(null)
   const activeWorkspaceLoadRef = React.useRef<WorkspaceLoadIdentity | null>(null)
   const [loading, setLoading] = React.useState(false)
@@ -95,15 +94,9 @@ export function WorkBoardView(): React.ReactElement {
     setBindings([])
     setSpecNodes(new Map())
     setTaskExpertIds(new Map())
-    // TB 缺陷看板状态随工作区切换清空（重新加载新工作区）
-    setTbItems([])
-    setTbDetail(null)
-    setTbTransitions([])
-    setTbWorkflows(new Map())
-    setTbUserId(undefined)
-    setTbError(null)
-    setTbLoadedWorkspace(null)
-    setTbLocalTaskIds(new Set())
+    // 注：TB 缺陷看板状态不在挂载 effect 里清空——组件会随左侧大功能菜单切换卸载/重挂载，
+    // 若在此清空 tbDefectLoadedWorkspace 会导致切回任务看板时反复重新拉取（违背首次同步原则）。
+    // TB 状态仅在下方 workspaceId 变化 effect 中清空（真正切换工作区）。
     setWorkspaceRoot(null)
     setError(null)
     if (!workspace) return () => { cancelled = true }
@@ -125,6 +118,22 @@ export function WorkBoardView(): React.ReactElement {
 
     return () => { cancelled = true }
   }, [setBindings, setRuns, setSpecNodes, setTaskExpertIds, setTaskSummaries, setTbDetail, setTbError, setTbItems, setTbLoadedWorkspace, setTbLocalTaskIds, setTbTransitions, setTbUserId, setTbWorkflows, workspace])
+
+  // TB 缺陷看板状态：仅在工作区 ID 真正变化时清空（组件卸载/重挂载不触发，避免切回任务看板反复拉取）
+  const prevWorkspaceIdRef = React.useRef<string | undefined>(workspace?.id)
+  React.useEffect(() => {
+    if (prevWorkspaceIdRef.current === workspace?.id) return
+    prevWorkspaceIdRef.current = workspace?.id
+    setTbItems([])
+    setTbDetail(null)
+    setTbTransitions([])
+    setTbWorkflows(new Map())
+    setTbUserId(undefined)
+    setTbError(null)
+    setTbLoadedWorkspace(null)
+    setTbLocalTaskIds(new Set())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspace?.id])
 
   const captureWorkspaceLoad = React.useCallback((): WorkspaceLoadIdentity | null => {
     const active = activeWorkspaceLoadRef.current
@@ -450,6 +459,7 @@ export function WorkBoardView(): React.ReactElement {
         {taskBoardSection === 'tb-defect' ? (
           <div className="min-h-0 flex-1 overflow-hidden">
             <TeambitionDefectBoardView
+              key={workspaceRoot}
               workspaceRoot={workspaceRoot}
               workspaceId={workspace.id}
               // 加入本地任务时按当前看板选中的项目/工作目录默认填充
@@ -471,14 +481,9 @@ export function WorkBoardView(): React.ReactElement {
             onSync={handleSync}
             syncing={syncing}
             onTaskCreated={async (created) => {
+              // 任务创建/运行后只刷新看板数据；不自动跳转会话窗口（用户自行点击卡片/会话跳转）
               await refreshAll()
-              if (!created?.ran || !created.sessionId) return
-              const session = store.get(agentSessionsAtom).find((candidate) => candidate.id === created.sessionId)
-              openSession(
-                'agent',
-                created.sessionId,
-                session?.title ?? created.slug ?? '任务编排',
-              )
+              void created
             }}
           />
         </div>
