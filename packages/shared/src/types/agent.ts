@@ -635,6 +635,8 @@ export type LuxCoderEvent =
   | { type: 'title_updated'; title: string }
   | { type: 'external_run_started'; source: AgentExternalRunSource; sessionId: string; title?: string; workspaceId?: string; modelId?: string; startedAt: number; session?: AgentSessionMeta }
   | { type: 'run_resumed'; sessionId: string }
+  /** 会话无进展看门狗触发：长时间无任何 SDK 消息判定卡死，已强制终止 */
+  | { type: 'watchdog_timeout'; sessionId: string; timeoutMs: number }
   // 协作子会话阻塞事件上浮
   | { type: 'delegation_blocked'; delegationId: string; blockedEvent: unknown }
   // 自动任务会话被用户接管（毕业）

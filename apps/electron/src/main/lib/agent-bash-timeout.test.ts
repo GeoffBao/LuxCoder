@@ -1,18 +1,19 @@
 import { describe, test, expect } from 'bun:test'
 import {
   BASH_DEFAULT_TIMEOUT_MS,
+  BASH_DEFAULT_TIMEOUT_MS_PI,
   hasExplicitBashTimeout,
   resolveBashDefaultTimeout,
   injectBashDefaultTimeout,
 } from './agent-bash-timeout'
 
 describe('agent-bash-timeout', () => {
-  test('Pi runtime 注入的 timeout 单位是秒', () => {
+  test('Pi runtime 注入的 timeout 单位是秒，默认值比 Claude 更宽松（避免误杀长编译）', () => {
     const input = injectBashDefaultTimeout({ command: 'awk ...' }, 'pi')
     // Pi 的 bash 工具 resolveTimeoutMs 按 秒×1000，故注入秒值
-    expect(input.timeout).toBe(120)
-    // 换算回毫秒应等于默认值
-    expect((input.timeout as number) * 1000).toBe(BASH_DEFAULT_TIMEOUT_MS)
+    expect(input.timeout).toBe(600)
+    // 换算回毫秒应等于 Pi 专属默认值（600s），而非 Claude 的 120s
+    expect((input.timeout as number) * 1000).toBe(BASH_DEFAULT_TIMEOUT_MS_PI)
     // 保留原 command
     expect(input.command).toBe('awk ...')
   })
@@ -27,7 +28,7 @@ describe('agent-bash-timeout', () => {
     // Claude：已给 5000ms
     const claude = injectBashDefaultTimeout({ command: 'sleep 3', timeout: 5000 }, 'claude')
     expect(claude.timeout).toBe(5000)
-    // Pi：已给 60 秒
+    // Pi：已给 60 秒（应保留，即使小于 Pi 的 600s 默认值也不覆盖）
     const pi = injectBashDefaultTimeout({ command: 'sleep 3', timeout: 60 }, 'pi')
     expect(pi.timeout).toBe(60)
   })
@@ -46,8 +47,8 @@ describe('agent-bash-timeout', () => {
     expect(hasExplicitBashTimeout({ timeout: undefined })).toBe(false)
   })
 
-  test('resolveBashDefaultTimeout 单位换算', () => {
-    expect(resolveBashDefaultTimeout('pi')).toBe(120)
+  test('resolveBashDefaultTimeout 单位换算，两个 runtime 使用各自默认值', () => {
+    expect(resolveBashDefaultTimeout('pi')).toBe(600)
     expect(resolveBashDefaultTimeout('claude')).toBe(BASH_DEFAULT_TIMEOUT_MS)
   })
 
