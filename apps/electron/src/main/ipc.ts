@@ -6,7 +6,7 @@
 
 import { ipcMain, nativeTheme, shell, dialog, BrowserWindow, app, clipboard, nativeImage } from 'electron'
 import { join, resolve, sep, dirname } from 'node:path'
-import { existsSync, realpathSync, rmSync, readFileSync, writeFileSync, mkdirSync, statSync, readdirSync, copyFileSync, renameSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS, EXPERT_IPC_CHANNELS, AGENT_THINKING_LEVELS, isLuxCoderPermissionMode, normalizePathForCompare, PLANNING_IPC_CHANNELS, type PlanningWorkspaceScope } from '@luxcoder/shared'
@@ -243,11 +243,18 @@ import {
 import { broadcastPlanningChanged } from './lib/planning-events'
 import {
   createExpert,
+  createTeam,
   getExpert,
+  getTeam,
   listExperts,
+  listTeams,
   updateExpertFiles,
   updateExpertManifest,
+  updateTeam,
+  type CreateTeamInput,
+  type UpdateTeamInput,
 } from './lib/expert-service'
+import type { TeamSquad, ExpertTemplate } from '@luxcoder/shared/experts'
 import {
   listAgentSessions,
   createAgentSession,
@@ -264,10 +271,11 @@ import {
   searchAgentSessionReferences,
 } from './lib/agent-session-manager'
 import { runAgent, stopAgent, generateAgentTitle, saveFilesToAgentSession, saveFilesToWorkspaceFiles, isAgentSessionActive, queueAgentMessage, updateAgentPermissionMode, rewindAgentSession } from './lib/agent-service'
+import { spawnExpertCowork } from './lib/agent-cowork'
 import { permissionService } from './lib/agent-permission-service'
 import { askUserService } from './lib/agent-ask-user-service'
 import { exitPlanService } from './lib/agent-exit-plan-service'
-import { getAgentSessionWorkspacePath, getAgentWorkspacesDir, getWorkspaceSkillsDir, getWorkspaceFilesDir, getScratchPadPath, getExcalidrawDir, getExpertsDir } from './lib/config-paths'
+import { getAgentSessionWorkspacePath, getAgentWorkspacesDir, getWorkspaceSkillsDir, getWorkspaceFilesDir, getScratchPadPath, getExcalidrawDir, getExpertsDir, getDefaultExpertTemplatesDir } from './lib/config-paths'
 import { resolveAgentSessionFileRoots } from './lib/agent-file-roots'
 import { listSessionOutputs } from './lib/agent-output-capture'
 import { getAgentWorkspacePath } from './lib/config-paths'
@@ -3074,6 +3082,24 @@ export function registerIpcHandlers(): void {
     }
   )
 
+  // 会话级拉专家/专家团 cowork（创建注入专家人设的子会话）
+  ipcMain.handle(
+    AGENT_IPC_CHANNELS.SPAWN_EXPERT_COWORK,
+    async (
+      _,
+      input: import('@luxcoder/shared').SpawnExpertCoworkInput,
+    ): Promise<import('@luxcoder/shared').SpawnExpertCoworkResult> => {
+      if (!input || typeof input !== 'object') throw new Error('input 必须是对象')
+      if (typeof input.parentSessionId !== 'string' || input.parentSessionId.length === 0) {
+        throw new Error('parentSessionId 必填')
+      }
+      if (typeof input.expertId === 'string' && typeof input.teamId === 'string') {
+        throw new Error('expertId 与 teamId 不能同时指定')
+      }
+      return spawnExpertCowork(input.parentSessionId, input)
+    }
+  )
+
   // ===== Agent 队列消息 =====
 
   // 排队发送消息
@@ -5669,7 +5695,7 @@ export function registerIpcHandlers(): void {
     EXPERT_IPC_CHANNELS.CREATE,
     async (
       _,
-      input: { id: string; label: string; identitySummary?: string },
+      input: { id: string; label: string; identitySummary?: string; description?: string; avatar?: { icon?: string; accent?: string }; defaultProviderChannelId?: string; defaultModel?: string; skillSlugs?: string[] },
     ): Promise<ExpertPackage> => {
       if (!input || typeof input !== 'object') throw new Error('input 必须是对象')
       if (!isNonEmptyString(input.id)) throw new Error('id 必填')
@@ -5678,6 +5704,11 @@ export function registerIpcHandlers(): void {
         id: input.id,
         label: input.label,
         identitySummary: typeof input.identitySummary === 'string' ? input.identitySummary : undefined,
+        description: typeof input.description === 'string' && input.description.length > 0 ? input.description : undefined,
+        avatar: input.avatar && typeof input.avatar === 'object' ? input.avatar : undefined,
+        defaultProviderChannelId: typeof input.defaultProviderChannelId === 'string' && input.defaultProviderChannelId.length > 0 ? input.defaultProviderChannelId : undefined,
+        defaultModel: typeof input.defaultModel === 'string' && input.defaultModel.length > 0 ? input.defaultModel : undefined,
+        skillSlugs: Array.isArray(input.skillSlugs) ? input.skillSlugs : undefined,
       })
     },
   )
@@ -5705,6 +5736,70 @@ export function registerIpcHandlers(): void {
       if (!isNonEmptyString(id)) throw new Error('id 必填')
       if (!files || typeof files !== 'object') throw new Error('files 必须是对象')
       return updateExpertFiles(getExpertsDir(), id, files)
+    },
+  )
+
+  // ===== Agent 专家团（team.json 新结构） =====
+
+  ipcMain.handle(
+    EXPERT_IPC_CHANNELS.TEAMS_LIST,
+    async (): Promise<TeamSquad[]> => listTeams(getExpertsDir()),
+  )
+
+  ipcMain.handle(
+    EXPERT_IPC_CHANNELS.TEAMS_GET,
+    async (_, id: string): Promise<TeamSquad | null> => {
+      if (!isNonEmptyString(id)) throw new Error('id 必填')
+      return getTeam(getExpertsDir(), id)
+    },
+  )
+
+  ipcMain.handle(
+    EXPERT_IPC_CHANNELS.TEAMS_CREATE,
+    async (_, input: CreateTeamInput): Promise<TeamSquad> => {
+      if (!input || typeof input !== 'object') throw new Error('input 必须是对象')
+      if (!isNonEmptyString(input.id)) throw new Error('id 必填')
+      if (!isNonEmptyString(input.label)) throw new Error('label 必填')
+      if (!isNonEmptyString(input.leaderExpertId)) throw new Error('leaderExpertId 必填')
+      return createTeam(getExpertsDir(), input)
+    },
+  )
+
+  ipcMain.handle(
+    EXPERT_IPC_CHANNELS.TEAMS_UPDATE,
+    async (_, id: string, patch: UpdateTeamInput): Promise<TeamSquad> => {
+      if (!isNonEmptyString(id)) throw new Error('id 必填')
+      if (!patch || typeof patch !== 'object') throw new Error('patch 必须是对象')
+      return updateTeam(getExpertsDir(), id, patch)
+    },
+  )
+
+  ipcMain.handle(
+    EXPERT_IPC_CHANNELS.TEMPLATES_LIST,
+    async (): Promise<ExpertTemplate[]> => {
+      const templatesDir = getDefaultExpertTemplatesDir()
+      if (!existsSync(templatesDir)) return []
+      const templates: ExpertTemplate[] = []
+      for (const entry of readdirSync(templatesDir, { withFileTypes: true })) {
+        if (!entry.isFile() || !entry.name.endsWith('.json')) continue
+        try {
+          const parsed = JSON.parse(readFileSync(join(templatesDir, entry.name), 'utf-8'))
+          if (typeof parsed?.slug !== 'string') continue
+          templates.push({
+            slug: parsed.slug,
+            name: typeof parsed.name === 'string' ? parsed.name : parsed.slug,
+            description: typeof parsed.description === 'string' ? parsed.description : '',
+            category: typeof parsed.category === 'string' ? parsed.category : '',
+            icon: typeof parsed.icon === 'string' ? parsed.icon : '',
+            accent: typeof parsed.accent === 'string' ? parsed.accent : '',
+            instructions: typeof parsed.instructions === 'string' ? parsed.instructions : '',
+            skills: Array.isArray(parsed.skills) ? parsed.skills.filter((s: unknown): s is string => typeof s === 'string') : [],
+          })
+        } catch (error) {
+          console.warn(`[专家] 跳过损坏的专家模板 ${entry.name}:`, error)
+        }
+      }
+      return templates.sort((a, b) => a.slug.localeCompare(b.slug))
     },
   )
 }

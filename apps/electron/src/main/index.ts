@@ -86,7 +86,7 @@ import { registerIpcHandlers } from './ipc'
 import { registerTaskHandlers, rehydrateIncompleteTaskRuns, healOrphanedTaskRuns } from './lib/task-handlers'
 import { createTray, destroyTray, getTray } from './tray'
 import { initializeRuntime } from './lib/runtime-init'
-import { seedDefaultSkills, getExpertsDir } from './lib/config-paths'
+import { seedDefaultSkills, seedDefaultExpertTemplates, getExpertsDir } from './lib/config-paths'
 import { seedBuiltinExperts } from './lib/expert-service'
 import { upgradeDefaultSkillsInWorkspaces } from './lib/agent-workspace-manager'
 import { stopAllAgents, killOrphanedClaudeSubprocesses, isAgentSessionActive, hasActiveAgentSessions } from './lib/agent-service'
@@ -515,6 +515,7 @@ async function bootstrap(): Promise<void> {
 
   // 同步默认 Skills 模板到 ~/.luxcoder/default-skills/
   safeRun('seedDefaultSkills', seedDefaultSkills)
+  safeRun('seedDefaultExpertTemplates', seedDefaultExpertTemplates)
 
   // 种子内置 Agent 专家包到 ~/.luxcoder/experts/
   safeRun('seedBuiltinExperts', () => seedBuiltinExperts(getExpertsDir()))

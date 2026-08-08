@@ -9,17 +9,19 @@ import * as React from 'react'
 export interface ExpertOption {
   id: string
   label: string
+  /** expert = 单角色专家；team = 专家团（团长编排） */
+  kind?: 'expert' | 'team'
 }
 
 /** 内置专家选项（5 个专家 + 2 个专家团，与 BUILTIN_EXPERT_DEFINITIONS / BUILTIN_EXPERT_TEAM_DEFINITIONS 对齐） */
 export const BUILTIN_EXPERT_OPTIONS: readonly ExpertOption[] = [
-  { id: 'general', label: '通用软件专家' },
-  { id: 'architect', label: '软件架构师' },
-  { id: 'qa', label: '软件测试' },
-  { id: 'reviewer', label: '代码审查' },
-  { id: 'delivery-manager', label: '软件交付经理' },
-  { id: 'dev-team', label: '软件研发全流程团' },
-  { id: 'quality-team', label: '代码质量攻坚团' },
+  { id: 'general', label: '通用软件专家', kind: 'expert' },
+  { id: 'architect', label: '软件架构师', kind: 'expert' },
+  { id: 'qa', label: '软件测试', kind: 'expert' },
+  { id: 'reviewer', label: '代码审查', kind: 'expert' },
+  { id: 'delivery-manager', label: '软件交付经理', kind: 'expert' },
+  { id: 'dev-team', label: '软件研发全流程团', kind: 'team' },
+  { id: 'quality-team', label: '代码质量攻坚团', kind: 'team' },
 ]
 
 /** 根据 expertId 解析显示标签 */
@@ -43,10 +45,24 @@ export function useExpertOptions(): ExpertOptionsState {
   React.useEffect(() => {
     let cancelled = false
 
-    void window.electronAPI.experts.list()
-      .then((experts) => {
+    void Promise.all([
+      window.electronAPI.experts.list(),
+      window.electronAPI.experts.listTeams(),
+    ])
+      .then(([experts, teams]) => {
         if (cancelled) return
-        setOptions(experts.map((expert) => ({ id: expert.id, label: expert.label })))
+        // 专家 + 团队合并（新结构团队只有 team.json，不在 experts.list 中）
+        const merged = [
+          ...experts
+            .filter((expert) => (expert.kind ?? 'expert') !== 'team')
+            .map((expert) => ({
+              id: expert.id,
+              label: expert.label,
+              kind: 'expert' as const,
+            })),
+          ...teams.map((team) => ({ id: team.id, label: team.label, kind: 'team' as const })),
+        ].sort((a, b) => a.id.localeCompare(b.id))
+        setOptions(merged)
       })
       .catch((cause: unknown) => {
         if (cancelled) return

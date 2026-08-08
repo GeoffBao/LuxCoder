@@ -278,6 +278,7 @@ export function TaskEditor({
       orchConnection: action.spec.defaults?.llmConnection ?? current.orchConnection,
       permissionMode: action.spec.defaults?.permissionMode ?? current.permissionMode,
       expertId: action.spec.defaults?.expertId ?? current.expertId,
+      teamId: action.spec.defaults?.teamId ?? current.teamId,
     }))
     setMode('manual')
   }, [defaultModel, finishGeneration, target, workspaceId])
@@ -513,18 +514,28 @@ export function TaskEditor({
                 <span className="block text-[11px] font-normal leading-4 text-muted-foreground">主任务默认模型；子任务可单独覆盖</span>
               </div>
               <label className="space-y-1.5 text-xs font-medium">
-                Agent 专家
+                Agent 专家 / 专家团
                 <select
-                  value={draft.expertId ?? 'general'}
-                  onChange={(event) => patchDraft({ expertId: event.target.value || undefined })}
+                  value={draft.teamId ?? draft.expertId ?? 'general'}
+                  onChange={(event) => {
+                    const option = expertOptions.find((item) => item.id === event.target.value)
+                    if (option?.kind === 'team') {
+                      // 团队指派：写入 defaults.teamId，运行时团长拆解委派
+                      patchDraft({ teamId: event.target.value, expertId: undefined })
+                    } else {
+                      patchDraft({ expertId: event.target.value || undefined, teamId: undefined })
+                    }
+                  }}
                   className="h-9 w-full rounded-md border border-border/60 bg-background px-2 text-sm"
                 >
                   {expertOptions.map((option) => (
-                    <option key={option.id} value={option.id}>{option.label}</option>
+                    <option key={option.id} value={option.id}>{option.label}{option.kind === 'team' ? '（团）' : ''}</option>
                   ))}
                 </select>
                 <span className="block text-[11px] font-normal leading-4 text-muted-foreground">
-                  {expert.description ?? '对应左侧「Agent 专家」模块中的角色配置'}
+                  {draft.teamId
+                    ? '专家团：运行时团长拆解任务并委派成员执行，团长汇总验收'
+                    : (expert.description ?? '对应左侧「Agent 专家」模块中的角色配置')}
                 </span>
               </label>
               <label className="space-y-1.5 text-xs font-medium">最大修复次数<Input type="number" min={0} max={10} value={draft.maxRepairs ?? ''} onChange={(event) => patchDraft({ maxRepairs: event.target.value === '' ? undefined : Number(event.target.value) })} placeholder="默认 3" /></label>

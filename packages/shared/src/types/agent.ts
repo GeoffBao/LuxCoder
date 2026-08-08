@@ -643,6 +643,37 @@ export type LuxCoderEvent =
 /** 外部入口触发 Agent 运行的来源 */
 export type AgentExternalRunSource = 'feishu' | 'dingtalk' | 'wechat' | 'bridge' | 'delegation' | 'work'
 
+/** 会话级拉专家/专家团 cowork 的请求 */
+export interface SpawnExpertCoworkInput {
+  /** 父会话（当前 Code 会话）id */
+  parentSessionId: string
+  /** 拉单个专家；与 teamId 互斥 */
+  expertId?: string
+  /** 拉专家团（团长编排 → 成员 → 汇总）；与 expertId 互斥 */
+  teamId?: string
+  /** 给队友的任务提示（缺省用专家身份默认提示） */
+  prompt?: string
+}
+
+export interface SpawnExpertCoworkResult {
+  kind: 'expert' | 'team'
+  /** 展示名（专家名/团队名） */
+  label: string
+  /** 创建的子会话 id（专家=1 个；团队=团长+成员+汇总） */
+  childSessionIds: string[]
+}
+
+export interface CoworkChildInfo {
+  sessionId: string
+  title: string
+  /** 专家/团长 id（无专家绑定时为 null） */
+  expertId?: string
+  /** 角色：expert-cowork 成员 / leader / summary */
+  coworkRole: 'member' | 'leader' | 'summary'
+  status: string
+  modelId?: string
+}
+
 /** IPC 传输的统一 payload（替代 AgentEvent） */
 export type AgentStreamPayload =
   | { kind: 'sdk_message'; message: SDKMessage }
@@ -862,7 +893,17 @@ export interface SessionListPreference {
 }
 
 /** Agent 委派子会话的任务角色 */
-export type AgentDelegationRole = 'explore' | 'research' | 'implement' | 'review' | 'custom'
+export type AgentDelegationRole =
+  | 'explore'
+  | 'research'
+  | 'implement'
+  | 'review'
+  | 'custom'
+  /** 会话级拉专家/专家团 cowork 子会话（专家成员 / 团长 / 成员 / 汇总） */
+  | 'expert-cowork'
+  | 'team-leader'
+  | 'team-member'
+  | 'team-summary'
 
 /** Agent 委派子会话的运行状态（interrupted：应用退出时仍在运行，重启后无法续跑） */
 export type AgentDelegationStatus = 'running' | 'completed' | 'failed' | 'cancelled' | 'interrupted'
@@ -1859,6 +1900,10 @@ export const AGENT_IPC_CHANNELS = {
   SEND_MESSAGE: 'agent:send-message',
   /** 中止 Agent 执行 */
   STOP_AGENT: 'agent:stop',
+  /** 在当前会话下拉专家/专家团创建 cowork 子会话（注入专家人设） */
+  SPAWN_EXPERT_COWORK: 'agent:spawn-expert-cowork',
+  /** 查询当前会话的 cowork 子会话列表 */
+  LIST_COWORK_SESSIONS: 'agent:list-cowork-sessions',
 
   // 后台任务管理
   /** 获取任务输出 */

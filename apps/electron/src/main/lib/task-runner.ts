@@ -440,7 +440,10 @@ class ActiveRun {
       const projectDefault = this.spec.project && this.deps.resolveProjectDefaultExpertId
         ? this.deps.resolveProjectDefaultExpertId(this.spec.project)
         : null;
-      const expertId = resolveExpertId(this.spec.defaults?.expertId, projectDefault ?? undefined);
+      const expertId = resolveExpertId(
+        node.expertId ?? this.spec.defaults?.expertId,
+        projectDefault ?? undefined,
+      );
       let expert: ExpertPackage | null = null;
       if (expertId && this.deps.getExpert) {
         try {
@@ -873,6 +876,17 @@ export class TaskRunner {
     const loaded = loadTaskSpec(this.deps.workspaceRoot, slug);
     if (!loaded?.spec) throw new Error(`任务 "${slug}" 不存在或没有有效的 task.yaml`);
     if (!loaded.valid) throw new Error(`拒绝运行无效任务 "${slug}": ${loaded.errors.map((e) => e.message).join('; ')}`);
+    return this.runWithSpec(loaded.spec, slug, opts);
+  }
+
+  /**
+   * 用给定 spec 启动运行（团队任务展开后复用静态执行路径）。
+   * 仍会校验任务是否已有活跃 Run，并持久化展开后的 spec 供 rehydrate 恢复。
+   */
+  runWithSpec(spec: TaskSpec, slug: string, opts: RunOptions = {}): RunSnapshot {
+    const loaded = loadTaskSpec(this.deps.workspaceRoot, slug);
+    if (!loaded?.spec) throw new Error(`任务 "${slug}" 不存在或没有有效的 task.yaml`);
+    if (!loaded.valid) throw new Error(`拒绝运行无效任务 "${slug}": ${loaded.errors.map((e) => e.message).join('; ')}`);
 
     const activeRun = listResumableRuns(this.deps.workspaceRoot).find((candidate) => candidate.slug === slug)
     if (activeRun) {
@@ -881,17 +895,17 @@ export class TaskRunner {
 
     const runId = opts.runId ?? (this.deps.genRunId ? this.deps.genRunId() : randomUUID());
     const taskId = this.resolveTaskId(slug)
-    const effectiveCwd = this.resolveEffectiveCwd(loaded.spec, opts.orchestratorSessionId)
+    const effectiveCwd = this.resolveEffectiveCwd(spec, opts.orchestratorSessionId)
     const verifyOnComplete = opts.verifyOnComplete ?? true
     const createdAt = this.deps.now?.() ?? new Date().toISOString()
 
-    initializeRun(this.deps.workspaceRoot, slug, runId, loaded.spec, {
+    initializeRun(this.deps.workspaceRoot, slug, runId, spec, {
       schemaVersion: 1,
       taskId,
       taskSlug: slug,
       runId,
-      scope: loaded.spec.project
-        ? { kind: 'project', projectId: loaded.spec.project }
+      scope: spec.project
+        ? { kind: 'project', projectId: spec.project }
         : { kind: 'workspace' },
       ...(effectiveCwd.cwd && effectiveCwd.source
         ? { effectiveCwd: effectiveCwd.cwd, effectiveCwdSource: effectiveCwd.source }
@@ -904,13 +918,13 @@ export class TaskRunner {
     transitionTaskWorkflow(this.deps.workspaceRoot, slug, 'started')
 
     const run = new ActiveRun(
-      loaded.spec, slug, runId,
+      spec, slug, runId,
       {
         ...opts,
         taskId,
         effectiveCwd: effectiveCwd.cwd,
         effectiveCwdSource: effectiveCwd.source,
-        params: resolveParams(loaded.spec, opts.params),
+        params: resolveParams(spec, opts.params),
         verifyOnComplete,
       },
       this.deps,

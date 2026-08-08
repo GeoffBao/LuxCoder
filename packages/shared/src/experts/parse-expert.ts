@@ -1,4 +1,4 @@
-import type { ExpertChannelBinding, ExpertManifest } from './types.ts'
+import type { ExpertAvatar, ExpertChannelBinding, ExpertManifest } from './types.ts'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -7,6 +7,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function readStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return []
   return value.filter((item): item is string => typeof item === 'string')
+}
+
+function readOptionalString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.length > 0 ? value : undefined
+}
+
+function readAvatar(value: unknown): ExpertAvatar | undefined {
+  if (!isRecord(value)) return undefined
+  const avatar: ExpertAvatar = {}
+  const icon = readOptionalString(value.icon)
+  if (icon) avatar.icon = icon
+  const accent = readOptionalString(value.accent)
+  if (accent) avatar.accent = accent
+  return Object.keys(avatar).length > 0 ? avatar : undefined
 }
 
 function isValidChannelBinding(value: unknown): value is ExpertChannelBinding {
@@ -46,6 +60,10 @@ export function parseExpertJson(raw: string): ExpertManifest {
     label: parsed.label,
     kind: parsed.kind === 'team' ? 'team' : 'expert',
     roleLabels: readStringArray(parsed.roleLabels),
+    description: readOptionalString(parsed.description),
+    avatar: readAvatar(parsed.avatar),
+    defaultProviderChannelId: readOptionalString(parsed.defaultProviderChannelId),
+    defaultModel: readOptionalString(parsed.defaultModel),
     skillSlugs: readStringArray(parsed.skillSlugs),
     mcpIds: readStringArray(parsed.mcpIds),
     channelBindings: readChannelBindings(parsed.channelBindings),
