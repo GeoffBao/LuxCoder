@@ -44,6 +44,8 @@ const SHORTCUT_DISPLAY_ORDER: Record<ShortcutCategory, readonly string[]> = {
     'toggle-mode',
     'close-tab',
     'toggle-right-panel',
+    'quick-task-chat',
+    'quick-task-agent',
   ],
   navigation: [
     'cycle-sessions',
@@ -56,6 +58,7 @@ const SHORTCUT_DISPLAY_ORDER: Record<ShortcutCategory, readonly string[]> = {
   edit: [
     'clear-context',
     'stop-generation',
+    'save-excalidraw',
     'send-message',
     'insert-line-break',
     'editor-bold',
@@ -177,20 +180,6 @@ export function ShortcutGuideDialog(): React.ReactElement {
     }
 
     const primaryModifier = isMac ? 'Cmd' : 'Ctrl'
-    groups.get('navigation')?.push(
-      {
-        id: 'quick-switch-session',
-        name: '直达会话',
-        description: '按住主修饰键后，继续按 1-9 跳转对应会话',
-        accelerator: `${primaryModifier}+1-9`,
-      },
-      {
-        id: 'cycle-sessions',
-        name: '循环切换会话',
-        description: 'Ctrl+Shift+Tab 可反向切换，松开 Ctrl 确认',
-        accelerator: 'Ctrl+Tab',
-      },
-    )
     groups.get('edit')?.push(
       {
         id: 'send-message',
