@@ -63,3 +63,8 @@ pnpm-workspace.yaml
 
 # Claude Code local worktrees/settings (not part of this repo)
 .claude/
+# dashi-ppt skill 的浏览器运行时产物必须进 git（否则发布包缺 dist 无法渲染）
+!apps/electron/default-skills/**/dist/
+!apps/electron/default-skills/**/dist/**
+!apps/electron/default-skills/**/vendor/
+!apps/electron/default-skills/**/vendor/**
