@@ -108,6 +108,8 @@ export interface KanbanFilter {
   labelIds?: readonly string[]
   /** true 时把无标签 Task 纳入结果；未选 Label 时表示仅看无标签。 */
   includeUnlabeled?: boolean
+  /** true 时展示已归档 Task（灰显，可取消归档）；默认 false。 */
+  showArchived?: boolean
 }
 
 export interface KanbanNodeProgress {

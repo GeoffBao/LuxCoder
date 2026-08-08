@@ -21,6 +21,7 @@ interface KanbanColumnProps {
   onRetryTeambition?: (item: KanbanItem) => void
   onSetLabels?: (item: KanbanItem, labelIds: string[]) => void
   onChangeWorkflow?: (item: KanbanItem, workflow: TaskWorkflow) => void
+  onAccept?: (item: KanbanItem) => void
 }
 
 const TYPE_ICONS: Record<TaskType, string> = {
@@ -46,7 +47,7 @@ function resolveItemType(item: KanbanItem): TaskType {
   return item.task?.type ?? 'task'
 }
 
-export function KanbanColumn({ column, onOpenItem, onEditItem, onRenameItem, onArchiveItem, onDeleteItem, onOpenSubtask, onRunTask, onRetryTeambition, onSetLabels, onChangeWorkflow }: KanbanColumnProps): React.ReactElement {
+export function KanbanColumn({ column, onOpenItem, onEditItem, onRenameItem, onArchiveItem, onDeleteItem, onOpenSubtask, onRunTask, onRetryTeambition, onSetLabels, onChangeWorkflow, onAccept }: KanbanColumnProps): React.ReactElement {
   const drop = useDroppable({ id: `column:${column.id}`, data: { columnId: column.id } })
   const color = resolveKanbanColumnColor(column.id, column.color)
 
@@ -93,6 +94,7 @@ export function KanbanColumn({ column, onOpenItem, onEditItem, onRenameItem, onA
       onRetryTeambition={onRetryTeambition}
       onSetLabels={onSetLabels}
       onChangeWorkflow={onChangeWorkflow}
+      onAccept={onAccept}
     />
   )
 

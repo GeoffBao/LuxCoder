@@ -1,6 +1,6 @@
 import { useDraggable } from '@dnd-kit/core'
 import { useAtomValue } from 'jotai'
-import { Archive, ArchiveRestore, ChevronDown, Clock, Link2, MessageSquare, MoreHorizontal, Pencil, RotateCcw, Tag, Trash2 } from 'lucide-react'
+import { Archive, ArchiveRestore, Check, ChevronDown, Clock, Link2, MessageSquare, MoreHorizontal, Pencil, RotateCcw, Tag, Trash2 } from 'lucide-react'
 import * as React from 'react'
 import { cn } from '@/lib/utils'
 import { StatusBadge } from './StatusBadge'
@@ -38,6 +38,8 @@ interface TaskTileProps {
   onRetryTeambition?: (item: KanbanItem) => void
   onSetLabels?: (item: KanbanItem, labelIds: string[]) => void
   onChangeWorkflow?: (item: KanbanItem, workflow: TaskWorkflow) => void
+  /** 待验收状态一键验收：流转到已完成（done）。 */
+  onAccept?: (item: KanbanItem) => void
   className?: string
 }
 
@@ -59,6 +61,7 @@ export function TaskTile({
   onRetryTeambition,
   onSetLabels,
   onChangeWorkflow,
+  onAccept,
   className,
 }: TaskTileProps): React.ReactElement {
   const [expanded, setExpanded] = React.useState(
@@ -134,6 +137,8 @@ export function TaskTile({
   // C2: 类型徽章 + 已完成半透明
   const itemType: TaskType = item.task?.type ?? 'task'
   const isDone = item.task?.workflow === 'done' || item.session.sessionStatus === 'completed'
+  // 已归档 Task（显示已归档开关开启后可见）：额外灰显 + 降低不透明度，与普通卡片区分
+  const isArchivedTask = item.task?.archivedAt !== undefined
   const typeBadgeClass: Record<TaskType, string> = {
     activity: 'bg-purple-500/10 text-purple-700 dark:text-purple-300',
     requirement: 'bg-blue-500/10 text-blue-700 dark:text-blue-300',
@@ -168,6 +173,7 @@ export function TaskTile({
         'group cursor-pointer rounded-xl bg-card p-3 shadow-sm ring-1 ring-border/30 transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         live && 'ring-amber-500/40',
         isDone && 'opacity-70',
+        isArchivedTask && 'opacity-45 saturate-50',
         showDoneAttention && dagAttention?.kind === 'has-failed' && 'ring-destructive/35',
         showDoneAttention && dagAttention?.kind === 'needs-review' && 'ring-violet-500/35',
         showDoneAttention && dagAttention?.kind === 'incomplete' && 'ring-amber-500/35',
@@ -326,6 +332,23 @@ export function TaskTile({
               cancelled: '已取消',
             } as const)[item.task.workflow]}
           </span>
+        )}
+        {item.task && item.task.workflow === 'needs-review' && !(item.task.archivedAt !== undefined) && onAccept && (
+          <button
+            type="button"
+            data-no-dnd
+            title="验收成功：流转到已完成"
+            aria-label="验收成功"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation()
+              onAccept(item)
+            }}
+            className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 transition-colors hover:bg-emerald-500/20 dark:text-emerald-400"
+          >
+            <Check className="h-3 w-3" />
+            验收成功
+          </button>
         )}
         {viewModel.showSessionStatus && <StatusBadge status={item.session.sessionStatus} live={live} />}
         {showDoneAttention && dagAttention && (

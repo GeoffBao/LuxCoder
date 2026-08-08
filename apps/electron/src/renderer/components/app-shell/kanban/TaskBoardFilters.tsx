@@ -10,6 +10,7 @@ import {
   taskBoardSourceFilterAtom,
   taskBoardFilterCountAtom,
   clearTaskBoardFiltersAtom,
+  taskBoardShowArchivedAtom,
 } from '@/atoms/task-board-filter-atoms'
 import {
   DropdownMenu,
@@ -43,6 +44,7 @@ export function TaskBoardFilters(): React.ReactElement {
   const [sourceFilter, setSourceFilter] = useAtom(taskBoardSourceFilterAtom)
   const [labelFilter, setLabelFilter] = useAtom(taskBoardLabelFilterAtom)
   const [includeUnlabeled, setIncludeUnlabeled] = useAtom(taskBoardIncludeUnlabeledAtom)
+  const [showArchived, setShowArchived] = useAtom(taskBoardShowArchivedAtom)
   const filterCount = useAtomValue(taskBoardFilterCountAtom)
   const clearFilters = useSetAtom(clearTaskBoardFiltersAtom)
   const labels = useAtomValue(workspaceLabelsAtom)
@@ -100,6 +102,13 @@ export function TaskBoardFilters(): React.ReactElement {
               </DropdownMenuSubContent>
             </DropdownMenuPortal>
           </DropdownMenuSub>
+          <DropdownMenuCheckboxItem
+            checked={showArchived}
+            onCheckedChange={setShowArchived}
+            className="text-xs py-1"
+          >
+            显示已归档
+          </DropdownMenuCheckboxItem>
           {labels.length > 0 && (
             <DropdownMenuSub>
               <DropdownMenuSubTrigger className="text-xs py-1">
@@ -175,6 +184,11 @@ export function TaskBoardFilters(): React.ReactElement {
       {includeUnlabeled && (
         <button type="button" onClick={() => setIncludeUnlabeled(false)} className="inline-flex items-center gap-1 rounded-full bg-foreground/[0.06] px-2 py-1 text-[11px] text-foreground/70">
           无标签<X className="h-3 w-3" />
+        </button>
+      )}
+      {showArchived && (
+        <button type="button" onClick={() => setShowArchived(false)} className="inline-flex items-center gap-1 rounded-full bg-foreground/[0.06] px-2 py-1 text-[11px] text-foreground/70">
+          显示已归档<X className="h-3 w-3" />
         </button>
       )}
     </div>

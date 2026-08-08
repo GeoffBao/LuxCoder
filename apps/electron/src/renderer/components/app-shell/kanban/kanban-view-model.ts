@@ -173,7 +173,7 @@ export function buildKanbanViewModel(input: BuildKanbanViewModelInput): KanbanVi
         .map((session) => [session.taskSlug, session]),
     )
     const summaries = repositoryTasks.filter((summary) =>
-      summary.archivedAt === undefined && taskMatchesBoardFilter(summary, input.filter),
+      taskMatchesBoardFilter(summary, input.filter),
     )
     const items = summaries.map((summary) => {
       const linkedSession = (summary.orchestratorSessionId

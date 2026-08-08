@@ -23,6 +23,9 @@ export function resolveTaskBoardScope(filter: KanbanFilter): TaskBoardScopeFilte
 }
 
 export function taskMatchesBoardFilter(task: TaskAggregateSummary, filter: KanbanFilter): boolean {
+  // 已归档 Task 默认隐藏；仅当用户开启「显示已归档」时展示。
+  if (task.archivedAt !== undefined && !(filter.showArchived ?? false)) return false
+
   const scope = resolveTaskBoardScope(filter)
   if (scope.kind === 'workspace' && task.scope.kind !== 'workspace') return false
   if (scope.kind === 'project' && (task.scope.kind !== 'project' || task.scope.projectId !== scope.projectId)) {
