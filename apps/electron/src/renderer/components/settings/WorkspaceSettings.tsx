@@ -117,8 +117,8 @@ export function WorkspaceSettings(): React.ReactElement {
   return (
     <div className="space-y-8">
       <SettingsSection
-        title="空间"
-        description="空间是会话、工作区、Skills 与 MCP 的隔离边界。当前默认单空间；如需多套环境隔离（如工作 / 私人、客户 A / 客户 B），可在此创建并切换。"
+        title="空间容器"
+        description="空间容器是会话、工作区、Skills 与 MCP 的隔离边界。当前默认单空间；如需多套环境隔离（如工作 / 私人、客户 A / 客户 B），可在此创建并切换。"
       >
         <SettingsCard>
           {workspaces.map((workspace) => {
