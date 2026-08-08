@@ -77,27 +77,32 @@ export async function loginXaiOAuth(callbacks?: XaiLoginCallbacks): Promise<XaiO
         credentials: createEphemeralCredentialStore(),
         allowModelNetwork: false,
       })
-      const credentials = await runtime.login('xai', 'oauth', {
-        signal: abort.signal,
-        // xAI 的内置 OAuth 直接走 device code，不会向此 callback 提问；保留拒绝路径
-        // 以便上游未来增加交互时不会无限挂起。
-        prompt: async (prompt) => new Promise<string>((_resolve, reject) => {
-          const cancel = () => reject(new Error('登录已取消'))
-          prompt.signal?.addEventListener('abort', cancel, { once: true })
-          abort.signal.addEventListener('abort', cancel, { once: true })
+      // device code 轮询 / 换取 token 在受限网络下可能长期挂起（SDK 底层请求无超时），
+      // 用 withLoginTimeout 兜底，避免 UI 永久停在"等待浏览器授权…"而无法复位。
+      const credentials = await withLoginTimeout(
+        runtime.login('xai', 'oauth', {
+          signal: abort.signal,
+          // xAI 的内置 OAuth 直接走 device code，不会向此 callback 提问；保留拒绝路径
+          // 以便上游未来增加交互时不会无限挂起。
+          prompt: async (prompt) => new Promise<string>((_resolve, reject) => {
+            const cancel = () => reject(new Error('登录已取消'))
+            prompt.signal?.addEventListener('abort', cancel, { once: true })
+            abort.signal.addEventListener('abort', cancel, { once: true })
+          }),
+          notify: (event) => {
+            if (event.type === 'device_code') {
+              console.log(`[xAI OAuth] 请在浏览器中授权（设备码：${event.userCode}）`)
+              callbacks?.onDeviceCode?.({ userCode: event.userCode, verificationUri: event.verificationUri })
+              shell.openExternal(event.verificationUri).catch((error) => {
+                console.error('[xAI OAuth] 打开授权页面失败:', error)
+              })
+            } else if (event.type === 'progress' || event.type === 'info') {
+              console.log(`[xAI OAuth] ${event.message}`)
+            }
+          },
         }),
-        notify: (event) => {
-          if (event.type === 'device_code') {
-            console.log(`[xAI OAuth] 请在浏览器中授权（设备码：${event.userCode}）`)
-            callbacks?.onDeviceCode?.({ userCode: event.userCode, verificationUri: event.verificationUri })
-            shell.openExternal(event.verificationUri).catch((error) => {
-              console.error('[xAI OAuth] 打开授权页面失败:', error)
-            })
-          } else if (event.type === 'progress' || event.type === 'info') {
-            console.log(`[xAI OAuth] ${event.message}`)
-          }
-        },
-      })
+        abort,
+      )
       return normalizeCredentials(credentials)
     })
   } finally {
@@ -124,4 +129,31 @@ export async function refreshXaiOAuth(refreshToken: string): Promise<XaiOAuthCre
     await runtime.getAuth('xai')
     return normalizeCredentials(await store.read('xai'))
   })
+}
+
+/**
+ * 给 xAI OAuth 登录流程加兜底超时。
+ *
+ * Pi SDK 的 device-code 轮询 / token 交换在受限网络下可能长期挂起（底层请求无超时），
+ * 导致 runtime.login 永不 settle——此时 UI 会永久停在"等待浏览器授权…"而无法复位。
+ * 超时后主动 abort 内部流程并抛出可读错误，让上层 ipc handler 能及时返回错误、
+ * 渲染层复位登录态。
+ */
+const LOGIN_TIMEOUT_MS = 5 * 60 * 1000
+
+async function withLoginTimeout<T>(operation: Promise<T>, abort: AbortController): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      // 先 reject 超时错误，再 abort：保证 Promise.race 拿到的是可读的超时提示，
+      // 而不是 SDK 被 abort 后的"登录已取消"。
+      reject(new Error('xAI 登录超时：请在浏览器中完成授权后重试'))
+      abort.abort()
+    }, LOGIN_TIMEOUT_MS)
+  })
+  try {
+    return await Promise.race([operation, timeout])
+  } finally {
+    clearTimeout(timer)
+  }
 }
