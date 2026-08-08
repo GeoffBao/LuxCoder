@@ -134,8 +134,11 @@
 
   /* ===== Code 模式新会话首屏「居中 → 下沉」=====
    * composer 卡片在首屏居中态和常规底部固定态之间共用同一个
-   * view-transition-name，浏览器据此自动插值位置/尺寸做平滑过渡
-   * （AgentView.tsx 用 document.startViewTransition 包裹 heroVisible 翻转）。
+   * view-transition-name，浏览器据此自动插值位置/尺寸做平滑过渡。
+   * 注意：View Transition 只在「hero → 常规」方向启用（发送首条消息 / 打开历史会话），
+   * 新建空会话不再触发（AgentView.tsx 加载中即显示 hero，见 showHero 逻辑）。
+   * 为兼顾慢机器体验：禁用 root 级 cross-fade（只有输入框卡片参与移动动画，
+   * 整页不再截图淡入淡出），并尊重系统「减弱动态效果」。
    */
   .agent-hero-composer {
     view-transition-name: agent-composer;
@@ -143,6 +146,16 @@
   ::view-transition-group(agent-composer) {
     animation-duration: var(--duration-base);
     animation-timing-function: var(--ease-out);
+  }
+  /* 整页不做淡入淡出：避免 view transition 期间整页快照闪烁，只有输入框卡片移动 */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    ::view-transition-group(agent-composer) {
+      animation-duration: 0s;
+    }
   }
 
   :root {

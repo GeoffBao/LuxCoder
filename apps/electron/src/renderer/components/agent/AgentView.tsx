@@ -2092,23 +2092,39 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
   const isEmptySession = messagesLoaded && persistedSDKMessages.length === 0 && liveMessages.length === 0
   const canPrepareDraftGitContext = isDraftSession || isEmptySession
 
-  // 首屏 Hero（居中标题+Tab+chips+输入框）是否可见。不直接用 isEmptySession 分支，
-  // 是因为首条消息发出后 isEmptySession 要等 liveMessages 异步到达才会变 false——
-  // 用 heroVisible + View Transition 把这次跨渲染的布局切换包成一次平滑动画，
-  // 而不是等数据到达后直接跳变。
-  const [heroVisible, setHeroVisible] = React.useState(isEmptySession)
-  const prevIsEmptySessionRef = React.useRef(isEmptySession)
+  // 首屏 Hero（居中标题+Tab+chips+输入框）是否可见。
+  // 关键修复：消息加载完成前（messagesLoaded=false）也视为 hero——否则新建空会话时
+  // 首帧渲染「底部空输入框」布局，加载完成后 isEmptySession 翻转为 true，旧实现会
+  // 触发 startViewTransition 把输入框从底部“飞”到中间；View Transitions 需同步截取
+  // 整页快照，慢机器上快照/合成掉帧，加载越慢底部空布局停留越久，表现为明显的
+  // “输入框从下方到中间闪现，性能越差切换时间越长”。
+  // 现在：已加载且空会话、以及未加载且缓存无消息（新建空会话）一律显示 hero；
+  // 只有「已加载且非空」（已发首条消息 / 打开历史会话）或「未加载但缓存命中非空
+  // 历史会话」才切换到常规底部布局，避免打开旧会话先闪欢迎页。
+  const cachedSessionMessages = useAtomValue(agentSDKMessagesCacheAtom).get(sessionId)
+  const cacheHasMessages = cachedSessionMessages !== undefined && cachedSessionMessages.length > 0
+  const showHero =
+    (!messagesLoaded && !cacheHasMessages) ||
+    (messagesLoaded && persistedSDKMessages.length === 0 && liveMessages.length === 0)
+  const [heroVisible, setHeroVisible] = React.useState(showHero)
+  const prevShowHeroRef = React.useRef(showHero)
   React.useEffect(() => {
-    if (prevIsEmptySessionRef.current === isEmptySession) return
-    prevIsEmptySessionRef.current = isEmptySession
-    if (typeof document.startViewTransition === 'function') {
+    if (prevShowHeroRef.current === showHero) return
+    const prev = prevShowHeroRef.current
+    prevShowHeroRef.current = showHero
+    // 仅「hero → 常规」方向保留 View Transition 平滑下沉（发送首条消息 / 打开历史会话，
+    // 旧快照是内容简单的 hero 页面，开销低）；「常规 → hero」方向（新建空会话）直接
+    // 切换，不再触发整页快照动画。系统开启「减弱动态效果」时完全跳过动画。
+    const prefersReducedMotion =
+      typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (prev && !showHero && !prefersReducedMotion && typeof document.startViewTransition === 'function') {
       document.startViewTransition(() => {
-        flushSync(() => setHeroVisible(isEmptySession))
+        flushSync(() => setHeroVisible(showHero))
       })
     } else {
-      setHeroVisible(isEmptySession)
+      setHeroVisible(showHero)
     }
-  }, [isEmptySession])
+  }, [showHero])
 
   const handleDraftGitContextChange = React.useCallback((selection: DraftGitContextSelection | null): void => {
     setDraftGitContextSelection(selection)
@@ -3198,9 +3214,10 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         <AgentHeader key={sessionId} sessionId={sessionId} />
 
         {heroVisible ? (
-          /* 首屏：吉祥物+问候语+场景 Tab+快捷 chips+居中输入框。发送第一条消息后
-             heroVisible 翻转为 false，composer 平滑过渡到下方常规底部固定布局
-             （agent-hero-composer 的 view-transition-name，见 index.css）。 */
+          /* 首屏：吉祥物+问候语+场景 Tab+快捷 chips+居中输入框。加载中/空会话时显示；
+             发送第一条消息或打开历史会话后 heroVisible 翻转为 false，仅该方向用
+             View Transition 让 composer 平滑下沉到常规底部固定布局
+             （agent-hero-composer 的 view-transition-name，见 globals.css）。 */
           <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center gap-8 px-4 py-10">
             <AgentNewSessionHero onPickChip={handleQuickstartChip} />
             {!hasBannerOverlay && (
