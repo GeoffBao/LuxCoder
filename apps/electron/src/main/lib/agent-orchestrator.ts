@@ -69,6 +69,7 @@ import { removeLuxCoderAutoCompactSettings } from './agent-auto-compact-settings
 import { applyClaudeSdkAttributionSettings, isGitAttributionEnabled } from './agent-git-attribution'
 import { validateToolInput } from './agent-tool-input-validator'
 import { estimateTokenCount, WRITE_CONTENT_TOKEN_THRESHOLD } from './agent-tool-token-estimator'
+import { injectBashDefaultTimeout } from './agent-bash-timeout'
 import { injectBuiltinMcpServers } from './builtin-mcp/registry'
 import { injectChromeDevtoolsMcpServer } from './builtin-mcp/chrome-devtools'
 import { isBuiltinMcpUserEnabled } from './builtin-mcp/settings'
@@ -409,6 +410,10 @@ export class AgentOrchestrator {
       // 导致 HTTP MCP 服务器（如 Nowledge Mem）的工具无法直接调用。
       // LuxCoder 自行管理工具呈现和 MCP 连接，不依赖此机制。
       ENABLE_TOOL_SEARCH: 'false',
+      // MCP 工具单次调用硬超时（Claude runtime 识别；Pi runtime 的 MCP 客户端已有自己的
+      // DEFAULT_MCP_REQUEST_TIMEOUT_MS=60s 硬超时，不依赖此变量）。防止某个 MCP 工具
+      // 挂起不返回时，SDK 子进程无限等待导致会话卡死。
+      MCP_TOOL_TIMEOUT: '120000',
       // 禁用 attribution block：SDK 默认会在 system prompt 最前面注入一段
       // 文本（含客户端版本号与基于会话内容计算的指纹），且每次请求都变化。
       // 经第三方 Anthropic 兼容代理/网关中转时，会导致缓存前缀变化、命中率骤降。
@@ -1626,6 +1631,24 @@ export class AgentOrchestrator {
               message:
                 `The content for Write tool (~${estimatedTokens} estimated tokens, ${input.content.length} chars) is too large and may be truncated. ` +
                 `Please split the write into smaller sequential steps: write the first portion of the file now, then use Edit tool to append remaining sections incrementally.`,
+            }
+          }
+        }
+
+        // ── Bash 默认超时注入（工具卡死防护） ──
+        // 模型发起 Bash 命令时往往不传 timeout，遇到死循环（如 awk 读到 EOF 后 while 永真）
+        // 会无限空转、SDK 子进程永不返回，导致整个会话永久卡在运行中。
+        // 这里在 canUseTool 阶段给「未指定 timeout」的 Bash 注入默认超时，
+        // 模型已显式指定 timeout 时尊重原值。注意 runtime 单位差异：
+        //   - Pi runtime：timeout 单位是「秒」（Pi 的 bash 工具 resolveTimeoutMs 按秒×1000）
+        //   - Claude runtime：timeout 单位是「毫秒」（Claude SDK BashInput.timeout）
+        // 两者经各自的 canUseTool updatedInput 改写机制注入，共用此统一入口。
+        if (toolName === 'Bash') {
+          const updatedInput = injectBashDefaultTimeout(input, agentRuntime)
+          if (updatedInput !== input) {
+            return {
+              behavior: 'allow' as const,
+              updatedInput,
             }
           }
         }
