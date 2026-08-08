@@ -57,3 +57,20 @@ export function resolveSessionCwd(
 
   return { cwd: input.sandboxCwd, source: 'sandbox' }
 }
+
+/**
+ * 若本次 cwd 来自 worktree 绑定，覆写项目上下文的 workingDirectory 并标记 isWorktree，
+ * 让注入 prompt 的 `<project_working_directory>` 与实际 cwd（worktree 路径）保持一致，
+ * 不再和 `<working_directory>` 互相矛盾；否则原样透传。
+ *
+ * 结构化泛型、不依赖 @myyoda/shared 的 ProjectPromptContext 类型，保持本文件纯函数、
+ * 不引入跨包类型耦合，便于单测覆盖。
+ */
+export function applyWorktreeProjectContextOverride<T extends { workingDirectory?: string }>(
+  projectContext: T | null,
+  cwdSource: SessionCwdSource | undefined,
+  agentCwd: string | undefined,
+): (T & { isWorktree?: boolean }) | null {
+  if (!projectContext || cwdSource !== 'worktree' || !agentCwd) return projectContext
+  return { ...projectContext, workingDirectory: agentCwd, isWorktree: true }
+}

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { resolveSessionCwd } from './agent-cwd-resolver'
+import { applyWorktreeProjectContextOverride, resolveSessionCwd } from './agent-cwd-resolver'
 import type { EffectiveCwdResult } from './project-path-service'
 
 const SANDBOX = '/myyoda/agent-workspaces/ws/session-1'
@@ -72,5 +72,35 @@ describe('resolveSessionCwd', () => {
       sandboxCwd: SANDBOX,
     })
     expect(result).toEqual({ cwd: '/myyoda/projects/foo', source: 'project' })
+  })
+})
+
+describe('applyWorktreeProjectContextOverride', () => {
+  const WORKTREE_DIR = '/repo/.worktrees/feature-x'
+  const baseContext = { name: '示例项目', workingDirectory: PROJECT_DIR }
+
+  test('cwd 来源为 worktree 时覆写 workingDirectory 并标记 isWorktree', () => {
+    const result = applyWorktreeProjectContextOverride(baseContext, 'worktree', WORKTREE_DIR)
+    expect(result).toEqual({ name: '示例项目', workingDirectory: WORKTREE_DIR, isWorktree: true })
+  })
+
+  test('cwd 来源为 project 时不覆写', () => {
+    const result = applyWorktreeProjectContextOverride(baseContext, 'project', WORKTREE_DIR)
+    expect(result).toEqual(baseContext)
+  })
+
+  test('cwd 来源为 sandbox 时不覆写', () => {
+    const result = applyWorktreeProjectContextOverride(baseContext, 'sandbox', WORKTREE_DIR)
+    expect(result).toEqual(baseContext)
+  })
+
+  test('projectContext 为 null 时原样透传', () => {
+    const result = applyWorktreeProjectContextOverride(null, 'worktree', WORKTREE_DIR)
+    expect(result).toBeNull()
+  })
+
+  test('agentCwd 缺失时不覆写', () => {
+    const result = applyWorktreeProjectContextOverride(baseContext, 'worktree', undefined)
+    expect(result).toEqual(baseContext)
   })
 })

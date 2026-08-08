@@ -52,7 +52,7 @@ import { appendSDKMessages, updateAgentSessionMeta, getAgentSessionMeta, getAgen
 import { getAgentWorkspace, getWorkspaceMcpConfig, ensurePluginManifest, getWorkspaceAutoMemoryDir, getWorkspaceAttachedDirectories, getWorkspaceAttachedFiles, getWorkspaceDefaultWorkingDirectory } from './agent-workspace-manager'
 import { getAgentWorkspacePath, getAgentSessionWorkspacePath, getSdkConfigDir, getWorkspaceFilesDir, getBundledCliPath, getWorkspaceSkillsDir, resolveClaudeAgentBinaryPath } from './config-paths'
 import { projectRepository } from './project-repository'
-import { resolveSessionCwd } from './agent-cwd-resolver'
+import { applyWorktreeProjectContextOverride, resolveSessionCwd, type SessionCwdSource } from './agent-cwd-resolver'
 import { appendVisionRelayAllowedRoot } from './vision-relay-roots'
 import { resolveAgentSessionFileRoots } from './agent-file-roots'
 import { captureAgentTurnOutputs, snapshotOutputFiles } from './agent-output-capture'
@@ -1196,6 +1196,7 @@ export class AgentOrchestrator {
     /** 捕获到的 SDK session ID（用于 resume / recovery） */
     let capturedSdkSessionId = existingSdkSessionId
     let agentCwd: string | undefined
+    let agentCwdSource: SessionCwdSource | undefined
     let workspaceSlug: string | undefined
     let workspace: import('@myyoda/shared').AgentWorkspace | undefined
     let sessionFileRoots: import('@myyoda/shared').AgentSessionFileRoots | undefined
@@ -1274,6 +1275,7 @@ export class AgentOrchestrator {
           }
 
           agentCwd = cwdResolution.cwd
+          agentCwdSource = cwdResolution.source
           console.log(`[Agent 编排] 使用 ${cwdResolution.source} 级别 cwd: ${agentCwd} (${ws.name}/${sessionId})`)
 
           // 在真实 Agent cwd 确定后建立统一文件根快照。捕获失败不得阻断主流程。
@@ -1433,9 +1435,12 @@ export class AgentOrchestrator {
       }
 
       // 11. 构建动态上下文和最终 prompt
-      const projectContext = sessionMeta?.projectId && workspaceSlug
+      let projectContext = sessionMeta?.projectId && workspaceSlug
         ? projectRepository.buildPromptContext(getAgentWorkspacePath(workspaceSlug), sessionMeta.projectId)
         : null
+      // worktree 绑定会话：project 静态 workingDirectory 与实际 cwd 不一致，覆写为 worktree 路径，
+      // 避免 <project_working_directory> 与 <working_directory> 互相矛盾，误导 Agent 去主仓库目录操作
+      projectContext = applyWorktreeProjectContextOverride(projectContext, agentCwdSource, agentCwd)
       // 未绑定项目时，回退到工作区默认工作目录（若已配置）
       const workspaceDefaultWorkingDirectory = !projectContext && workspaceSlug
         ? getWorkspaceDefaultWorkingDirectory(workspaceSlug)

@@ -39,4 +39,23 @@ describe('formatProjectContextForPrompt', () => {
     expect(text).toContain('project="A&quot;B"')
     expect(text).not.toContain('</project_context>y')
   })
+
+  test('isWorktree 时使用一致的 worktree 文案，不出现矛盾的“不要在这里找代码”表述', () => {
+    const text = formatProjectContextForPrompt(baseCtx({
+      workingDirectory: '/repo/.worktrees/feature-x',
+      isWorktree: true,
+    }))
+
+    expect(text).toContain('/repo/.worktrees/feature-x')
+    expect(text).toContain('Git Worktree 隔离目录')
+    expect(text).not.toContain('不要在这里找代码')
+  })
+
+  test('非 worktree 场景保留原有指令文案', () => {
+    const text = formatProjectContextForPrompt(baseCtx({
+      workingDirectory: '/Users/dev/my-real-project',
+    }))
+
+    expect(text).toContain('不要在这里找代码')
+  })
 })

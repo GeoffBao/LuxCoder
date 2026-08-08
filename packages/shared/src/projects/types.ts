@@ -123,6 +123,8 @@ export interface ProjectPromptContext {
   memoryPath: string;
   /** 已按 token 上限截断的 MEMORY.md 内容 */
   memoryContent?: string;
+  /** workingDirectory 是否为本会话绑定的 Git Worktree 隔离路径（而非 Project 静态配置） */
+  isWorktree?: boolean;
 }
 
 /**
