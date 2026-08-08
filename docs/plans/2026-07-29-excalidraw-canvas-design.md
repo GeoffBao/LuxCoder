@@ -7,7 +7,7 @@
 
 - **侧栏入口**：左侧导航栏新增「Excalidraw 画板」入口（`PenTool` 图标），与其他模块一致的 `SidebarModule` 交互规格（`collapsible: false`，纯入口行）
 - **路由**：`activeViewAtom` 新增 `excalidraw-gallery`（画廊列表）和 `excalidraw-editor`（编辑器）两个视图
-- **存储策略**：文件默认存 `<workspace>/.luxcoder/excalidraw/`，JSON 格式（`.excalidraw`）。编辑器提供「导出到…」按钮让用户另存到任意路径
+- **存储策略**：文件默认存 `<workspace>/.yoda/excalidraw/`，JSON 格式（`.excalidraw`）。编辑器提供「导出到…」按钮让用户另存到任意路径
 - **渲染方案**：`@excalidraw/excalidraw` npm 包作为 React 组件，直接在主渲染进程中使用
 - **v1 不含**：Obsidian `.excalidraw.md` 格式兼容、AI 生成图表、多人协作
 
@@ -47,7 +47,7 @@ MainContent（根据 activeViewAtom 路由）
 
 ### 存储路径约定
 ```
-<workspace-root>/.luxcoder/excalidraw/
+<workspace-root>/.yoda/excalidraw/
   ├── 架构图.excalidraw
   ├── 流程图.excalidraw
   └── ...
@@ -58,7 +58,7 @@ MainContent（根据 activeViewAtom 路由）
 {
   "type": "excalidraw",
   "version": 2,
-  "source": "luxcoder",
+  "source": "yoda",
   "elements": [...],
   "appState": { "viewBackgroundColor": "#ffffff" },
   "files": {}
@@ -120,4 +120,4 @@ MainContent（根据 activeViewAtom 路由）
 - 不修改现有侧栏模块（Agent 技能、自动任务、任务看板、项目等）
 - 不修改 `SidebarModule` 组件
 - 不修改现有 IPC handler 命名空间
-- 文件存储仅在 `<workspace>/.luxcoder/excalidraw/` 范围内，不触碰用户项目文件
+- 文件存储仅在 `<workspace>/.yoda/excalidraw/` 范围内，不触碰用户项目文件

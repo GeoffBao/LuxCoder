@@ -23,7 +23,7 @@ import { TeambitionConfigDialog } from '@/components/settings/TeambitionConfigDi
 import { agentSkillsTabAtom } from '@/atoms/active-view'
 import { activeViewAtom } from '@/atoms/active-view'
 import { settingsOpenAtom } from '@/atoms/settings-tab'
-import type { TeambitionMcpRecognition } from '@luxcoder/shared'
+import type { TeambitionMcpRecognition } from '@yoda/shared'
 
 interface TeambitionConnectHintProps {
   recognition: TeambitionMcpRecognition | null

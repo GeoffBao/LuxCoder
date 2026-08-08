@@ -5,10 +5,10 @@
  * 无需 React 组件树即可单测。生成器写入节点 ID 后，同级 prompt 中的
  * `${nodes.<id>.output}` 引用必须保持不变，否则 `tasks:create` 会拒绝悬空引用。
  */
-import { slugify } from '@luxcoder/shared/utils'
-import { MAX_REPAIR_ATTEMPTS_CAP, TaskSpecSchema } from '@luxcoder/shared/tasks/schema'
-import type { PermissionMode, TaskSpec } from '@luxcoder/shared/tasks/schema'
-import type { TaskType } from '@luxcoder/shared/tasks/task-record'
+import { slugify } from '@yoda/shared/utils'
+import { MAX_REPAIR_ATTEMPTS_CAP, TaskSpecSchema } from '@yoda/shared/tasks/schema'
+import type { PermissionMode, TaskSpec } from '@yoda/shared/tasks/schema'
+import type { TaskType } from '@yoda/shared/tasks/task-record'
 
 let _uid = 0
 /** 单调递增的本地行 ID（不是 task node ID），供编辑器和转换函数共用以避免冲突。 */

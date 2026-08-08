@@ -13,7 +13,7 @@ import {
   type CodeClawThemeId,
   type CodeClawState,
   type AgentStreamPayload,
-} from '@luxcoder/shared'
+} from '@yoda/shared'
 import { agentEventBus } from './agent-service'
 import { getAgentSessionMeta } from './agent-session-manager'
 import { getSettings, updateSettings } from './settings-service'
@@ -100,7 +100,7 @@ function setRunning(session: InternalCodeClawSession, detail?: string): void {
   session.lastActivityAt = Date.now()
 }
 
-function handleLuxCoderEvent(sessionId: string, event: import('@luxcoder/shared').LuxCoderEvent): void {
+function handleYodaEvent(sessionId: string, event: import('@yoda/shared').YodaEvent): void {
   switch (event.type) {
     case 'permission_request':
       setNeedsInteraction(sessionId, 'permission', '等待权限确认')
@@ -144,10 +144,10 @@ function handleLuxCoderEvent(sessionId: string, event: import('@luxcoder/shared'
   }
 }
 
-function handleSdkMessage(sessionId: string, message: import('@luxcoder/shared').SDKMessage): void {
+function handleSdkMessage(sessionId: string, message: import('@yoda/shared').SDKMessage): void {
   switch (message.type) {
     case 'assistant': {
-      const assistant = message as import('@luxcoder/shared').SDKAssistantMessage
+      const assistant = message as import('@yoda/shared').SDKAssistantMessage
       if (assistant.isReplay) return
       const session = ensureSession(sessionId)
       if (assistant.error) {
@@ -172,7 +172,7 @@ function handleSdkMessage(sessionId: string, message: import('@luxcoder/shared')
       break
     }
     case 'result': {
-      const result = message as import('@luxcoder/shared').SDKResultMessage
+      const result = message as import('@yoda/shared').SDKResultMessage
       const session = ensureSession(sessionId)
       if (result.subtype === 'success') {
         session.phase = 'completed'
@@ -188,7 +188,7 @@ function handleSdkMessage(sessionId: string, message: import('@luxcoder/shared')
       break
     }
     case 'system': {
-      const system = message as import('@luxcoder/shared').SDKSystemMessage
+      const system = message as import('@yoda/shared').SDKSystemMessage
       const session = ensureSession(sessionId)
       switch (system.subtype) {
         case 'task_started':
@@ -218,7 +218,7 @@ function handleSdkMessage(sessionId: string, message: import('@luxcoder/shared')
 }
 
 function handleAgentEvent(sessionId: string, payload: AgentStreamPayload): void {
-  if (payload.kind === 'luxcoder_event') handleLuxCoderEvent(sessionId, payload.event)
+  if (payload.kind === 'yoda_event') handleYodaEvent(sessionId, payload.event)
   else handleSdkMessage(sessionId, payload.message)
 }
 
@@ -325,7 +325,7 @@ function schedulePush(delay = PUSH_THROTTLE_MS): void {
 }
 
 function requiresImmediatePush(payload: AgentStreamPayload): boolean {
-  if (payload.kind !== 'luxcoder_event') return false
+  if (payload.kind !== 'yoda_event') return false
   return payload.event.type === 'permission_request'
     || payload.event.type === 'ask_user_request'
     || payload.event.type === 'exit_plan_mode_request'

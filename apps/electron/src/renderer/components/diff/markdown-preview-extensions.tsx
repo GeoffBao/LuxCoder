@@ -14,10 +14,10 @@ import { createRoot } from 'react-dom/client'
 import type { Root } from 'react-dom/client'
 import DOMPurify from 'dompurify'
 import katex from 'katex'
-import { highlightCode, highlightToTokens, getDisplayName } from '@luxcoder/core'
-import { MermaidBlock } from '@luxcoder/ui'
-import type { HighlightTokensResult } from '@luxcoder/core'
-import type { FileAccessOptions } from '@luxcoder/shared'
+import { highlightCode, highlightToTokens, getDisplayName } from '@yoda/core'
+import { MermaidBlock } from '@yoda/ui'
+import type { HighlightTokensResult } from '@yoda/core'
+import type { FileAccessOptions } from '@yoda/shared'
 import { copyImageSourceToClipboard } from '../../lib/image-clipboard'
 import { extractCodeText, parseImageWidth } from '../../lib/markdown-rich-text'
 import { shouldRenderMermaidCodeBlock } from '../../lib/mermaid-detection'
@@ -300,7 +300,7 @@ function buildCodeBlockRenderModeDecorations(doc: ProseMirrorNode, editable: boo
   doc.descendants((node, pos) => {
     if (node.type.name !== 'codeBlock') return true
     decorations.push(Decoration.node(pos, pos + node.nodeSize, {
-      'data-luxcoder-render-mode': editable ? 'editing' : 'preview',
+      'data-yoda-render-mode': editable ? 'editing' : 'preview',
     }))
     return false
   })
@@ -361,7 +361,7 @@ function createCodeBlockRenderModePlugin(): Plugin<CodeBlockRenderModeState> {
 }
 
 function isExternalUrl(src: string): boolean {
-  return /^(?:https?:|data:|blob:|file:|luxcoder-file:)/i.test(src)
+  return /^(?:https?:|data:|blob:|file:|yoda-file:)/i.test(src)
 }
 
 function sanitizeHtml(html: string): string {
@@ -406,7 +406,7 @@ async function resolveFirstMediaCandidate(paths: string[], fileAccessRef: FileAc
 }
 
 function resolveMediaSrc(src: string, fileAccessRef: FileAccessRefOrNull, apply: (src: string) => void): () => void {
-  // 外链 / data-URL / blob / 已授权 luxcoder-file 协议：直接 apply，不走 IPC
+  // 外链 / data-URL / blob / 已授权 yoda-file 协议：直接 apply，不走 IPC
   if (!src || isExternalUrl(src)) {
     apply(src)
     return () => {}
@@ -706,12 +706,12 @@ function createMathView(initialNode: ProseMirrorNode, displayMode: boolean) {
 function createShikiCodeBlockView(initialNode: ProseMirrorNode, view: EditorView) {
   const dom = document.createElement('div')
   setClass(dom, 'not-prose my-3 overflow-hidden rounded-md border border-border/40 bg-muted/30')
-  dom.dataset.luxcoderCodeBlock = 'true'
+  dom.dataset.yodaCodeBlock = 'true'
 
   // 头部栏：语言标签 + 复制按钮
   const header = document.createElement('div')
   header.contentEditable = 'false'
-  setClass(header, 'luxcoder-code-header flex h-8 items-center justify-between border-b border-border/30 px-3 text-xs text-muted-foreground')
+  setClass(header, 'yoda-code-header flex h-8 items-center justify-between border-b border-border/30 px-3 text-xs text-muted-foreground')
   const label = document.createElement('span')
   label.className = 'font-medium select-none'
   header.appendChild(label)
@@ -734,7 +734,7 @@ function createShikiCodeBlockView(initialNode: ProseMirrorNode, view: EditorView
   header.appendChild(copyBtn)
 
   const body = document.createElement('div')
-  setClass(body, 'luxcoder-code-source-body markdown-code-block-body overflow-x-auto')
+  setClass(body, 'yoda-code-source-body markdown-code-block-body overflow-x-auto')
 
   const editPre = document.createElement('pre')
   setClass(editPre, 'markdown-code-edit-layer m-0 min-h-[3.2em] overflow-x-auto bg-transparent p-4 font-mono text-[13px] leading-[1.6]')
@@ -748,7 +748,7 @@ function createShikiCodeBlockView(initialNode: ProseMirrorNode, view: EditorView
 
   const mermaidHost = document.createElement('div')
   mermaidHost.contentEditable = 'false'
-  setClass(mermaidHost, 'luxcoder-mermaid-preview hidden')
+  setClass(mermaidHost, 'yoda-mermaid-preview hidden')
   const mermaidRoot: Root = createRoot(mermaidHost)
   let mermaidRenderTimer: ReturnType<typeof setTimeout> | null = null
   let destroyed = false
@@ -772,7 +772,7 @@ function createShikiCodeBlockView(initialNode: ProseMirrorNode, view: EditorView
     label.textContent = language === 'text' ? 'Code' : getDisplayName(language)
     const className = language === 'text' ? undefined : `language-${language}`
     const shouldRenderMermaid = !view.editable && shouldRenderMermaidCodeBlock(className, currentCode)
-    dom.classList.toggle('luxcoder-code-block--mermaid', shouldRenderMermaid)
+    dom.classList.toggle('yoda-code-block--mermaid', shouldRenderMermaid)
     scheduleMermaidRender(shouldRenderMermaid ? currentCode : null)
   }
 

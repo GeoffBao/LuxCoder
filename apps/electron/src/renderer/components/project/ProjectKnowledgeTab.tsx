@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { Save } from 'lucide-react'
 import { toast } from 'sonner'
-import { estimateTokenCount, MEMORY_TOKEN_CAP } from '@luxcoder/shared/projects'
+import { estimateTokenCount, MEMORY_TOKEN_CAP } from '@yoda/shared/projects'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import type { KanbanProject } from '@/components/app-shell/kanban/types'

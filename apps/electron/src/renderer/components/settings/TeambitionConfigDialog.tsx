@@ -18,8 +18,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import type { McpServerEntry } from '@luxcoder/shared'
-import { isTeambitionMcpEntry, TB_MCP_PREFERRED_NAME } from '@luxcoder/shared/teambition-mcp'
+import type { McpServerEntry } from '@yoda/shared'
+import { isTeambitionMcpEntry, TB_MCP_PREFERRED_NAME } from '@yoda/shared/teambition-mcp'
 
 interface TeambitionConfigDialogProps {
   open: boolean

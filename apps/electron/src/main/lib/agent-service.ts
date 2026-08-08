@@ -14,7 +14,7 @@ import { join, dirname } from 'node:path'
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { BrowserWindow } from 'electron'
 import type { WebContents } from 'electron'
-import { AGENT_IPC_CHANNELS, MAX_ATTACHMENT_SIZE } from '@luxcoder/shared'
+import { AGENT_IPC_CHANNELS, MAX_ATTACHMENT_SIZE } from '@yoda/shared'
 import type {
   AgentSendInput,
   AgentGenerateTitleInput,
@@ -24,10 +24,10 @@ import type {
   AgentStreamEvent,
   AgentStreamPayload,
   AgentQueueMessageInput,
-  LuxCoderPermissionMode,
+  YodaPermissionMode,
   AgentExternalRunSource,
   AgentMessage,
-} from '@luxcoder/shared'
+} from '@yoda/shared'
 import { ClaudeAgentAdapter, scanAndKillOrphanedClaudeSubprocesses } from './adapters/claude-agent-adapter'
 import { PiAgentAdapter, cleanupPiRuntimeResources } from './adapters/pi-agent-adapter'
 import { RuntimeRoutingAgentAdapter } from './adapters/runtime-routing-agent-adapter'
@@ -183,7 +183,7 @@ export async function runAgent(
         updateAgentSessionMeta(input.sessionId, { automationGraduated: true })
         // 向渲染进程发送毕业事件，触发 toast 提示
         eventBus.emit(input.sessionId, {
-          kind: 'luxcoder_event',
+          kind: 'yoda_event',
           event: { type: 'automation_graduated' },
         })
       }
@@ -218,7 +218,7 @@ export async function runAgent(
       },
       onTitleUpdated: (title) => {
         eventBus.emit(input.sessionId, {
-          kind: 'luxcoder_event',
+          kind: 'yoda_event',
           event: { type: 'title_updated', title },
         })
         if (!webContents.isDestroyed()) {
@@ -324,7 +324,7 @@ export async function runAgentHeadless(
       onTitleUpdated: (title) => {
         callbacks.onTitleUpdated(title)
         eventBus.emit(runInput.sessionId, {
-          kind: 'luxcoder_event',
+          kind: 'yoda_event',
           event: { type: 'title_updated', title },
         })
         // 同步到渲染进程
@@ -338,7 +338,7 @@ export async function runAgentHeadless(
       onRunStarted: ({ startedAt: persistedStartedAt }) => {
         const session = getAgentSessionMeta(runInput.sessionId)
         eventBus.emit(runInput.sessionId, {
-          kind: 'luxcoder_event',
+          kind: 'yoda_event',
           event: {
             type: 'external_run_started',
             source: callbacks.source ?? 'bridge',
@@ -390,7 +390,7 @@ setAgentStopper(stopAgent)
 export async function rewindAgentSession(
   sessionId: string,
   assistantMessageUuid: string,
-): Promise<import('@luxcoder/shared').RewindSessionResult> {
+): Promise<import('@yoda/shared').RewindSessionResult> {
   return orchestrator.rewindSession(sessionId, assistantMessageUuid)
 }
 
@@ -425,9 +425,9 @@ export function killOrphanedClaudeSubprocesses(): void {
 /**
  * 运行中动态切换会话的权限模式
  *
- * 同时更新 LuxCoder 侧（canUseTool 动态读取）和 SDK 侧（query.setPermissionMode）。
+ * 同时更新 Yoda 侧（canUseTool 动态读取）和 SDK 侧（query.setPermissionMode）。
  */
-export async function updateAgentPermissionMode(sessionId: string, mode: LuxCoderPermissionMode): Promise<void> {
+export async function updateAgentPermissionMode(sessionId: string, mode: YodaPermissionMode): Promise<void> {
   await orchestrator.updateSessionPermissionMode(sessionId, mode)
 }
 

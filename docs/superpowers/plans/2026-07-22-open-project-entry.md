@@ -117,6 +117,6 @@
 
 ### Task 8: 版本与验证
 
-- [ ] `@luxcoder/electron` + `@luxcoder/shared` patch +1
+- [ ] `@yoda/electron` + `@yoda/shared` patch +1
 - [ ] `bun test` 相关文件；`bun run typecheck` 若可行
 - [ ] Push + PR

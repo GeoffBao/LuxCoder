@@ -29,7 +29,7 @@ function authHeaders(token: string): Record<string, string> {
 
 describe('组织与成员管理', () => {
   beforeAll(() => {
-    process.env.LUXCODER_SERVER_DB = ':memory:'
+    process.env.YODA_SERVER_DB = ':memory:'
     closeDb()
   })
 

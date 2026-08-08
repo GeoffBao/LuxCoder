@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { cleanupTaskBoardFilterForWorkspace, taskMatchesBoardFilter } from '../task-board-filter-model'
-import type { TaskAggregateSummary } from '@luxcoder/shared/tasks'
+import type { TaskAggregateSummary } from '@yoda/shared/tasks'
 
 function makeSummary(overrides: Partial<TaskAggregateSummary>): TaskAggregateSummary {
   return {

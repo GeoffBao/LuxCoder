@@ -2,8 +2,8 @@ import { describe, expect, mock, test } from 'bun:test'
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { LABEL_IPC_CHANNELS, PROJECT_IPC_CHANNELS, TASK_IPC_CHANNELS } from '@luxcoder/shared/channels'
-import { saveTaskSpec } from '@luxcoder/shared/tasks/storage'
+import { LABEL_IPC_CHANNELS, PROJECT_IPC_CHANNELS, TASK_IPC_CHANNELS } from '@yoda/shared/channels'
+import { saveTaskSpec } from '@yoda/shared/tasks/storage'
 import type { BrowserWindow as ElectronBrowserWindow } from 'electron'
 import { mockElectronModule } from './__tests__/electron-mock'
 
@@ -19,7 +19,7 @@ interface CapturedCreateSessionCall {
 const capturedCreateSessionCalls: CapturedCreateSessionCall[] = []
 
 mock.module('./conductor-session-host', () => ({
-  createLuxCoderConductorSessionHost: async () => ({
+  createYodaConductorSessionHost: async () => ({
     createSession: async (workspaceId: string, options: Record<string, unknown>) => {
       capturedCreateSessionCalls.push({ workspaceId, options })
       return { id: `fake-session-${(options.name as string | undefined) ?? 'untitled'}` }
@@ -28,7 +28,7 @@ mock.module('./conductor-session-host', () => ({
 }))
 
 mockElectronModule({
-  app: { getPath: () => '/tmp/luxcoder-test', isPackaged: false },
+  app: { getPath: () => '/tmp/yoda-test', isPackaged: false },
   ipcMain: {
     handle: (channel: string, handler: RegisteredHandler) => {
       registeredHandlers.set(channel, handler)
@@ -128,7 +128,7 @@ describe('task handler Kanban payloads', () => {
     expect(taskImpactHandler).toBeInstanceOf(Function)
     if (!createHandler || !updateHandler || !projectDeleteHandler || !projectImpactHandler || !taskImpactHandler) return
 
-    const workspaceRoot = mkdtempSync(join(tmpdir(), 'luxcoder-project-handler-'))
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'yoda-project-handler-'))
     try {
       const created = createHandler(undefined, workspaceRoot, { name: '发布计划' })
       expect(created).toEqual(expect.objectContaining({
@@ -201,7 +201,7 @@ describe('task handler Kanban payloads', () => {
       updatedAt: 1,
     }, [], (workspaceId: string) => workspaceId === 'workspace-beta' ? '/workspaces/beta' : undefined)).toThrow(/Workspace/)
 
-    const workspaceRoot = mkdtempSync(join(tmpdir(), 'luxcoder-session-label-handler-'))
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'yoda-session-label-handler-'))
     try {
       expect(() => validateAssignment(workspaceRoot, {
         id: 'session-2',
@@ -220,7 +220,7 @@ describe('task handler Kanban payloads', () => {
     expect(taskHandler).toBeInstanceOf(Function)
     if (!taskHandler) return
 
-    const workspaceRoot = mkdtempSync(join(tmpdir(), 'luxcoder-task-label-handler-'))
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'yoda-task-label-handler-'))
     try {
       expect(() => taskHandler(undefined, workspaceRoot, 'workspace-1', 'task-1', ['unknown'])).toThrow(/不存在/)
     } finally {
@@ -285,8 +285,8 @@ describe('task handler Kanban payloads', () => {
     expect(resolveCwd).toBeInstanceOf(Function)
     if (typeof resolveCwd !== 'function') return
 
-    const workspaceRoot = mkdtempSync(join(tmpdir(), 'luxcoder-workspace-cwd-root-'))
-    const workspaceCwd = mkdtempSync(join(tmpdir(), 'luxcoder-workspace-cwd-target-'))
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'yoda-workspace-cwd-root-'))
+    const workspaceCwd = mkdtempSync(join(tmpdir(), 'yoda-workspace-cwd-target-'))
     try {
       writeFileSync(join(workspaceRoot, 'config.json'), JSON.stringify({ defaultWorkingDirectory: workspaceCwd }))
       expect(resolveCwd(workspaceRoot, {})).toEqual({
@@ -371,7 +371,7 @@ describe('task handler Kanban payloads', () => {
       sessionStatus: 'todo',
     })
 
-    const validCwd = mkdtempSync(join(tmpdir(), 'luxcoder-task-seed-cwd-'))
+    const validCwd = mkdtempSync(join(tmpdir(), 'yoda-task-seed-cwd-'))
     try {
       expect(buildPatch(
         {
@@ -416,8 +416,8 @@ describe('task handler Kanban payloads', () => {
 
 describe('materializeTaskFromSpec', () => {
   test('落盘 task.yaml 并创建 todo 状态的新会话，且向 createSession 转发完整字段', async () => {
-    const { loadTaskSpec } = await import('@luxcoder/shared/tasks/storage')
-    const workspaceRoot = mkdtempSync(join(tmpdir(), 'luxcoder-materialize-task-'))
+    const { loadTaskSpec } = await import('@yoda/shared/tasks/storage')
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'yoda-materialize-task-'))
     capturedCreateSessionCalls.length = 0
     try {
       const spec = {
@@ -456,8 +456,8 @@ describe('materializeTaskFromSpec', () => {
   })
 
   test('slug 已被占用时追加后缀，不覆盖既有 task.yaml 也不孤儿化其 orchestrator 会话', async () => {
-    const { loadTaskSpec } = await import('@luxcoder/shared/tasks/storage')
-    const workspaceRoot = mkdtempSync(join(tmpdir(), 'luxcoder-materialize-task-collision-'))
+    const { loadTaskSpec } = await import('@yoda/shared/tasks/storage')
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'yoda-materialize-task-collision-'))
     capturedCreateSessionCalls.length = 0
     try {
       const first = {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import type { FileIndexEntry } from '@luxcoder/shared'
+import type { FileIndexEntry } from '@yoda/shared'
 import { buildFileMentionTree } from './FileMentionList'
 
 function entry(path: string, source: FileIndexEntry['source'], type: FileIndexEntry['type'] = 'file'): FileIndexEntry {

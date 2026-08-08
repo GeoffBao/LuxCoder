@@ -6,7 +6,7 @@
 
 import { useAtomValue, useSetAtom, useStore } from 'jotai'
 import { toast } from 'sonner'
-import type { AgentSessionMeta } from '@luxcoder/shared'
+import type { AgentSessionMeta } from '@yoda/shared'
 import {
   conversationsAtom,
   selectedModelAtom,

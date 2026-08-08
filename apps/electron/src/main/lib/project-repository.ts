@@ -7,7 +7,7 @@ import type {
   ProjectPromptContext,
   UpdateProjectInput,
   UploadProjectAssetInput,
-} from '@luxcoder/shared/projects'
+} from '@yoda/shared/projects'
 import {
   createProject as createProjectInStorage,
   deleteProject as deleteProjectInStorage,

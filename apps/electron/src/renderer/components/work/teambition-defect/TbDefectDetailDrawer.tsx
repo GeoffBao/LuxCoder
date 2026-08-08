@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { Bot, CheckCircle2, FileText, Loader2, Sparkles, X, XCircle } from 'lucide-react'
 import type { BrowserTbDefectItem, BrowserTbStatusTransition, BrowserTbTaskDetail, BrowserTbWorkflow } from '@/../preload/index'
-import { buildTbCommentDraft, type TbSkillMatch } from '@luxcoder/shared/teambition-defect'
+import { buildTbCommentDraft, type TbSkillMatch } from '@yoda/shared/teambition-defect'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { analyzeCompleteness } from './tb-defect-model'

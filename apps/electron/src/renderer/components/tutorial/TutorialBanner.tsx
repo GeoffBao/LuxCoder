@@ -37,7 +37,7 @@ export function TutorialBanner(): React.ReactElement | null {
   }
 
   const handleLearnNow = async () => {
-    const result = openTab(tabs, { type: 'tutorial', sessionId: TUTORIAL_TAB_ID, title: 'LuxCoder 使用指南' })
+    const result = openTab(tabs, { type: 'tutorial', sessionId: TUTORIAL_TAB_ID, title: 'Yoda 使用指南' })
     setTabs(result.tabs)
     setActiveTabId(result.activeTabId)
     await handleDismiss()
@@ -73,7 +73,7 @@ export function TutorialBanner(): React.ReactElement | null {
             <BookOpen size={20} className="text-primary" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-foreground">LuxCoder 使用指南</h3>
+            <h3 className="text-sm font-semibold text-foreground">Yoda 使用指南</h3>
             <p className="text-xs text-muted-foreground mt-0.5">了解 Chat / Code 模式、项目管理、任务编排等核心功能</p>
           </div>
         </div>

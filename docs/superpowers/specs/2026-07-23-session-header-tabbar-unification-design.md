@@ -10,7 +10,7 @@ Chat 模式和 Code（Agent）模式切换时，主区顶部的层数和位置�
 参考了两个项目的做法：
 
 - **craft-agents-oss**：所有面板统一复用同一个 `PanelHeader` 组件（标题 + 可选 titleMenu + actions 插槽），永远只有"全局 TopBar + 内容 PanelHeader"两层，不存在按内容类型分叉出不同渲染路径的可能。List⇄Board 视图切换（`BoardListToggle`）不是独立一行，而是塞进已有 header 行的 `actions` 插槽里的一个小 segmented 控件；Board 视图激活时侧边栏隐藏，切换按钮改放到 Board 自己的单行 header 里 —— 视图变了，但 header 永远只占 1 行。
-- **Proma（上游项目）**：`ChatHeader`/`AgentHeader`/`TabBar` 的重复结构是从这里继承来的，说明这不是 LuxCoder 自己引入的问题，但也证明了不解决"两份重复代码"这件事，以后还会因为"改了一处忘了另一处"再犯。
+- **Proma（上游项目）**：`ChatHeader`/`AgentHeader`/`TabBar` 的重复结构是从这里继承来的，说明这不是 Yoda 自己引入的问题，但也证明了不解决"两份重复代码"这件事，以后还会因为"改了一处忘了另一处"再犯。
 
 ## 目标
 

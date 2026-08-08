@@ -19,13 +19,13 @@ import {
   type ReasoningCapability,
   type ReasoningTransport,
   type ProviderType,
-} from '@luxcoder/shared'
+} from '@yoda/shared'
 import {
   getAppUserAgent,
   normalizeAnthropicBaseUrlForSdk,
   normalizeOpenAIBaseUrlForSdk,
   resolveAnthropicMessagesUrl,
-} from '@luxcoder/core'
+} from '@yoda/core'
 import type { Api, KnownProvider, Model } from '@earendil-works/pi-ai/compat'
 import type { PiAgentQueryOptions } from './pi-agent-adapter'
 import { rememberXaiOAuthCredentials, refreshXaiOAuthCredentialsSerial } from '../xai-oauth-credentials'

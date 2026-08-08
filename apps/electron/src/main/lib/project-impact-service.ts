@@ -1,17 +1,17 @@
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import type { AgentSessionMeta, ProjectDeleteImpact, TaskDeleteImpact } from '@luxcoder/shared'
+import type { AgentSessionMeta, ProjectDeleteImpact, TaskDeleteImpact } from '@yoda/shared'
 import {
   getProjectWorkdirPath,
-} from '@luxcoder/shared/projects/storage'
+} from '@yoda/shared/projects/storage'
 import {
   listResumableRuns,
   listRunIds,
   listTaskSlugs,
   loadTaskRecord,
   loadTaskSpec,
-} from '@luxcoder/shared/tasks/storage'
-import type { ProjectAsset, ProjectConfig } from '@luxcoder/shared/projects'
+} from '@yoda/shared/tasks/storage'
+import type { ProjectAsset, ProjectConfig } from '@yoda/shared/projects'
 
 function countProjectSessions(
   projectId: string,

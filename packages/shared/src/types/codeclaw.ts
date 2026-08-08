@@ -1,5 +1,5 @@
 /**
- * CodeClaw —— LuxCoder 桌面助手共享类型
+ * CodeClaw —— Yoda 桌面助手共享类型
  *
  * CodeClaw 是替代旧 Agent Island/灵动岛的桌面助手 surface。主进程仍是
  * Agent 状态真源，渲染进程只负责呈现与交互意图回传。
@@ -16,7 +16,7 @@ export interface CodeClawThemeDefinition {
 }
 
 export const CODECLAW_THEMES: readonly CodeClawThemeDefinition[] = [
-  { id: 'calico', name: 'Calico', description: '来自 clawd-on-desk 的 AGPL 三花猫主题，LuxCoder 默认桌宠形象' },
+  { id: 'calico', name: 'Calico', description: '来自 clawd-on-desk 的 AGPL 三花猫主题，Yoda 默认桌宠形象' },
   { id: 'clawd', name: 'Clawd', description: '来自 clawd-on-desk 的 AGPL 像素小螃蟹主题' },
   { id: 'cloudling', name: 'Cloudling', description: '来自 clawd-on-desk 的 AGPL 云宝主题' },
 ] as const

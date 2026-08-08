@@ -1,7 +1,7 @@
 /**
  * TB 缺陷看板渲染层视图模型适配
  *
- * 复用 @luxcoder/shared/teambition-defect 纯函数（三区划分 / 授权 / 合法目标推导），
+ * 复用 @yoda/shared/teambition-defect 纯函数（三区划分 / 授权 / 合法目标推导），
  * 这里只做 Browser 类型到共享类型的适配，避免在 UI 组件里直接 import 共享 deep path。
  */
 
@@ -13,8 +13,8 @@ import {
   isTbDefectOverdue as sharedIsOverdue,
   isTbDefectReopened as sharedIsReopened,
   resolveSkillMatches as sharedResolveSkillMatches,
-} from '@luxcoder/shared/teambition-defect'
-import type { TbDefectItem, TbRoleView, TbSection, TbSkillMatch, TbTaskDetail, TbWorkflow } from '@luxcoder/shared/teambition-defect'
+} from '@yoda/shared/teambition-defect'
+import type { TbDefectItem, TbRoleView, TbSection, TbSkillMatch, TbTaskDetail, TbWorkflow } from '@yoda/shared/teambition-defect'
 import type { BrowserTbCompletenessResult, BrowserTbDefectItem, BrowserTbTaskDetail, BrowserTbWorkflow } from '@/../preload/index'
 
 /** 渲染层 Skill 匹配结果（与 shared TbSkillMatch 对齐） */

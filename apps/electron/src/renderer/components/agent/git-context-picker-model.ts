@@ -1,4 +1,4 @@
-import type { GitBranchInfo, GitExecutionMode } from '@luxcoder/shared'
+import type { GitBranchInfo, GitExecutionMode } from '@yoda/shared'
 
 export function sortGitBranchesForPicker(branches: readonly GitBranchInfo[]): GitBranchInfo[] {
   return [...branches].sort((a, b) => {
@@ -31,7 +31,7 @@ export function canCheckoutBranchInLocal(branch: GitBranchInfo): boolean {
 }
 
 export function getProjectGitModeStorageKey(projectId: string): string {
-  return `luxcoder:project:${projectId}:gitExecutionMode`
+  return `yoda:project:${projectId}:gitExecutionMode`
 }
 
 /** 会话头部 Git 上下文常驻小徽标文案；无 gitBranch 时返回 null（会话未绑定 Git 上下文） */

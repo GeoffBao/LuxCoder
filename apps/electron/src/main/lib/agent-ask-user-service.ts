@@ -15,7 +15,7 @@ import type {
   AskUserRequest,
   AskUserQuestion,
   AskUserQuestionOption,
-} from '@luxcoder/shared'
+} from '@yoda/shared'
 
 /** canUseTool 返回的权限结果 */
 type PermissionResult = {

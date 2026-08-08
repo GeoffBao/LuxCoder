@@ -1,4 +1,4 @@
-import type { FileIndexEntry } from '@luxcoder/shared'
+import type { FileIndexEntry } from '@yoda/shared'
 
 type MentionSelection = Pick<FileIndexEntry, 'path' | 'source'>
 

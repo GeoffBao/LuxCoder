@@ -1,5 +1,5 @@
 /**
- * Shared utility functions for LuxCoder
+ * Shared utility functions for Yoda
  */
 
 // Placeholder - will be expanded as needed

@@ -18,25 +18,25 @@ import type {
   AgentQueryInput,
   ErrorCode,
   JsonSchemaOutputFormat,
-  LuxCoderPermissionMode,
+  YodaPermissionMode,
   ProviderType,
   RecoveryAction,
   SendQueuedMessageOptions,
   SDKMessage,
   SDKUserMessageInput,
   TypedError,
-} from '@luxcoder/shared'
+} from '@yoda/shared'
 import {
   calculatePiAutoCompactionReserveTokens,
   inferReasoningTransport,
   isCodexFastModeSupportedModel,
   resolveReasoningProfile,
-} from '@luxcoder/shared'
+} from '@yoda/shared'
 import {
   THINKING_SIGNATURE_ERROR_MESSAGE,
   THINKING_SIGNATURE_ERROR_TITLE,
   isThinkingSignatureError as matchesThinkingSignatureError,
-} from '@luxcoder/shared'
+} from '@yoda/shared'
 import type { CanUseToolOptions, PermissionResult } from '../agent-permission-service'
 import { TRANSIENT_NETWORK_PATTERN, isMalformedResponseError } from '../error-patterns'
 
@@ -103,7 +103,7 @@ export interface PiAgentQueryOptions extends AgentQueryInput {
   channelId?: string
   channelName?: string
   maxTurns?: number
-  permissionMode: LuxCoderPermissionMode
+  permissionMode: YodaPermissionMode
   canUseTool?: (
     toolName: string,
     input: Record<string, unknown>,
@@ -330,7 +330,7 @@ function createAsyncQueue<T>(): AsyncQueue<T> {
 const FRIENDLY_ERROR_MESSAGES: Array<{ pattern: RegExp; message: string }> = [
   {
     pattern: /api key|unauthorized|invalid.*key|authentication/i,
-    message: '请检查是否选择了正确的 LuxCoder 供应渠道和模型',
+    message: '请检查是否选择了正确的 Yoda 供应渠道和模型',
   },
   {
     pattern: /validation|schema/i,
@@ -583,7 +583,7 @@ export function mapSDKErrorToTypedError(errorCode: string, message: string, orig
 
   const meta = ERROR_CODE_META[code] ?? { title: 'Agent 执行失败', canRetry: false }
   // 认证/渠道配置类错误友好化后文案固定，引导用户直接重新选择模型，而非跳转设置
-  const isInvalidChannelOrModel = /请检查是否选择了正确的 LuxCoder 供应渠道和模型/.test(message)
+  const isInvalidChannelOrModel = /请检查是否选择了正确的 Yoda 供应渠道和模型/.test(message)
 
   const actions: RecoveryAction[] = [
     isInvalidChannelOrModel
@@ -817,13 +817,13 @@ function createTextToolResult(text: string, details?: unknown): AgentToolResult<
   } as AgentToolResult<unknown>
 }
 
-export const PI_COMPACTION_CONTINUATION_PROMPT = `<luxcoder_compaction_continuation>
+export const PI_COMPACTION_CONTINUATION_PROMPT = `<yoda_compaction_continuation>
 当前会话上下文已经安全压缩。请依据压缩摘要、保留的最近上下文和已持久化的交接状态，继续完成原始用户任务。
 
 - 不要重复已经完成或已提交的操作；先核验当前状态。
 - 若仍有工作，立即执行下一项具体行动。
 - 只有原始需求全部完成时才给出最终答复；若确实受阻，明确说明阻塞原因。
-</luxcoder_compaction_continuation>`
+</yoda_compaction_continuation>`
 
 export function planPiCompactionContinuation(options: {
   continuationCount: number
@@ -910,8 +910,8 @@ export function buildCurrentSessionCompactionTool(
   const definition = sdk.defineTool({
     name: 'CompactContext',
     label: '压缩当前会话上下文',
-    description: 'Compact only the current Pi Agent session after this turn finishes. Before calling, persist a durable handoff or checkpoint to workspace files. LuxCoder will compact the current session, then automatically continue the original task from the compacted context.',
-    promptSnippet: 'CompactContext: after persisting a durable handoff/checkpoint, compact the current session context. LuxCoder will automatically continue the original task after compaction.',
+    description: 'Compact only the current Pi Agent session after this turn finishes. Before calling, persist a durable handoff or checkpoint to workspace files. Yoda will compact the current session, then automatically continue the original task from the compacted context.',
+    promptSnippet: 'CompactContext: after persisting a durable handoff/checkpoint, compact the current session context. Yoda will automatically continue the original task after compaction.',
     parameters: Type.Object({}),
     async execute() {
       requestCompaction()
@@ -1008,7 +1008,7 @@ function buildPromaProductToolDefinitions(sdk: PiSdk, canUseTool: PiAgentQueryOp
     sdk.defineTool({
       name: 'EnterPlanMode',
       label: '进入计划模式',
-      description: '进入 LuxCoder 计划模式。进入后只能调研、整理计划，并等待用户批准后再执行写操作。',
+      description: '进入 Yoda 计划模式。进入后只能调研、整理计划，并等待用户批准后再执行写操作。',
       promptSnippet: '进入计划模式，先调研并输出计划，再等待用户确认。',
       parameters: Type.Object({
         reason: Type.Optional(Type.String({ description: '进入计划模式的原因。' })),
@@ -1036,7 +1036,7 @@ function buildPromaProductToolDefinitions(sdk: PiSdk, canUseTool: PiAgentQueryOp
     sdk.defineTool({
       name: 'AskUserQuestion',
       label: '询问用户',
-      description: '当需要用户选择、补充信息或确认偏好时调用，LuxCoder 会展示可交互问答横幅。',
+      description: '当需要用户选择、补充信息或确认偏好时调用，Yoda 会展示可交互问答横幅。',
       promptSnippet: '向用户提出结构化问题并等待回答。',
       parameters: Type.Object({
         questions: Type.Array(Type.Object({

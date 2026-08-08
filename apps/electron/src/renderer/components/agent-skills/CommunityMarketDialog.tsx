@@ -11,7 +11,7 @@ import { Store, Download, RefreshCw, Search, Star, Download as DownloadIcon } fr
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import type { SkillHubSkill } from '@luxcoder/shared'
+import type { SkillHubSkill } from '@yoda/shared'
 
 interface CommunityMarketDialogProps {
   open: boolean

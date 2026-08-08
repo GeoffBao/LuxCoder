@@ -108,12 +108,12 @@ function buildTrayMenu(actions: TrayActions): Menu {
     },
     { type: 'separator' },
     {
-      label: '打开 LuxCoder',
+      label: '打开 Yoda',
       click: () => actions.showMainWindow(),
     },
     { type: 'separator' },
     {
-      label: '退出 LuxCoder',
+      label: '退出 Yoda',
       click: () => {
         app.quit()
       },
@@ -155,7 +155,7 @@ export function createTray(actionsInput?: Partial<TrayActions>): Tray | null {
     tray = new Tray(image)
 
     // 设置 tooltip
-    tray.setToolTip('LuxCoder')
+    tray.setToolTip('Yoda')
 
     updateTrayMenu(actions)
 

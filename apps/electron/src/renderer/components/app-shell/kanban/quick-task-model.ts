@@ -1,5 +1,5 @@
-import { TaskSpecSchema } from '@luxcoder/shared/tasks/schema'
-import { slugify } from '@luxcoder/shared/utils'
+import { TaskSpecSchema } from '@yoda/shared/tasks/schema'
+import { slugify } from '@yoda/shared/utils'
 import type { TaskEditorTarget } from './types'
 
 export interface QuickTaskDraft {

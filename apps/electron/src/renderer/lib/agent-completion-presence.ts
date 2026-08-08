@@ -1,5 +1,5 @@
 import type { TabItem } from '@/atoms/tab-atoms'
-import type { AgentSessionMeta, AgentStreamCompletePayload } from '@luxcoder/shared'
+import type { AgentSessionMeta, AgentStreamCompletePayload } from '@yoda/shared'
 
 export interface AgentCompletionPresenceInput {
   tabs: TabItem[]

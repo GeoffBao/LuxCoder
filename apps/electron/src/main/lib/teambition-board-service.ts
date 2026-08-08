@@ -7,7 +7,7 @@
  * - 复用现有 TeambitionGateway 连接（listMyOpenTasks / QueryTaskV3 等），
  *   看板专用方法通过网关的通用 callTool 能力扩展（见 TeambitionBoardGateway）
  * - 状态机元数据（taskflowStatuses）与任务类型（sfc）做进程内缓存，避免重复拉取
- * - 三区划分 / 合法流转推导由 @luxcoder/shared/teambition-defect 纯函数承担
+ * - 三区划分 / 合法流转推导由 @yoda/shared/teambition-defect 纯函数承担
  * - 写回操作（updateStatus / claim / comment）统一走网关，错误映射到
  *   needs-reauth / conflict 等状态，供 UI 降级
  */
@@ -18,7 +18,7 @@ import type {
   TbTaskDetail,
   TbWorkflow,
   TbWorkflowStatus,
-} from '@luxcoder/shared/teambition-defect'
+} from '@yoda/shared/teambition-defect'
 
 /** 网关需要暴露的看板能力（由 adapter 实现；Mock 提供本地兜底） */
 export interface TeambitionBoardGateway {

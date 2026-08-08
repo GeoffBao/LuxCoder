@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useAtomValue } from 'jotai'
-import type { GitBranchInfo, GitExecutionMode } from '@luxcoder/shared'
+import type { GitBranchInfo, GitExecutionMode } from '@yoda/shared'
 import { Check, ChevronDown, GitBranch, Info, Plus, X } from 'lucide-react'
 import { serverKanbanProjectsAtom } from '@/atoms/project-atoms'
 import { cn } from '@/lib/utils'

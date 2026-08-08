@@ -21,7 +21,7 @@ import type {
   OrganizationMember,
   OrganizationMembership,
   OrganizationSkill,
-} from '@luxcoder/shared'
+} from '@yoda/shared'
 
 interface OrganizationSettingsProps {
   /** 当前工作区 slug（Skills 导入目标） */
@@ -222,7 +222,7 @@ export function OrganizationSettings({ workspaceSlug }: OrganizationSettingsProp
 
               <SettingsInput
                 label="服务端地址"
-                description="部署的企业版 LuxCoder Server 地址，如 http://your-org.example.com"
+                description="部署的企业版 Yoda Server 地址，如 http://your-org.example.com"
                 value={serverUrl}
                 onChange={setServerUrl}
                 placeholder="http://localhost:8787"

@@ -8,7 +8,7 @@ import { ProjectRepository } from './project-repository'
 const tempRoots: string[] = []
 
 function createTempWorkspaceRoot(): string {
-  const root = mkdtempSync(join(tmpdir(), 'luxcoder-main-project-repo-'))
+  const root = mkdtempSync(join(tmpdir(), 'yoda-main-project-repo-'))
   tempRoots.push(root)
   return root
 }

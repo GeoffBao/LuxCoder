@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import type { SDKMessage } from '@luxcoder/shared'
+import type { SDKMessage } from '@yoda/shared'
 import { getContextCompactionProgress, isCompactionControlHistoryGroup } from './AgentMessages'
 import { shouldClearRetainedCompactionForResumedStream, shouldRestoreCompactionProgress } from './TaskProgressOverlay'
 

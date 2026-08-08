@@ -8,13 +8,13 @@ import { closeDb, getDb, migrate } from '../src/db'
 
 describe('服务端数据库层', () => {
   beforeEach(() => {
-    process.env.LUXCODER_SERVER_DB = ':memory:'
+    process.env.YODA_SERVER_DB = ':memory:'
     closeDb()
   })
 
   afterEach(() => {
     closeDb()
-    delete process.env.LUXCODER_SERVER_DB
+    delete process.env.YODA_SERVER_DB
   })
 
   test('getDb 创建内存库并完成迁移', () => {
@@ -105,10 +105,10 @@ describe('服务端数据库层', () => {
     ).toThrow(/UNIQUE/)
   })
 
-  test('不注入 LUXCODER_SERVER_DB 时使用默认路径', async () => {
-    delete process.env.LUXCODER_SERVER_DB
+  test('不注入 YODA_SERVER_DB 时使用默认路径', async () => {
+    delete process.env.YODA_SERVER_DB
     // 只验证 getDbPath 返回默认路径（不实际打开磁盘库避免副作用）
     const { getDbPath } = await import('../src/db')
-    expect(getDbPath()).toContain('luxcoder-server.db')
+    expect(getDbPath()).toContain('yoda-server.db')
   })
 })

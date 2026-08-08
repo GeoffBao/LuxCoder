@@ -1,19 +1,19 @@
 /**
  * 服务端 SQLite 数据库层（bun:sqlite 内置模块，零额外依赖）
  *
- * 数据文件默认存储于 <repo>/apps/server/data/luxcoder-server.db，
- * 可通过环境变量 LUXCODER_SERVER_DB 覆盖（测试/部署用）。
+ * 数据文件默认存储于 <repo>/apps/server/data/yoda-server.db，
+ * 可通过环境变量 YODA_SERVER_DB 覆盖（测试/部署用）。
  */
 
 import { Database } from 'bun:sqlite'
 import { existsSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
-const DEFAULT_DB_PATH = join(import.meta.dir, '..', 'data', 'luxcoder-server.db')
+const DEFAULT_DB_PATH = join(import.meta.dir, '..', 'data', 'yoda-server.db')
 
 /** 获取数据库文件路径（测试可注入内存库） */
 export function getDbPath(): string {
-  return process.env.LUXCODER_SERVER_DB ?? DEFAULT_DB_PATH
+  return process.env.YODA_SERVER_DB ?? DEFAULT_DB_PATH
 }
 
 let db: Database | null = null
@@ -103,7 +103,7 @@ export function ensureDatabase(): Database {
   const database = getDb()
   const path = getDbPath()
   if (path !== ':memory:') {
-    console.log(`[LuxCoder Server] 数据库已就绪: ${path}`)
+    console.log(`[Yoda Server] 数据库已就绪: ${path}`)
   }
   return database
 }

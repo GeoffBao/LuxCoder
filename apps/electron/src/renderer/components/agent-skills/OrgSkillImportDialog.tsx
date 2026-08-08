@@ -20,7 +20,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
-import type { SkillHubSkill } from '@luxcoder/shared'
+import type { SkillHubSkill } from '@yoda/shared'
 import { collectSkillCategories, inferSkillCategory } from '@/lib/skillhub-category'
 
 interface OrgSkillImportDialogProps {

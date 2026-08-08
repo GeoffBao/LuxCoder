@@ -9,7 +9,7 @@ import { atomWithStorage } from 'jotai/utils'
  * 持久化到 localStorage（用户编辑的分析结果跨会话保留）。
  */
 export const tbDefectAnalysisAtom = atomWithStorage<Record<string, string>>(
-  'luxcoder-tb-defect-analysis',
+  'yoda-tb-defect-analysis',
   {},
 )
 

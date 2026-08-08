@@ -4,9 +4,9 @@ import { cn } from '@/lib/utils'
 import { ChevronRight } from 'lucide-react'
 import { resolveKanbanColumnColor } from './kanban-colors'
 import { TaskTile } from './TaskTile'
-import { TASK_TYPE_LABELS, type TaskType } from '@luxcoder/shared/tasks'
+import { TASK_TYPE_LABELS, type TaskType } from '@yoda/shared/tasks'
 import type { KanbanBoardColumn } from './board-model'
-import type { TaskWorkflow } from '@luxcoder/shared/tasks'
+import type { TaskWorkflow } from '@yoda/shared/tasks'
 import type { KanbanItem } from './types'
 
 interface KanbanColumnProps {

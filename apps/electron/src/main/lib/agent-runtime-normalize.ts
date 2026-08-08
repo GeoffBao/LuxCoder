@@ -5,8 +5,8 @@
  * 十几个 Electron 相关服务模块；测试这一个函数不该连带拉起那整张模块图。
  */
 
-import type { ProviderType } from '@luxcoder/shared'
-import { CLAUDE_RUNTIME_ENABLED, type AgentRuntime } from '@luxcoder/shared'
+import type { ProviderType } from '@yoda/shared'
+import { CLAUDE_RUNTIME_ENABLED, type AgentRuntime } from '@yoda/shared'
 
 export function normalizeAgentRuntime(value: unknown, provider?: ProviderType): AgentRuntime {
   // anthropic-oauth 结构性依赖真实 claude 二进制（Pi 不理解 CLAUDE_CODE_OAUTH_TOKEN），

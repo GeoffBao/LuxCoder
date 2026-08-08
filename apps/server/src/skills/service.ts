@@ -5,7 +5,7 @@
  * - 上传 zip → 解压校验 SKILL.md → 提取 frontmatter（slug/name/version）→ 落盘目录
  * - 下载 → 重新打包为 zip
  *
- * 存储布局（由 LUXCODER_SERVER_SKILLS_DIR 或默认 data/skills 决定）：
+ * 存储布局（由 YODA_SERVER_SKILLS_DIR 或默认 data/skills 决定）：
  *   <dir>/<orgId>/<skillId>/<version>/... （当前版本内容）
  *   <dir>/<orgId>/<skillId>/<version>.zip （历史版本归档）
  */
@@ -19,7 +19,7 @@ import { getDb } from '../db'
 const DEFAULT_SKILLS_DIR = join(import.meta.dir, '..', '..', 'data', 'skills')
 
 export function getSkillsDir(): string {
-  return process.env.LUXCODER_SERVER_SKILLS_DIR ?? DEFAULT_SKILLS_DIR
+  return process.env.YODA_SERVER_SKILLS_DIR ?? DEFAULT_SKILLS_DIR
 }
 
 export interface SkillManifest {

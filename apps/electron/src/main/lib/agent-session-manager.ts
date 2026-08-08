@@ -2,8 +2,8 @@
  * Agent 会话管理器
  *
  * 负责 Agent 会话的 CRUD 操作和消息持久化。
- * - 会话索引：~/.luxcoder/agent-sessions.json（轻量元数据）
- * - 消息存储：~/.luxcoder/agent-sessions/{id}.jsonl（JSONL 格式，逐行追加）
+ * - 会话索引：~/.yoda/agent-sessions.json（轻量元数据）
+ * - 消息存储：~/.yoda/agent-sessions/{id}.jsonl（JSONL 格式，逐行追加）
  *
  * 照搬 conversation-manager.ts 的模式。
  */
@@ -39,16 +39,16 @@ import type {
   AgentSessionReferenceSearchInput,
   AgentSessionReferenceSearchResult,
   AgentRuntime,
-} from '@luxcoder/shared'
+} from '@yoda/shared'
 import {
   DEFAULT_AGENT_THINKING_LEVEL,
   getSessionThinkingLevel,
   migratePermissionMode,
   sessionThinkingLevelPatch,
-} from '@luxcoder/shared'
+} from '@yoda/shared'
 import { getConversationMessages } from './conversation-manager'
-// 旧格式 → SDKMessage 的转换逻辑下沉到 @luxcoder/session-core 作为唯一真源，避免主进程与渲染层各存一份。
-import { convertLegacyMessage } from '@luxcoder/session-core'
+// 旧格式 → SDKMessage 的转换逻辑下沉到 @yoda/session-core 作为唯一真源，避免主进程与渲染层各存一份。
+import { convertLegacyMessage } from '@yoda/session-core'
 import { clearNanoBananaAgentHistory } from './chat-tools/nano-banana-mcp'
 import { assertEnabledModelForChannel } from './agent-model-selection'
 import { copyForkWorkspaceFiles } from './agent-fork-workspace-copy'
@@ -339,7 +339,7 @@ export function createAgentSession(
         sdkSettings.autoMemoryDirectory = autoMemoryDirectory
         needsWrite = true
       }
-      // LuxCoder Git/PR 推广标识：覆盖 Claude SDK 默认 Co-Authored-By
+      // Yoda Git/PR 推广标识：覆盖 Claude SDK 默认 Co-Authored-By
       if (applyClaudeSdkAttributionSettings(
         sdkSettings,
         isGitAttributionEnabled(getSettings().gitAttributionEnabled),
@@ -560,7 +560,7 @@ export function getRecentAgentSessionSDKMessages(
 }
 
 /**
- * convertLegacyMessage 已迁移至 @luxcoder/session-core（本文件从该包 import 使用）。
+ * convertLegacyMessage 已迁移至 @yoda/session-core（本文件从该包 import 使用）。
  */
 
 /**
@@ -935,7 +935,7 @@ export async function forkAgentSession(input: ForkSessionInput): Promise<AgentSe
 
   // 2.5 校验目标消息并确定其所属的 SDK session ID
   // - 当会话经历过 "session not found" 恢复后，sdkSessionId 会被替换为新的，
-  //   但旧消息仍保留在 LuxCoder JSONL 中，其 session_id 指向旧的 SDK session。
+  //   但旧消息仍保留在 Yoda JSONL 中，其 session_id 指向旧的 SDK session。
   // - 若目标消息是 sub-agent 输出（parent_tool_use_id 非空），SDK forkSession
   //   会过滤掉 sidechain 后再查 upToMessageId，必然报 "not found"，
   //   这里自动回溯到最近的主线 assistant uuid。
@@ -980,7 +980,7 @@ export async function forkAgentSession(input: ForkSessionInput): Promise<AgentSe
     }
   }
 
-  // 4. 创建 LuxCoder 新会话，立即设置 sdkSessionId
+  // 4. 创建 Yoda 新会话，立即设置 sdkSessionId
   const forkTitle = `${sourceMeta.title} (fork)`
   const newMeta = createAgentSession(
     forkTitle,
@@ -1043,7 +1043,7 @@ export async function forkAgentSession(input: ForkSessionInput): Promise<AgentSe
 
   // 5. 复制源会话工作区文件到新会话目录
   // 保留 .context/，但跳过依赖、构建产物和 Git 元数据，避免 fork 点击时同步复制巨量目录拖垮主进程。
-  // .context/ 必须保留 — LuxCoder 约定 .context/note.md、todo.md、plan/ 等是会话上下文，
+  // .context/ 必须保留 — Yoda 约定 .context/note.md、todo.md、plan/ 等是会话上下文，
   // 如果不复制，fork 后这些参考资料会丢失或被 Claude 误回源目录读取。
   if (sourceDir && destDir) {
     try {
@@ -1083,7 +1083,7 @@ async function forkPiAgentSession(sourceMeta: AgentSessionMeta, input: ForkSessi
   const targetUuid = input.upToMessageUuid
   if (!targetUuid) throw new Error('Pi 分叉需要指定一条已完成的 assistant 消息')
   const entryId = sourceMeta.piEntryBindings?.[targetUuid]
-  if (!entryId) throw new Error('该 Pi 历史消息尚无 entry ID 映射，无法安全分叉；请在新版 LuxCoder 中继续一次对话后再试')
+  if (!entryId) throw new Error('该 Pi 历史消息尚无 entry ID 映射，无法安全分叉；请在新版 Yoda 中继续一次对话后再试')
   if (!sourceMeta.piSessionFile || !existsSync(sourceMeta.piSessionFile)) {
     throw new Error('未找到 Pi session artifact，无法安全分叉')
   }
@@ -1461,11 +1461,11 @@ export function removeSDKErrorMessage(id: string, errorUuid: string): boolean {
 /**
  * 从 SDK session JSONL 中查找指定 assistant message 之后最近的 user message UUID
  *
- * SDK session JSONL（~/.luxcoder/sdk-config/projects/...）中的消息都带有 uuid，
- * 但 LuxCoder 自己构造的 user message 没有 uuid。此函数直接读取 SDK 的 JSONL
+ * SDK session JSONL（~/.yoda/sdk-config/projects/...）中的消息都带有 uuid，
+ * 但 Yoda 自己构造的 user message 没有 uuid。此函数直接读取 SDK 的 JSONL
  * 来解析 rewindFiles 所需的 user message UUID。
  *
- * 对于 fork 会话：LuxCoder JSONL 中的 UUID 来自**源会话**（fork 时直接复制），
+ * 对于 fork 会话：Yoda JSONL 中的 UUID 来自**源会话**（fork 时直接复制），
  * 而 forked SDK JSONL 中的 UUID 已被重映射。因此 fork 会话需要搜索**源**
  * SDK JSONL 来匹配 assistant UUID。通过 forkSourceSdkSessionId 参数指定。
  *
@@ -1496,7 +1496,7 @@ export function resolveUserUuidFromSDK(
         } catch { return false }
       })
       if (!hasUuidAsField) {
-        // LuxCoder JSONL 中的 UUID 来自源会话，forked JSONL 中已重映射
+        // Yoda JSONL 中的 UUID 来自源会话，forked JSONL 中已重映射
         const sourceFilePath = findSdkSessionJsonl(forkSourceSdkSessionId, projectDir)
         if (sourceFilePath) {
           console.log(`[Agent 会话] resolveUserUuid: fork 会话 UUID 不匹配（非 .uuid 字段），切换到源会话 ${forkSourceSdkSessionId}`)
@@ -1576,7 +1576,7 @@ function findSdkSessionJsonl(sdkSessionId: string, _projectDir?: string): string
   const sdkConfigDir = getSdkConfigDir()
 
   // 遍历所有项目目录查找匹配的 session JSONL
-  // （SDK 的目录命名规则与 LuxCoder 不完全一致，直接遍历最可靠）
+  // （SDK 的目录命名规则与 Yoda 不完全一致，直接遍历最可靠）
   const projectsDir = join(sdkConfigDir, 'projects')
   if (existsSync(projectsDir)) {
     for (const dir of readdirSync(projectsDir)) {

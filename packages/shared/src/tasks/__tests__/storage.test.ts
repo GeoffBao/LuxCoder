@@ -28,7 +28,7 @@ import {
 const tempRoots: string[] = [];
 
 function createTempWorkspaceRoot(): string {
-  const root = mkdtempSync(join(tmpdir(), 'luxcoder-task-storage-'));
+  const root = mkdtempSync(join(tmpdir(), 'yoda-task-storage-'));
   tempRoots.push(root);
   return root;
 }

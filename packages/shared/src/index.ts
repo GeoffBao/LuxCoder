@@ -1,5 +1,5 @@
 /**
- * @luxcoder/shared - Shared types, configs and utilities
+ * @yoda/shared - Shared types, configs and utilities
  */
 
 export * from './types/index'

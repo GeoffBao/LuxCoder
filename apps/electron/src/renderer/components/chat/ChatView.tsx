@@ -53,7 +53,7 @@ import type {
   ChatSendInput,
   FileAttachment,
   AttachmentSaveInput,
-} from '@luxcoder/shared'
+} from '@yoda/shared'
 
 interface ChatViewProps {
   conversationId: string
@@ -473,8 +473,8 @@ function ChatViewInner({ conversationId }: ChatViewProps): React.ReactElement {
     const handler = (): void => {
       if (isStreaming) handleStop()
     }
-    window.addEventListener('luxcoder:stop-generation', handler)
-    return () => window.removeEventListener('luxcoder:stop-generation', handler)
+    window.addEventListener('yoda:stop-generation', handler)
+    return () => window.removeEventListener('yoda:stop-generation', handler)
   }, [isStreaming, handleStop])
 
   /** 删除消息 */

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, mock, test } from 'b
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import * as os from 'node:os'
 import { join } from 'node:path'
-import { serializeCodexCredentials, serializeClaudeOAuthCredentials } from '@luxcoder/shared'
+import { serializeCodexCredentials, serializeClaudeOAuthCredentials } from '@yoda/shared'
 import { mockElectronModule } from './__tests__/electron-mock'
 
 type ChannelManagerModule = typeof import('./channel-manager')
@@ -10,7 +10,7 @@ type ChannelManagerModule = typeof import('./channel-manager')
 let channelManager: ChannelManagerModule
 let tempHome: string
 const originalHome = process.env.HOME
-const originalLuxcoderDev = process.env.LUXCODER_DEV
+const originalYodaDev = process.env.YODA_DEV
 const originalPromaDev = process.env.PROMA_DEV
 
 mockElectronModule({
@@ -26,7 +26,7 @@ mock.module('node:os', () => ({
 }))
 
 function writeChannels(channels: unknown[]): void {
-  const configDir = join(tempHome, '.luxcoder')
+  const configDir = join(tempHome, '.yoda')
   mkdirSync(configDir, { recursive: true })
   writeFileSync(
     join(configDir, 'channels.json'),
@@ -36,15 +36,15 @@ function writeChannels(channels: unknown[]): void {
 }
 
 beforeAll(async () => {
-  tempHome = mkdtempSync(join(os.tmpdir(), 'luxcoder-channel-runtime-key-'))
+  tempHome = mkdtempSync(join(os.tmpdir(), 'yoda-channel-runtime-key-'))
   process.env.HOME = tempHome
-  delete process.env.LUXCODER_DEV
+  delete process.env.YODA_DEV
   process.env.PROMA_DEV = '0'
   channelManager = await import('./channel-manager')
 })
 
 beforeEach(() => {
-  rmSync(join(tempHome, '.luxcoder'), { recursive: true, force: true })
+  rmSync(join(tempHome, '.yoda'), { recursive: true, force: true })
 })
 
 afterAll(() => {
@@ -53,10 +53,10 @@ afterAll(() => {
   } else {
     process.env.HOME = originalHome
   }
-  if (originalLuxcoderDev === undefined) {
-    delete process.env.LUXCODER_DEV
+  if (originalYodaDev === undefined) {
+    delete process.env.YODA_DEV
   } else {
-    process.env.LUXCODER_DEV = originalLuxcoderDev
+    process.env.YODA_DEV = originalYodaDev
   }
   if (originalPromaDev === undefined) {
     delete process.env.PROMA_DEV

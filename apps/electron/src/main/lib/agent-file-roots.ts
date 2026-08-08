@@ -4,7 +4,7 @@
  * 避免右侧 Files 与 Agent 实际执行目录发生漂移。
  */
 
-import type { AgentSessionFileRoots, AgentSessionMeta } from '@luxcoder/shared'
+import type { AgentSessionFileRoots, AgentSessionMeta } from '@yoda/shared'
 import { join } from 'node:path'
 import { mkdirSync } from 'node:fs'
 import { projectRepository } from './project-repository'

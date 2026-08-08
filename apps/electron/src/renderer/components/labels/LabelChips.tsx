@@ -1,5 +1,5 @@
 import * as React from 'react'
-import type { WorkspaceLabel } from '@luxcoder/shared/labels'
+import type { WorkspaceLabel } from '@yoda/shared/labels'
 
 export interface LabelChipsProps {
   labels: WorkspaceLabel[]

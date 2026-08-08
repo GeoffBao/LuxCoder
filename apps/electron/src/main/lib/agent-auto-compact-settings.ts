@@ -1,4 +1,4 @@
-export function removeLuxCoderAutoCompactSettings(settings: Record<string, unknown>): boolean {
+export function removeYodaAutoCompactSettings(settings: Record<string, unknown>): boolean {
   let changed = false
 
   if ('autoCompactWindow' in settings) {
@@ -15,4 +15,4 @@ export function removeLuxCoderAutoCompactSettings(settings: Record<string, unkno
 }
 
 /** @deprecated 兼容旧测试名 */
-export const removePromaAutoCompactSettings = removeLuxCoderAutoCompactSettings
+export const removePromaAutoCompactSettings = removeYodaAutoCompactSettings

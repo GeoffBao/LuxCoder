@@ -1,5 +1,5 @@
 import { atom } from 'jotai'
-import type { WorkspaceLabel } from '@luxcoder/shared/labels'
+import type { WorkspaceLabel } from '@yoda/shared/labels'
 
 /** 当前 Workspace 的 Label 列表（不含已归档） */
 export const workspaceLabelsAtom = atom<WorkspaceLabel[]>([])

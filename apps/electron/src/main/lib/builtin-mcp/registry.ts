@@ -1,11 +1,11 @@
 /**
- * LuxCoder 内置 MCP 注册中心
+ * Yoda 内置 MCP 注册中心
  *
  * Orchestrator 只调用这里的统一入口；各内置 MCP 的可用性、注入条件和错误隔离
  * 都收敛在本模块，避免主编排流程继续膨胀。
  */
 
-import type { AgentRuntime, AgentSessionMeta, LuxCoderPermissionMode } from '@luxcoder/shared'
+import type { AgentRuntime, AgentSessionMeta, YodaPermissionMode } from '@yoda/shared'
 import { injectAgentCollaborationMcpServer } from '../agent-collaboration-tools'
 import { injectAutomationMcpServer } from '../automation-agent-tools'
 import { injectCreateTaskMcpServer } from '../create-task-agent-tool'
@@ -22,7 +22,7 @@ export interface BuiltinMcpInjectContext {
   workspaceId?: string
   workspaceSlug?: string
   agentCwd?: string
-  permissionMode?: LuxCoderPermissionMode
+  permissionMode?: YodaPermissionMode
   triggeredBy?: 'user' | 'automation' | 'delegation' | 'work'
   sessionMeta?: AgentSessionMeta
 }

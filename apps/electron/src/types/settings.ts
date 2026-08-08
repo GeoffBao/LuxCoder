@@ -4,7 +4,7 @@
  * 主题模式、IPC 通道等设置相关定义。
  */
 
-import type { AgentRuntime, AgentThinkingLevel, EnvironmentCheckResult, ThinkingConfig, AgentEffort, FeishuSessionMirrorSettings, SessionListPreference, WindowsShellPreference, ProviderType, CodeClawThemeId } from '@luxcoder/shared'
+import type { AgentRuntime, AgentThinkingLevel, EnvironmentCheckResult, ThinkingConfig, AgentEffort, FeishuSessionMirrorSettings, SessionListPreference, WindowsShellPreference, ProviderType, CodeClawThemeId } from '@yoda/shared'
 
 /** 通知音场景类型 */
 export type NotificationSoundType = 'taskComplete' | 'permissionRequest' | 'exitPlanMode' | 'planningReminder'
@@ -31,7 +31,7 @@ export type VoiceDictationProvider = 'doubao'
 export type VoiceDictationEndpointMode = 'async' | 'duplex'
 
 /** 语音输入输出方式 */
-export type VoiceDictationOutputMode = 'auto' | 'clipboard' | 'luxcoder-input'
+export type VoiceDictationOutputMode = 'auto' | 'clipboard' | 'yoda-input'
 
 /** 语音输入浮窗位置 */
 export interface VoiceDictationWindowPosition {
@@ -109,15 +109,15 @@ export interface VoiceDictationToggleInput {
 
 /** 主进程冻结的一次听写输出上下文。 */
 export interface VoiceDictationOutputContext {
-  /** 本次听写是否写入 LuxCoder 内部输入框。 */
-  routeToLuxCoderInput: boolean
+  /** 本次听写是否写入 Yoda 内部输入框。 */
+  routeToYodaInput: boolean
   /** 会话开始时选择的输出模式。 */
   outputMode: VoiceDictationOutputMode
 }
 
-/** 主进程确认开始听写时，告知渲染进程本次输出是否应路由到 LuxCoder 输入框。 */
+/** 主进程确认开始听写时，告知渲染进程本次输出是否应路由到 Yoda 输入框。 */
 export interface VoiceDictationShownEvent {
-  routeToLuxCoderInput: boolean
+  routeToYodaInput: boolean
   /** 主进程生成的冻结输出上下文 ID，后续 preview / commit / cancel 必须原样带回。 */
   outputContextId: string
   sourceInputId?: string
@@ -143,11 +143,11 @@ export interface VoiceDictationAudioChunkInput {
   data: ArrayBuffer
 }
 
-/** 将当前识别结果作为 LuxCoder 输入框中的临时组合文本预览。 */
+/** 将当前识别结果作为 Yoda 输入框中的临时组合文本预览。 */
 export interface VoiceDictationPreviewInput {
   sessionId: string
   text: string
-  /** 本次听写会话冻结的 LuxCoder 输入目标；null 表示不路由到内部输入框。 */
+  /** 本次听写会话冻结的 Yoda 输入目标；null 表示不路由到内部输入框。 */
   targetInputId?: string | null
   /** 主进程生成的冻结输出上下文 ID。 */
   outputContextId?: string
@@ -159,7 +159,7 @@ export interface VoiceDictationStopInput {
   sessionId: string
   /** 跨 ASR 重连保持稳定的听写会话 ID */
   previewSessionId?: string
-  /** 取消预览时应清理的 LuxCoder 输入目标。 */
+  /** 取消预览时应清理的 Yoda 输入目标。 */
   targetInputId?: string | null
   /** 主进程生成的冻结输出上下文 ID。 */
   outputContextId?: string
@@ -169,7 +169,7 @@ export interface VoiceDictationStopInput {
 export interface VoiceDictationCommitInput {
   sessionId: string
   text: string
-  /** 本次听写会话冻结的 LuxCoder 输入目标；null 表示不路由到内部输入框。 */
+  /** 本次听写会话冻结的 Yoda 输入目标；null 表示不路由到内部输入框。 */
   targetInputId?: string | null
   /** 主进程生成的冻结输出上下文 ID。 */
   outputContextId?: string
@@ -179,7 +179,7 @@ export interface VoiceDictationCommitInput {
 export interface VoiceDictationTextEvent {
   sessionId: string
   text: string
-  /** 本次听写会话冻结的 LuxCoder 输入目标；null 表示交给全局 fallback 处理。 */
+  /** 本次听写会话冻结的 Yoda 输入目标；null 表示交给全局 fallback 处理。 */
   targetInputId?: string | null
 }
 
@@ -196,7 +196,7 @@ export interface VoiceDictationResizeInput {
 
 /** 输出语音输入文本结果 */
 export interface VoiceDictationCommitResult {
-  mode: 'luxcoder-input' | 'cursor' | 'clipboard'
+  mode: 'yoda-input' | 'cursor' | 'clipboard'
   success: boolean
   message: string
 }
@@ -359,7 +359,7 @@ export interface CodeClawSettings {
   x?: number
   /** 记忆的桌宠窗口左上角 Y 坐标。 */
   y?: number
-  /** 桌宠主题 ID；CodeClaw 为 LuxCoder 原创，Clawd/Calico/Cloudling 来自 clawd-on-desk AGPL 主题。 */
+  /** 桌宠主题 ID；CodeClaw 为 Yoda 原创，Clawd/Calico/Cloudling 来自 clawd-on-desk AGPL 主题。 */
   themeId?: CodeClawThemeId
 }
 
@@ -447,22 +447,22 @@ export interface AppSettings {
   appIconVariant?: string
   /** 语音输入设置（Access Token 以加密态存储，由专用服务解密后返回渲染进程） */
   voiceDictation?: VoiceDictationPersistedSettings
-  /** 飞书 Session 镜像设置：每个 LuxCoder Session 可创建一个仅包含用户与指定 Bot 的飞书群 */
+  /** 飞书 Session 镜像设置：每个 Yoda Session 可创建一个仅包含用户与指定 Bot 的飞书群 */
   feishuSessionMirror?: FeishuSessionMirrorSettings
   /** 无视觉输入能力 Agent 的视觉助手路由 */
   visionRelay?: VisionRelaySettings
-  /** 用户手动关闭的 LuxCoder 内置 MCP ID 列表（针对默认开启的内置 MCP） */
+  /** 用户手动关闭的 Yoda 内置 MCP ID 列表（针对默认开启的内置 MCP） */
   builtinMcpDisabledIds?: string[]
-  /** 用户手动开启的 LuxCoder 内置 MCP ID 列表（针对默认关闭的内置 MCP，如 nano-banana、mem） */
+  /** 用户手动开启的 Yoda 内置 MCP ID 列表（针对默认关闭的内置 MCP，如 nano-banana、mem） */
   builtinMcpEnabledIds?: string[]
-  /** 启动时自动清理临时文件（luxcoder-preview、luxcoder-installers），默认 true */
+  /** 启动时自动清理临时文件（yoda-preview、yoda-installers），默认 true */
   autoCleanupTempOnStart?: boolean
   /** 自动清理 N 天前已归档会话的 SDK 数据（0 = 禁用，默认 0） */
   autoCleanupArchivedDays?: number
   /**
-   * Agent 代创建 git commit / PR 时是否附加 LuxCoder 推广标识。
-   * 默认 true：commit trailer `Made-with: LuxCoder`，PR body 末尾含 https://github.com/GeoffBao/LuxCoder。
-   * 关闭后不注入任何 LuxCoder 归因，并覆盖 Claude SDK 默认 Co-Authored-By。
+   * Agent 代创建 git commit / PR 时是否附加 Yoda 推广标识。
+   * 默认 true：commit trailer `Made-with: Yoda`，PR body 末尾含 https://github.com/biajidong/Yoda。
+   * 关闭后不注入任何 Yoda 归因，并覆盖 Claude SDK 默认 Co-Authored-By。
    */
   gitAttributionEnabled?: boolean
   /** CodeClaw 桌面助手偏好。 */
@@ -577,7 +577,7 @@ export const VOICE_DICTATION_IPC_CHANNELS = {
   STOP: 'voice-dictation:stop',
   /** 取消语音输入会话 */
   CANCEL: 'voice-dictation:cancel',
-  /** 同步 LuxCoder 输入框中的临时识别文本 */
+  /** 同步 Yoda 输入框中的临时识别文本 */
   PREVIEW: 'voice-dictation:preview',
   /** 输出最终文本 */
   COMMIT: 'voice-dictation:commit',

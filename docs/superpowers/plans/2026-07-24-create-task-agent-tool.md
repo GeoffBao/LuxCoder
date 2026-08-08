@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 新增 `create_task` Agent 工具：对话中直接落一张 `todo` 状态的看板任务（task.yaml + orchestrator 会话），只创建不运行；跟现有"新建任务"表单共享同一条落盘逻辑，接入 LuxCoder 现成的内置 MCP 注册中心。
+**Goal:** 新增 `create_task` Agent 工具：对话中直接落一张 `todo` 状态的看板任务（task.yaml + orchestrator 会话），只创建不运行；跟现有"新建任务"表单共享同一条落盘逻辑，接入 Yoda 现成的内置 MCP 注册中心。
 
 **Architecture:** `packages/shared/src/tasks/build-minimal-spec.ts` 从工具入参构建单节点 `TaskSpec`；`task-handlers.ts` 抽出 `materializeTaskFromSpec`（落盘 + 建会话），供现有 IPC handler 和新工具共用；`apps/electron/src/main/lib/create-task-agent-tool.ts` 仿照 `automation-agent-tools.ts` 的单一职责结构，通过 SDK MCP Server 暴露工具；接入 `builtin-mcp/registry.ts` + `default-mcp.json`（内置 MCP 展示/开关的单一事实源）。
 
@@ -71,9 +71,9 @@ describe('slugify', () => {
 - [ ] **Step 4: `task-spec-form.ts` 改为从 shared 导入，删除本地实现**
 
 ```diff
-+import { slugify } from '@luxcoder/shared/utils'
- import { MAX_REPAIR_ATTEMPTS_CAP, TaskSpecSchema } from '@luxcoder/shared/tasks/schema'
- import type { PermissionMode, TaskSpec } from '@luxcoder/shared/tasks/schema'
++import { slugify } from '@yoda/shared/utils'
+ import { MAX_REPAIR_ATTEMPTS_CAP, TaskSpecSchema } from '@yoda/shared/tasks/schema'
+ import type { PermissionMode, TaskSpec } from '@yoda/shared/tasks/schema'
  
  let _uid = 0
  export const uid = (): string => `st-${++_uid}`
@@ -293,7 +293,7 @@ git commit -m "feat(shared): add buildMinimalTaskSpec for single-node task creat
 
 - [ ] **Step 2: 在 `getSessionHost` 定义之后新增导出函数 `materializeTaskFromSpec`**
 
-紧跟在 `function getSessionHost(): Promise<LuxCoderConductorSessionHost> { ... }` 之后插入（需要 `TaskSpec` 类型导入，见 Step 5）：
+紧跟在 `function getSessionHost(): Promise<YodaConductorSessionHost> { ... }` 之后插入（需要 `TaskSpec` 类型导入，见 Step 5）：
 
 ```ts
 /**
@@ -377,10 +377,10 @@ export async function materializeTaskFromSpec(
 
 Run: `grep -n "^import type" apps/electron/src/main/lib/task-handlers.ts | head -5`
 
-如果 `TaskSpec` 不在现有 `import type { ... } from '@luxcoder/shared'` 或类似语句里，补一条：
+如果 `TaskSpec` 不在现有 `import type { ... } from '@yoda/shared'` 或类似语句里，补一条：
 
 ```diff
-+import type { TaskSpec } from '@luxcoder/shared/tasks/schema'
++import type { TaskSpec } from '@yoda/shared/tasks/schema'
 ```
 
 - [ ] **Step 5: 类型检查**
@@ -390,13 +390,13 @@ Expected: 无报错
 
 - [ ] **Step 6: 补充针对 `materializeTaskFromSpec` 的单测**
 
-`getSessionHost()` 内部调用 `createLuxCoderConductorSessionHost()`（从 `./conductor-session-host` 导入），真实实现会做超出纯函数单测范围的初始化。核实过其 `createSession(workspaceId, options): Promise<{ id: string }>` 的返回形状很简单，在现有 `mock.module('electron', ...)` 之前再加一段模块 mock，桩掉这个依赖。
+`getSessionHost()` 内部调用 `createYodaConductorSessionHost()`（从 `./conductor-session-host` 导入），真实实现会做超出纯函数单测范围的初始化。核实过其 `createSession(workspaceId, options): Promise<{ id: string }>` 的返回形状很简单，在现有 `mock.module('electron', ...)` 之前再加一段模块 mock，桩掉这个依赖。
 
 在 `apps/electron/src/main/lib/task-handlers.test.ts` 顶部、`mock.module('electron', ...)` 语句**之前**插入：
 
 ```ts
 mock.module('./conductor-session-host', () => ({
-  createLuxCoderConductorSessionHost: async () => ({
+  createYodaConductorSessionHost: async () => ({
     createSession: async (_workspaceId: string, options: { name?: string }) => ({
       id: `fake-session-${options.name ?? 'untitled'}`,
     }),
@@ -419,8 +419,8 @@ mock.module('./conductor-session-host', () => ({
 ```ts
 describe('materializeTaskFromSpec', () => {
   test('落盘 task.yaml 并创建 todo 状态的新会话', async () => {
-    const { loadTaskSpec } = await import('@luxcoder/shared/tasks/storage')
-    const workspaceRoot = mkdtempSync(join(tmpdir(), 'luxcoder-materialize-task-'))
+    const { loadTaskSpec } = await import('@yoda/shared/tasks/storage')
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'yoda-materialize-task-'))
     try {
       const spec = {
         id: 'demo-task',
@@ -597,8 +597,8 @@ git commit -m "feat(main): register create-task in builtin MCP manifest"
  * 用户或自动化决定。跟"新建任务"表单共用 materializeTaskFromSpec，不重复实现落盘逻辑。
  */
 
-import { buildMinimalTaskSpec } from '@luxcoder/shared/tasks'
-import { listTaskSlugs } from '@luxcoder/shared/tasks/storage'
+import { buildMinimalTaskSpec } from '@yoda/shared/tasks'
+import { listTaskSlugs } from '@yoda/shared/tasks/storage'
 import { getAgentSessionMeta } from './agent-session-manager'
 import { getAgentWorkspace, getWorkspaceMcpConfig, getWorkspaceSkills } from './agent-workspace-manager'
 import { getAgentWorkspacePath } from './config-paths'

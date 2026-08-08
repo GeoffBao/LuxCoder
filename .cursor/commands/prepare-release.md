@@ -61,7 +61,7 @@ description: 根据上一 GitHub Release 之后的提交，递增版本号并写
    模板（按需删节章节；保留 macOS 未签名说明直至配置了 `MAC_CERTS`）：
 
    ```markdown
-   # LuxCoder vX.Y.Z 更新
+   # Yoda vX.Y.Z 更新
 
    相对 `vPREV`：<一句话总结>。
 
@@ -81,19 +81,19 @@ description: 根据上一 GitHub Release 之后的提交，递增版本号并写
 
    当前 Release **未配置 Apple Developer ID 签名/公证**。从浏览器下载后，macOS Gatekeeper 可能误报：
 
-   > “LuxCoder” is damaged and can’t be opened.
+   > “Yoda” is damaged and can’t be opened.
 
    **这不是安装包损坏。** 安装到 Applications 后执行：
 
    ```bash
-   xattr -cr /Applications/LuxCoder.app
-   open /Applications/LuxCoder.app
+   xattr -cr /Applications/Yoda.app
+   open /Applications/Yoda.app
    ```
 
    ## 下载
 
-   - **macOS Apple Silicon** — `LuxCoder-X.Y.Z-arm64.dmg` / `LuxCoder-X.Y.Z-arm64-mac.zip`
-   - **Windows** — `LuxCoder-Setup-X.Y.Z.exe`
+   - **macOS Apple Silicon** — `Yoda-X.Y.Z-arm64.dmg` / `Yoda-X.Y.Z-arm64-mac.zip`
+   - **Windows** — `Yoda-Setup-X.Y.Z.exe`
    ```
 
    对照近期 `release-notes/v*.md` 语气；下载产物文件名里的版本必须等于 `$NEXT`。

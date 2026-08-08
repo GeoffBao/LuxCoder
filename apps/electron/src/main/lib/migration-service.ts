@@ -2,8 +2,8 @@
  * 数据迁移服务
  *
  * 支持两种导出模式：
- * - personal (.luxcoder-backup)：个人全量备份，含解密后的 API Key 明文
- * - share (.luxcoder-share)：团队分发，自由选择组件，凭据自动剥离
+ * - personal (.yoda-backup)：个人全量备份，含解密后的 API Key 明文
+ * - share (.yoda-share)：团队分发，自由选择组件，凭据自动剥离
  *
  * 导入时自动检测跨平台差异并提示用户处理路径映射。
  */
@@ -17,6 +17,7 @@ import AdmZip from 'adm-zip'
 import { safeStorage } from 'electron'
 import {
   getConfigDir,
+  getConfigDirName,
   getChannelsPath,
   getConversationsIndexPath,
   getConversationsDir,
@@ -35,7 +36,7 @@ import {
 } from './config-paths'
 import { listAgentWorkspaces, getAgentWorkspace, getAllWorkspaceSkills, getWorkspaceMcpConfig } from './agent-workspace-manager'
 import { listChannels, decryptApiKey } from './channel-manager'
-import type { AgentWorkspace } from '@luxcoder/shared'
+import type { AgentWorkspace } from '@yoda/shared'
 
 // ─── 类型定义 ────────────────────────────────────────────────────────────────
 
@@ -606,7 +607,7 @@ function _addPersonalFiles(zip: AdmZip) {
 // ─── 导入（解析预览）────────────────────────────────────────────────────────
 
 export async function parseImportFile(filePath: string): Promise<ImportPreview | ImportPreviewV2> {
-  const tempDir = join(tmpdir(), `luxcoder-import-${randomUUID()}`)
+  const tempDir = join(tmpdir(), `yoda-import-${randomUUID()}`)
   mkdirSync(tempDir, { recursive: true })
 
   const zip = new AdmZip(filePath)
@@ -1361,15 +1362,58 @@ function _safeExtractAll(zip: AdmZip, targetDir: string): void {
 }
 
 /**
- * 数据目录迁移：首次启动时将 ~/.proma/ 迁移到 ~/.luxcoder/
+ * 数据目录迁移：首次启动时将旧品牌目录迁移到当前配置目录。
+ *
+ * 品牌演进历史：~/.proma → ~/.luxcoder → ~/.yoda
+ *
+ * 迁移链（每级只迁移一次，写入独立 flag，避免重复执行）：
+ * 1. 正式版：~/.luxcoder → ~/.yoda（flag: .migrated-from-luxcoder）
+ *    dev 模式：~/.luxcoder-dev → ~/.yoda-dev
+ * 2. 兼容老用户：仅当不存在 ~/.luxcoder 时才从 ~/.proma 迁移
+ *    （flag: .migrated-from-proma，注意这是 LuxCoder 时代的旧 flag，
+ *     迁移到 Yoda 后应写入新 flag .migrated-from-luxcoder 以保持一致）
  *
  * 非破坏性迁移，保留原目录。迁移完成后写入 flag 文件，避免重复执行。
  */
 export function migrateDataDirIfNeeded(): void {
   const home = homedir()
-  const oldDir = join(home, '.proma')
-  const newDir = join(home, '.luxcoder')
-  const flagFile = join(newDir, '.migrated-from-proma')
+  // 复用 config-paths.ts 的权威 dev/prod 判定（含 YODA_DEV=1 覆盖），
+  // 避免在此处重复实现 app.isPackaged 判断导致两处逻辑不一致。
+  const isDev = getConfigDirName() === '.yoda-dev'
+
+  if (!isDev) {
+    // 正式版目录迁移链：优先 ~/.luxcoder → ~/.yoda；老用户回退 ~/.proma → ~/.yoda
+    if (existsSync(join(home, '.luxcoder'))) {
+      migrateDirChain(join(home, '.luxcoder'), join(home, '.yoda'), '.migrated-from-luxcoder')
+    } else {
+      migrateDirChain(join(home, '.proma'), join(home, '.yoda'), '.migrated-from-proma')
+    }
+  } else {
+    // dev 模式目录迁移链：优先 ~/.luxcoder-dev → ~/.yoda-dev；老用户回退 ~/.proma-dev → ~/.yoda-dev
+    if (existsSync(join(home, '.luxcoder-dev'))) {
+      migrateDirChain(join(home, '.luxcoder-dev'), join(home, '.yoda-dev'), '.migrated-from-luxcoder')
+    } else {
+      migrateDirChain(join(home, '.proma-dev'), join(home, '.yoda-dev'), '.migrated-from-proma')
+    }
+  }
+}
+
+/**
+ * 迁移单个目录（旧目录 → 新目录）。
+ *
+ * 迁移规则：
+ * - 新目录已存在且已迁移过（有目标 flag）→ 跳过
+ * - 旧目录不存在 → 全新安装，无需迁移
+ * - 新目录已存在但无目标 flag，且新目录是「空/仅有误 flag」→ 允许覆盖迁移
+ *   （用于修复品牌改名后误生成的新目录，如误迁移的 .migrated-from-proma）
+ * - 新目录已存在且非空 → 用户已手动建目录，跳过（避免覆盖用户数据）
+ *
+ * @param oldDir 旧品牌目录
+ * @param newDir 当前品牌目录
+ * @param flagName 迁移完成标记文件名（.migrated-from-luxcoder 或 .migrated-from-proma）
+ */
+export function migrateDirChain(oldDir: string, newDir: string, flagName: string): void {
+  const flagFile = join(newDir, flagName)
 
   // 新目录已存在且已迁移过 → 跳过
   if (existsSync(flagFile)) return
@@ -1377,14 +1421,68 @@ export function migrateDataDirIfNeeded(): void {
   // 旧目录不存在 → 全新安装，无需迁移
   if (!existsSync(oldDir)) return
 
-  // 新目录已存在但无 flag → 用户已手动建目录，跳过
-  if (existsSync(newDir)) return
+  // 新目录已存在：判断是否允许覆盖
+  if (existsSync(newDir)) {
+    const isEmptyOrOnlyMistakenFlag = isDirEmptyOrOnlyMistakenFlag(newDir, flagName)
+    if (!isEmptyOrOnlyMistakenFlag) {
+      // 新目录有真实用户数据（可能用户手动创建）→ 跳过，避免覆盖
+      console.log(`[迁移] 目标目录已存在且非空，跳过迁移: ${newDir}`)
+      return
+    }
+  }
 
   try {
-    cpSync(oldDir, newDir, { recursive: true })
+    // 确保新目录存在（空目录或误 flag 目录会被覆盖）
+    mkdirSync(newDir, { recursive: true })
+    // 逐项复制，避免复制误 flag 文件
+    const entries = readdirSync(oldDir, { withFileTypes: true })
+    for (const entry of entries) {
+      const src = join(oldDir, entry.name)
+      const dst = join(newDir, entry.name)
+      if (entry.isDirectory()) {
+        cpSync(src, dst, { recursive: true, force: true })
+      } else {
+        cpSync(src, dst, { force: true })
+      }
+    }
     writeFileSync(flagFile, new Date().toISOString(), 'utf-8')
-    console.log(`[迁移] 已将 ~/.proma/ 迁移到 ~/.luxcoder/（原目录保留）`)
+    console.log(`[迁移] 已将 ${oldDir} 迁移到 ${newDir}（原目录保留）`)
   } catch (err) {
     console.warn('[迁移] 数据迁移失败，将使用全新目录:', err)
+  }
+}
+
+/**
+ * 判断目录是否「可安全覆盖」——用于允许覆盖误生成的新目录。
+ *
+ * 允许覆盖的条件（满足任一即可）：
+ * 1. 目录为空；
+ * 2. 目录内只有一个「错误的迁移 flag」（即 flag 名与本次期望不同）——
+ *    品牌改名时历史迁移代码被误改，把 ~/.proma 迁移到新目录并写入
+ *    .migrated-from-proma（而非期望的 .migrated-from-luxcoder）。
+ *    这个 flag 是误写的，目录内容也只是 proma 的误拷贝，可以覆盖。
+ *
+ * @param dir 待判断目录
+ * @param expectedFlag 本次迁移期望写入的 flag 名
+ */
+export function isDirEmptyOrOnlyMistakenFlag(dir: string, expectedFlag: string): boolean {
+  try {
+    const entries = readdirSync(dir, { withFileTypes: true })
+    // 收集非备份、非迁移 flag 的真实条目
+    const realEntries = entries.filter(
+      (e) => !e.name.endsWith('.bak') && !e.name.startsWith('.migrated-from-'),
+    )
+    if (realEntries.length === 0) return true
+
+    // 有真实条目，但可能是「误迁移」产生的：
+    // 目录里有与本次期望不同的迁移 flag（如 .migrated-from-proma），
+    // 说明这是品牌改名时被误改代码生成的目录 → 允许覆盖。
+    const wrongFlag = entries.some(
+      (e) => e.name.startsWith('.migrated-from-') && e.name !== expectedFlag,
+    )
+    return wrongFlag
+  } catch {
+    // 目录不存在或不可读 → 视为空
+    return true
   }
 }

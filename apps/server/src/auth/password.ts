@@ -2,17 +2,17 @@
  * 密码哈希与 JWT 签发/校验
  *
  * - 密码：Bun.password（默认 scrypt，内置实现，零依赖）
- * - JWT：jose（HS256，密钥来自环境变量 LUXCODER_SERVER_JWT_SECRET，默认 dev 密钥）
+ * - JWT：jose（HS256，密钥来自环境变量 YODA_SERVER_JWT_SECRET，默认 dev 密钥）
  */
 
 import { SignJWT, jwtVerify } from 'jose'
 
-const DEFAULT_JWT_SECRET = 'luxcoder-server-dev-secret-change-me'
+const DEFAULT_JWT_SECRET = 'yoda-server-dev-secret-change-me'
 export const JWT_ALGORITHM = 'HS256'
 export const TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60 // 7 天
 
 function getJwtSecret(): Uint8Array {
-  return new TextEncoder().encode(process.env.LUXCODER_SERVER_JWT_SECRET ?? DEFAULT_JWT_SECRET)
+  return new TextEncoder().encode(process.env.YODA_SERVER_JWT_SECRET ?? DEFAULT_JWT_SECRET)
 }
 
 /** 使用 Bun.password 哈希密码 */

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Check, MoreHorizontal, Pencil, Plus, Trash2, X } from 'lucide-react'
-import type { PlanningGroup, PlanningGroupScope } from '@luxcoder/shared'
+import type { PlanningGroup, PlanningGroupScope } from '@yoda/shared'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'

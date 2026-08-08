@@ -3,7 +3,7 @@ import type {
   PlanningNativeSyncPermission,
   PlanningNativeSyncStatus,
   PlanningNativeSyncTarget,
-} from '@luxcoder/shared'
+} from '@yoda/shared'
 import { callMacEventKitNativeAddon } from './mac-eventkit-native-addon'
 
 type NativePermissionResponse = {
@@ -87,7 +87,7 @@ export async function listPlanningNativeSyncTargets(entity: PlanningNativeSyncEn
 
 export interface PlanningNativeSyncItem {
   targetId: string
-  /** LuxCoder UUID；仅用于新建项目的 crash-recovery marker，不覆盖用户已有 URL。 */
+  /** Yoda UUID；仅用于新建项目的 crash-recovery marker，不覆盖用户已有 URL。 */
   identity: string
   calendarItemIdentifier?: string
   title: string
@@ -112,7 +112,7 @@ export async function upsertPlanningNativeSyncItem(entity: PlanningNativeSyncEnt
   return callMacEventKitNativeAddon<PlanningNativeSyncIdentifiers>('upsert', entity, item)
 }
 
-/** 删除必须带受管目标和 LuxCoder marker；locator 缺失时 native addon 可恢复定位，避免崩溃留下孤儿项。 */
+/** 删除必须带受管目标和 Yoda marker；locator 缺失时 native addon 可恢复定位，避免崩溃留下孤儿项。 */
 export async function removePlanningNativeSyncItem(entity: PlanningNativeSyncEntity, item: Pick<PlanningNativeSyncItem, 'targetId' | 'identity' | 'calendarItemIdentifier' | 'startAt'>): Promise<void> {
   if (!eventKitSupported()) return
   await callMacEventKitNativeAddon<Record<string, never>>('remove', entity, item)

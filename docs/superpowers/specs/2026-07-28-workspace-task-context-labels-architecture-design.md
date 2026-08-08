@@ -10,7 +10,7 @@
 
 ## 1. 决策摘要
 
-LuxCoder 将 Task 提升为独立领域实体，不再把 orchestrator Session 或普通顶层 Session 当作 Task 身份。
+Yoda 将 Task 提升为独立领域实体，不再把 orchestrator Session 或普通顶层 Session 当作 Task 身份。
 
 - Workspace 是能力、安全、数据和运行隔离边界。
 - Project 是可选的长期工作容器；负责 Project Knowledge、Assets、默认 Expert 与有效 cwd。

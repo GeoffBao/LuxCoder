@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { Filter, Tag, X } from 'lucide-react'
-import type { TaskWorkflow } from '@luxcoder/shared/tasks'
+import type { TaskWorkflow } from '@yoda/shared/tasks'
 import { workspaceLabelsAtom } from '@/atoms/workspace-labels-atoms'
 import {
   taskBoardWorkflowFilterAtom,

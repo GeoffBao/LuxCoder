@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import type { FileIndexEntry } from '@luxcoder/shared'
+import type { FileIndexEntry } from '@yoda/shared'
 import { sortSearchResults } from './FileSearchBar'
 
 function entry(path: string, name: string, type: FileIndexEntry['type'] = 'file'): FileIndexEntry {

@@ -5,7 +5,7 @@
 
 import * as React from 'react'
 import { ChevronDown, Layers, Plus, Trash2 } from 'lucide-react'
-import type { AgentWorkspace } from '@luxcoder/shared'
+import type { AgentWorkspace } from '@yoda/shared'
 import { cn } from '@/lib/utils'
 import {
   DropdownMenu,

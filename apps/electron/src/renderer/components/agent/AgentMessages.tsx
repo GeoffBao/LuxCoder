@@ -22,7 +22,7 @@ import {
 import { ScrollMinimap } from '@/components/ai-elements/scroll-minimap'
 import type { MinimapItem } from '@/components/ai-elements/scroll-minimap'
 import { StickyUserMessage } from '@/components/ai-elements/sticky-user-message'
-import { useSmoothStream } from '@luxcoder/ui'
+import { useSmoothStream } from '@yoda/ui'
 import { formatMessageTime } from '@/components/chat/ChatMessageItem'
 import { getModelLogo, resolveModelDisplayName, resolveModelProvider } from '@/lib/model-logo'
 import { userProfileAtom } from '@/atoms/user-profile'
@@ -38,10 +38,10 @@ import { ContentBlock } from './ContentBlock'
 import { parseThinkTagsFromText } from './thinking-tag-parser'
 import { AgentHistorySelectionLayer } from './AgentHistorySelectionLayer'
 import { TaskProgressOverlay, type ContextCompactionProgress } from './TaskProgressOverlay'
-import type { AgentEventUsage, RetryAttempt, SDKMessage, SDKSystemMessage } from '@luxcoder/shared'
-import { getSDKCompactStatus } from '@luxcoder/shared'
+import type { AgentEventUsage, RetryAttempt, SDKMessage, SDKSystemMessage } from '@yoda/shared'
+import { getSDKCompactStatus } from '@yoda/shared'
 import type { AgentStreamState } from '@/atoms/agent-atoms'
-import type { AgentSessionFileRoots } from '@luxcoder/shared'
+import type { AgentSessionFileRoots } from '@yoda/shared'
 
 function stableStringify(value: unknown): string {
   if (value == null || typeof value !== 'object') return JSON.stringify(value) ?? String(value)
@@ -600,11 +600,11 @@ export function AgentMessages({ sessionId, sessionModelId, messagesLoaded, persi
     const live = liveMessages ?? []
     const stampStableKey = (message: SDKMessage): SDKMessage => {
       const key = getSDKMessageStableKey(message)
-      ;(message as Record<string, unknown>)._luxcoderStableKey = key
+      ;(message as Record<string, unknown>)._yodaStableKey = key
       return message
     }
     const keyOf = (message: SDKMessage): string =>
-      (message as Record<string, unknown>)._luxcoderStableKey as string
+      (message as Record<string, unknown>)._yodaStableKey as string
 
     const persistedWithKeys = persisted.map(stampStableKey)
     const liveWithKeys = live.map(stampStableKey)

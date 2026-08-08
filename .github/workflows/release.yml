@@ -70,7 +70,7 @@ jobs:
             echo "Release ${GITHUB_REF_NAME} 已存在，跳过创建"
           else
             gh release create "${GITHUB_REF_NAME}" \
-              --title "LuxCoder ${GITHUB_REF_NAME}" \
+              --title "Yoda ${GITHUB_REF_NAME}" \
               --notes-file apps/electron/RELEASE_NOTES.md
             echo "已创建 Release ${GITHUB_REF_NAME}"
           fi

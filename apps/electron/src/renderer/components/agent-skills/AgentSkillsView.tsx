@@ -22,7 +22,7 @@ import { agentSkillsTabAtom } from '@/atoms/active-view'
 import { toolSettingsFocusAtom, type ToolSettingsFocus } from '@/atoms/settings-tab'
 import { chatToolsAtom } from '@/atoms/chat-tool-atoms'
 import { useCreateSession } from '@/hooks/useCreateSession'
-import type { BuiltinMcpServerSummary, McpServerEntry, SkillMeta } from '@luxcoder/shared'
+import type { BuiltinMcpServerSummary, McpServerEntry, SkillMeta } from '@yoda/shared'
 import { useAgentSkillsData } from './useAgentSkillsData'
 import { SkillCard } from './SkillCard'
 import { McpCard } from './McpCard'
@@ -33,7 +33,7 @@ import { ImportSkillDialog } from './ImportSkillDialog'
 import { OrgSkillImportDialog } from './OrgSkillImportDialog'
 import { CommunityMarketDialog } from './CommunityMarketDialog'
 import { TeambitionConfigDialog } from '@/components/settings/TeambitionConfigDialog'
-import { findTeambitionMcpEntry, isTeambitionMcpEntry } from '@luxcoder/shared/teambition-mcp'
+import { findTeambitionMcpEntry, isTeambitionMcpEntry } from '@yoda/shared/teambition-mcp'
 import { EnhancedToolsPanel } from '@/components/settings/ToolSettings'
 import { AgentExpertsView } from '@/components/agent-experts/AgentExpertsView'
 import { groupSkills } from './skillGrouping'
@@ -224,7 +224,7 @@ export function AgentSkillsView({
   const builtinSkills = filteredSkills.filter((s) => data.defaultSkillSlugs.has(s.slug))
   const updateCount = data.skills.filter((s) => s.hasUpdate).length
 
-  // TB-Connect 是内置预制 MCP（在「LuxCoder 内置」区提供唯一入口），
+  // TB-Connect 是内置预制 MCP（在「Yoda 内置」区提供唯一入口），
   // 其配置虽写入工作区 mcp.json（供注入器与看板同步读取），但不在「我的 MCP」区重复展示
   const userMcpEntries = React.useMemo(() => {
     return Object.entries(data.mcpConfig.servers ?? {})
@@ -645,7 +645,7 @@ function SkillsTab({
   onUpdate,
 }: SkillsTabProps): React.ReactElement {
   if (total === 0) {
-    return <EmptyState icon={<Blocks className="size-8 text-foreground/30" />} title="暂无 Skill" hint="可以在 Code 模式下让 LuxCoder 帮你联网查找并安装 Skill，或从其他工作区导入。" />
+    return <EmptyState icon={<Blocks className="size-8 text-foreground/30" />} title="暂无 Skill" hint="可以在 Code 模式下让 Yoda 帮你联网查找并安装 Skill，或从其他工作区导入。" />
   }
   if (customSkills.length === 0 && builtinSkills.length === 0) {
     return <EmptyState icon={<Search className="size-8 text-foreground/30" />} title="没有匹配的 Skill" hint="试试更换搜索关键词。" />
@@ -754,7 +754,7 @@ function McpTab({ userEntries, builtinServers, total, onOpen, onOpenBuiltin, onT
       <EmptyState
         icon={<Plus className="size-8 text-foreground/30" />}
         title="还没有 MCP 服务器"
-        hint="点击右上角「添加服务器」开始，或在 Code 模式下让 LuxCoder 帮你查找并配置。"
+        hint="点击右上角「添加服务器」开始，或在 Code 模式下让 Yoda 帮你查找并配置。"
         action={
           <button
             type="button"
@@ -790,7 +790,7 @@ function McpTab({ userEntries, builtinServers, total, onOpen, onOpenBuiltin, onT
       )}
 
       {builtinServers.length > 0 && (
-        <McpSection title="LuxCoder 内置" count={builtinServers.length}>
+        <McpSection title="Yoda 内置" count={builtinServers.length}>
           {builtinServers.map((server) => {
             const isTbBuiltin = server.id === 'tb-connect'
             return (
@@ -799,14 +799,14 @@ function McpTab({ userEntries, builtinServers, total, onOpen, onOpenBuiltin, onT
                 name={server.displayName}
                 entry={{
                   type: isTbBuiltin ? 'http' : 'stdio',
-                  command: isTbBuiltin ? undefined : 'LuxCoder 运行时注入',
+                  command: isTbBuiltin ? undefined : 'Yoda 运行时注入',
                   enabled: server.enabled,
                   isBuiltin: true,
                 }}
                 description={server.description}
                 targetLabel={isTbBuiltin
                   ? (server.available ? '已连接' : '点击配置 Token')
-                  : (server.availabilityReason ?? 'LuxCoder 运行时注入')}
+                  : (server.availabilityReason ?? 'Yoda 运行时注入')}
                 statusLabel={getBuiltinMcpStatus(server).label}
                 statusTone={getBuiltinMcpStatus(server).tone}
                 readOnly

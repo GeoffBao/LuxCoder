@@ -1,4 +1,4 @@
-import type { AgentSessionMeta, AgentWorkspace } from '@luxcoder/shared'
+import type { AgentSessionMeta, AgentWorkspace } from '@yoda/shared'
 
 export const TRAY_RECENT_LIMIT = 3
 export const TRAY_MORE_LIMIT = 10

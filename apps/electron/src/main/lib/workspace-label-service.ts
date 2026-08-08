@@ -8,7 +8,7 @@ import {
   type WorkspaceLabel,
   type WorkspaceLabelConfig,
   type WorkspaceLabelConfigLoadResult,
-} from '@luxcoder/shared/labels'
+} from '@yoda/shared/labels'
 
 export interface WorkspaceLabelServiceOptions {
   now?: () => number

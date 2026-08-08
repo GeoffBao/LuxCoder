@@ -1,7 +1,7 @@
 import type {
   FeishuChatBinding,
   FeishuGroupInfo,
-} from '@luxcoder/shared'
+} from '@yoda/shared'
 
 export interface SingleUserGroupInput {
   groupInfo: Pick<FeishuGroupInfo, 'members' | 'userCount'> | null | undefined

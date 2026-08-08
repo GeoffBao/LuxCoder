@@ -14,7 +14,7 @@ import {
   TASK_IPC_CHANNELS,
   TEAMBITION_IPC_CHANNELS,
   TEAMBITION_BOARD_IPC_CHANNELS,
-} from '@luxcoder/shared/channels'
+} from '@yoda/shared/channels'
 import type {
   CreateProjectInput,
   AgentSessionMeta,
@@ -24,17 +24,17 @@ import type {
   TaskGeneratedEventPayload,
   UpdateProjectInput,
   UploadProjectAssetInput,
-} from '@luxcoder/shared'
-import type { TaskSpec } from '@luxcoder/shared/tasks/schema'
-import type { TaskMetadataPatch, TaskWorkflow } from '@luxcoder/shared/tasks/task-record'
-import { slugify } from '@luxcoder/shared/utils'
-import { resolveSkillMatches, TB_CONNECT_SKILL_SLUG } from '@luxcoder/shared/teambition-defect'
+} from '@yoda/shared'
+import type { TaskSpec } from '@yoda/shared/tasks/schema'
+import type { TaskMetadataPatch, TaskWorkflow } from '@yoda/shared/tasks/task-record'
+import { slugify } from '@yoda/shared/utils'
+import { resolveSkillMatches, TB_CONNECT_SKILL_SLUG } from '@yoda/shared/teambition-defect'
 import {
   buildGeneratorPrompt,
   buildRepairPrompt,
   buildMinimalTaskSpec,
   extractYaml,
-} from '@luxcoder/shared/tasks'
+} from '@yoda/shared/tasks'
 import {
   getLatestRunId,
   listResumableRuns,
@@ -44,8 +44,8 @@ import {
   parseTaskYaml,
   readRunLog,
   readRunSpecSnapshot,
-} from '@luxcoder/shared/tasks/storage'
-import { createLuxCoderConductorSessionHost, type LuxCoderConductorSessionHost } from './conductor-session-host'
+} from '@yoda/shared/tasks/storage'
+import { createYodaConductorSessionHost, type YodaConductorSessionHost } from './conductor-session-host'
 import { deleteAgentSession, getAgentSessionMeta, listAgentSessions, updateAgentSessionMeta } from './agent-session-manager'
 import { createSessionGroup, deleteSessionGroup, listSessionGroups, renameSessionGroup } from './agent-session-group-service'
 import { isAgentSessionActive } from './agent-service'
@@ -86,7 +86,7 @@ const GENERATE_TIMEOUT_MS = 180_000
 
 let handlersRegistered = false
 let mainWindow: BrowserWindow | null = null
-let sessionHostPromise: Promise<LuxCoderConductorSessionHost> | undefined
+let sessionHostPromise: Promise<YodaConductorSessionHost> | undefined
 
 const runners = new Map<string, TaskRunner>()
 
@@ -117,8 +117,8 @@ export async function stopTaskRun(
   await (await resolveRunner(workspaceRoot, workspaceId)).stop(slug, runId)
 }
 
-function getSessionHost(): Promise<LuxCoderConductorSessionHost> {
-  sessionHostPromise ??= createLuxCoderConductorSessionHost()
+function getSessionHost(): Promise<YodaConductorSessionHost> {
+  sessionHostPromise ??= createYodaConductorSessionHost()
   return sessionHostPromise
 }
 
@@ -464,7 +464,7 @@ export function buildTaskValidationPayload(result: ReturnType<typeof parseTaskYa
 
 /** 通过 Host 的完成事件等待一轮生成，避免悬挂监听器和未等待的 Agent 请求。 */
 async function sendGenerationPrompt(
-  host: LuxCoderConductorSessionHost,
+  host: YodaConductorSessionHost,
   sessionId: string,
   prompt: string,
 ): Promise<string> {
@@ -1104,7 +1104,7 @@ export function registerTaskHandlers(window: BrowserWindow): void {
 
   ipcMain.handle(TEAMBITION_IPC_CHANNELS.RECOGNIZE, async (_event, workspaceRoot: string) => {
     const { getWorkspaceMcpConfig } = await import('./agent-workspace-manager')
-    const { recognizeTeambitionMcp } = await import('@luxcoder/shared')
+    const { recognizeTeambitionMcp } = await import('@yoda/shared')
     const slug = basename(workspaceRoot)
     return recognizeTeambitionMcp(getWorkspaceMcpConfig(slug))
   })
@@ -1384,7 +1384,7 @@ async function getTeambitionBoardDetail(workspaceRoot: string, taskId: string) {
 async function getTeambitionBoardAdapter(workspaceRoot: string): Promise<TeambitionBoardGateway> {
   try {
     const { getWorkspaceMcpConfig } = await import('./agent-workspace-manager')
-    const { findTeambitionMcpEntry } = await import('@luxcoder/shared')
+    const { findTeambitionMcpEntry } = await import('@yoda/shared')
     const config = getWorkspaceMcpConfig(getWorkspaceSlugFromRoot(workspaceRoot))
     const tb = findTeambitionMcpEntry(config)
 
@@ -1450,7 +1450,7 @@ async function getTeambitionAdapterInfo(workspaceRoot: string): Promise<Teambiti
   try {
     // 宽松识别工作区 mcp.json 中的 Teambition MCP（TB-Connect 或自定义名/URL 匹配）
     const { getWorkspaceMcpConfig } = await import('./agent-workspace-manager')
-    const { findTeambitionMcpEntry } = await import('@luxcoder/shared')
+    const { findTeambitionMcpEntry } = await import('@yoda/shared')
     const config = getWorkspaceMcpConfig(getWorkspaceSlugFromRoot(workspaceRoot))
     const tb = findTeambitionMcpEntry(config)
 

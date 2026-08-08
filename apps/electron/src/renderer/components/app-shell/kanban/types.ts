@@ -1,5 +1,5 @@
-import type { AgentSessionMeta } from '@luxcoder/shared'
-import type { TaskAggregateSummary, TaskWorkflow } from '@luxcoder/shared/tasks'
+import type { AgentSessionMeta } from '@yoda/shared'
+import type { TaskAggregateSummary, TaskWorkflow } from '@yoda/shared/tasks'
 
 /** 历史遗留的收件箱列 ID；列已下线，存量值由 board fallback 归入待办。 */
 export const INBOX_COLUMN_ID = 'inbox'
@@ -167,7 +167,7 @@ export interface KanbanModelOption {
 
 /**
  * 按渠道分组的可选模型（对应 craft 的 provider groups；
- * LuxCoder 用 Channel 充当 connection，llmConnection = channelId）。
+ * Yoda 用 Channel 充当 connection，llmConnection = channelId）。
  */
 export interface KanbanModelProviderGroup {
   provider: string

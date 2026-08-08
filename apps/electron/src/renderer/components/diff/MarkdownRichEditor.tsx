@@ -6,7 +6,7 @@ import Link from '@tiptap/extension-link'
 import { Markdown } from 'tiptap-markdown'
 import type { MarkdownStorage } from 'tiptap-markdown'
 import { TextSelection } from '@tiptap/pm/state'
-import type { FileAccessOptions } from '@luxcoder/shared'
+import type { FileAccessOptions } from '@yoda/shared'
 import type { MarkdownEditorSelection, MarkdownScrollPosition } from '@/lib/markdown-editor-state'
 import { cn } from '@/lib/utils'
 import { MARKDOWN_RENDERER_VERSION, markdownToHtml } from '@/lib/markdown-rich-text'
@@ -335,15 +335,15 @@ export function MarkdownRichEditor({
         className={cn(
           editing ? 'min-h-0 flex-1 overflow-auto scrollbar-thin' : 'h-full min-h-full flex-1',
           isEditable
-            ? '[&_.luxcoder-mermaid-preview]:hidden [&_.luxcoder-code-source-body]:block'
+            ? '[&_.yoda-mermaid-preview]:hidden [&_.yoda-code-source-body]:block'
             : [
-                '[&_.luxcoder-code-block--mermaid]:overflow-visible',
-                '[&_.luxcoder-code-block--mermaid]:rounded-none',
-                '[&_.luxcoder-code-block--mermaid]:border-0',
-                '[&_.luxcoder-code-block--mermaid]:bg-transparent',
-                '[&_.luxcoder-code-block--mermaid_.luxcoder-code-header]:hidden',
-                '[&_.luxcoder-code-block--mermaid_.luxcoder-mermaid-preview]:block',
-                '[&_.luxcoder-code-block--mermaid_.luxcoder-code-source-body]:hidden',
+                '[&_.yoda-code-block--mermaid]:overflow-visible',
+                '[&_.yoda-code-block--mermaid]:rounded-none',
+                '[&_.yoda-code-block--mermaid]:border-0',
+                '[&_.yoda-code-block--mermaid]:bg-transparent',
+                '[&_.yoda-code-block--mermaid_.yoda-code-header]:hidden',
+                '[&_.yoda-code-block--mermaid_.yoda-mermaid-preview]:block',
+                '[&_.yoda-code-block--mermaid_.yoda-code-source-body]:hidden',
               ],
         )}
       />

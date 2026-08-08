@@ -12,7 +12,7 @@
 
 ## 1. 决策摘要
 
-LuxCoder 保留 Proma `AgentWorkspace` 的运行隔离能力，但不再把 Workspace 和 Craft Project 作为两个并列的日常导航层级。
+Yoda 保留 Proma `AgentWorkspace` 的运行隔离能力，但不再把 Workspace 和 Craft Project 作为两个并列的日常导航层级。
 
 - **Workspace** 是用户命名的顶层环境与隔离边界，默认名称为 `Default Space`。
 - **Project** 是用户日常工作的主容器，属于一个 Workspace。
@@ -28,7 +28,7 @@ LuxCoder 保留 Proma `AgentWorkspace` 的运行隔离能力，但不再把 Work
 
 Proma 最初的 `AgentWorkspace` 同时承担 Agent cwd、Session、Skills、MCP、文件和 Memory，是一个“项目 + 运行沙箱 + 能力配置”的混合容器。Proma 后续又将其 UI 文案改为 Project，但底层仍使用 Workspace。
 
-LuxCoder 引入 Craft Project 后形成了新的嵌套：
+Yoda 引入 Craft Project 后形成了新的嵌套：
 
 ```text
 AgentWorkspace
@@ -60,7 +60,7 @@ AgentWorkspace
 - Repo Wiki（Karpathy LLM Wiki 式本地知识库）
 - Browser、Terminal 或右侧文件面板重构
 - 多 Repo 或多主目录 Project
-- Finder 双击、CLI `luxcoder .`、系统深链
+- Finder 双击、CLI `yoda .`、系统深链
 - Project 级 Skills/MCP 副本
 - Workspace 存储目录的大规模搬迁
 - Workspace 删除语义的重新设计
@@ -97,7 +97,7 @@ Project 负责：
 - Assets / 资料
 - Project Memory
 - 默认 Agent 专家引用
-- LuxCoder 托管工作目录
+- Yoda 托管工作目录
 - 可选外部主工作目录
 
 Project 不复制 Workspace 的 Skills/MCP。Project 只引用 Workspace 中的默认专家；专家再引用允许使用的 Skills/MCP。
@@ -121,15 +121,15 @@ Task 是正式、可追踪的工作项，必须具有 `projectId`。新建 Task 
 
 ### 5.1 托管工作目录
 
-每个 Project 始终具有一个 LuxCoder 托管工作目录。该目录由 Workspace 与 Project slug 派生并按需创建，不要求用户选择外部文件夹。
+每个 Project 始终具有一个 Yoda 托管工作目录。该目录由 Workspace 与 Project slug 派生并按需创建，不要求用户选择外部文件夹。
 
 物理位置固定为：
 
 ```text
-~/.luxcoder/agent-workspaces/{workspace-slug}/projects/{project-slug}/workdir/
+~/.yoda/agent-workspaces/{workspace-slug}/projects/{project-slug}/workdir/
 ```
 
-开发模式继续位于 `~/.luxcoder-dev/`。`workdir/` 与 `config.json`、`assets/`、`MEMORY.md` 分离，避免 Agent 把项目元数据目录当成普通源码目录编辑。
+开发模式继续位于 `~/.yoda-dev/`。`workdir/` 与 `config.json`、`assets/`、`MEMORY.md` 分离，避免 Agent 把项目元数据目录当成普通源码目录编辑。
 
 ### 5.2 外部主工作目录
 
@@ -162,7 +162,7 @@ Project 可以通过现有 `workingDirectory` 绑定一个外部文件夹或 Rep
 ### 6.1 总体结构
 
 ```text
-LuxCoder
+Yoda
 
 [Workspace 图标] Default Space [ChevronDown]
 [＋ 新会话] [打开文件夹]
@@ -296,7 +296,7 @@ Project 行内或主页点击「新会话」
 
 再次打开同一路径会复用原 Project，但可以创建新的 Draft Session。放弃 Draft 不会增加历史会话数量。
 
-项目配置仍保存在 `~/.luxcoder` 或 `~/.luxcoder-dev`，未经用户明确操作不向外部 Repo 写入 `.luxcoder` 等配置文件。
+项目配置仍保存在 `~/.yoda` 或 `~/.yoda-dev`，未经用户明确操作不向外部 Repo 写入 `.yoda` 等配置文件。
 
 ### 8.4 新建与导入 Task
 
@@ -371,7 +371,7 @@ Project 行内或主页点击「新会话」
 ### 12.1 默认 Workspace 与侧栏
 
 ```gherkin
-Given 用户首次启动 LuxCoder
+Given 用户首次启动 Yoda
 When 进入 Code 模式
 Then 侧栏显示名为 "Default Space" 的 Workspace 选择器
 And 使用 Lucide 图标而不是 Unicode 下拉字符
@@ -408,7 +408,7 @@ And Agent 使用该 Project 的有效 cwd
 ```gherkin
 Given 当前 Workspace 没有绑定目标文件夹的 Project
 When 用户选择「打开文件夹」
-Then LuxCoder 以文件夹名创建 Project
+Then Yoda 以文件夹名创建 Project
 And 将该路径保存为 workingDirectory
 And 打开一个绑定该 Project 的 Draft Session
 And 用户发送第一条消息前不持久化空 Session
@@ -419,7 +419,7 @@ And 用户发送第一条消息前不持久化空 Session
 ```gherkin
 Given 当前 Workspace 已有 Project 绑定目标文件夹
 When 用户再次打开同一路径
-Then LuxCoder 复用原 Project ID
+Then Yoda 复用原 Project ID
 And 不创建重名 Project
 And 可以创建新的 Draft Session
 ```

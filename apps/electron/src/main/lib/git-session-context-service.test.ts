@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
-import type { AgentSessionMeta } from '@luxcoder/shared'
+import type { AgentSessionMeta } from '@yoda/shared'
 import { listGitBranchesForSession, prepareSessionGitContext } from './git-session-context-service'
 
 const roots: string[] = []
@@ -17,7 +17,7 @@ function sh(cwd: string, args: string[]): string {
 }
 
 function makeRepo(): string {
-  const root = mkdtempSync(join(tmpdir(), 'luxcoder-git-session-context-'))
+  const root = mkdtempSync(join(tmpdir(), 'yoda-git-session-context-'))
   roots.push(root)
   sh(root, ['init', '-b', 'main'])
   sh(root, ['config', 'user.email', 'test@example.com'])

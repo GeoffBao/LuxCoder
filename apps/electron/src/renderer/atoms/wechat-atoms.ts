@@ -5,7 +5,7 @@
  */
 
 import { atom } from 'jotai'
-import type { WeChatBridgeState } from '@luxcoder/shared'
+import type { WeChatBridgeState } from '@yoda/shared'
 
 /** 微信 Bridge 连接状态 */
 export const wechatBridgeStateAtom = atom<WeChatBridgeState>({

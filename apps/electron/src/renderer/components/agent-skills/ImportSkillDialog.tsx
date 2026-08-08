@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { SettingsCard } from '@/components/settings/primitives'
 import { SectionTabs } from '@/components/ui/section-tabs'
 import { cn } from '@/lib/utils'
-import type { BulkImportSkillsResult, OtherWorkspaceSkillsGroup, SkillMeta } from '@luxcoder/shared'
+import type { BulkImportSkillsResult, OtherWorkspaceSkillsGroup, SkillMeta } from '@yoda/shared'
 
 function getFailureDescription(result: BulkImportSkillsResult): string | undefined {
   const failed = result.items.filter((item) => item.status === 'failed')

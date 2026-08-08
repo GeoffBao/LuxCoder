@@ -1,10 +1,10 @@
-import { inferReasoningTransport, normalizeReasoningCapabilityLevel, normalizeReasoningLevel, resolveReasoningProfile, type AgentSessionMeta, type AgentThinkingLevel, type ProviderType, type ReasoningCapability } from '@luxcoder/shared'
+import { inferReasoningTransport, normalizeReasoningCapabilityLevel, normalizeReasoningLevel, resolveReasoningProfile, type AgentSessionMeta, type AgentThinkingLevel, type ProviderType, type ReasoningCapability } from '@yoda/shared'
 import {
   DEFAULT_AGENT_THINKING_LEVEL,
   getSessionThinkingLevel,
   isAgentThinkingLevel,
   isOpenAIReasoningMaxSupportedModel,
-} from '@luxcoder/shared'
+} from '@yoda/shared'
 import type { AppSettings } from '../../types'
 
 type ThinkingSettings = Pick<AppSettings, 'agentThinking' | 'agentEffort' | 'defaultThinkingLevel'>

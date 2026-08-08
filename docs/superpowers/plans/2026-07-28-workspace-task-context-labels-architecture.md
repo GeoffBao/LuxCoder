@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use `executing-plans` to implement this plan task-by-task. Use TDD for every behavior change and preserve all v1 Task/Session/Run data.
 
-**Goal:** 将 LuxCoder 的 Workspace、Project、Task、Session、Context、Knowledge、Skills、Experts 与 Labels 收敛为一致的信息架构，并建立独立 Task 看板、Workspace Task、Project Knowledge、Workspace Context 以及可组合的 Status/Labels 筛选。
+**Goal:** 将 Yoda 的 Workspace、Project、Task、Session、Context、Knowledge、Skills、Experts 与 Labels 收敛为一致的信息架构，并建立独立 Task 看板、Workspace Task、Project Knowledge、Workspace Context 以及可组合的 Status/Labels 筛选。
 
 **Architecture:** Task 升级为独立聚合根，Session 只承担对话和执行载体；旧 `task.yaml` 与历史 Runs 继续双读，不静默搬迁。Workspace Labels 是独立分类维度，与 Project、Task Workflow、Run/Session Status 分开；会话侧栏和 Task 看板复用 Label 定义，但各自保存筛选状态。
 

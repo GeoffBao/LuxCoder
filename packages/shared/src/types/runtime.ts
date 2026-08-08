@@ -269,7 +269,7 @@ export interface FileAccessOptions {
   candidateBasePaths?: string[]
 }
 
-/** 已授权本地文件的 luxcoder-file URL */
+/** 已授权本地文件的 yoda-file URL */
 export interface ResolvedFileUrl {
   url: string
 }

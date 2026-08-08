@@ -2,8 +2,8 @@
  * Agent 工作区管理器
  *
  * 负责 Agent 工作区的 CRUD 操作。
- * - 工作区索引：~/.luxcoder/agent-workspaces.json（轻量元数据）
- * - 工作区目录：~/.luxcoder/agent-workspaces/{slug}/（Agent 的 cwd）
+ * - 工作区索引：~/.yoda/agent-workspaces.json（轻量元数据）
+ * - 工作区目录：~/.yoda/agent-workspaces/{slug}/（Agent 的 cwd）
  */
 
 import { readFileSync, writeFileSync, existsSync, readdirSync, cpSync, mkdirSync, statSync, openSync, readSync, closeSync, realpathSync } from 'node:fs'
@@ -30,8 +30,8 @@ import { findAllGitRoots, normalizeGitRoot } from './git-diff-service'
 import { projectRepository } from './project-repository'
 import { listBuiltinMcpServers } from './builtin-mcp/catalog'
 import { RESERVED_BUILTIN_KEYS } from './builtin-mcp/baseline'
-import { inferMcpTransportType, normalizeMcpTransportType, isTeambitionMcpEntry } from '@luxcoder/shared'
-import type { AgentWorkspace, WorkspaceMcpConfig, SkillMeta, SkillImportSource, OtherWorkspaceSkillsGroup, WorkspaceCapabilities, SkillFileNode, SkillFileContent, WorkspaceMemorySummary, BulkImportSkillItemResult, BulkImportSkillsResult, BulkImportWorkspaceSelection, OrganizationConnection, OrganizationSkill } from '@luxcoder/shared'
+import { inferMcpTransportType, normalizeMcpTransportType, isTeambitionMcpEntry } from '@yoda/shared'
+import type { AgentWorkspace, WorkspaceMcpConfig, SkillMeta, SkillImportSource, OtherWorkspaceSkillsGroup, WorkspaceCapabilities, SkillFileNode, SkillFileContent, WorkspaceMemorySummary, BulkImportSkillItemResult, BulkImportSkillsResult, BulkImportWorkspaceSelection, OrganizationConnection, OrganizationSkill } from '@yoda/shared'
 import { extractSkillZip, orgDownloadSkill, buildOrganizationImportSource } from './org-skill-service'
 
 interface AgentWorkspacesIndex {
@@ -188,7 +188,7 @@ export function getAgentWorkspace(id: string): AgentWorkspace | undefined {
   return index.workspaces.find((w) => w.id === id)
 }
 
-/** 将 ~/.luxcoder/default-skills/ 的内容逐个复制到工作区 skills/ 目录 */
+/** 将 ~/.yoda/default-skills/ 的内容逐个复制到工作区 skills/ 目录 */
 function copyDefaultSkills(workspaceSlug: string, options: { throwOnError?: boolean } = {}): void {
   const defaultDir = getDefaultSkillsDir()
   const targetDir = getWorkspaceSkillsDir(workspaceSlug)
@@ -564,7 +564,7 @@ export function ensurePluginManifest(workspaceSlug: string, workspaceName: strin
   }
 
   const manifest = {
-    name: `luxcoder-workspace-${workspaceSlug}`,
+    name: `yoda-workspace-${workspaceSlug}`,
     version: '1.0.0',
   }
 
@@ -788,7 +788,7 @@ function scanSkillsInDir(dir: string, enabled: boolean): SkillMeta[] {
   return skills
 }
 
-/** 获取默认 Skills 的 slug 列表（来自 ~/.luxcoder/default-skills/） */
+/** 获取默认 Skills 的 slug 列表（来自 ~/.yoda/default-skills/） */
 export function getDefaultSkillSlugs(): string[] {
   const dir = getDefaultSkillsDir()
   if (!existsSync(dir)) return []
@@ -1575,7 +1575,7 @@ function isNewerVersion(a: string, b: string): boolean {
 interface WorkspaceConfig {
   attachedDirectories?: string[]
   attachedFiles?: string[]
-  worktreeRepos?: import('@luxcoder/shared').WorkspaceWorktreeRepo[]
+  worktreeRepos?: import('@yoda/shared').WorkspaceWorktreeRepo[]
   /** Workspace Task / 未绑定 Project 会话使用的默认工作目录；运行前仍需统一校验可访问性。 */
   defaultWorkingDirectory?: string
 }
@@ -1710,11 +1710,11 @@ export function setWorkspaceDefaultWorkingDirectory(workspaceSlug: string, path:
  * 静默找不到 worktree）。同时保留 config 中仍然存在的手动配置项（如不在附加
  * 目录内的额外仓库），并自动过滤掉路径已不存在的陈旧条目。
  */
-export async function getWorktreeRepos(workspaceSlug: string): Promise<import('@luxcoder/shared').WorkspaceWorktreeRepo[]> {
+export async function getWorktreeRepos(workspaceSlug: string): Promise<import('@yoda/shared').WorkspaceWorktreeRepo[]> {
   const config = readWorkspaceConfig(workspaceSlug)
 
   // repoPath 归一化后去重
-  const byPath = new Map<string, import('@luxcoder/shared').WorkspaceWorktreeRepo>()
+  const byPath = new Map<string, import('@yoda/shared').WorkspaceWorktreeRepo>()
 
   // 1. 从附加目录自动探测 git 仓库根
   const attachedDirs = config.attachedDirectories ?? []
@@ -1748,7 +1748,7 @@ export async function getWorktreeRepos(workspaceSlug: string): Promise<import('@
   return Array.from(byPath.values()).sort((a, b) => (a.priority ?? 99) - (b.priority ?? 99))
 }
 
-export function addWorktreeRepo(workspaceSlug: string, repo: import('@luxcoder/shared').WorkspaceWorktreeRepo): import('@luxcoder/shared').WorkspaceWorktreeRepo[] {
+export function addWorktreeRepo(workspaceSlug: string, repo: import('@yoda/shared').WorkspaceWorktreeRepo): import('@yoda/shared').WorkspaceWorktreeRepo[] {
   const config = readWorkspaceConfig(workspaceSlug)
   const existing = config.worktreeRepos ?? []
 
@@ -1762,7 +1762,7 @@ export function addWorktreeRepo(workspaceSlug: string, repo: import('@luxcoder/s
   return updated
 }
 
-export function removeWorktreeRepo(workspaceSlug: string, repoPath: string): import('@luxcoder/shared').WorkspaceWorktreeRepo[] {
+export function removeWorktreeRepo(workspaceSlug: string, repoPath: string): import('@yoda/shared').WorkspaceWorktreeRepo[] {
   const config = readWorkspaceConfig(workspaceSlug)
   const existing = config.worktreeRepos ?? []
   const updated = existing.filter((r) => r.repoPath !== repoPath)
@@ -1925,7 +1925,7 @@ export async function importSkillsFromLocal(
       if (!sourcePath.toLowerCase().endsWith('.zip')) {
         throw new Error('仅支持 .zip 压缩包或文件夹形式的 Skill 源')
       }
-      tempDir = join(tmpdir(), `luxcoder-skill-import-${randomUUID()}`)
+      tempDir = join(tmpdir(), `yoda-skill-import-${randomUUID()}`)
       mkdirSync(tempDir, { recursive: true })
       const files = await extractSkillZip(readFileSync(sourcePath))
       if (Object.keys(files).length === 0) {

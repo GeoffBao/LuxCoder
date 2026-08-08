@@ -15,7 +15,7 @@
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import type { McpServerEntry } from '@luxcoder/shared'
+import type { McpServerEntry } from '@yoda/shared'
 import type {
   TbDefectItem,
   TbStatusTransition,
@@ -23,8 +23,8 @@ import type {
   TbTaskDetail,
   TbWorkflow,
   TbWorkflowStatus,
-} from '@luxcoder/shared/teambition-defect'
-import { inferStatusStage } from '@luxcoder/shared/teambition-defect'
+} from '@yoda/shared/teambition-defect'
+import { inferStatusStage } from '@yoda/shared/teambition-defect'
 import { normalizeTeambitionTaskType } from './teambition-adapter'
 import type { TeambitionBoardGateway } from './teambition-board-service'
 
@@ -149,7 +149,7 @@ export class McpTeambitionBoardAdapter implements TeambitionBoardGateway {
       requestInit: server.headers ? { headers: server.headers } : undefined,
       fetch: globalThis.fetch,
     })
-    const client = new Client({ name: 'luxcoder-tb-board', version: '1.0.0' })
+    const client = new Client({ name: 'yoda-tb-board', version: '1.0.0' })
     await client.connect(transport)
     return client
   }

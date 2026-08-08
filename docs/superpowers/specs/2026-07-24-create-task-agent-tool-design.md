@@ -2,7 +2,7 @@
 
 ## 背景
 
-craft-agents-oss 对比评审（见 [craft-agents-oss project/kanban 迁移完整性评审]，2026-07-23）发现的唯一一个"移植基线之后 craft 新增、LuxCoder 未跟进"的功能：v0.11.2 的 `create_task` session tool——Agent 对话中可以直接把一张 todo 卡片落到看板上（写 `task.yaml` + 建 orchestrator 会话），只创建不运行，是否启动交给用户或自动化决定。
+craft-agents-oss 对比评审（见 [craft-agents-oss project/kanban 迁移完整性评审]，2026-07-23）发现的唯一一个"移植基线之后 craft 新增、Yoda 未跟进"的功能：v0.11.2 的 `create_task` session tool——Agent 对话中可以直接把一张 todo 卡片落到看板上（写 `task.yaml` + 建 orchestrator 会话），只创建不运行，是否启动交给用户或自动化决定。
 
 这是本轮 craft 高价值补齐（"期二"）的第一项，也是唯一"post-port 真正的新功能"（其余候选如看板就地列管理、卡片快速操作都是"移植时被简化掉的旧功能"，性质不同）。
 
@@ -12,12 +12,12 @@ craft-agents-oss 对比评审（见 [craft-agents-oss project/kanban 迁移完�
 - 未指定 `projectId` 时，继承发起会话的 `projectId`（若有）。
 - `sources`/`skills` 传入未知 slug 时返回 warning，不阻断创建（对齐 craft 语义）。
 - 与现有 `TASK_IPC_CHANNELS.CREATE`（渲染进程"新建任务"表单）共享同一条任务落盘路径，不新造第二套写入逻辑。
-- 复用 LuxCoder 现有的"内置 MCP 注册中心"机制（`builtin-mcp/registry.ts` + `settings.ts`），跟 `collaboration`/`automation`/`nano-banana` 同一套注入/开关模式。
+- 复用 Yoda 现有的"内置 MCP 注册中心"机制（`builtin-mcp/registry.ts` + `settings.ts`），跟 `collaboration`/`automation`/`nano-banana` 同一套注入/开关模式。
 
 ## 非目标
 
 - **不做 Pi runtime 支持**：核实过 `automation-agent-tools.ts`（同样是单一职责的内置工具）只有 Claude SDK 版本，没有 Pi 版本——只有 `collaboration`（委派协作，核心到需要双跑时）才双写。`create_task` 按 `automation` 的先例来，只做 Claude 路径，属于合理的范围收窄，不是遗漏。
-- **不返回 `taskLabelId`**：craft 用通用 labels 系统标记"这是个 Task 会话"；LuxCoder 用 `sessionStatus`/`taskSlug` 已经原生实现了同样的区分，labels 字段本身是无消费方的死代码（craft 对比评审已发现）。硬要打通是给死代码找理由，不在本次范围。
+- **不返回 `taskLabelId`**：craft 用通用 labels 系统标记"这是个 Task 会话"；Yoda 用 `sessionStatus`/`taskSlug` 已经原生实现了同样的区分，labels 字段本身是无消费方的死代码（craft 对比评审已发现）。硬要打通是给死代码找理由，不在本次范围。
 - **不做看板就地列管理 / 卡片快速操作**（评审报告优先级 #2、#3）——这些是独立的后续项，本次只做 `create_task`。
 - **不新增"允许无项目任务"或"多选项目过滤器"**这两个待定的存疑分叉——虽然评审已经确认了方向（对齐 craft），但那是给"手动建任务表单"用的，跟 Agent 工具的 `projectId` 可选/继承语义是两回事，本次 `create_task` 的 `projectId` 可选本来就是 craft 原生设计，不冲突，不需要等那两项一起做。
 

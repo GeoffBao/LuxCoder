@@ -5,7 +5,7 @@
  * Conductor 调度就绪节点、发射子 session、监听完成、驱动看板状态。
  *
  * 参照 OSS: packages/server-core/src/tasks/TaskRunner.ts
- * 适配: @craft-agent/ → @luxcoder/；CreateSessionOptions/SessionCompletionEvent 本地类型
+ * 适配: @craft-agent/ → @yoda/；CreateSessionOptions/SessionCompletionEvent 本地类型
  */
 import { randomUUID } from 'node:crypto'
 import {
@@ -14,9 +14,9 @@ import {
   MAX_REPAIR_ATTEMPTS_CAP,
   type TaskSpec,
   type TaskNode,
-} from '@luxcoder/shared/tasks/schema'
-import { interpolateRefs, type NodeOutput } from '@luxcoder/shared/tasks/refs'
-import { materializeDeps } from '@luxcoder/shared/tasks/validate'
+} from '@yoda/shared/tasks/schema'
+import { interpolateRefs, type NodeOutput } from '@yoda/shared/tasks/refs'
+import { materializeDeps } from '@yoda/shared/tasks/validate'
 import {
   appendRunLog,
   initializeRun,
@@ -32,15 +32,15 @@ import {
   loadTaskSpec,
   type RunLogEntry,
   type NodeRunState,
-} from '@luxcoder/shared/tasks/storage'
-import type { ExpertPackage } from '@luxcoder/shared/experts'
-import type { ExpertWorkspaceBinding } from '@luxcoder/shared/experts/workspace-binding'
+} from '@yoda/shared/tasks/storage'
+import type { ExpertPackage } from '@yoda/shared/experts'
+import type { ExpertWorkspaceBinding } from '@yoda/shared/experts/workspace-binding'
 import {
   formatExpertPreamble,
   mergeMcpIds,
   mergeSkillSlugs,
   resolveExpertId,
-} from '@luxcoder/shared/experts'
+} from '@yoda/shared/experts'
 import {
   describeTaskWorkingDirectoryBlock,
   type TaskWorkingDirectoryResult,

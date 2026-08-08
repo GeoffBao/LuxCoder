@@ -14,7 +14,7 @@ let configPaths: ConfigPathsModule
 let projectRepositoryModule: ProjectRepositoryModule
 let tempHome: string
 const originalHome = process.env.HOME
-const originalLuxcoderDev = process.env.LUXCODER_DEV
+const originalYodaDev = process.env.YODA_DEV
 const originalPromaDev = process.env.PROMA_DEV
 
 mockElectronModule({
@@ -30,9 +30,9 @@ mock.module('node:os', () => ({
 }))
 
 beforeAll(async () => {
-  tempHome = mkdtempSync(join(os.tmpdir(), 'luxcoder-agent-workspace-manager-'))
+  tempHome = mkdtempSync(join(os.tmpdir(), 'yoda-agent-workspace-manager-'))
   process.env.HOME = tempHome
-  delete process.env.LUXCODER_DEV
+  delete process.env.YODA_DEV
   process.env.PROMA_DEV = '0'
   configPaths = await import('./config-paths')
   manager = await import('./agent-workspace-manager')
@@ -51,10 +51,10 @@ afterAll(() => {
   } else {
     process.env.HOME = originalHome
   }
-  if (originalLuxcoderDev === undefined) {
-    delete process.env.LUXCODER_DEV
+  if (originalYodaDev === undefined) {
+    delete process.env.YODA_DEV
   } else {
-    process.env.LUXCODER_DEV = originalLuxcoderDev
+    process.env.YODA_DEV = originalYodaDev
   }
   if (originalPromaDev === undefined) {
     delete process.env.PROMA_DEV
@@ -289,7 +289,7 @@ describe('本地 Skill 导入（zip / 文件夹）', () => {
 
   test('Given 源文件夹含 SKILL.md When 本地导入 Then 复制到目标工作区并记录 local 来源', async () => {
     const workspace = manager.createAgentWorkspace('本地导入测试')
-    const srcRoot = mkdtempSync(join(os.tmpdir(), 'luxcoder-skill-src-'))
+    const srcRoot = mkdtempSync(join(os.tmpdir(), 'yoda-skill-src-'))
     const srcSkill = join(srcRoot, 'my-local-skill')
     mkdirSync(join(srcSkill, 'references'), { recursive: true })
     writeFileSync(join(srcSkill, 'SKILL.md'), skillMd('我的本地技能'), 'utf-8')
@@ -310,7 +310,7 @@ describe('本地 Skill 导入（zip / 文件夹）', () => {
 
   test('Given 源根含多个 Skill 目录 When 本地导入 Then 全部导入', async () => {
     const workspace = manager.createAgentWorkspace('本地多技能导入')
-    const srcRoot = mkdtempSync(join(os.tmpdir(), 'luxcoder-skill-src-'))
+    const srcRoot = mkdtempSync(join(os.tmpdir(), 'yoda-skill-src-'))
     for (const slug of ['skill-a', 'skill-b']) {
       const dir = join(srcRoot, slug)
       mkdirSync(dir, { recursive: true })
@@ -344,7 +344,7 @@ describe('本地 Skill 导入（zip / 文件夹）', () => {
 
   test('Given 同名 Skill 已存在 When 本地导入 Then 跳过且不覆盖', async () => {
     const workspace = manager.createAgentWorkspace('本地导入冲突')
-    const srcRoot = mkdtempSync(join(os.tmpdir(), 'luxcoder-skill-src-'))
+    const srcRoot = mkdtempSync(join(os.tmpdir(), 'yoda-skill-src-'))
     const srcSkill = join(srcRoot, 'same-skill')
     mkdirSync(srcSkill, { recursive: true })
     writeFileSync(join(srcSkill, 'SKILL.md'), skillMd('同名技能'), 'utf-8')
@@ -361,7 +361,7 @@ describe('本地 Skill 导入（zip / 文件夹）', () => {
 
   test('Given 源无 SKILL.md When 本地导入 Then 报错提示', async () => {
     const workspace = manager.createAgentWorkspace('本地导入空源')
-    const srcRoot = mkdtempSync(join(os.tmpdir(), 'luxcoder-skill-src-'))
+    const srcRoot = mkdtempSync(join(os.tmpdir(), 'yoda-skill-src-'))
     writeFileSync(join(srcRoot, 'readme.txt'), 'no skill', 'utf-8')
 
     await expect(manager.importSkillsFromLocal(workspace.slug, srcRoot)).rejects.toThrow('未在所选位置找到 SKILL.md')

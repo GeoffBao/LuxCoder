@@ -113,8 +113,8 @@ import { AgentSessionProvider } from '@/contexts/session-context'
 import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
 import { sendWithCmdEnterAtom } from '@/atoms/shortcut-atoms'
 import { useOpenPreview } from '@/components/diff/preview-opener'
-import type { AgentRuntime, AgentSendInput, AgentPendingFile, AgentThinkingLevel, FileDialogLargeFile, FileDialogResult, ModelOption, ReasoningCapability, SDKMessage, SDKUserMessage, ProviderType, AgentSessionFileRoots } from '@luxcoder/shared'
-import { DEFAULT_AGENT_THINKING_LEVEL, getSessionThinkingLevel, inferAgentSdkContextWindow, inferContextWindow, inferReasoningTransport, isCodexFastModeSupportedModel, isOpenAIReasoningMaxSupportedModel, MAX_ATTACHMENT_SIZE, CLAUDE_RUNTIME_ENABLED, normalizeReasoningCapabilityLevel, normalizeReasoningLevel, resolveReasoningCapability, resolveReasoningProfile } from '@luxcoder/shared'
+import type { AgentRuntime, AgentSendInput, AgentPendingFile, AgentThinkingLevel, FileDialogLargeFile, FileDialogResult, ModelOption, ReasoningCapability, SDKMessage, SDKUserMessage, ProviderType, AgentSessionFileRoots } from '@yoda/shared'
+import { DEFAULT_AGENT_THINKING_LEVEL, getSessionThinkingLevel, inferAgentSdkContextWindow, inferContextWindow, inferReasoningTransport, isCodexFastModeSupportedModel, isOpenAIReasoningMaxSupportedModel, MAX_ATTACHMENT_SIZE, CLAUDE_RUNTIME_ENABLED, normalizeReasoningCapabilityLevel, normalizeReasoningLevel, resolveReasoningCapability, resolveReasoningProfile } from '@yoda/shared'
 import { fileToBase64, formatFileNames, getFileParentPath } from '@/lib/file-utils'
 import { getFilePanelDragData, INSERT_FILE_MENTION_EVENT, type FilePanelDragItem } from '@/lib/file-panel-drag'
 import { buildQuotedSelectionBlock } from '@/lib/quoted-selection'
@@ -331,7 +331,7 @@ const AGENT_RUNTIME_OPTIONS: AgentRuntimeOption[] = [
   {
     value: 'pi',
     label: 'Pi',
-    description: 'Pi Agent SDK，LuxCoder 默认内核，新功能仅在 Pi 上提供',
+    description: 'Pi Agent SDK，Yoda 默认内核，新功能仅在 Pi 上提供',
     badge: '推荐',
     badgeTone: 'recommended',
   },
@@ -713,9 +713,9 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
 
   // 检查 Agent 渠道列表中是否存在可用的模型（渠道 enabled + 模型 enabled）
   const hasAvailableModel = React.useMemo(() => {
-    // LuxCoder 官方渠道（商业版）：只要 enabled 且有可用模型，直接视为可用
-    const luxcoderOfficial = globalChannels.find((c) => c.id === 'luxcoder-official')
-    if (luxcoderOfficial?.enabled && luxcoderOfficial.models.some((m) => m.enabled)) return true
+    // Yoda 官方渠道（商业版）：只要 enabled 且有可用模型，直接视为可用
+    const yodaOfficial = globalChannels.find((c) => c.id === 'yoda-official')
+    if (yodaOfficial?.enabled && yodaOfficial.models.some((m) => m.enabled)) return true
     // Pi runtime 支持所有协议，任何已启用渠道都可用
     if (sessionAgentRuntime === 'pi') {
       return globalChannels.some((c) => c.enabled && c.models.some((m) => m.enabled))
@@ -2377,7 +2377,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     const localUuid = crypto.randomUUID()
 
     // 1. 立即注入合成用户消息（/compact 气泡立刻可见，与普通发送路径一致）
-    const syntheticMsg: import('@luxcoder/shared').SDKMessage = {
+    const syntheticMsg: import('@yoda/shared').SDKMessage = {
       type: 'user',
       uuid: localUuid,
       message: {
@@ -2385,7 +2385,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
       },
       parent_tool_use_id: null,
       _createdAt: streamStartedAt,
-    } as unknown as import('@luxcoder/shared').SDKMessage
+    } as unknown as import('@yoda/shared').SDKMessage
 
     store.set(liveMessagesMapAtom, (prev) => {
       const map = new Map(prev)
@@ -2659,8 +2659,8 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     const handler = (): void => {
       if (streaming) handleStop()
     }
-    window.addEventListener('luxcoder:stop-generation', handler)
-    return () => window.removeEventListener('luxcoder:stop-generation', handler)
+    window.addEventListener('yoda:stop-generation', handler)
+    return () => window.removeEventListener('yoda:stop-generation', handler)
   }, [streaming, handleStop])
 
   // 监听快捷键系统分发的 focus-input 事件（Cmd+L）
@@ -2669,8 +2669,8 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
       const proseMirror = document.querySelector('[data-input-mode="agent"] .ProseMirror') as HTMLElement | null
       proseMirror?.focus()
     }
-    window.addEventListener('luxcoder:focus-input', handler)
-    return () => window.removeEventListener('luxcoder:focus-input', handler)
+    window.addEventListener('yoda:focus-input', handler)
+    return () => window.removeEventListener('yoda:focus-input', handler)
   }, [])
 
   // 监听文件面板三点菜单「引用到 Agent」事件：在输入框插入 @file 引用

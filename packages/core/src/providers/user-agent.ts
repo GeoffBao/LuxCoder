@@ -1,4 +1,4 @@
-const LUXCODER_REPO_URL = 'https://github.com/GeoffBao/LuxCoder'
+const YODA_REPO_URL = 'https://github.com/biajidong/Yoda'
 
 let _appVersion = '0.0.0'
 
@@ -12,5 +12,5 @@ export function getAppVersion(): string {
 
 export function getAppUserAgent(version?: string): string {
   const v = version ?? _appVersion
-  return `LuxCoder/${v} (+${LUXCODER_REPO_URL})`
+  return `Yoda/${v} (+${YODA_REPO_URL})`
 }

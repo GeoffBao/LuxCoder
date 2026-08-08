@@ -29,7 +29,7 @@ function item(overrides: Partial<KanbanItem> = {}): KanbanItem {
       runSummary: { total: 0, active: 0, completed: 0, failed: 0 },
       legacyIdentity: false,
     },
-    project: { id: 'project-1', name: 'LuxCoder' },
+    project: { id: 'project-1', name: 'Yoda' },
     subtasks: [],
     ...overrides,
   } as KanbanItem
@@ -38,7 +38,7 @@ function item(overrides: Partial<KanbanItem> = {}): KanbanItem {
 describe('buildTaskCardViewModel', () => {
   test('把 Task labels 和 project 作为看板主信息，隐藏普通 completed session 状态', () => {
     expect(buildTaskCardViewModel(item())).toEqual(expect.objectContaining({
-      projectName: 'LuxCoder',
+      projectName: 'Yoda',
       labelIds: ['label-a', 'label-b'],
       showSessionStatus: false,
     }))

@@ -22,7 +22,7 @@ function nativeAddon(): Addon {
   return addon
 }
 
-/** EventKit 在 Electron 主进程内执行，TCC 将授权归属到带 Info.plist 的 LuxCoder.app，而不是短命 helper。 */
+/** EventKit 在 Electron 主进程内执行，TCC 将授权归属到带 Info.plist 的 Yoda.app，而不是短命 helper。 */
 export async function callMacEventKitNativeAddon<T>(command: EventKitCommand, entity: EventKitEntity, payload: object = {}): Promise<T> {
   const result = await nativeAddon().command(command, entity, JSON.stringify(payload))
   return JSON.parse(result) as T

@@ -16,19 +16,19 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { zipSync } from 'fflate'
 import { mockElectronModule } from './__tests__/electron-mock'
-import type { OrganizationConnection } from '@luxcoder/shared'
+import type { OrganizationConnection } from '@yoda/shared'
 
 // ── Electron / homedir 隔离 ──────────────────────────────
 let tempHome: string
 mockElectronModule({
   app: { isPackaged: true, getPath: () => join(tempHome, 'Library', 'Application Support') },
 })
-// Windows 下 os.homedir() 读取 USERPROFILE，指向临时目录避免污染真实 ~/.luxcoder
+// Windows 下 os.homedir() 读取 USERPROFILE，指向临时目录避免污染真实 ~/.yoda
 beforeAll(() => {
-  tempHome = mkdtempSync(join(tmpdir(), 'luxcoder-org-skill-'))
+  tempHome = mkdtempSync(join(tmpdir(), 'yoda-org-skill-'))
   process.env.USERPROFILE = tempHome
   process.env.HOME = tempHome
-  delete process.env.LUXCODER_DEV
+  delete process.env.YODA_DEV
 })
 
 // ── Mock 服务端 ──────────────────────────────────────────
@@ -95,7 +95,7 @@ describe('组织 Skills 导入/更新', () => {
     version = '1.0.0'
     revoked = false
     // 清理工作区配置，避免测试间残留
-    const configDir = join(tempHome, '.luxcoder')
+    const configDir = join(tempHome, '.yoda')
     rmSync(configDir, { recursive: true, force: true })
     mkdirSync(configDir, { recursive: true })
   })

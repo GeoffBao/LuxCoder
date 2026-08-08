@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { TaskSpecSchema } from '@luxcoder/shared/tasks/schema'
+import { TaskSpecSchema } from '@yoda/shared/tasks/schema'
 import {
   buildQuickTaskRequest,
   submitQuickTask,

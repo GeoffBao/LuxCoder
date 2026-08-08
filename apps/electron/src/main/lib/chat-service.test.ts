@@ -2,14 +2,14 @@ import { afterAll, beforeAll, describe, expect, mock, test } from 'bun:test'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import * as os from 'node:os'
 import { join } from 'node:path'
-import { CHAT_IPC_CHANNELS } from '@luxcoder/shared'
+import { CHAT_IPC_CHANNELS } from '@yoda/shared'
 import type { WebContents } from 'electron'
 import { mockElectronModule } from './__tests__/electron-mock'
 
 const sendMock = mock(() => undefined)
 let tempHome: string
 const originalHome = process.env.HOME
-const originalLuxcoderDev = process.env.LUXCODER_DEV
+const originalYodaDev = process.env.YODA_DEV
 const originalPromaDev = process.env.PROMA_DEV
 
 // chat-service.ts 间接 import conversation-manager / attachment-service 等模块，
@@ -31,7 +31,7 @@ mock.module('node:os', () => ({
 }))
 
 function writeChannels(channels: unknown[]): void {
-  const configDir = join(tempHome, '.luxcoder')
+  const configDir = join(tempHome, '.yoda')
   mkdirSync(configDir, { recursive: true })
   writeFileSync(
     join(configDir, 'channels.json'),
@@ -41,9 +41,9 @@ function writeChannels(channels: unknown[]): void {
 }
 
 beforeAll(async () => {
-  tempHome = mkdtempSync(join(os.tmpdir(), 'luxcoder-chat-service-'))
+  tempHome = mkdtempSync(join(os.tmpdir(), 'yoda-chat-service-'))
   process.env.HOME = tempHome
-  delete process.env.LUXCODER_DEV
+  delete process.env.YODA_DEV
   process.env.PROMA_DEV = '0'
   writeChannels([
     {
@@ -62,8 +62,8 @@ beforeAll(async () => {
 
 afterAll(() => {
   process.env.HOME = originalHome
-  if (originalLuxcoderDev === undefined) delete process.env.LUXCODER_DEV
-  else process.env.LUXCODER_DEV = originalLuxcoderDev
+  if (originalYodaDev === undefined) delete process.env.YODA_DEV
+  else process.env.YODA_DEV = originalYodaDev
   if (originalPromaDev === undefined) delete process.env.PROMA_DEV
   else process.env.PROMA_DEV = originalPromaDev
   rmSync(tempHome, { recursive: true, force: true })

@@ -6,7 +6,7 @@
 
 **Architecture:** 主进程先补齐路径规范化 / 托管 `workdir/` / `effectiveCwd` / 按路径复用或创建 Project；Renderer 用 Jotai 驱动侧栏「最近会话｜项目」双视图与 Workspace 选择器，复用现有 Session atom；Project 主页在现有 `ProjectInfoPage` + `WorkBoardView` 上扩 tab，不新建看板数据源。
 
-**Tech Stack:** Bun test、TypeScript、Electron IPC、Jotai、React、`@luxcoder/shared` projects storage、现有 `draftSessionIdsAtom` / `openFolderDialog`。
+**Tech Stack:** Bun test、TypeScript、Electron IPC、Jotai、React、`@yoda/shared` projects storage、现有 `draftSessionIdsAtom` / `openFolderDialog`。
 
 **Spec:** `docs/superpowers/specs/2026-07-22-workspace-project-session-ia-design.md`
 
@@ -301,7 +301,7 @@ Expected: FAIL
 ```ts
 import { existsSync, mkdirSync, realpathSync, statSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
-import type { ProjectConfig } from '@luxcoder/shared/projects'
+import type { ProjectConfig } from '@yoda/shared/projects'
 import {
   createProject,
   ensureProjectWorkdir,
@@ -312,7 +312,7 @@ import {
 import {
   displayProjectPath,
   normalizeProjectPathForCompare,
-} from '@luxcoder/shared/utils'
+} from '@yoda/shared/utils'
 
 export type EffectiveCwdStatus = 'managed' | 'external' | 'unavailable'
 

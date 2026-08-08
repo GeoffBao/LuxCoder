@@ -23,14 +23,14 @@ export function getLastFocusedVoiceInputId(): string | null {
 /**
  * 在听写会话开始时冻结状态归属和文本回填目标。
  *
- * 按钮来源始终用于显示录音状态；只有本次输出应写回 LuxCoder 时，它才同时成为文本目标。
+ * 按钮来源始终用于显示录音状态；只有本次输出应写回 Yoda 时，它才同时成为文本目标。
  * 这样“复制到剪贴板”模式仍会在发起按钮上显示录音状态，却不会向编辑器派发预览或最终文本。
  */
 export function resolveVoiceDictationSessionInputIds(
-  routeToLuxCoderInput: boolean,
+  routeToYodaInput: boolean,
   sourceInputId?: string,
 ): { sourceInputId: string | null; targetInputId: string | null } {
-  const targetInputId = routeToLuxCoderInput
+  const targetInputId = routeToYodaInput
     ? sourceInputId ?? lastFocusedVoiceInputId
     : null
 
@@ -67,16 +67,16 @@ export function isVoiceDictationTargetInput(
 }
 
 /** Scratch Pad 编辑器的语音输入目标 ID */
-export const SCRATCH_PAD_VOICE_INPUT_ID = '__luxcoder-scratch-pad__'
+export const SCRATCH_PAD_VOICE_INPUT_ID = '__yoda-scratch-pad__'
 
 /** 主进程派发到渲染进程、再由当前焦点编辑器消费的事件名 */
-export const VOICE_DICTATION_INSERT_EVENT = 'luxcoder:insert-voice-dictation-text'
+export const VOICE_DICTATION_INSERT_EVENT = 'yoda:insert-voice-dictation-text'
 
 /** 语音识别过程中的组合文本预览事件。 */
-export const VOICE_DICTATION_PREVIEW_EVENT = 'luxcoder:preview-voice-dictation-text'
+export const VOICE_DICTATION_PREVIEW_EVENT = 'yoda:preview-voice-dictation-text'
 
 /** 取消语音输入时撤销组合文本预览。 */
-export const VOICE_DICTATION_CLEAR_PREVIEW_EVENT = 'luxcoder:clear-voice-dictation-preview'
+export const VOICE_DICTATION_CLEAR_PREVIEW_EVENT = 'yoda:clear-voice-dictation-preview'
 
 /** 底部输入工具栏显示的语音状态。 */
-export const VOICE_DICTATION_STATUS_EVENT = 'luxcoder:voice-dictation-status'
+export const VOICE_DICTATION_STATUS_EVENT = 'yoda:voice-dictation-status'

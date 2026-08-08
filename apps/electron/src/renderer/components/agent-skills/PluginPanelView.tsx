@@ -27,7 +27,7 @@ import { agentPendingPromptAtom } from '@/atoms/agent-atoms'
 import { useCreateSession } from '@/hooks/useCreateSession'
 import { cn } from '@/lib/utils'
 import { SectionTabs } from '@/components/ui/section-tabs'
-import type { SkillMeta } from '@luxcoder/shared'
+import type { SkillMeta } from '@yoda/shared'
 import { useAgentSkillsData } from './useAgentSkillsData'
 import { buildSkillClassificationPrompt } from './AgentSkillsView'
 

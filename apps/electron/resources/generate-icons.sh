@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# LuxCoder Icon Generation Script
+# Yoda Icon Generation Script
 # Generates all required icon formats from icon.svg
 # Requires: rsvg-convert (librsvg), iconutil (macOS), magick (ImageMagick)
 
@@ -9,7 +9,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-echo "🎨 Generating LuxCoder icons..."
+echo "🎨 Generating Yoda icons..."
 
 # Check required tools
 if ! command -v rsvg-convert &> /dev/null; then
@@ -99,8 +99,8 @@ echo "📦 Generating icon.ico..."
 magick icon.png -define icon:auto-resize=256,128,96,64,48,32,16 icon.ico
 echo "✅ icon.ico generated"
 
-# 5. Generate alternate LuxCoder logo variants
-echo "📦 Generating LuxCoder logo variants..."
+# 5. Generate alternate Yoda logo variants
+echo "📦 Generating Yoda logo variants..."
 "$SCRIPT_DIR/generate-logo-variants.sh"
 
 echo ""
@@ -113,4 +113,4 @@ echo "  - icon.ico - Windows app icon"
 echo "  - logos/iconTemplate.png - macOS tray (24x24 @1x)"
 echo "  - logos/iconTemplate@2x.png - macOS tray (48x48 @2x Retina)"
 echo "  - logos/iconTemplate@3x.png - macOS tray (72x72 @3x)"
-echo "  - logos/*.png - LuxCoder alternate app icon variants"
+echo "  - logos/*.png - Yoda alternate app icon variants"

@@ -10,9 +10,9 @@ import {
   Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import type { TaskGeneratedEventPayload } from '@luxcoder/shared'
-import { TASK_TYPES, TASK_TYPE_LABELS } from '@luxcoder/shared/tasks/task-record'
-import type { TaskType } from '@luxcoder/shared/tasks/task-record'
+import type { TaskGeneratedEventPayload } from '@yoda/shared'
+import { TASK_TYPES, TASK_TYPE_LABELS } from '@yoda/shared/tasks/task-record'
+import type { TaskType } from '@yoda/shared/tasks/task-record'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'

@@ -56,7 +56,7 @@
 
 **Files:**
 - Modify: `docs/plans/2026-07-26-sidebar-task-session-hierarchy-design.md`（仅在实现偏离设计时）
-- Modify: `/Users/admin/.luxcoder/agent-workspaces/default/projects/luxcoder/MEMORY.md`
+- Modify: `/Users/admin/.yoda/agent-workspaces/default/projects/yoda/MEMORY.md`
 
 **Steps:**
 1. 运行侧边栏树、项目模型、会话列表和看板模型测试。

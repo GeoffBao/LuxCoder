@@ -125,7 +125,7 @@ bun test apps/electron/src/renderer/components/app-shell/__tests__/code-main-vie
 
 ```bash
 # 7) renderer build（不启动完整 Electron，验证 UI 可编译）
-bun run --filter='@luxcoder/electron' build:renderer 2>&1 | tail -30
+bun run --filter='@yoda/electron' build:renderer 2>&1 | tail -30
 
 # 8) 手动验证项（需要用户配合或临时 workspace）
 #    a. 启动 bun run dev，确认应用可打开、Home/Code 切换正常

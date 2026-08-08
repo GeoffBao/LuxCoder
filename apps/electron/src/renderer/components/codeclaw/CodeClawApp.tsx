@@ -1,10 +1,10 @@
 /**
- * CodeClaw —— LuxCoder 桌面助手 MVP
+ * CodeClaw —— Yoda 桌面助手 MVP
  */
 
 import React from 'react'
 import { AlertCircle, CheckCircle2, MousePointer2, Sparkles, TerminalSquare } from 'lucide-react'
-import { DEFAULT_CODECLAW_THEME_ID, isCodeClawThemeId, type CodeClawPhase, type CodeClawState, type CodeClawThemeId } from '@luxcoder/shared'
+import { DEFAULT_CODECLAW_THEME_ID, isCodeClawThemeId, type CodeClawPhase, type CodeClawState, type CodeClawThemeId } from '@yoda/shared'
 import './codeclaw.css'
 
 const THEME_ASSETS = import.meta.glob('../../assets/codeclaw-themes/*/assets/*', {
@@ -136,7 +136,7 @@ export function CodeClawApp(): React.ReactElement {
         className={`codeclaw-card ${phase} theme-${themeId} ${dragging ? 'dragging' : ''}`}
         onMouseDown={handlePointerDown}
         onDoubleClick={openMain}
-        title="单击打开当前会话，拖动移动，双击打开 LuxCoder"
+        title="单击打开当前会话，拖动移动，双击打开 Yoda"
       >
         <span className="codeclaw-glow" />
         {renderMascot(themeId, phase)}

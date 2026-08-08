@@ -83,7 +83,7 @@ git commit -m "refactor(ui): remove buildSidebarProjectGroups, keep buildProject
  * 数据源同一批 AgentSessionMeta，不创建副本。
  */
 
-import type { AgentSessionMeta } from '@luxcoder/shared'
+import type { AgentSessionMeta } from '@yoda/shared'
 
 export function buildRecentSessionList(
   sessions: AgentSessionMeta[],
@@ -102,7 +102,7 @@ export function buildRecentSessionList(
 
 ```ts
 import { describe, expect, test } from 'bun:test'
-import type { AgentSessionMeta } from '@luxcoder/shared'
+import type { AgentSessionMeta } from '@yoda/shared'
 import { buildRecentSessionList } from '../sidebar-session-views.ts'
 
 function session(partial: Partial<AgentSessionMeta> & Pick<AgentSessionMeta, 'id' | 'updatedAt'>): AgentSessionMeta {

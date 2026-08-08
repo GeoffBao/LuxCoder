@@ -24,7 +24,7 @@ export interface PlanningChange {
   resources: PlanningChangeResource[]
 }
 
-/** macOS 中用户可选、且当前允许 LuxCoder 写入的 Calendar / Reminders List。 */
+/** macOS 中用户可选、且当前允许 Yoda 写入的 Calendar / Reminders List。 */
 export interface PlanningNativeSyncTarget {
   id: string
   title: string

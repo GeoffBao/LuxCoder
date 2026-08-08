@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import type { AgentSessionMeta, SessionGroup } from '@luxcoder/shared'
+import type { AgentSessionMeta, SessionGroup } from '@yoda/shared'
 import type { SessionIndicatorStatus } from '@/atoms/agent-atoms'
 import { buildRecentSessionList, groupSessionsByCustomGroup, groupSessionsByState, sortSessions, UNGROUPED_SESSION_LABEL } from '../sidebar-session-views.ts'
 

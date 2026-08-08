@@ -1,26 +1,26 @@
 ---
 name: session-cleaner
-description: 把 LuxCoder 会话 JSONL 清洗为干净可读的 Markdown 对话，并支持对超长会话的渐进式读取（概览 / 大纲 / 搜索 / 按 turn 区间导出），避免一次性全量读撑爆上下文。当用户提到"清洗会话""解析对话文件""提取对话上下文""过滤流式冗余""导出会话 Markdown""把会话转成对话""整理 agent-sessions""看某个会话讲了什么"时使用此技能。
+description: 把 Yoda 会话 JSONL 清洗为干净可读的 Markdown 对话，并支持对超长会话的渐进式读取（概览 / 大纲 / 搜索 / 按 turn 区间导出），避免一次性全量读撑爆上下文。当用户提到"清洗会话""解析对话文件""提取对话上下文""过滤流式冗余""导出会话 Markdown""把会话转成对话""整理 agent-sessions""看某个会话讲了什么"时使用此技能。
 version: 2.0.1
 license: AGPL-3.0-only
 ---
 
 # Session Cleaner
 
-把 `~/.luxcoder/agent-sessions/<id>.jsonl` 里被流式快照污染过的会话，清洗为干净 Markdown 对话。
+把 `~/.yoda/agent-sessions/<id>.jsonl` 里被流式快照污染过的会话，清洗为干净 Markdown 对话。
 
-本技能是 `luxcoder` CLI 的**薄封装**：所有解析 / 快照去重 / 渲染逻辑都在 `@luxcoder/session-core`（仓库内唯一真源），由 `luxcoder session` 命令暴露。技能本身不解析 JSONL，只负责教你按正确的顺序调用 CLI。
+本技能是 `yoda` CLI 的**薄封装**：所有解析 / 快照去重 / 渲染逻辑都在 `@yoda/session-core`（仓库内唯一真源），由 `yoda session` 命令暴露。技能本身不解析 JSONL，只负责教你按正确的顺序调用 CLI。
 
-> 历史：v1 曾自带一份 Python parser（独立重抄会话格式，会随内部格式漂移）。v2 起改为调用仓库内的 `luxcoder` CLI，格式知识只存一处。
+> 历史：v1 曾自带一份 Python parser（独立重抄会话格式，会随内部格式漂移）。v2 起改为调用仓库内的 `yoda` CLI，格式知识只存一处。
 
 ## 为什么要渐进式读取
 
 会话 JSONL 可能非常大（实测单个会话原始文件可达 50MB）。直接全量清洗再读进上下文会瞬间撑爆 token。正确做法是**先看结构、再定位、最后只取需要的片段**：
 
-1. `luxcoder session info <id>` —— 看体量：turn 数、估算 tokens、字节数。先判断"能不能整篇读"。
-2. `luxcoder session outline <id>` —— 看地图：每个 turn 一行（角色 + 预览 + 工具概览 + tokens）。定位感兴趣的 turn 下标。
-3. `luxcoder session search <关键词> <id>` —— 找内容：返回命中的 turn 下标 + 片段。
-4. `luxcoder session export <id> --turns A-B` —— 只导出需要的 turn 区间到上下文。
+1. `yoda session info <id>` —— 看体量：turn 数、估算 tokens、字节数。先判断"能不能整篇读"。
+2. `yoda session outline <id>` —— 看地图：每个 turn 一行（角色 + 预览 + 工具概览 + tokens）。定位感兴趣的 turn 下标。
+3. `yoda session search <关键词> <id>` —— 找内容：返回命中的 turn 下标 + 片段。
+4. `yoda session export <id> --turns A-B` —— 只导出需要的 turn 区间到上下文。
 
 **只有在 `info` 显示体量很小（比如估算 tokens < 几千）时，才直接 `export <id>` 全量读。** CLI 内置护栏：未指定 turn 区间且输出超过 50KB 时会拒绝直接输出，改为落盘并提示你用 `--turns`。
 
@@ -28,26 +28,26 @@ license: AGPL-3.0-only
 
 ```bash
 # 列出会话（按更新时间降序）
-luxcoder session list [--limit N] [--workspace W]
+yoda session list [--limit N] [--workspace W]
 
 # 体量/结构概览——决定怎么读之前先跑这个
-luxcoder session info <id|path>
+yoda session info <id|path>
 
 # turn 级地图：每 turn 一行
-luxcoder session outline <id|path> [--offset K] [--limit N]
+yoda session outline <id|path> [--offset K] [--limit N]
 
 # 会话内搜索关键词，返回命中 turn 下标 + 片段
-luxcoder session search <关键词> <id|path> [--context N] [--limit N] [--case-sensitive]
+yoda session search <关键词> <id|path> [--context N] [--limit N] [--case-sensitive]
 
 # 导出干净 Markdown（窗口化）
-luxcoder session export <id|path> --turns 5-12       # 只导出第 5~12 个 turn
-luxcoder session export <id|path> --head 4           # 前 4 个 turn
-luxcoder session export <id|path> --tail 4           # 后 4 个 turn
-luxcoder session export <id|path> --out cleaned/x.md # 落盘存档（不受护栏限制）
-luxcoder session export <id|path> --stdout           # 强制全量输出（绕过护栏，谨慎）
+yoda session export <id|path> --turns 5-12       # 只导出第 5~12 个 turn
+yoda session export <id|path> --head 4           # 前 4 个 turn
+yoda session export <id|path> --tail 4           # 后 4 个 turn
+yoda session export <id|path> --out cleaned/x.md # 落盘存档（不受护栏限制）
+yoda session export <id|path> --stdout           # 强制全量输出（绕过护栏，谨慎）
 
 # 所有命令都支持 --json 输出机器可读结果
-luxcoder session info <id> --json
+yoda session info <id> --json
 ```
 
 ## 典型工作流
@@ -56,21 +56,21 @@ luxcoder session info <id> --json
 
 ```bash
 # 1. 找到会话
-luxcoder session list --limit 5
+yoda session list --limit 5
 # 2. 看体量（假设很大）
-luxcoder session info <id>
+yoda session info <id>
 # 3. 搜关键词定位
-luxcoder session search "X" <id>
+yoda session search "X" <id>
 #    → 命中 #7 #12
 # 4. 只导出命中邻域
-luxcoder session export <id> --turns 6-13
+yoda session export <id> --turns 6-13
 ```
 
 **场景：用户要把某个小会话整篇转成 Markdown 存档**
 
 ```bash
-luxcoder session info <id>          # 确认体量不大
-luxcoder session export <id> --out cleaned/<id>.clean.md
+yoda session info <id>          # 确认体量不大
+yoda session export <id> --out cleaned/<id>.clean.md
 ```
 
 ## 输出形态
@@ -92,11 +92,11 @@ luxcoder session export <id> --out cleaned/<id>.clean.md
 
 ## CLI 定位
 
-- **打包版（生产）**：`luxcoder` 二进制随桌面 App 分发；主进程注入 `$LUXCODER_CLI`。优先 `"$LUXCODER_CLI" session ...`，或 PATH 上的 `luxcoder session ...`。
-- **开发/源码环境**：若 `luxcoder` 不在 PATH，用 `bun <repo>/apps/cli/src/index.ts session ...` 直接跑源码。
-- **配置目录**：CLI 默认读 `~/.luxcoder`；开发模式数据在 `~/.luxcoder-dev`，加 `--dev` 或设 `LUXCODER_DEV=1`（兼容回退 `PROMA_DEV=1`）。
+- **打包版（生产）**：`yoda` 二进制随桌面 App 分发；主进程注入 `$YODA_CLI`。优先 `"$YODA_CLI" session ...`，或 PATH 上的 `yoda session ...`。
+- **开发/源码环境**：若 `yoda` 不在 PATH，用 `bun <repo>/apps/cli/src/index.ts session ...` 直接跑源码。
+- **配置目录**：CLI 默认读 `~/.yoda`；开发模式数据在 `~/.yoda-dev`，加 `--dev` 或设 `YODA_DEV=1`（兼容回退 `PROMA_DEV=1`）。
 
 ## 实现要点（供维护者）
 
-- 解析 / 快照去重 / 渲染全部在 `@luxcoder/session-core`，CLI 只是命令路由。修 bug 或改格式去改 core，不要在本技能里加解析逻辑。
+- 解析 / 快照去重 / 渲染全部在 `@yoda/session-core`，CLI 只是命令路由。修 bug 或改格式去改 core，不要在本技能里加解析逻辑。
 - 格式细节（流式快照碎片化、message.id 合并、旧扁平格式归一）见 `references/cli-usage.md` 与 core 包源码。

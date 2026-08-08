@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactElement, ReactNode } from 'react'
 import { useAtomValue, useSetAtom, useStore } from 'jotai'
-import type { AgentSessionMeta, ConversationMeta } from '@luxcoder/shared'
+import type { AgentSessionMeta, ConversationMeta } from '@yoda/shared'
 import { cn } from '@/lib/utils'
 import {
   activeTabIdAtom,

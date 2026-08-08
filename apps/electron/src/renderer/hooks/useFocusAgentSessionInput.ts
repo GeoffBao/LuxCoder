@@ -54,7 +54,7 @@ export function useFocusAgentSessionInput(): FocusAgentSessionInput {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         if (store.get(activeTabIdAtom) !== agentTab.id) return
-        window.dispatchEvent(new CustomEvent('luxcoder:focus-input'))
+        window.dispatchEvent(new CustomEvent('yoda:focus-input'))
       })
     })
 

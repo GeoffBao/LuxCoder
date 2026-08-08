@@ -1,5 +1,5 @@
 import { atom } from 'jotai'
-import type { Channel, ChannelPlanQuotaResult, ProviderType } from '@luxcoder/shared'
+import type { Channel, ChannelPlanQuotaResult, ProviderType } from '@yoda/shared'
 
 const PLAN_QUOTA_PROVIDERS = new Set<ProviderType>([
   'deepseek',

@@ -92,7 +92,7 @@ Expected: 新增布局断言与全部 Scenic 断言通过。
 
 **Files:**
 - No source changes expected unless validation finds a regression.
-- Update: `/Users/admin/.luxcoder/agent-workspaces/default/projects/luxcoder/MEMORY.md` with confirmed layout result.
+- Update: `/Users/admin/.yoda/agent-workspaces/default/projects/yoda/MEMORY.md` with confirmed layout result.
 
 **Step 1: 运行主题测试**
 
@@ -104,7 +104,7 @@ Expected: 全部通过。
 
 Run: `bun test`
 Run: `bun run --filter='*' typecheck`
-Run: `bun run --filter @luxcoder/electron build:renderer`
+Run: `bun run --filter @yoda/electron build:renderer`
 Run: `git diff --check`
 
 Expected: 全部成功，无新增错误。

@@ -1,4 +1,4 @@
-# LuxCodercomp UI 优化计划（参考 workbuddy 设计）
+# Yodacomp UI 优化计划（参考 workbuddy 设计）
 
 > **日期**: 2026-08-05  
 > **来源**: 参考 `workbuddy-ui-mockup.html` v3.6 设计文件  

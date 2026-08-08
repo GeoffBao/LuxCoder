@@ -1,6 +1,6 @@
-import type { AgentSessionMeta } from '@luxcoder/shared'
-import type { TaskAggregateSummary } from '@luxcoder/shared/tasks'
-import { resolveExpertId } from '@luxcoder/shared/experts'
+import type { AgentSessionMeta } from '@yoda/shared'
+import type { TaskAggregateSummary } from '@yoda/shared/tasks'
+import { resolveExpertId } from '@yoda/shared/experts'
 import { mergeSubtaskRows, type SpecNodeSummary, type SubtaskChildRow } from './subtask-merge'
 import { deriveDefaultKanbanColumn } from './status-column'
 import { resolveTaskBoardScope, taskMatchesBoardFilter } from './task-board-filter-model'
@@ -85,7 +85,7 @@ function buildItem(
   const binding = bindingsBySessionId.get(session.id)
   // 未绑定真实 Project 的会话（含历史存量）懒归类到隐藏的「临时会话」容器，仅用于卡片
   // 展示；不回写 session.projectId，不做批量迁移（对齐 Synara「无 Project 会话标记为
-  // chat」的效果，但保持 LuxCoder 的会话级 sandbox 隔离不变）。
+  // chat」的效果，但保持 Yoda 的会话级 sandbox 隔离不变）。
   const project = session.projectId ? projectsById.get(session.projectId) ?? null : adHocProject ?? null
   const expertId = resolveExpertId(taskExpertId, project?.defaultExpertId) ?? undefined
 

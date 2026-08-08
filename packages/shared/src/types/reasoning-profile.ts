@@ -1,7 +1,7 @@
 import type { ProviderType } from './channel'
 import type { AgentThinkingLevel } from './agent'
 
-/** LuxCoder 可识别的 reasoning 请求协议族。 */
+/** Yoda 可识别的 reasoning 请求协议族。 */
 export type ReasoningTransport =
   | 'anthropic-messages'
   | 'openai-completions'

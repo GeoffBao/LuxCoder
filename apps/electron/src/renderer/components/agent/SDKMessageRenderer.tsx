@@ -21,7 +21,7 @@ import { TurnFileChangesSummary, buildTurnFileNameMap } from './TurnFileChangesS
 import { ProcessBlockGroup, buildAssistantTurnRenderItems, buildCompletedToolResultIds } from './ProcessBlockGroup'
 import { extractToolResultText, TASK_TOOL_NAMES } from './task-progress'
 import { normalizeThinkTagsInContentBlocks } from './thinking-tag-parser'
-// 会话转录的纯逻辑(Turn 分组 / 快照去重 / 预览)已下沉到 @luxcoder/session-core 作为唯一真源。
+// 会话转录的纯逻辑(Turn 分组 / 快照去重 / 预览)已下沉到 @yoda/session-core 作为唯一真源。
 // 这里 import 供本文件内部使用，并 re-export 以保持既有 `from './SDKMessageRenderer'` 导入方零改动。
 import {
   groupIntoTurns,
@@ -32,9 +32,9 @@ import {
   stripScheduledRunMarker,
   type MessageGroup,
   type AssistantTurn,
-} from '@luxcoder/session-core'
-export { groupIntoTurns, getGroupPreview, extractUserText } from '@luxcoder/session-core'
-export type { MessageGroup, AssistantTurn } from '@luxcoder/session-core'
+} from '@yoda/session-core'
+export { groupIntoTurns, getGroupPreview, extractUserText } from '@yoda/session-core'
+export type { MessageGroup, AssistantTurn } from '@yoda/session-core'
 import { DurationBadge } from './AgentMessages'
 import {
   Message,
@@ -76,8 +76,8 @@ import type {
   SDKToolUseBlock,
   SDKToolResultBlock,
   RecoveryAction,
-} from '@luxcoder/shared'
-import type { AgentPendingFile } from '@luxcoder/shared'
+} from '@yoda/shared'
+import type { AgentPendingFile } from '@yoda/shared'
 import {
   getSDKCompactStatus,
   inferAgentSdkContextWindow,
@@ -86,7 +86,7 @@ import {
   THINKING_SIGNATURE_ERROR_TITLE,
   THINKING_SIGNATURE_ERROR_MESSAGE,
   isThinkingSignatureError,
-} from '@luxcoder/shared'
+} from '@yoda/shared'
 import type { ToolActivity } from '@/atoms/agent-atoms'
 
 // ===== SDKMessageRenderer Props =====
@@ -214,7 +214,7 @@ function CompactStatusNotice({ message, active = false }: { message: SDKSystemMe
   return null
 }
 
-// extractMeta / MessageMeta 已迁移至 @luxcoder/session-core
+// extractMeta / MessageMeta 已迁移至 @yoda/session-core
 /** 从 turn 消息列表中提取 result 消息的耗时和用量数据 */
 function extractTurnUsage(turnMessages: SDKMessage[]): { durationMs?: number; usage?: AgentEventUsage } {
   for (const msg of turnMessages) {
@@ -257,7 +257,7 @@ function extractTurnUsage(turnMessages: SDKMessage[]): { durationMs?: number; us
   return {}
 }
 
-// extractUserText 已迁移至 @luxcoder/session-core
+// extractUserText 已迁移至 @yoda/session-core
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -278,7 +278,7 @@ function extractToolResultForTask(message: SDKUserMessage, resultBlock: SDKToolR
   return extractStructuredToolResultText(message) ?? extractToolResultText(resultBlock.content)
 }
 
-// isUserInputMessage 已迁移至 @luxcoder/session-core
+// isUserInputMessage 已迁移至 @yoda/session-core
 
 // ===== 助手头像 =====
 
@@ -300,9 +300,9 @@ function AssistantLogo({ model }: { model?: string }): React.ReactElement {
   )
 }
 
-// AssistantTurn / MessageGroup 类型已迁移至 @luxcoder/session-core
+// AssistantTurn / MessageGroup 类型已迁移至 @yoda/session-core
 
-// groupIntoTurns / mergeAdjacentSameModelTurns 已迁移至 @luxcoder/session-core
+// groupIntoTurns / mergeAdjacentSameModelTurns 已迁移至 @yoda/session-core
 
 export function buildTaskProgressData(
   topLevelBlocks: SDKContentBlock[],
@@ -889,9 +889,9 @@ function QuoteChip({ quote }: { quote: QuotedFileRef }): React.ReactElement {
 // ===== 用户输入消息渲染 =====
 
 
-const SCHEDULED_RUN_MARKER = '<!--LUXCODER_SCHEDULED_RUN-->'
+const SCHEDULED_RUN_MARKER = '<!--YODA_SCHEDULED_RUN-->'
 
-// stripScheduledRunMarker 已迁移至 @luxcoder/session-core（本文件从该包 import 使用）
+// stripScheduledRunMarker 已迁移至 @yoda/session-core（本文件从该包 import 使用）
 
 function ScheduledRunBadge(): React.ReactElement {
   const activeSessionId = useAtomValue(activeSessionIdAtom)
@@ -919,10 +919,10 @@ function ScheduledRunBadge(): React.ReactElement {
       type="button"
       onClick={handleClick}
       className="inline-flex items-center gap-1 text-[10px] text-primary/70 hover:text-primary transition-colors"
-      title="来自 LuxCoder 定时任务，点击查看设置"
+      title="来自 Yoda 定时任务，点击查看设置"
     >
       <Clock className="size-3" />
-      <span>来自 LuxCoder 定时任务</span>
+      <span>来自 Yoda 定时任务</span>
     </button>
   )
 }
@@ -1363,7 +1363,7 @@ let fallbackIdCounter = 0
 export function getGroupId(group: MessageGroup): string {
   if (group.type === 'user') {
     if (group.message.uuid) return group.message.uuid
-    const stableKey = (group.message as unknown as Record<string, unknown>)._luxcoderStableKey
+    const stableKey = (group.message as unknown as Record<string, unknown>)._yodaStableKey
     if (typeof stableKey === 'string') return stableKey
     // 没有 uuid：使用基于 message 对象引用的缓存 ID（message 引用在重渲染间稳定）
     if (!messageIdCache.has(group.message)) {
@@ -1380,7 +1380,7 @@ export function getGroupId(group: MessageGroup): string {
   // assistant-turn：取首条 assistant 消息的 uuid
   const first = group.assistantMessages[0]
   if (first?.uuid) return first.uuid
-  const stableKey = first ? (first as unknown as Record<string, unknown>)._luxcoderStableKey : undefined
+  const stableKey = first ? (first as unknown as Record<string, unknown>)._yodaStableKey : undefined
   if (typeof stableKey === 'string') return stableKey
   // 没有 uuid：使用基于首条 assistant message 对象引用的缓存 ID
   if (first) {
@@ -1393,7 +1393,7 @@ export function getGroupId(group: MessageGroup): string {
   return `turn-empty-${++fallbackIdCounter}`
 }
 
-// getGroupPreview 已迁移至 @luxcoder/session-core（本文件从该包 import 并 re-export）
+// getGroupPreview 已迁移至 @yoda/session-core（本文件从该包 import 并 re-export）
 
 export function MessageGroupRenderer({ group, allMessages, basePath, onFork, onRewind, onRetry, onRetryInNewSession, onCompact, isStreaming, stoppedByUser, sessionModelId }: MessageGroupRendererProps): React.ReactElement | null {
   const groupId = getGroupId(group)

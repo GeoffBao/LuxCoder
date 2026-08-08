@@ -90,7 +90,7 @@ import { sessionListPreferenceAtom } from '@/atoms/session-list-preference-atoms
 import { WorkspaceLabelManagerDialog } from '@/components/labels/WorkspaceLabelManagerDialog'
 import { labelManagerOpenAtom, labelManagerWorkspaceRootAtom } from '@/atoms/label-manager-atoms'
 import { workspaceLabelsAtom, loadWorkspaceLabels } from '@/atoms/workspace-labels-atoms'
-import type { WorkspaceLabel } from '@luxcoder/shared/labels'
+import type { WorkspaceLabel } from '@yoda/shared/labels'
 import { buildRecentSessionList } from './sidebar-session-views'
 import { selectDraftSessionsWithContent } from './draft-recall-model'
 import {
@@ -162,7 +162,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
-import type { ConversationMeta, AgentSessionMeta, AgentWorkspace, WorkspaceCapabilities, SessionGroup } from '@luxcoder/shared'
+import type { ConversationMeta, AgentSessionMeta, AgentWorkspace, WorkspaceCapabilities, SessionGroup } from '@yoda/shared'
 import type { KanbanProject } from './kanban/types'
 import { SidebarModule } from './SidebarModule'
 import { SidebarProjectsTab, type ProjectSessionHandlers } from './SidebarProjectsTab'
@@ -284,8 +284,8 @@ const PROJECT_SESSION_EXPAND_STEP = 20
 const EMPTY_PROJECTS: KanbanProject[] = []
 const SESSION_QUICK_SWITCH_HINT_DELAY_MS = 1000
 const SESSION_QUICK_SWITCH_LIMIT = 9
-const SESSION_QUICK_SWITCH_KEYDOWN_EVENT = 'luxcoder:session-quick-switch-keydown'
-const SESSION_QUICK_SWITCH_KEYUP_EVENT = 'luxcoder:session-quick-switch-keyup'
+const SESSION_QUICK_SWITCH_KEYDOWN_EVENT = 'yoda:session-quick-switch-keydown'
+const SESSION_QUICK_SWITCH_KEYUP_EVENT = 'yoda:session-quick-switch-keyup'
 
 const ACTIVE_SESSION_STATUSES: ReadonlySet<SessionIndicatorStatus> = new Set([
   'blocked',

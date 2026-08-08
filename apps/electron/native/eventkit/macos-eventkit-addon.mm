@@ -27,7 +27,7 @@ static NSString *json(id object) { NSError *error = nil; NSData *data = [NSJSONS
 static NSNumber *number(NSDictionary *payload, NSString *key) { id value = payload[key]; return [value isKindOfClass:[NSNumber class]] ? value : nil; }
 static NSString *string(NSDictionary *payload, NSString *key) { id value = payload[key]; return [value isKindOfClass:[NSString class]] ? value : nil; }
 static NSDate *date(NSNumber *milliseconds) { return [NSDate dateWithTimeIntervalSince1970:milliseconds.doubleValue / 1000.0]; }
-static NSURL *identityURL(NSString *entity, NSString *identity) { return identity ? [NSURL URLWithString:[NSString stringWithFormat:@"luxcoder://planning/%@/%@", entity, identity]] : nil; }
+static NSURL *identityURL(NSString *entity, NSString *identity) { return identity ? [NSURL URLWithString:[NSString stringWithFormat:@"yoda://planning/%@/%@", entity, identity]] : nil; }
 static NSDictionary *itemResponse(EKCalendarItem *item) { return @{ @"calendarItemIdentifier": item.calendarItemIdentifier ?: @"", @"calendarItemExternalIdentifier": item.calendarItemExternalIdentifier ?: @"" }; }
 
 static EKCalendarItem *recoveredItem(NSString *entity, EKCalendar *target, NSDictionary *payload) {
@@ -79,12 +79,12 @@ static void removeItem(NSString *entity, EKCalendarItem *item, CommandContext *c
 static void execute(NSString *command, NSString *entity, NSDictionary *payload, CommandContext *ctx) {
   @autoreleasepool {
     if (!@available(macOS 14.0, *)) { ctx->resolve(json(@{ @"entity": entity, @"status": @"unsupported" })); return; }
-    NSLog(@"[LuxCoderEventKit] executing %@ for %@ (status=%@)", command, entity, statusName([EKEventStore authorizationStatusForEntityType:typeFor(entity)]));
+    NSLog(@"[YodaEventKit] executing %@ for %@ (status=%@)", command, entity, statusName([EKEventStore authorizationStatusForEntityType:typeFor(entity)]));
     EKEntityType entityType = typeFor(entity);
     if ([command isEqualToString:@"authorizationStatus"]) { ctx->resolve(json(@{ @"entity": entity, @"status": statusName([EKEventStore authorizationStatusForEntityType:entityType]) })); return; }
     if ([command isEqualToString:@"requestAccess"]) {
       // Electron main 可能不是前台应用；显式激活其 NSApplication，确保 TCC sheet 可呈现。
-      NSLog(@"[LuxCoderEventKit] requesting TCC with NSApp=%@ active=%d", NSApp, NSApp.isActive);
+      NSLog(@"[YodaEventKit] requesting TCC with NSApp=%@ active=%d", NSApp, NSApp.isActive);
       [NSApp activateIgnoringOtherApps:YES];
       void (^completion)(BOOL, NSError *) = ^(BOOL granted, NSError *error) { dispatch_async(dispatch_get_main_queue(), ^{ ctx->resolve(json(@{ @"entity": entity, @"status": statusName([EKEventStore authorizationStatusForEntityType:entityType]), @"granted": @(granted), @"error": error.localizedDescription ?: @"" })); }); };
       if ([entity isEqualToString:@"calendar"]) [eventStore() requestFullAccessToEventsWithCompletion:completion]; else [eventStore() requestFullAccessToRemindersWithCompletion:completion];
@@ -121,7 +121,7 @@ static Napi::Value command(const Napi::CallbackInfo &info) {
   Napi::Env env = info.Env(); if (info.Length() < 3 || !info[0].IsString() || !info[1].IsString() || !info[2].IsString()) { Napi::TypeError::New(env, "command, entity and payload JSON are required").ThrowAsJavaScriptException(); return env.Undefined(); }
   NSString *name = [NSString stringWithUTF8String:info[0].As<Napi::String>().Utf8Value().c_str()]; NSString *entity = [NSString stringWithUTF8String:info[1].As<Napi::String>().Utf8Value().c_str()]; NSString *payloadText = [NSString stringWithUTF8String:info[2].As<Napi::String>().Utf8Value().c_str()];
   NSError *error = nil; NSDictionary *payload = [NSJSONSerialization JSONObjectWithData:[payloadText dataUsingEncoding:NSUTF8StringEncoding] options:0 error:&error]; if (!payload || ![payload isKindOfClass:[NSDictionary class]]) payload = @{};
-  auto *ctx = new CommandContext(env); NSLog(@"[LuxCoderEventKit] scheduling %@ for %@ on main queue", name, entity); dispatch_async(dispatch_get_main_queue(), ^{ execute(name, entity, payload, ctx); }); return ctx->deferred->Promise();
+  auto *ctx = new CommandContext(env); NSLog(@"[YodaEventKit] scheduling %@ for %@ on main queue", name, entity); dispatch_async(dispatch_get_main_queue(), ^{ execute(name, entity, payload, ctx); }); return ctx->deferred->Promise();
 }
-Napi::Object Init(Napi::Env env, Napi::Object exports) { NSLog(@"[LuxCoderEventKit] N-API addon loaded"); exports.Set("command", Napi::Function::New(env, command)); return exports; }
-NODE_API_MODULE(luxcoder_eventkit, Init)
+Napi::Object Init(Napi::Env env, Napi::Object exports) { NSLog(@"[YodaEventKit] N-API addon loaded"); exports.Set("command", Napi::Function::New(env, command)); return exports; }
+NODE_API_MODULE(yoda_eventkit, Init)

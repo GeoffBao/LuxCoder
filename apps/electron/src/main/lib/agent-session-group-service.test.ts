@@ -11,7 +11,7 @@ let groupService: GroupService
 let sessionManager: SessionManager
 let tempHome: string
 const originalHome = process.env.HOME
-const originalLuxcoderDev = process.env.LUXCODER_DEV
+const originalYodaDev = process.env.YODA_DEV
 const originalPromaDev = process.env.PROMA_DEV
 
 mockElectronModule({
@@ -27,7 +27,7 @@ mock.module('node:os', () => ({
 }))
 
 function writeAgentSessionsIndex(sessions: Array<{ id: string; title: string; customGroupId?: string }>): void {
-  const dir = join(tempHome, '.luxcoder')
+  const dir = join(tempHome, '.yoda')
   mkdirSync(dir, { recursive: true })
   const now = Date.now()
   writeFileSync(
@@ -41,16 +41,16 @@ function writeAgentSessionsIndex(sessions: Array<{ id: string; title: string; cu
 }
 
 beforeAll(async () => {
-  tempHome = mkdtempSync(join(os.tmpdir(), 'luxcoder-session-group-service-'))
+  tempHome = mkdtempSync(join(os.tmpdir(), 'yoda-session-group-service-'))
   process.env.HOME = tempHome
-  delete process.env.LUXCODER_DEV
+  delete process.env.YODA_DEV
   delete process.env.PROMA_DEV
   groupService = await import('./agent-session-group-service')
   sessionManager = await import('./agent-session-manager')
 })
 
 beforeEach(() => {
-  const configDir = join(tempHome, '.luxcoder')
+  const configDir = join(tempHome, '.yoda')
   rmSync(configDir, { recursive: true, force: true })
   mkdirSync(configDir, { recursive: true })
 })
@@ -58,8 +58,8 @@ beforeEach(() => {
 afterAll(() => {
   if (originalHome === undefined) delete process.env.HOME
   else process.env.HOME = originalHome
-  if (originalLuxcoderDev === undefined) delete process.env.LUXCODER_DEV
-  else process.env.LUXCODER_DEV = originalLuxcoderDev
+  if (originalYodaDev === undefined) delete process.env.YODA_DEV
+  else process.env.YODA_DEV = originalYodaDev
   if (originalPromaDev === undefined) delete process.env.PROMA_DEV
   else process.env.PROMA_DEV = originalPromaDev
   rmSync(tempHome, { recursive: true, force: true })

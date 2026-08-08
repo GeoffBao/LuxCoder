@@ -1,4 +1,4 @@
-import type { ChannelPlanQuotaResult, ChannelPlanQuotaWindow } from '@luxcoder/shared'
+import type { ChannelPlanQuotaResult, ChannelPlanQuotaWindow } from '@yoda/shared'
 
 interface CodexUsageWindow {
   used_percent?: unknown

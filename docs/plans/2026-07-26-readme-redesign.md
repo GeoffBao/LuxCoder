@@ -1,19 +1,19 @@
-# LuxCoder README Redesign
+# Yoda README Redesign
 
 ## Goal
 
-将中英文 README 从过时的上游介绍重写为 LuxCoder 当前产品首页，优先服务产品用户，同时保留精炼的开发与贡献入口。
+将中英文 README 从过时的上游介绍重写为 Yoda 当前产品首页，优先服务产品用户，同时保留精炼的开发与贡献入口。
 
 ## Brand
 
-- 产品名：LuxCoder
+- 产品名：Yoda
 - 品牌心智：**Thinking More, Do More!**
 - 核心定位：面向真实研发交付的本地优先 AI Coding 工作台
 - 表达重点：深度思考、可靠执行、长任务协作、持续知识沉淀
 
 ## Audience
 
-首要受众是希望下载和使用 LuxCoder 的产品用户；其次是准备从源码运行、贡献或研究架构的开发者。
+首要受众是希望下载和使用 Yoda 的产品用户；其次是准备从源码运行、贡献或研究架构的开发者。
 
 ## Information Architecture
 
@@ -46,7 +46,7 @@
 - Work“即将上线”等旧导航
 - Code 仅支持 Anthropic 协议等旧 runtime 限制
 - 隐藏设置入口、旧权限模式和易快速失真的完整供应商矩阵
-- 不能代表当前 LuxCoder 的 Proma 截图
+- 不能代表当前 Yoda 的 Proma 截图
 
 ## Validation
 

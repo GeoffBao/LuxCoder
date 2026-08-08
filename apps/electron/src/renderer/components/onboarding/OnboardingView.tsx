@@ -24,7 +24,7 @@ interface OnboardingViewProps {
   onComplete: (action?: OnboardingCompleteAction) => void
 }
 
-const TUTORIAL_ASSETS_BASE = 'https://github.com/GeoffBao/LuxCoder/releases/download/tutorial-assets'
+const TUTORIAL_ASSETS_BASE = 'https://github.com/biajidong/Yoda/releases/download/tutorial-assets'
 
 export function OnboardingView({ onComplete }: OnboardingViewProps) {
   const [step, setStep] = useState<'welcome' | 'environment'>('welcome')
@@ -54,7 +54,7 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
       {step === 'welcome' && (
         <>
           <div className="mb-10 text-center">
-            <h1 className="text-4xl font-bold mb-3">欢迎使用 LuxCoder</h1>
+            <h1 className="text-4xl font-bold mb-3">欢迎使用 Yoda</h1>
             <p className="text-base text-muted-foreground max-w-md">
               面向研发组织的 AI Agent 工作台，整合 Chat、Code 两种工作模式
             </p>
@@ -69,7 +69,7 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
               className="w-full rounded-xl border border-border/30 shadow-lg"
               style={{ aspectRatio: '16/9' }}
             >
-              <source src={`${TUTORIAL_ASSETS_BASE}/luxcoder-promo-30s.mp4`} type="video/mp4" />
+              <source src={`${TUTORIAL_ASSETS_BASE}/yoda-promo-30s.mp4`} type="video/mp4" />
             </video>
           </div>
 
@@ -125,7 +125,7 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
                     <h3 className="text-sm font-medium text-foreground">从其他设备迁移</h3>
                     <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                       导入自己在其他设备上的完整配置<br/>
-                      （.luxcoder-backup 文件）
+                      （.yoda-backup 文件）
                     </p>
                   </div>
                 </button>
@@ -140,7 +140,7 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
                     <h3 className="text-sm font-medium text-foreground">导入团队配置</h3>
                     <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                       从管理员或同事处获取配置包<br/>
-                      （.luxcoder-share 文件）
+                      （.yoda-share 文件）
                     </p>
                   </div>
                 </button>

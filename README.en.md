@@ -1,12 +1,12 @@
-# LuxCoder
+# Yoda
 
 > **Thinking More, Do More!**
 
-LuxCoder is a local-first AI coding workbench built for real software delivery. It brings multi-model chat, code execution, project context, task orchestration, collaborative sub-agents, automation, and durable knowledge into one desktop application.
+Yoda is a local-first AI coding workbench built for real software delivery. It brings multi-model chat, code execution, project context, task orchestration, collaborative sub-agents, automation, and durable knowledge into one desktop application.
 
-**[中文](./README.md)** · **[Download the latest release](https://github.com/GeoffBao/LuxCoder/releases)** · **[User Guide](./apps/electron/resources/tutorial.md)**
+**[中文](./README.md)** · **[Download the latest release](https://github.com/biajidong/Yoda/releases)** · **[User Guide](./apps/electron/resources/tutorial.md)**
 
-## Why LuxCoder
+## Why Yoda
 
 A great coding product should do more than produce an answer. It should help users finish complex work reliably.
 
@@ -18,7 +18,7 @@ A great coding product should do more than produce an answer. It should help use
 
 ## Main Entry: Code
 
-The main entry of LuxCoder is the **Code** mode (default). File operations, commands, code changes, project management, task orchestration, automation, as well as questions, analysis, writing, and other knowledge work can all be done in Code.
+The main entry of Yoda is the **Code** mode (default). File operations, commands, code changes, project management, task orchestration, automation, as well as questions, analysis, writing, and other knowledge work can all be done in Code.
 
 Projects & Kanban live inside Code. The Code workspace switches between Sessions and Kanban views.
 
@@ -64,7 +64,7 @@ Subscription login channels are currently intended for Code.
 
 ### 1. Install
 
-Download the macOS or Windows build from [GitHub Releases](https://github.com/GeoffBao/LuxCoder/releases).
+Download the macOS or Windows build from [GitHub Releases](https://github.com/biajidong/Yoda/releases).
 
 ### 2. Configure a Model
 
@@ -94,7 +94,7 @@ Workspace, Project, and session cwd are different concepts:
 
 | Concept | Meaning |
 |---------|---------|
-| **Workspace** | LuxCoder's top-level isolation and capability container |
+| **Workspace** | Yoda's top-level isolation and capability container |
 | **Project** | An engineering or business context inside a Workspace |
 | **Project workingDirectory** | The real repository or project directory |
 | **Session cwd** | An isolated temporary workbench for each Code session |
@@ -102,7 +102,7 @@ Workspace, Project, and session cwd are different concepts:
 | **Project assets / MEMORY.md** | Project references and long-lived context |
 
 ```text
-~/.luxcoder/agent-workspaces/{workspace}/
+~/.yoda/agent-workspaces/{workspace}/
 ├── {session-id}/
 │   └── .context/              # Current task plans and temporary notes
 ├── workspace-files/           # Cross-session shared material
@@ -118,14 +118,14 @@ Workspace, Project, and session cwd are different concepts:
 └── src/ ...                     # Referenced by Project workingDirectory
 ```
 
-When a session is bound to a Project, LuxCoder explicitly supplies the `workingDirectory`, helping the Agent distinguish the repository from the session cwd.
+When a session is bound to a Project, Yoda explicitly supplies the `workingDirectory`, helping the Agent distinguish the repository from the session cwd.
 
 ## Local Data and Security
 
-Core LuxCoder data is stored under `~/.luxcoder/` by default:
+Core Yoda data is stored under `~/.yoda/` by default:
 
 ```text
-~/.luxcoder/
+~/.yoda/
 ├── settings.json
 ├── channels.json
 ├── conversations/
@@ -138,7 +138,7 @@ Core LuxCoder data is stored under `~/.luxcoder/` by default:
 - API keys and OAuth tokens are encrypted with Electron `safeStorage` when OS-backed encryption is available. If it is unavailable, the current implementation may fall back to plaintext local storage;
 - sessions primarily use auditable JSON and JSONL files;
 - model requests still send user-submitted prompts, selected attachment content, or necessary tool results to the model provider chosen by the user;
-- LuxCoder explicitly provides the current Workspace, Project, session, and attached directories to Code Agents. It does not currently provide an OS-level filesystem sandbox, so fully automatic mode should only be used in trusted environments;
+- Yoda explicitly provides the current Workspace, Project, session, and attached directories to Code Agents. It does not currently provide an OS-level filesystem sandbox, so fully automatic mode should only be used in trusted environments;
 - the product requires Agents to request explicit confirmation before publishing, payment, irreversible deletion, and other high-risk operations, but users should still verify actual tool calls.
 
 ## Run from Source
@@ -180,10 +180,10 @@ bun run dist
 ## Repository Structure
 
 ```text
-LuxCoder/
+Yoda/
 ├── apps/
 │   ├── electron/       # Electron main process, preload, React renderer, and resources
-│   └── cli/            # LuxCoder CLI and progressive session-reading tools
+│   └── cli/            # Yoda CLI and progressive session-reading tools
 ├── packages/
 │   ├── shared/         # Shared types, protocols, IPC constants, and utilities
 │   ├── core/           # Provider adapters and model invocation primitives
@@ -220,9 +220,9 @@ Before submitting a change, verify that it:
 
 ## Acknowledgements
 
-LuxCoder continues to evolve with the open-source community and benefits from projects including:
+Yoda continues to evolve with the open-source community and benefits from projects including:
 
-- [Proma](https://github.com/proma-ai/Proma), LuxCoder's early open-source foundation;
+- [Proma](https://github.com/proma-ai/Proma), Yoda's early open-source foundation;
 - [Pi Agent](https://github.com/badlogic/pi-mono), the Agent Runtime ecosystem;
 - [Claude Agent SDK](https://docs.anthropic.com/), compatible runtime support for Claude subscriptions;
 - [Model Context Protocol](https://modelcontextprotocol.io/), the standard for extending Agent tools;

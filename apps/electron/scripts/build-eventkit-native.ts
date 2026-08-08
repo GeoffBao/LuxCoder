@@ -33,11 +33,11 @@ rmSync(resolve(appDir, 'resources/eventkit/macos-eventkit-helper'), { force: tru
 execFileSync('xcrun', ['clang++', '-O2', '-std=c++17', '-DNAPI_VERSION=8', '-fobjc-arc', '-bundle', '-undefined', 'dynamic_lookup', '-framework', 'EventKit', '-framework', 'Foundation', '-I', napiHeaders, '-I', nodeApiHeaders, source, '-o', output], { stdio: 'inherit' })
 chmodSync(output, 0o755)
 
-// 开发态的 responsible process 是 Electron.app，不是最终 LuxCoder.app。为它注入相同 usage strings
+// 开发态的 responsible process 是 Electron.app，不是最终 Yoda.app。为它注入相同 usage strings
 // 并重新 ad-hoc 签名，避免 bun run dev 下 TCC 因缺少 Info.plist 键而静默拒绝/不显示弹窗。
 if (existsSync(devElectronInfo)) {
-  execFileSync('plutil', ['-replace', 'NSCalendarsFullAccessUsageDescription', '-string', 'LuxCoder 需要访问你选择的日历，以显示、创建和同步日程。', devElectronInfo])
-  execFileSync('plutil', ['-replace', 'NSRemindersFullAccessUsageDescription', '-string', 'LuxCoder 需要访问你选择的提醒事项列表，以同步 Todo。', devElectronInfo])
+  execFileSync('plutil', ['-replace', 'NSCalendarsFullAccessUsageDescription', '-string', 'Yoda 需要访问你选择的日历，以显示、创建和同步日程。', devElectronInfo])
+  execFileSync('plutil', ['-replace', 'NSRemindersFullAccessUsageDescription', '-string', 'Yoda 需要访问你选择的提醒事项列表，以同步 Todo。', devElectronInfo])
   // macOS 26+ 还会检查 EventKit entitlement；开发态 Electron 也必须带与成品相同的权限。
   execFileSync('codesign', ['--force', '--deep', '--sign', '-', '--entitlements', entitlements, devElectronApp], { stdio: 'inherit' })
 }

@@ -35,7 +35,7 @@ description: Proma upstream cherry-pick / sync 完成后的门禁与 rename 修�
 - **文档残留**（CLAUDE.md / AGENTS.md / README）：默认 warn；需要硬卡时用 `bun run sync:check -- --strict-docs`
 - **SDK**：`apps/electron/package.json` 主包 + 4 个 optionalDeps + 根 `overrides` 版本必须一致；`electron-builder.yml` files 必须覆盖主包+平台包
 - **skills**：改了 `default-skills/<skill>/` 内容必须 bump version；`sync:apply-renames --write` 改到 SKILL.md 时会自动 patch +1
-- **裁决**：Lux 独有（Kanban / 项目中心 / Agent专家 / `@luxcoder`）站本地；纯 bugfix / security 站上游
+- **裁决**：Lux 独有（Kanban / 项目中心 / Agent专家 / `@yoda`）站本地；纯 bugfix / security 站上游
 
 ## 不要做
 

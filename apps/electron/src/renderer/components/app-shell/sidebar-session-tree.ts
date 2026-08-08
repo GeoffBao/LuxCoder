@@ -1,4 +1,4 @@
-import type { AgentSessionMeta } from '@luxcoder/shared'
+import type { AgentSessionMeta } from '@yoda/shared'
 import type { SessionIndicatorStatus } from '@/atoms/agent-atoms'
 
 export interface AgentSessionTreeItem {

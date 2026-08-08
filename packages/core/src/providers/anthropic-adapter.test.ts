@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import type { ProviderType } from '@luxcoder/shared'
+import type { ProviderType } from '@yoda/shared'
 import { AnthropicAdapter } from './anthropic-adapter.ts'
 import { setAppVersion } from './user-agent.ts'
 
@@ -61,24 +61,24 @@ describe('AnthropicAdapter headers', () => {
     expect(request.headers['User-Agent']).toBeUndefined()
   })
 
-  test('xiaomi token plan keeps bearer authentication with LuxCoder User-Agent', () => {
+  test('xiaomi token plan keeps bearer authentication with Yoda User-Agent', () => {
     setAppVersion('9.9.9')
 
     const request = buildRequest('xiaomi-token-plan')
 
     expect(request.headers.Authorization).toBe('Bearer test-key')
-    expect(request.headers['User-Agent']).toBe('LuxCoder/9.9.9 (+https://github.com/GeoffBao/LuxCoder)')
+    expect(request.headers['User-Agent']).toBe('Yoda/9.9.9 (+https://github.com/biajidong/Yoda)')
     expect(request.headers['api-key']).toBeUndefined()
   })
 
-  test('qwen token plan uses the complete Anthropic endpoint with bearer authentication and LuxCoder User-Agent', () => {
+  test('qwen token plan uses the complete Anthropic endpoint with bearer authentication and Yoda User-Agent', () => {
     setAppVersion('9.9.9')
 
     const request = buildRequest('qwen-token-plan')
 
     expect(request.url).toBe('https://token-plan.cn-beijing.maas.aliyuncs.com/apps/anthropic/v1/messages')
     expect(request.headers.Authorization).toBe('Bearer test-key')
-    expect(request.headers['User-Agent']).toBe('LuxCoder/9.9.9 (+https://github.com/GeoffBao/LuxCoder)')
+    expect(request.headers['User-Agent']).toBe('Yoda/9.9.9 (+https://github.com/biajidong/Yoda)')
     expect(request.headers['x-api-key']).toBeUndefined()
   })
 
@@ -91,7 +91,7 @@ describe('AnthropicAdapter headers', () => {
     )
 
     expect(request.headers.Authorization).toBe('Bearer model-key')
-    expect(request.headers['User-Agent']).toBe('LuxCoder/9.9.9 (+https://github.com/GeoffBao/LuxCoder)')
+    expect(request.headers['User-Agent']).toBe('Yoda/9.9.9 (+https://github.com/biajidong/Yoda)')
     expect(request.headers['api-key']).toBeUndefined()
   })
 })

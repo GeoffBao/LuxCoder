@@ -21,8 +21,8 @@
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import type { McpServerEntry } from '@luxcoder/shared'
-import type { TaskType } from '@luxcoder/shared/tasks/task-record'
+import type { McpServerEntry } from '@yoda/shared'
+import type { TaskType } from '@yoda/shared/tasks/task-record'
 import {
   TeambitionCapabilityError,
   type TeambitionGateway,
@@ -183,7 +183,7 @@ export class McpTeambitionAdapter implements TeambitionAdapter {
       requestInit: server.headers ? { headers: server.headers } : undefined,
       fetch: globalThis.fetch,
     })
-    const client = new Client({ name: 'luxcoder-work-mode', version: '1.0.0' })
+    const client = new Client({ name: 'yoda-work-mode', version: '1.0.0' })
     await client.connect(transport)
     return client
   }
@@ -389,7 +389,7 @@ export class McpTeambitionAdapter implements TeambitionAdapter {
       }))
       return
     }
-    await this.postComment(taskId, `[LuxCoder:${idempotencyKey}] 任务进度 ${progress}%`)
+    await this.postComment(taskId, `[Yoda:${idempotencyKey}] 任务进度 ${progress}%`)
   }
 
   async postComment(taskId: string, text: string): Promise<void> {
@@ -484,7 +484,7 @@ export class MockTeambitionAdapter implements TeambitionAdapter {
   }
 
   async syncProgress(taskId: string, progress: number, idempotencyKey: string): Promise<void> {
-    await this.postComment(taskId, `[LuxCoder:${idempotencyKey}] 任务进度 ${progress}%`)
+    await this.postComment(taskId, `[Yoda:${idempotencyKey}] 任务进度 ${progress}%`)
   }
 
   async postComment(taskId: string, text: string): Promise<void> {

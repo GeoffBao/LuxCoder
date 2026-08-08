@@ -15,7 +15,7 @@ const app = new Hono()
 app.use('*', logger())
 app.use('/api/*', cors())
 
-app.get('/api/health', (c) => c.json({ ok: true, service: 'luxcoder-server' }))
+app.get('/api/health', (c) => c.json({ ok: true, service: 'yoda-server' }))
 
 // ── 路由模块 ─────────────────────────────────────────────
 import { authRoutes } from './auth/routes'
@@ -33,10 +33,10 @@ export { app }
 if (import.meta.main) {
   ensureDatabase()
   const port = Number.parseInt(process.env.PORT ?? '8787', 10)
-  console.log(`[LuxCoder Server] 启动中 http://localhost:${port}`)
+  console.log(`[Yoda Server] 启动中 http://localhost:${port}`)
   const server = Bun.serve({
     port,
     fetch: app.fetch,
   })
-  console.log(`[LuxCoder Server] 已监听 http://localhost:${server.port}`)
+  console.log(`[Yoda Server] 已监听 http://localhost:${server.port}`)
 }

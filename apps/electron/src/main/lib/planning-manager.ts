@@ -5,7 +5,7 @@
  */
 
 import { randomUUID } from 'node:crypto'
-import { PLANNING_CONFLICT_ERROR } from '@luxcoder/shared'
+import { PLANNING_CONFLICT_ERROR } from '@yoda/shared'
 import type {
   ActivePlanningReminder,
   CalendarEvent,
@@ -30,7 +30,7 @@ import type {
   UpdatePlanningGroupInput,
   UpdatePlanningTagInput,
   UpdateTodoInput,
-} from '@luxcoder/shared'
+} from '@yoda/shared'
 import { getPlanningDatabasePath } from './config-paths'
 import { getSettings } from './settings-service'
 
@@ -116,7 +116,7 @@ const PLANNING_SCHEMA_VERSION = 4
 function migrateDatabase(db: SqliteDatabase): void {
   const versionRow = db.prepare('PRAGMA user_version').get() as { user_version?: number } | undefined
   let version = versionRow?.user_version ?? 0
-  if (version > PLANNING_SCHEMA_VERSION) throw new Error('任务/日程数据版本高于当前 LuxCoder，无法安全打开')
+  if (version > PLANNING_SCHEMA_VERSION) throw new Error('任务/日程数据版本高于当前 Yoda，无法安全打开')
 
   db.exec('BEGIN IMMEDIATE')
   try {
@@ -177,7 +177,7 @@ function migrateDatabase(db: SqliteDatabase): void {
         CREATE INDEX IF NOT EXISTS planning_reminders_target_idx ON planning_reminders(target_type, target_id);
         CREATE INDEX IF NOT EXISTS todo_session_links_recent_idx ON todo_session_links(todo_id, last_touched_at DESC);
       `)
-      // LuxCoder 扩展列 project_id（Todo/日程关联 craft Project）；已存在的旧库
+      // Yoda 扩展列 project_id（Todo/日程关联 craft Project）；已存在的旧库
       // （CREATE TABLE IF NOT EXISTS 不会补列）需要显式迁移。
       const todoColumns = db.prepare('PRAGMA table_info(todos)').all() as Array<{ name: string }>
       if (!todoColumns.some((column) => column.name === 'project_id')) {

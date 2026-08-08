@@ -6,7 +6,7 @@
 
 ## 1. 问题
 
-LuxCoder 的 Anthropic 渠道目前只支持 API Key 认证，用户无法像 craft-agents-oss 那样直接用 Claude Pro/Max/Team/Enterprise 订阅账号登录、按订阅额度使用 Agent（Code）模式，只能去 Console 开 API Key 按量付费。
+Yoda 的 Anthropic 渠道目前只支持 API Key 认证，用户无法像 craft-agents-oss 那样直接用 Claude Pro/Max/Team/Enterprise 订阅账号登录、按订阅额度使用 Agent（Code）模式，只能去 Console 开 API Key 按量付费。
 
 ## 2. 决策摘要（已锁定）
 
@@ -160,7 +160,7 @@ claude-opus-4-7       Claude Opus 4.7（enabled: false，供选用）
 |------|------|
 | `setup-token` 实际 stdout 格式/交互方式与预期不符（未做过全流程实测，只验证过 `--help`） | 实现阶段先跑一次真实登录，确认输出格式后再定最终解析逻辑；若格式不稳定，保留"手动粘贴 token"兜底输入框 |
 | 官方二进制版本升级后 `setup-token` 行为变化 | 与现有 SDK 升级检查清单（CLAUDE.md「SDK 版本升级注意事项」）合并复查 |
-| 用户在无网络/浏览器环境下无法完成本地回调 | 沿用官方 CLI 自身的兜底交互（终端粘贴 code），LuxCoder 侧对此不做特殊处理，失败即提示重试 |
+| 用户在无网络/浏览器环境下无法完成本地回调 | 沿用官方 CLI 自身的兜底交互（终端粘贴 code），Yoda 侧对此不做特殊处理，失败即提示重试 |
 | 静态模型预设与官方模型上线节奏脱节 | 与 `context-window.ts` 同源维护，后续新模型上线时同一处更新即可 |
 
 ## 11. 预估触点文件

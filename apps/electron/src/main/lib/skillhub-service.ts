@@ -12,12 +12,12 @@
 
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { SkillHubIndex, SkillHubInstallResult, SkillHubSkill } from '@luxcoder/shared'
+import type { SkillHubIndex, SkillHubInstallResult, SkillHubSkill } from '@yoda/shared'
 import { getEffectiveProxyUrl } from './proxy-settings-service'
 import { getFetchFn } from './proxy-fetch'
 
 /** SkillHub 服务器基址（可配置；无尾斜杠） */
-export const SKILLHUB_BASE_URL = process.env.LUXCODER_SKILLHUB_URL ?? 'http://10.115.48.254:8787'
+export const SKILLHUB_BASE_URL = process.env.YODA_SKILLHUB_URL ?? 'http://10.115.48.254:8787'
 
 /** 技能名服务端契约（OpenAPI：^[a-z0-9][a-z0-9-]{0,127}$） */
 const SKILL_NAME_PATTERN = /^[a-z0-9][a-z0-9-]{0,127}$/

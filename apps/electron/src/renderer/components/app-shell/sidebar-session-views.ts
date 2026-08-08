@@ -3,7 +3,7 @@
  * 数据源同一批 AgentSessionMeta，不创建副本（除排序需要的 slice）。
  */
 
-import type { AgentSessionMeta, SessionGroup, SessionListSortBy } from '@luxcoder/shared'
+import type { AgentSessionMeta, SessionGroup, SessionListSortBy } from '@yoda/shared'
 import type { SessionIndicatorStatus } from '@/atoms/agent-atoms'
 
 export function buildRecentSessionList(

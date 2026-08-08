@@ -67,7 +67,7 @@ export function createCodeClawWindow(): BrowserWindow | null {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
-      additionalArguments: ['--luxcoder-window=codeclaw'],
+      additionalArguments: ['--yoda-window=codeclaw'],
     },
   })
 

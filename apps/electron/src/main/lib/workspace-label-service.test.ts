@@ -11,7 +11,7 @@ import {
 
 const roots: string[] = []
 function tempRoot(): string {
-  const root = mkdtempSync(join(tmpdir(), 'luxcoder-labels-'))
+  const root = mkdtempSync(join(tmpdir(), 'yoda-labels-'))
   roots.push(root)
   return root
 }

@@ -3,14 +3,14 @@
  *
  * 负责微信 iLink 凭证的持久化存储。
  * Bot Token 使用 Electron safeStorage 加密。
- * 数据持久化到 ~/.luxcoder/wechat.json。
+ * 数据持久化到 ~/.yoda/wechat.json。
  */
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { safeStorage } from 'electron'
 import { getWeChatConfigPath } from './config-paths'
 import { redactSensitiveLogValue } from './bridge-log-redaction'
-import type { WeChatConfig, WeChatCredentials } from '@luxcoder/shared'
+import type { WeChatConfig, WeChatCredentials } from '@yoda/shared'
 
 /** 默认配置 */
 const DEFAULT_CONFIG: WeChatConfig = {

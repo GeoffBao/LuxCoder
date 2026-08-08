@@ -7,7 +7,7 @@ import type {
   PlanningNativeSyncStatus,
   PlanningNativeSyncTarget,
   PlanningSyncProfile,
-} from '@luxcoder/shared'
+} from '@yoda/shared'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -20,9 +20,9 @@ const COPY: Record<PlanningNativeSyncEntity, { label: string; targetLabel: strin
 
 function permissionMessage(permission: PlanningNativeSyncPermissionResult): string {
   switch (permission.status) {
-    case 'not-determined': return `授权后选择一个 ${COPY[permission.entity].targetLabel}；LuxCoder 不会读取或导入其他系统项目。`
+    case 'not-determined': return `授权后选择一个 ${COPY[permission.entity].targetLabel}；Yoda 不会读取或导入其他系统项目。`
     case 'write-only': return '当前只有“仅写入”权限，无法列出可选目标。请升级为“完整访问权限”。'
-    case 'denied': return '系统已拒绝访问。请在 macOS 系统设置中允许 LuxCoder 访问。'
+    case 'denied': return '系统已拒绝访问。请在 macOS 系统设置中允许 Yoda 访问。'
     case 'restricted': return '此 Mac 的系统策略限制了此权限。'
     case 'unsupported': return '仅支持 macOS。'
     case 'unavailable': return permission.error ? `系统桥不可用：${permission.error}` : '系统桥不可用。'
@@ -116,11 +116,11 @@ export function PlanningNativeSyncControl({ entity }: { entity: PlanningNativeSy
     <PopoverContent align="start" className="w-80 space-y-3 p-3">
       <div className="min-w-0">
         <p className="text-sm font-medium">{COPY[entity].label}同步</p>
-        <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">设置 LuxCoder 受管的{COPY[entity].label}；LuxCoder 只会发布到你明确选择的一个目标。</p>
-        <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">建议先在系统中创建一个名为「LuxCoder」的{entity === 'calendar' ? '日历' : '提醒事项列表'}，再将它设为同步目标，避免与个人项目混杂。</p>
+        <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">设置 Yoda 受管的{COPY[entity].label}；Yoda 只会发布到你明确选择的一个目标。</p>
+        <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">建议先在系统中创建一个名为「Yoda」的{entity === 'calendar' ? '日历' : '提醒事项列表'}，再将它设为同步目标，避免与个人项目混杂。</p>
       </div>
       {loading || !permission ? <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground"><Loader2 className="size-3.5 animate-spin" />正在检查授权…</div>
-        : permission.status === 'full-access' ? <div className="space-y-2"><Select value={profile?.targetId ?? ''} onValueChange={(id) => void saveTarget(id)} disabled={saving || targets.length === 0}><SelectTrigger className="h-9 text-xs"><SelectValue placeholder={targets.length ? `选择一个 ${COPY[entity].targetLabel}` : '未找到可写目标'} /></SelectTrigger><SelectContent>{targets.map((target) => <SelectItem key={target.id} value={target.id}>{target.sourceTitle ? `${target.sourceTitle} · ` : ''}{target.title}{target.sourceType === 'local' ? ' · 仅此 Mac' : target.isCloudBacked ? ' · 云端账户' : ''}</SelectItem>)}</SelectContent></Select>{profile && <p className="text-[11px] leading-relaxed text-muted-foreground">当前受管目标：{profile.sourceTitle ? `${profile.sourceTitle} · ` : ''}{profile.targetTitle}。系统端修改暂不会回流。</p>}{!profile && <p className="text-[11px] leading-relaxed text-muted-foreground">选择后会开始单向发布现有 LuxCoder 项目，不会导入或修改其他系统项目。</p>}</div>
+        : permission.status === 'full-access' ? <div className="space-y-2"><Select value={profile?.targetId ?? ''} onValueChange={(id) => void saveTarget(id)} disabled={saving || targets.length === 0}><SelectTrigger className="h-9 text-xs"><SelectValue placeholder={targets.length ? `选择一个 ${COPY[entity].targetLabel}` : '未找到可写目标'} /></SelectTrigger><SelectContent>{targets.map((target) => <SelectItem key={target.id} value={target.id}>{target.sourceTitle ? `${target.sourceTitle} · ` : ''}{target.title}{target.sourceType === 'local' ? ' · 仅此 Mac' : target.isCloudBacked ? ' · 云端账户' : ''}</SelectItem>)}</SelectContent></Select>{profile && <p className="text-[11px] leading-relaxed text-muted-foreground">当前受管目标：{profile.sourceTitle ? `${profile.sourceTitle} · ` : ''}{profile.targetTitle}。系统端修改暂不会回流。</p>}{!profile && <p className="text-[11px] leading-relaxed text-muted-foreground">选择后会开始单向发布现有 Yoda 项目，不会导入或修改其他系统项目。</p>}</div>
         : <div className="space-y-2.5 rounded-md bg-muted/55 p-2.5"><div className="flex gap-1.5 text-xs leading-relaxed text-muted-foreground"><CircleAlert className="mt-0.5 size-3.5 shrink-0 text-amber-500" />{permissionMessage(permission)}</div>{permission.status === 'not-determined' && <Button type="button" size="sm" className="w-full" disabled={requesting} onClick={() => void requestAccess()}>{requesting ? <Loader2 className="size-3.5 animate-spin" /> : <ShieldCheck className="size-3.5" />}授权并选择目标</Button>}{(permission.status === 'write-only' || permission.status === 'denied') && <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => void window.electronAPI.openPlanningNativeSyncPrivacySettings(entity)}><ExternalLink className="size-3.5" />前往系统设置授予完整访问权限</Button>}</div>}
       {permission?.status === 'full-access' && <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="size-3.5" />已获得完整访问权限</div>}
     </PopoverContent>

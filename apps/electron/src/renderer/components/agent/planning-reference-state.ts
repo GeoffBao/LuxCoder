@@ -1,4 +1,4 @@
-import type { CalendarEvent, Todo } from '@luxcoder/shared'
+import type { CalendarEvent, Todo } from '@yoda/shared'
 
 export type PlanningReferenceType = 'todo' | 'calendar_event'
 

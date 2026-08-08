@@ -4,7 +4,7 @@ import type {
   TbStatusTransition,
   TbTaskDetail,
   TbWorkflow,
-} from '@luxcoder/shared/teambition-defect'
+} from '@yoda/shared/teambition-defect'
 import { TeambitionBoardService, type TeambitionBoardGateway } from './teambition-board-service'
 
 const bugWorkflow: TbWorkflow = {

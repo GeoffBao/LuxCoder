@@ -8,7 +8,7 @@
  */
 
 import { powerMonitor } from 'electron'
-import type { FeishuPresenceReport } from '@luxcoder/shared'
+import type { FeishuPresenceReport } from '@yoda/shared'
 import { getMainWindow } from './main-window-store'
 
 /** 内部在场状态 */

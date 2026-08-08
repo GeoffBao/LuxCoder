@@ -20,7 +20,7 @@ import { AppLogoSettings } from './AppLogoSettings'
 import feishuLogo from '@/assets/bots/feishu.png'
 import dingtalkLogo from '@/assets/bots/dingding.png'
 import wechatLogo from '@/assets/bots/wechat.png'
-import luxcoderLogo from '@/assets/models/luxcoder.png'
+import yodaLogo from '@/assets/models/yoda.png'
 
 // ===== 类型 =====
 
@@ -68,7 +68,7 @@ const PLATFORMS: readonly BotPlatformDef[] = [
   {
     id: 'logos',
     name: '品牌素材',
-    iconSrc: luxcoderLogo,
+    iconSrc: yodaLogo,
     iconBgClass: 'bg-muted',
   },
 ] as const

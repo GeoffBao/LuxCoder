@@ -1,6 +1,6 @@
-# LuxCoder
+# Yoda
 
-LuxCoder is an internal enterprise AI R&D workbench derived from Proma.
+Yoda is an internal enterprise AI R&D workbench derived from Proma.
 
 ## Goals
 
@@ -29,13 +29,13 @@ Claude Agent SDK (single engine)
 
 | Phase | Name | Branch | Scope | Est. |
 |-------|------|--------|-------|------|
-| P0 | Baseline | `luxcoder/bootstrap` | Run Proma, code map | 1w |
-| P1a | Branding | `luxcoder/branding` | Name, theme, data dir, 3-mode tabs | 1w |
-| P1b | Namespace | `luxcoder/namespace` | `@proma/*` → `@luxcoder/*` | 1w |
-| P2 | Chat | `luxcoder/chat` | Chat UI, keep Claude provider | 1w |
-| P3 | Work | `luxcoder/cowork` | TB MCP + 6-phase kanban + spec-kit | 4w |
-| P4 | Code | `luxcoder/code` | Rename Agent → Code | 0.5w |
-| P5 | Enterprise | `luxcoder/enterprise` | SSO, RBAC, Model Gateway, Hermes, Audit | 4w |
+| P0 | Baseline | `yoda/bootstrap` | Run Proma, code map | 1w |
+| P1a | Branding | `yoda/branding` | Name, theme, data dir, 3-mode tabs | 1w |
+| P1b | Namespace | `yoda/namespace` | `@proma/*` → `@yoda/*` | 1w |
+| P2 | Chat | `yoda/chat` | Chat UI, keep Claude provider | 1w |
+| P3 | Work | `yoda/cowork` | TB MCP + 6-phase kanban + spec-kit | 4w |
+| P4 | Code | `yoda/code` | Rename Agent → Code | 0.5w |
+| P5 | Enterprise | `yoda/enterprise` | SSO, RBAC, Model Gateway, Hermes, Audit | 4w |
 
 ## Docs
 

@@ -9,15 +9,15 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { join } from 'node:path'
-import type { AgentSessionMeta } from '@luxcoder/shared'
-import type { TaskSpec } from '@luxcoder/shared/tasks/schema'
+import type { AgentSessionMeta } from '@yoda/shared'
+import type { TaskSpec } from '@yoda/shared/tasks/schema'
 import {
   ensureUniqueTaskSlug,
   saveTaskRecord,
   saveTaskSpec,
   taskDir,
   tasksRoot,
-} from '@luxcoder/shared/tasks/storage'
+} from '@yoda/shared/tasks/storage'
 import type { AgentSessionMetaUpdates } from './agent-session-manager'
 import type { CreateSessionOptions } from './task-runner'
 

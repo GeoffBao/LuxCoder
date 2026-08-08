@@ -1,6 +1,6 @@
-# LuxCoder Server — 企业版 Skills 分发注册中心
+# Yoda Server — 企业版 Skills 分发注册中心
 
-LuxCoder 企业版的组织级 Skills 分发与协作服务端。管理员集中管理组织 Skills 仓库，一键下发到成员客户端；成员在 LuxCoder 中连接组织后即可免安装使用组织 Skills，并随组织版本统一更新。
+Yoda 企业版的组织级 Skills 分发与协作服务端。管理员集中管理组织 Skills 仓库，一键下发到成员客户端；成员在 Yoda 中连接组织后即可免安装使用组织 Skills，并随组织版本统一更新。
 
 ## 功能
 
@@ -32,9 +32,9 @@ bun test           # 运行测试
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
 | `PORT` | HTTP 端口 | `8787` |
-| `LUXCODER_SERVER_DB` | SQLite 数据库路径 | `data/luxcoder-server.db` |
-| `LUXCODER_SERVER_SKILLS_DIR` | Skills 内容存储目录 | `data/skills` |
-| `LUXCODER_SERVER_JWT_SECRET` | JWT 签名密钥（生产必须设置强随机值） | 开发默认值 |
+| `YODA_SERVER_DB` | SQLite 数据库路径 | `data/yoda-server.db` |
+| `YODA_SERVER_SKILLS_DIR` | Skills 内容存储目录 | `data/skills` |
+| `YODA_SERVER_JWT_SECRET` | JWT 签名密钥（生产必须设置强随机值） | 开发默认值 |
 
 ## Docker 部署
 
@@ -45,11 +45,11 @@ docker compose -f apps/server/docker-compose.yml up -d
 或手动构建：
 
 ```bash
-docker build -f apps/server/Dockerfile -t luxcoder-server .
+docker build -f apps/server/Dockerfile -t yoda-server .
 docker run -d -p 8787:8787 \
-  -e LUXCODER_SERVER_JWT_SECRET="$(openssl rand -hex 32)" \
-  -v luxcoder-server-data:/data \
-  luxcoder-server
+  -e YODA_SERVER_JWT_SECRET="$(openssl rand -hex 32)" \
+  -v yoda-server-data:/data \
+  yoda-server
 ```
 
 ## API 一览
@@ -89,4 +89,4 @@ description: 组织沉淀的示例 Skill
 
 ## 客户端接入
 
-在 LuxCoder「设置 → 组织 Skills」中填写服务端地址并登录。之后在「Agent 技能 → 从组织导入」中选择组织 Skill 导入当前工作区；组织管理员发布新版本后，工作区中该 Skill 会显示「有更新」，点击即可同步。
+在 Yoda「设置 → 组织 Skills」中填写服务端地址并登录。之后在「Agent 技能 → 从组织导入」中选择组织 Skill 导入当前工作区；组织管理员发布新版本后，工作区中该 Skill 会显示「有更新」，点击即可同步。

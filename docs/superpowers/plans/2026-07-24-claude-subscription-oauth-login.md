@@ -259,7 +259,7 @@ git commit -m "feat(shared): add ClaudeOAuthCredentials serialize/parse/stale he
 - Modify: `apps/electron/src/main/lib/config-paths.ts`（新增导出函数）
 - Modify: `apps/electron/src/main/lib/agent-orchestrator.ts:266-324`（删除本地实现，改为导入）
 
-这是纯重构：把 `agent-orchestrator.ts` 里定位真实 `claude` 二进制路径的逻辑移到 `config-paths.ts`（该文件已经承载同类职责的 `getBundledCliPath`），这样新的 `claude-oauth-service.ts` 不需要依赖体量巨大的 `agent-orchestrator.ts` 模块图就能拿到同一份路径解析逻辑。行为完全不变，只是搬家 + 改名（`resolveSDKCliPath` → `resolveClaudeAgentBinaryPath`，名字更准确地反映"解析的是 Anthropic 官方二进制"而不是 LuxCoder 自己的 CLI）。
+这是纯重构：把 `agent-orchestrator.ts` 里定位真实 `claude` 二进制路径的逻辑移到 `config-paths.ts`（该文件已经承载同类职责的 `getBundledCliPath`），这样新的 `claude-oauth-service.ts` 不需要依赖体量巨大的 `agent-orchestrator.ts` 模块图就能拿到同一份路径解析逻辑。行为完全不变，只是搬家 + 改名（`resolveSDKCliPath` → `resolveClaudeAgentBinaryPath`，名字更准确地反映"解析的是 Anthropic 官方二进制"而不是 Yoda 自己的 CLI）。
 
 - [ ] **Step 1: 在 `config-paths.ts` 追加函数**
 
@@ -500,7 +500,7 @@ Expected: FAIL — `Cannot find module './claude-oauth-service'`
 
 import { spawn, type ChildProcess } from 'node:child_process'
 import { shell } from 'electron'
-import type { ClaudeOAuthCredentials } from '@luxcoder/shared'
+import type { ClaudeOAuthCredentials } from '@yoda/shared'
 import { resolveClaudeAgentBinaryPath } from './config-paths'
 
 const TOKEN_PATTERN = /sk-ant-oat[A-Za-z0-9_-]{6,}/
@@ -676,10 +676,10 @@ export interface ClaudeOAuthLoginResult {
 
 ```ts
 import { loginClaudeOAuth, cancelClaudeOAuthLogin } from './lib/claude-oauth-service'
-import { serializeClaudeOAuthCredentials } from '@luxcoder/shared'
+import { serializeClaudeOAuthCredentials } from '@yoda/shared'
 ```
 
-（若 `serializeClaudeOAuthCredentials` 已在别处从 `@luxcoder/shared` 的解构 import 里出现，合并到同一条 import，不要重复 import 语句。）
+（若 `serializeClaudeOAuthCredentials` 已在别处从 `@yoda/shared` 的解构 import 里出现，合并到同一条 import，不要重复 import 语句。）
 
 在 `CODEX_OAUTH_CANCEL` 的 handler 注册（约 [ipc.ts:1199-1205](apps/electron/src/main/ipc.ts)）之后追加：
 
@@ -690,7 +690,7 @@ import { serializeClaudeOAuthCredentials } from '@luxcoder/shared'
   // OAuth、以及现有 apiKey 明文回传模式一致。
   ipcMain.handle(
     CHANNEL_IPC_CHANNELS.CLAUDE_OAUTH_LOGIN,
-    async (): Promise<import('@luxcoder/shared').ClaudeOAuthLoginResult> => {
+    async (): Promise<import('@yoda/shared').ClaudeOAuthLoginResult> => {
       try {
         const credentials = await loginClaudeOAuth()
         return {
@@ -727,7 +727,7 @@ import { serializeClaudeOAuthCredentials } from '@luxcoder/shared'
   claudeOAuthCancel: () => Promise<void>
 ```
 
-（若文件顶部 `import type { ... CodexOAuthLoginResult ... } from '@luxcoder/shared'` 已存在，把 `ClaudeOAuthLoginResult` 加进同一条 import。）
+（若文件顶部 `import type { ... CodexOAuthLoginResult ... } from '@yoda/shared'` 已存在，把 `ClaudeOAuthLoginResult` 加进同一条 import。）
 
 在实现区（`codexOAuthCancel: () => {...}` 之后，[preload/index.ts:1449-1451](apps/electron/src/preload/index.ts)）加入：
 
@@ -769,7 +769,7 @@ git commit -m "feat(electron): wire up CLAUDE_OAUTH_LOGIN/CANCEL IPC channels"
   test('Given Claude 订阅 OAuth 渠道 When 写入 SDK 认证 env Then 使用 CLAUDE_CODE_OAUTH_TOKEN', () => {
     const env: Record<string, string | undefined> = {}
 
-    applyAgentSdkAuthEnv(env, 'anthropic-oauth', 'sk-ant-oat01-token', 'LuxCoder/test')
+    applyAgentSdkAuthEnv(env, 'anthropic-oauth', 'sk-ant-oat01-token', 'Yoda/test')
 
     expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBe('sk-ant-oat01-token')
     expect(env.ANTHROPIC_API_KEY).toBeUndefined()
@@ -819,7 +819,7 @@ git commit -m "feat(electron): route anthropic-oauth channels to CLAUDE_CODE_OAU
 在 `apps/electron/src/main/lib/channel-runtime-api-key.test.ts` 顶部 import 区加入：
 
 ```ts
-import { serializeCodexCredentials, serializeClaudeOAuthCredentials } from '@luxcoder/shared'
+import { serializeCodexCredentials, serializeClaudeOAuthCredentials } from '@yoda/shared'
 ```
 
 在 `describe('渠道运行时认证解析', ...)` 块内追加（跟在已有的两个 test 后面）：
@@ -874,7 +874,7 @@ Expected: FAIL — 第一个新用例会把整段加密的凭据 JSON 当普通 
 
 - [ ] **Step 3: 实现 `resolveClaudeOAuthAccessToken` 并接入 `resolveChannelRuntimeApiKey`**
 
-在 `apps/electron/src/main/lib/channel-manager.ts` 顶部 import 区，把 `parseCodexCredentials, serializeCodexCredentials, isCodexCredentialExpired` 那一行的 `@luxcoder/shared` 具名 import 扩展为同时引入：
+在 `apps/electron/src/main/lib/channel-manager.ts` 顶部 import 区，把 `parseCodexCredentials, serializeCodexCredentials, isCodexCredentialExpired` 那一行的 `@yoda/shared` 具名 import 扩展为同时引入：
 
 ```ts
 import {
@@ -885,7 +885,7 @@ import {
   serializeCodexCredentials,
   isCodexCredentialExpired,
   parseClaudeOAuthCredentials,
-} from '@luxcoder/shared'
+} from '@yoda/shared'
 ```
 
 在 `resolveCodexAccessToken` 函数（[channel-manager.ts:493-496](apps/electron/src/main/lib/channel-manager.ts)）之后、`resolveChannelRuntimeApiKey` 定义之前插入：
@@ -994,8 +994,8 @@ Expected: FAIL — `Cannot find module './agent-runtime-normalize'`
  * 十几个 Electron 相关服务模块；测试这一个函数不该连带拉起那整张模块图。
  */
 
-import type { ProviderType } from '@luxcoder/shared'
-import { CLAUDE_RUNTIME_ENABLED, type AgentRuntime } from '@luxcoder/shared'
+import type { ProviderType } from '@yoda/shared'
+import { CLAUDE_RUNTIME_ENABLED, type AgentRuntime } from '@yoda/shared'
 
 export function normalizeAgentRuntime(value: unknown, provider?: ProviderType): AgentRuntime {
   // anthropic-oauth 结构性依赖真实 claude 二进制（Pi 不理解 CLAUDE_CODE_OAUTH_TOKEN），
@@ -1016,7 +1016,7 @@ Expected: PASS（3 个 test）
 
 删除 [agent-orchestrator.ts:106-110](apps/electron/src/main/lib/agent-orchestrator.ts) 的本地 `normalizeAgentRuntime` 定义。
 
-在 import 区（`isAgentCompatibleProvider, CLAUDE_RUNTIME_ENABLED` 那一条 `@luxcoder/shared` 具名 import，[agent-orchestrator.ts:24-36](apps/electron/src/main/lib/agent-orchestrator.ts)）里，若 `CLAUDE_RUNTIME_ENABLED` 已不再被本文件其它地方直接使用，移除该具名导入（先用 `grep -n "CLAUDE_RUNTIME_ENABLED" apps/electron/src/main/lib/agent-orchestrator.ts` 确认没有其它引用再删，避免误删仍在用的导入）。
+在 import 区（`isAgentCompatibleProvider, CLAUDE_RUNTIME_ENABLED` 那一条 `@yoda/shared` 具名 import，[agent-orchestrator.ts:24-36](apps/electron/src/main/lib/agent-orchestrator.ts)）里，若 `CLAUDE_RUNTIME_ENABLED` 已不再被本文件其它地方直接使用，移除该具名导入（先用 `grep -n "CLAUDE_RUNTIME_ENABLED" apps/electron/src/main/lib/agent-orchestrator.ts` 确认没有其它引用再删，避免误删仍在用的导入）。
 
 加入新导入：
 
@@ -1073,7 +1073,7 @@ import { describe, expect, test, mock } from 'bun:test'
 
 ```ts
 import { describe, expect, mock, test } from 'bun:test'
-import { CHAT_IPC_CHANNELS } from '@luxcoder/shared'
+import { CHAT_IPC_CHANNELS } from '@yoda/shared'
 import type { WebContents } from 'electron'
 
 const sendMock = mock(() => undefined)
@@ -1083,7 +1083,7 @@ const sendMock = mock(() => undefined)
 // 的既有防御性做法，避免非 Electron 环境下 bun test 因缺失全局对象而在 import
 // 阶段就崩溃）。
 mock.module('electron', () => ({
-  app: { isPackaged: true, getPath: () => '/tmp/luxcoder-test' },
+  app: { isPackaged: true, getPath: () => '/tmp/yoda-test' },
   safeStorage: {
     isEncryptionAvailable: () => false,
     encryptString: (value: string) => Buffer.from(value),
@@ -1283,7 +1283,7 @@ const PROVIDER_OPTIONS: ProviderType[] = ['anthropic', 'anthropic-compatible', '
         : Boolean(apiKey.trim())
 ```
 
-文件顶部 import 区，把 `parseCodexCredentials` 那条从 `@luxcoder/shared` 的 import 扩展为同时引入 `parseClaudeOAuthCredentials, serializeClaudeOAuthCredentials, isClaudeOAuthCredentialStale`。
+文件顶部 import 区，把 `parseCodexCredentials` 那条从 `@yoda/shared` 的 import 扩展为同时引入 `parseClaudeOAuthCredentials, serializeClaudeOAuthCredentials, isClaudeOAuthCredentialStale`。
 
 - [ ] **Step 5: `ChannelForm.tsx` — 新增精选模型预设 + `handleClaudeOAuthLogin`**
 

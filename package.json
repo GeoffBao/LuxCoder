@@ -1,5 +1,5 @@
 {
-  "name": "luxcoder",
+  "name": "yoda",
   "version": "0.1.0",
   "description": "The next gen ai software with general agents",
   "type": "module",
@@ -9,10 +9,10 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "bun run --filter='@luxcoder/electron' dev",
-    "electron:dev": "bun run --filter='@luxcoder/electron' dev",
-    "electron:build": "bun run --filter='@luxcoder/electron' build",
-    "electron:start": "bun run --filter='@luxcoder/electron' start",
+    "dev": "bun run --filter='@yoda/electron' dev",
+    "electron:dev": "bun run --filter='@yoda/electron' dev",
+    "electron:build": "bun run --filter='@yoda/electron' build",
+    "electron:start": "bun run --filter='@yoda/electron' start",
     "build": "bun run --filter='*' build",
     "typecheck": "bun run --filter='*' typecheck",
     "test": "bun test",

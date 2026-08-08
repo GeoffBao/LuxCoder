@@ -9,7 +9,7 @@ import { authRoutes } from '../src/auth/routes'
 
 describe('认证模块', () => {
   beforeAll(() => {
-    process.env.LUXCODER_SERVER_DB = ':memory:'
+    process.env.YODA_SERVER_DB = ':memory:'
     closeDb()
   })
 

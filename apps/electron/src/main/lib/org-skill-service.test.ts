@@ -7,7 +7,7 @@
  * - Skills 列表/详情/下载（含 zip 解压）
  * - 401 过期处理
  *
- * 通过 LUXCODER_ORG_SETTINGS_PATH 隔离配置文件。
+ * 通过 YODA_ORG_SETTINGS_PATH 隔离配置文件。
  */
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
@@ -33,7 +33,7 @@ import {
   orgRegister,
   orgConnectWithApiKey,
 } from './org-skill-service'
-import type { OrganizationConnection } from '@luxcoder/shared'
+import type { OrganizationConnection } from '@yoda/shared'
 
 // ── Mock 服务端（真实 HTTP，Bun.serve） ───────────────────
 
@@ -115,7 +115,7 @@ function conn(): OrganizationConnection {
 
 describe('org-skill-service', () => {
   beforeAll(() => {
-    process.env.LUXCODER_ORG_SETTINGS_PATH = settingsPath
+    process.env.YODA_ORG_SETTINGS_PATH = settingsPath
     mockServer = Bun.serve({ port: 0, fetch: mock.fetch })
     serverUrl = `http://localhost:${mockServer.port}`
     currentToken = 'token-a@b.com'
@@ -124,7 +124,7 @@ describe('org-skill-service', () => {
   afterAll(() => {
     mockServer.stop(true)
     try { unlinkSync(settingsPath) } catch { /* 忽略 */ }
-    delete process.env.LUXCODER_ORG_SETTINGS_PATH
+    delete process.env.YODA_ORG_SETTINGS_PATH
   })
 
   test('注册并保存连接配置', async () => {
@@ -195,7 +195,7 @@ describe('org-skill-service', () => {
   })
 
   test('401 过期抛 OrgApiError', async () => {
-    const expired: import('@luxcoder/shared').OrganizationConnection = { serverUrl, authType: 'account', email: 'a@b.com', token: 'expired-token' }
+    const expired: import('@yoda/shared').OrganizationConnection = { serverUrl, authType: 'account', email: 'a@b.com', token: 'expired-token' }
     try {
       await orgListSkills(expired, 'org-1')
       expect.unreachable('应抛出 401')

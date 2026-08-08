@@ -7,7 +7,7 @@
  */
 
 import { atom } from 'jotai'
-import type { ChatToolInfo } from '@luxcoder/shared'
+import type { ChatToolInfo } from '@yoda/shared'
 
 /** 从主进程加载的所有工具列表（唯一状态源） */
 export const chatToolsAtom = atom<ChatToolInfo[]>([])

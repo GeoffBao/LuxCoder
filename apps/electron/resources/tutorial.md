@@ -1,14 +1,14 @@
-# LuxCoder 使用指南
+# Yoda 使用指南
 
 最后更新：2026 年 8 月 6 日
 
 ---
 
-## 1. LuxCoder 是什么
+## 1. Yoda 是什么
 
-<video src="https://github.com/GeoffBao/LuxCoder/releases/download/tutorial-assets/luxcoder-promo-30s.mp4" controls poster="https://github.com/GeoffBao/LuxCoder/releases/download/tutorial-assets/promo-thumbnail.png" style="max-width:100%;border-radius:12px;margin:1rem 0;"></video>
+<video src="https://github.com/biajidong/Yoda/releases/download/tutorial-assets/yoda-promo-30s.mp4" controls poster="https://github.com/biajidong/Yoda/releases/download/tutorial-assets/promo-thumbnail.png" style="max-width:100%;border-radius:12px;margin:1rem 0;"></video>
 
-LuxCoder 是一个本地优先的 AI 工作台，面向研发、产品、测试、研究、运营、管理和知识工作场景。它既可以帮助你讨论和表达，也可以在可信环境中读取文件、调用工具、执行命令并交付可追踪的结果。
+Yoda 是一个本地优先的 AI 工作台，面向研发、产品、测试、研究、运营、管理和知识工作场景。它既可以帮助你讨论和表达，也可以在可信环境中读取文件、调用工具、执行命令并交付可追踪的结果。
 
 **主入口是 Code 模式（默认）。** Code 既是可执行、可追踪、可交付的工作入口，也承载问答、阅读、分析和写作等知识工作——不限于写代码，办公和知识工作同样可以使用 Code。
 
@@ -22,7 +22,7 @@ LuxCoder 是一个本地优先的 AI 工作台，面向研发、产品、测试�
 
 一句话：**Code 是主入口，也是默认入口。它把思考、执行、交付和持续沉淀放在同一个工作台。**
 
-![Code 模式界面](https://github.com/GeoffBao/LuxCoder/releases/download/tutorial-assets/code-mode-empty-state.png)
+![Code 模式界面](https://github.com/biajidong/Yoda/releases/download/tutorial-assets/code-mode-empty-state.png)
 
 Project 看板和 Task 不再是独立顶层模式，而是 Code 内的工作区域。进入 Code 后，可以在会话、项目和 Project 看板之间切换。
 
@@ -48,7 +48,7 @@ Project 看板和 Task 不再是独立顶层模式，而是 Code 内的工作区
 
 ### 第三步：确认 Workspace
 
-Workspace 是 LuxCoder 的隔离与能力容器，管理会话、Projects、Skills、MCP、Yoda 记忆、附加资料和自动任务。
+Workspace 是 Yoda 的隔离与能力容器，管理会话、Projects、Skills、MCP、Yoda 记忆、附加资料和自动任务。
 
 默认用户通常只需要一个 Workspace。创建、重命名、切换或删除多工作区，请打开 **设置 → 连接与数据 → 工作区**。Code 折叠侧栏的 Code 图标也可能提供快速切换入口，但 Workspace 的正式管理入口是设置页。
 
@@ -134,12 +134,12 @@ Project 不复制 Workspace 的 Skills/MCP。它引用 Workspace 能力，并在
 
 每个 Code 会话都有自己的隔离目录，作为临时工作台和会话 cwd。它不是你的代码仓库。
 
-当会话绑定 Project 时，LuxCoder 会把 Project 的有效工作目录明确注入上下文，告诉 Agent 应在哪里读代码、改文件和运行命令，同时保留会话目录存放 `.context/` 等临时资料。
+当会话绑定 Project 时，Yoda 会把 Project 的有效工作目录明确注入上下文，告诉 Agent 应在哪里读代码、改文件和运行命令，同时保留会话目录存放 `.context/` 等临时资料。
 
 ### 目录示意
 
 ```text
-~/.luxcoder/agent-workspaces/{workspace-slug}/
+~/.yoda/agent-workspaces/{workspace-slug}/
 ├── CLAUDE.md                    # Workspace 级长期指令
 ├── .claude/memory/              # Workspace auto-memory 与用户画像
 ├── workspace-files/              # Workspace 跨会话共享资料
@@ -274,7 +274,7 @@ Code 会话的右侧面板按当前 Session 展示两类主要文件来源：
 
 面板还保留 Workspace 附加目录/文件作为辅助访问入口，并支持文件预览、引用到输入框和代码改动 Diff。需要浏览当前 Workspace Files 时，应使用输入框的 `@` 选择器；它与右侧 Files 的“项目文件”不是同一个来源。
 
-当前右侧面板是 Code 会话的文件面板，不是 Excalidraw 画布面板。Project 工作目录可能是外部目录，也可能是 LuxCoder 为 Project 创建的托管目录。
+当前右侧面板是 Code 会话的文件面板，不是 Excalidraw 画布面板。Project 工作目录可能是外部目录，也可能是 Yoda 为 Project 创建的托管目录。
 
 ### Excalidraw 画板
 
@@ -306,7 +306,7 @@ Code 左栏的 **Excalidraw 画板**用于创建、编辑、重命名、删除�
 
 Workspace Task 不是“自动落到 Workspace 的默认 Project”；它的 `projectId` 为空，运行时使用显式 `cwd` 或 Workspace 默认工作目录策略。若任务需要 Project Knowledge、Project assets、Project 默认专家或项目工作目录，应明确选择 Project。
 
-这不是临时兼容分支，而是 LuxCoder 当前的正式数据模型：Workspace 是 Task 的必选边界，Project 是可选的长期工作容器。它保留了 Proma/通用工作台式的跨项目任务能力，同时吸收 craft-agents-oss 的 Project Task、Run、Session 追踪；Project Task 与 Workspace Task 在看板中应保持清晰的 scope 标识。
+这不是临时兼容分支，而是 Yoda 当前的正式数据模型：Workspace 是 Task 的必选边界，Project 是可选的长期工作容器。它保留了 Proma/通用工作台式的跨项目任务能力，同时吸收 craft-agents-oss 的 Project Task、Run、Session 追踪；Project Task 与 Workspace Task 在看板中应保持清晰的 scope 标识。
 
 ### 默认列
 
@@ -360,7 +360,7 @@ Workspace Task 不是“自动落到 Workspace 的默认 Project”；它的 `pr
 - 一个子 Agent 独立做风险审查；
 - 父 Agent 汇总并决策。
 
-LuxCoder collaboration 子会话：
+Yoda collaboration 子会话：
 
 - 在侧边栏中真实可见；
 - 保留完整上下文和结果；
@@ -387,7 +387,7 @@ Skills 是可复用的工作流、决策规则和 SOP，适合沉淀“以后遇
 
 代表性内置 Skills 包括：
 
-- `luxcoder-coach`：优化 LuxCoder 使用方式和知识沉淀；
+- `yoda-coach`：优化 Yoda 使用方式和知识沉淀；
 - `skill-creator`：创建、改进和测试 Skill；
 - `find-skills`：发现可安装的 Skill；
 - `agent-collaboration`：判断并组织协作子会话；
@@ -579,7 +579,7 @@ Code 左栏的 **Yoda 知识库**是 Workspace 级知识库入口，设计目标
 移植第三方方案或新增功能时，推荐逐项执行：
 
 1. 说明功能价值；
-2. 对比 LuxCoder 当前能力；
+2. 对比 Yoda 当前能力；
 3. 识别冲突和回归风险；
 4. 决定移植、改良、暂缓或跳过；
 5. 小批量实现；
@@ -653,4 +653,4 @@ Project 可以设置默认专家，正式 Project Task 也可以单独选择专�
 
 如有疑问，可以直接在 Code 中问：
 
-> 请根据当前 LuxCoder 功能告诉我应该用 Code 会话、Project Task、collaboration 还是 Automation，并说明原因。
+> 请根据当前 Yoda 功能告诉我应该用 Code 会话、Project Task、collaboration 还是 Automation，并说明原因。

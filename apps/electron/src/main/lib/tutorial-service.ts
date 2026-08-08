@@ -10,7 +10,7 @@ import { randomUUID } from 'node:crypto'
 import { app } from 'electron'
 import { createConversation, appendMessage } from './conversation-manager'
 import { getConversationAttachmentsDir } from './config-paths'
-import type { ConversationMeta, FileAttachment, ChatMessage } from '@luxcoder/shared'
+import type { ConversationMeta, FileAttachment, ChatMessage } from '@yoda/shared'
 
 /**
  * 获取教程文件路径
@@ -67,11 +67,11 @@ export function createWelcomeConversation(): ConversationMeta | null {
 
   try {
     // 1. 创建对话
-    const meta = createConversation('了解 LuxCoder')
+    const meta = createConversation('了解 Yoda')
 
     // 2. 保存教程文件为附件
     const attachmentId = randomUUID()
-    const attachmentFilename = 'LuxCoder 使用教程.md'
+    const attachmentFilename = 'Yoda 使用教程.md'
     const localPath = `${meta.id}/${attachmentId}.md`
     const dir = getConversationAttachmentsDir(meta.id)
     const fullPath = join(dir, `${attachmentId}.md`)
@@ -93,7 +93,7 @@ export function createWelcomeConversation(): ConversationMeta | null {
     const userMessage: ChatMessage = {
       id: randomUUID(),
       role: 'user',
-      content: '你好，我刚开始使用 LuxCoder，帮我快速了解这个工具。这是完整的使用指南，作为你的参考。',
+      content: '你好，我刚开始使用 Yoda，帮我快速了解这个工具。这是完整的使用指南，作为你的参考。',
       createdAt: now,
       attachments: [attachment],
     }
@@ -103,9 +103,9 @@ export function createWelcomeConversation(): ConversationMeta | null {
     const assistantMessage: ChatMessage = {
       id: randomUUID(),
       role: 'assistant',
-      content: `你好，欢迎使用 LuxCoder。
+      content: `你好，欢迎使用 Yoda。
 
-LuxCoder 是面向研发团队的 AI Agent 工作台，整合了 **Chat**（AI 对话助理）和 **Code**（AI 编程工作台）两种工作模式。
+Yoda 是面向研发团队的 AI Agent 工作台，整合了 **Chat**（AI 对话助理）和 **Code**（AI 编程工作台）两种工作模式。
 
 Code 模式内置**项目管理**、**任务编排看板**和**Agent 专家**系统，可以将复杂工作拆解为多个任务，由不同领域的 Agent 专家自动执行。
 
@@ -117,7 +117,7 @@ Code 模式内置**项目管理**、**任务编排看板**和**Agent 专家**系
 
 告诉我你的情况，我会根据你的角色给出**具体的配置步骤**和**最适合你的工作流建议**，帮你最快速度跑通第一个真实任务。`,
       createdAt: now + 1,
-      model: 'LuxCoder',
+      model: 'Yoda',
     }
     appendMessage(meta.id, assistantMessage)
 

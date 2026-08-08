@@ -1,4 +1,4 @@
-import type { AgentPendingFile } from '@luxcoder/shared'
+import type { AgentPendingFile } from '@yoda/shared'
 
 export interface ClipboardTextDraft {
   filename: string

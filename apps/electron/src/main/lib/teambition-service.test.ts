@@ -71,7 +71,7 @@ function createFixture(gateway?: TeambitionGateway, now: () => number = () => 1_
   service: TeambitionService
   cleanup: () => void
 } {
-  const root = mkdtempSync(join(tmpdir(), 'luxcoder-teambition-'))
+  const root = mkdtempSync(join(tmpdir(), 'yoda-teambition-'))
   return {
     service: new TeambitionService({
       storagePath: join(root, 'bindings.json'),

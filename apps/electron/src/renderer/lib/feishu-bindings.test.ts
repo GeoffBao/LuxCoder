@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import type { FeishuChatBinding } from '@luxcoder/shared'
+import type { FeishuChatBinding } from '@yoda/shared'
 import { filterFeishuBindings, groupFeishuBindings } from './feishu-bindings'
 
 function makeBinding(

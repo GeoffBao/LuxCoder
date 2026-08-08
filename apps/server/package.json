@@ -1,7 +1,7 @@
 {
-  "name": "@luxcoder/server",
+  "name": "@yoda/server",
   "version": "0.1.0",
-  "description": "LuxCoder 企业版 Skills 分发与协作注册中心",
+  "description": "Yoda 企业版 Skills 分发与协作注册中心",
   "private": true,
   "type": "module",
   "scripts": {

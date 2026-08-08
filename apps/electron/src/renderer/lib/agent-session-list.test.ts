@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import type { AgentSessionMeta } from '@luxcoder/shared'
+import type { AgentSessionMeta } from '@yoda/shared'
 import {
   sortAgentSessionsByUpdatedAtDesc,
   replaceAgentSessionInFreshnessOrder,

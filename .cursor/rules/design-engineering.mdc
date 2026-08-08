@@ -1,5 +1,5 @@
 ---
-description: LuxCoder 渲染层 design-engineering 规范：tokens 强制引用 + 交互物理规则 + UI Review Pass 检查清单
+description: Yoda 渲染层 design-engineering 规范：tokens 强制引用 + 交互物理规则 + UI Review Pass 检查清单
 globs:
   - "apps/electron/src/renderer/**/*.tsx"
   - "apps/electron/src/renderer/**/*.css"

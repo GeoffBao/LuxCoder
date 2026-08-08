@@ -1,4 +1,4 @@
-import type { TaskAggregateSummary, TaskWorkflow } from '@luxcoder/shared/tasks'
+import type { TaskAggregateSummary, TaskWorkflow } from '@yoda/shared/tasks'
 import type { KanbanFilter, TaskBoardScopeFilter } from './types'
 
 export interface TaskBoardFilterState {

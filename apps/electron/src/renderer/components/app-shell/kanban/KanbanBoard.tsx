@@ -2,7 +2,7 @@ import { DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type 
 import { activeBoardItems, buildKanbanBoardModel, type KanbanColumnDefinition } from './board-model'
 import { KanbanColumn } from './KanbanColumn'
 import { TaskListRow } from './TaskListRow'
-import type { TaskWorkflow } from '@luxcoder/shared/tasks'
+import type { TaskWorkflow } from '@yoda/shared/tasks'
 import type { KanbanBoardMode, KanbanItem } from './types'
 
 export interface KanbanBoardEmptyStateView {

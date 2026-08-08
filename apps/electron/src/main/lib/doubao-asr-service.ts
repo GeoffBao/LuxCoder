@@ -166,7 +166,7 @@ function buildClientRequest(settings: VoiceDictationSettings): Buffer {
 
   const request = {
     user: {
-      uid: 'luxcoder-desktop',
+      uid: 'yoda-desktop',
     },
     audio,
     request: requestOptions,

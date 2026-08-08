@@ -7,7 +7,7 @@
 
 import { atom } from 'jotai'
 import { atomWithStorage } from 'jotai/utils'
-import type { ConversationMeta, ChatMessage, FileAttachment, ChatToolActivity, Channel } from '@luxcoder/shared'
+import type { ConversationMeta, ChatMessage, FileAttachment, ChatToolActivity, Channel } from '@yoda/shared'
 
 /** 全局渠道列表缓存（启动时加载一次，设置变更时刷新） */
 export const channelsAtom = atom<Channel[]>([])
@@ -131,7 +131,7 @@ export const streamingToolActivitiesAtom = atom<ChatToolActivity[]>(
 
 /** 选中的模型（持久化到 localStorage） */
 export const selectedModelAtom = atomWithStorage<SelectedModel | null>(
-  'luxcoder-selected-model',
+  'yoda-selected-model',
   null,
 )
 
@@ -146,7 +146,7 @@ export const currentConversationAtom = atom<ConversationMeta | null>((get) => {
 
 /** 上下文长度（持久化到 localStorage，默认不限制） */
 export const contextLengthAtom = atomWithStorage<ContextLengthValue>(
-  'luxcoder-context-length',
+  'yoda-context-length',
   'infinite',
 )
 
@@ -155,7 +155,7 @@ export const parallelModeAtom = atom<boolean>(false)
 
 /** 思考模式（持久化到 localStorage） */
 export const thinkingEnabledAtom = atomWithStorage<boolean>(
-  'luxcoder-thinking-enabled',
+  'yoda-thinking-enabled',
   false,
 )
 
@@ -270,6 +270,6 @@ export const conversationParallelModeAtom = atom<Map<string, boolean>>(new Map()
 
 /** 思考块默认展开偏好（展示侧；与思考模式/生成侧开关正交） */
 export const thinkingExpandedAtom = atomWithStorage<boolean>(
-  'luxcoder-thinking-expanded',
+  'yoda-thinking-expanded',
   false,
 )
