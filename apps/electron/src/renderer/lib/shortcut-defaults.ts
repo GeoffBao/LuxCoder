@@ -197,6 +197,33 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
     category: 'edit',
   },
   {
+    id: 'save-excalidraw',
+    name: '保存画布',
+    description: '在 Excalidraw 编辑器中保存当前画布',
+    defaultMac: 'Cmd+S',
+    defaultWin: 'Ctrl+S',
+    category: 'edit',
+    readonly: true,
+  },
+  {
+    id: 'quick-task-chat',
+    name: '快速任务·Chat 模式',
+    description: '在快速任务浮窗中切换到 Chat 模式',
+    defaultMac: 'Cmd+1',
+    defaultWin: 'Ctrl+1',
+    category: 'app',
+    readonly: true,
+  },
+  {
+    id: 'quick-task-agent',
+    name: '快速任务·Agent 模式',
+    description: '在快速任务浮窗中切换到 Agent 模式',
+    defaultMac: 'Cmd+2',
+    defaultWin: 'Ctrl+2',
+    category: 'app',
+    readonly: true,
+  },
+  {
     id: 'close-tab',
     name: '关闭当前标签',
     description: '关闭当前活跃的 Chat 或 Agent 标签页',
@@ -219,6 +246,56 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
     defaultMac: 'Cmd+Shift+B',
     defaultWin: 'Ctrl+Shift+B',
     category: 'app',
+  },
+
+  // 缩放（由 Electron 菜单 role 处理，仅展示，不可自定义）
+  {
+    id: 'zoom-in',
+    name: '放大',
+    description: '放大应用界面',
+    defaultMac: 'Cmd+=',
+    defaultWin: 'Ctrl+=',
+    category: 'app',
+    readonly: true,
+  },
+  {
+    id: 'zoom-out',
+    name: '缩小',
+    description: '缩小应用界面',
+    defaultMac: 'Cmd+-',
+    defaultWin: 'Ctrl+-',
+    category: 'app',
+    readonly: true,
+  },
+  {
+    id: 'reset-zoom',
+    name: '重置缩放',
+    description: '恢复 100% 缩放',
+    defaultMac: 'Cmd+0',
+    defaultWin: 'Ctrl+0',
+    category: 'app',
+    readonly: true,
+  },
+
+  // 侧边栏快捷切换会话（由 LeftSidebar 内核实现，仅展示，不可自定义）
+  {
+    id: 'quick-switch-session',
+    name: '直达会话',
+    description: '按住主修饰键后，继续按 1-9 跳转对应会话',
+    defaultMac: 'Cmd+1-9',
+    defaultWin: 'Ctrl+1-9',
+    category: 'navigation',
+    readonly: true,
+  },
+  // Tab 循环切换会话（由 TabSwitcher 内核实现，仅展示，不可自定义）
+  {
+    id: 'cycle-sessions',
+    name: '循环切换会话',
+    description: 'Ctrl+Shift+Tab 可反向切换，松开 Ctrl 确认',
+    defaultMac: 'Ctrl+Tab',
+    defaultWin: 'Ctrl+Tab',
+    category: 'navigation',
+    readonly: true,
   },
 
   // 全局快捷键（由主进程 globalShortcut 注册，应用外也生效）
