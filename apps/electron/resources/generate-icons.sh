@@ -1,8 +1,9 @@
 #!/bin/bash
 
 # MyYoda Icon Generation Script
-# Generates all required icon formats from icon.svg
-# Requires: rsvg-convert (librsvg), iconutil (macOS), magick (ImageMagick)
+# Generates all required icon formats from icon-source.png / logos/mymind-menubar-icon.png
+# Requires: iconutil (macOS), magick (ImageMagick)
+# rsvg-convert 仅在缺少 icon-source.png、需要从 icon.svg 兜底生成时才用得到（可选）。
 
 set -e
 
@@ -12,11 +13,6 @@ cd "$SCRIPT_DIR"
 echo "🎨 Generating MyYoda icons..."
 
 # Check required tools
-if ! command -v rsvg-convert &> /dev/null; then
-    echo "❌ rsvg-convert not found. Install with: brew install librsvg"
-    exit 1
-fi
-
 if ! command -v magick &> /dev/null; then
     echo "❌ ImageMagick (magick) not found. Install with: brew install imagemagick"
     exit 1
@@ -36,6 +32,10 @@ if [ -f "icon-source.png" ]; then
     magick icon-source.png -resize 1024x1024 icon.png
   fi
 else
+  if ! command -v rsvg-convert &> /dev/null; then
+    echo "❌ 缺少 icon-source.png 且 rsvg-convert 未安装，无法从 icon.svg 生成图标。Install with: brew install librsvg"
+    exit 1
+  fi
   rsvg-convert -w 1024 -h 1024 icon.svg -o icon.png
 fi
 
@@ -46,16 +46,16 @@ echo "📦 Generating tray icons..."
 # - 标准尺寸: 24x24px
 # - @2x Retina: 48x48px
 # - @3x 高分辨率: 72x72px
-# 使用 "Template" 命名让 macOS 自动适配深色/浅色菜单栏
-TRAY_SVG="logos/icon.svg"
+# 使用 "Template" 命名让 macOS 自动适配深色/浅色菜单栏。
+# 直接从栅格母版缩放（母版已是黑色纯色 + alpha 通道，无需矢量中间产物）。
+TRAY_MASTER="logos/mymind-menubar-icon.png"
 
-if [ ! -f "$TRAY_SVG" ]; then
-  echo "⚠️  Tray icon SVG not found at $TRAY_SVG, skipping tray icon generation"
+if [ ! -f "$TRAY_MASTER" ]; then
+  echo "⚠️  Tray icon master not found at $TRAY_MASTER, skipping tray icon generation"
 else
-  # 生成多分辨率 Template 图标（macOS 会自动选择合适的版本）
-  rsvg-convert -w 24 -h 24 "$TRAY_SVG" -o logos/iconTemplate.png
-  rsvg-convert -w 48 -h 48 "$TRAY_SVG" -o "logos/iconTemplate@2x.png"
-  rsvg-convert -w 72 -h 72 "$TRAY_SVG" -o "logos/iconTemplate@3x.png"
+  magick "$TRAY_MASTER" -resize 24x24 logos/iconTemplate.png
+  magick "$TRAY_MASTER" -resize 48x48 "logos/iconTemplate@2x.png"
+  magick "$TRAY_MASTER" -resize 72x72 "logos/iconTemplate@3x.png"
 
   echo "✅ Tray icons generated:"
   echo "   - logos/iconTemplate.png (24x24 @1x)"
@@ -99,10 +99,6 @@ echo "📦 Generating icon.ico..."
 magick icon.png -define icon:auto-resize=256,128,96,64,48,32,16 icon.ico
 echo "✅ icon.ico generated"
 
-# 5. Generate alternate MyYoda logo variants
-echo "📦 Generating MyYoda logo variants..."
-"$SCRIPT_DIR/generate-logo-variants.sh"
-
 echo ""
 echo "✅ All icons generated successfully!"
 echo ""
@@ -113,4 +109,3 @@ echo "  - icon.ico - Windows app icon"
 echo "  - logos/iconTemplate.png - macOS tray (24x24 @1x)"
 echo "  - logos/iconTemplate@2x.png - macOS tray (48x48 @2x Retina)"
 echo "  - logos/iconTemplate@3x.png - macOS tray (72x72 @3x)"
-echo "  - logos/*.png - MyYoda alternate app icon variants"

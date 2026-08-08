@@ -16,15 +16,13 @@ import { FeishuSettings } from './FeishuSettings'
 import { DingTalkSettings } from './DingTalkSettings'
 import { WeChatSettings } from './WeChatSettings'
 import { BotDefaultSettings } from './BotDefaultSettings'
-import { AppLogoSettings } from './AppLogoSettings'
 import feishuLogo from '@/assets/bots/feishu.png'
 import dingtalkLogo from '@/assets/bots/dingding.png'
 import wechatLogo from '@/assets/bots/wechat.png'
-import myyodaLogo from '@/assets/models/myyoda.png'
 
 // ===== 类型 =====
 
-type BotPlatformId = 'feishu' | 'dingtalk' | 'wechat' | 'defaults' | 'logos'
+type BotPlatformId = 'feishu' | 'dingtalk' | 'wechat' | 'defaults'
 
 interface BotPlatformDef {
   id: BotPlatformId
@@ -65,12 +63,6 @@ const PLATFORMS: readonly BotPlatformDef[] = [
     iconBgClass: 'bg-muted',
     iconTextClass: 'text-muted-foreground',
   },
-  {
-    id: 'logos',
-    name: '品牌素材',
-    iconSrc: myyodaLogo,
-    iconBgClass: 'bg-muted',
-  },
 ] as const
 
 /** 连接状态颜色映射 */
@@ -89,7 +81,7 @@ function PlatformStatusDot({ platformId }: { platformId: BotPlatformId }): React
   const dingtalkBotStates = useAtomValue(dingtalkBotStatesAtom)
   const wechatState = useAtomValue(wechatBridgeStateAtom)
 
-  if (platformId === 'defaults' || platformId === 'logos') return null
+  if (platformId === 'defaults') return null
 
   const statusMap: Record<string, string> = {
     feishu: getPlatformStatus(feishuBotStates),
@@ -170,8 +162,6 @@ function renderPlatformPanel(id: BotPlatformId): React.ReactElement {
       return <WeChatSettings />
     case 'defaults':
       return <BotDefaultSettings />
-    case 'logos':
-      return <AppLogoSettings />
   }
 }
 
