@@ -280,4 +280,68 @@ describe('workspace project storage', () => {
     expect(assets.includes('/assets')).toBe(true);
     expect(workdir).not.toBe(assets);
   });
+
+  test('无 workingDirectory 的空白项目不设置 memoryLocation，Memory 沿用托管路径', () => {
+    const workspaceRoot = createTempWorkspaceRoot();
+    const project = projectStorage.createProject(workspaceRoot, { name: 'Blank' });
+
+    expect(project.memoryLocation).toBeUndefined();
+    const memoryPath = projectStorage.getProjectMemoryPath(workspaceRoot, project.slug);
+    expect(memoryPath).toBe(join(projectStorage.getProjectPath(workspaceRoot, project.slug), 'MEMORY.md'));
+  });
+
+  test('带真实 workingDirectory 的本地目录项目 memoryLocation 为 project，Memory 落在 <workingDirectory>/.context/MEMORY.md', () => {
+    const workspaceRoot = createTempWorkspaceRoot();
+    const externalDir = mkdtempSync(join(tmpdir(), 'myyoda-project-external-'));
+    tempRoots.push(externalDir);
+
+    const project = projectStorage.createProject(workspaceRoot, {
+      name: 'Local Repo',
+      workingDirectory: externalDir,
+    });
+
+    expect(project.memoryLocation).toBe('project');
+    const memoryPath = projectStorage.getProjectMemoryPath(workspaceRoot, project.slug);
+    expect(memoryPath).toBe(join(externalDir, '.context', 'MEMORY.md'));
+
+    // 写入时自动创建 .context/ 目录，且不落在 MyYoda 托管的 projects/{slug}/ 下
+    projectStorage.writeProjectMemory(workspaceRoot, project.slug, '# 项目记忆\n第一次');
+    expect(existsSync(join(externalDir, '.context', 'MEMORY.md'))).toBe(true);
+    expect(existsSync(join(projectStorage.getProjectPath(workspaceRoot, project.slug), 'MEMORY.md'))).toBe(false);
+    expect(projectStorage.readProjectMemory(workspaceRoot, project.slug)).toBe('# 项目记忆\n第一次');
+  });
+
+  test('隐藏容器 Project（home/ad-hoc）即使带 workingDirectory 也不启用 project 记忆位置', () => {
+    const workspaceRoot = createTempWorkspaceRoot();
+    const workspaceFilesDir = join(workspaceRoot, 'workspace-files');
+
+    const homeProject = projectStorage.createProject(workspaceRoot, {
+      name: '首页工作区',
+      workingDirectory: workspaceFilesDir,
+      kind: 'home',
+    });
+
+    expect(homeProject.memoryLocation).toBeUndefined();
+    expect(projectStorage.getProjectMemoryPath(workspaceRoot, homeProject.slug)).toBe(
+      join(projectStorage.getProjectPath(workspaceRoot, homeProject.slug), 'MEMORY.md'),
+    );
+  });
+
+  test('老项目（config.json 无 memoryLocation 字段）行为不受影响：手写 config 也解析回托管路径', () => {
+    const workspaceRoot = createTempWorkspaceRoot();
+    const externalDir = mkdtempSync(join(tmpdir(), 'myyoda-project-legacy-'));
+    tempRoots.push(externalDir);
+
+    // 模拟功能上线前已存在的项目：config.json 已有 workingDirectory 但没有 memoryLocation 字段
+    const project = projectStorage.createProject(workspaceRoot, { name: 'Legacy' });
+    const legacyConfig: ProjectConfig = {
+      ...project,
+      workingDirectory: externalDir,
+    };
+    projectStorage.saveProjectConfig(workspaceRoot, legacyConfig);
+
+    expect(projectStorage.getProjectMemoryPath(workspaceRoot, project.slug)).toBe(
+      join(projectStorage.getProjectPath(workspaceRoot, project.slug), 'MEMORY.md'),
+    );
+  });
 });

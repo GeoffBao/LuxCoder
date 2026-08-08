@@ -8,7 +8,7 @@
  *       替换为 Bun/Node 标准 API
  */
 import { existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync, unlinkSync, readFileSync, renameSync } from 'fs';
-import { basename, extname, isAbsolute, join } from 'path';
+import { basename, dirname, extname, isAbsolute, join } from 'path';
 import { randomUUID } from 'crypto';
 import type {
   ProjectConfig,
@@ -99,8 +99,22 @@ export function getProjectAssetsPath(workspaceRootPath: string, projectSlug: str
 /** MEMORY.md 文件名（放在 config.json 同级，不在 assets/ 内） */
 export const MEMORY_FILENAME = 'MEMORY.md';
 
-/** 项目 MEMORY.md 路径 */
+/** 本地目录项目的项目级记忆目录名，与会话级/空间级 `.context/` 同名但物理位置在项目真实文件夹下 */
+const PROJECT_CONTEXT_DIRNAME = '.context';
+
+/**
+ * 项目 MEMORY.md 路径。
+ *
+ * `memoryLocation === 'project'`（创建时按是否提供 workingDirectory 一次性决定，不做事后迁移）
+ * 的本地目录项目落在 `workingDirectory/.context/MEMORY.md`，跟随项目真实文件夹；
+ * 其余（空白项目、隐藏容器 Project、老项目未设置该字段）沿用 MyYoda 托管目录，保持完全兼容。
+ */
 export function getProjectMemoryPath(workspaceRootPath: string, projectSlug: string): string {
+  const config = loadProjectConfig(workspaceRootPath, projectSlug);
+  const workingDirectory = config?.workingDirectory?.trim();
+  if (config?.memoryLocation === 'project' && workingDirectory) {
+    return join(workingDirectory, PROJECT_CONTEXT_DIRNAME, MEMORY_FILENAME);
+  }
   return join(getProjectPath(workspaceRootPath, projectSlug), MEMORY_FILENAME);
 }
 
@@ -253,6 +267,12 @@ export function createProject(workspaceRootPath: string, input: CreateProjectInp
   const slug = generateProjectSlug(workspaceRootPath, input.name);
   const now = Date.now();
 
+  // memoryLocation 只在创建时决定一次，不做事后迁移：只有真正的本地目录项目（非隐藏容器）才把
+  // 记忆放进项目真实文件夹；隐藏容器（home/ad-hoc）的 workingDirectory 指向 MyYoda 自己的托管目录，
+  // 不算"项目真实文件夹"，仍走托管路径。
+  const isRegularProject = !input.kind || input.kind === 'project';
+  const hasWorkingDirectory = Boolean(input.workingDirectory?.trim());
+
   const config: ProjectConfig = {
     id: `proj_${randomUUID().slice(0, 8)}`,
     slug,
@@ -265,6 +285,7 @@ export function createProject(workspaceRootPath: string, input: CreateProjectInp
     kind: input.kind,
     createdAt: now,
     updatedAt: now,
+    ...(isRegularProject && hasWorkingDirectory ? { memoryLocation: 'project' as const } : {}),
   };
 
   saveProjectConfig(workspaceRootPath, config);
@@ -345,7 +366,11 @@ export function writeProjectMemory(workspaceRootPath: string, projectSlug: strin
   if (!projectExists(workspaceRootPath, projectSlug)) {
     throw new Error(`工作区不存在: ${projectSlug}`);
   }
-  atomicWriteFileSync(getProjectMemoryPath(workspaceRootPath, projectSlug), content);
+  const memoryPath = getProjectMemoryPath(workspaceRootPath, projectSlug);
+  const memoryDir = dirname(memoryPath);
+  // project 模式的 .context/ 是项目真实文件夹下新目录，托管模式的项目目录已由 createProject 保证存在
+  if (!existsSync(memoryDir)) mkdirSync(memoryDir, { recursive: true });
+  atomicWriteFileSync(memoryPath, content);
 }
 
 /** 列出项目所有资产（按上传时间降序） */

@@ -57,6 +57,12 @@ export interface ProjectConfig {
   kind?: 'project' | 'home' | 'ad-hoc';
   /** 项目自定义看板列；未设置时用全局默认列（列即状态） */
   kanbanColumns?: KanbanColumnDef[];
+  /**
+   * 项目记忆（MEMORY.md）存放位置，创建时一次性决定，不做事后迁移：
+   * - 'project'：落在 `workingDirectory/.context/MEMORY.md`，跟随项目真实文件夹
+   * - 'workspace' / 未设置：沿用 MyYoda 托管目录 `projects/{slug}/MEMORY.md`（老项目、空白项目的默认行为，保持完全兼容）
+   */
+  memoryLocation?: 'workspace' | 'project';
 }
 
 /**
