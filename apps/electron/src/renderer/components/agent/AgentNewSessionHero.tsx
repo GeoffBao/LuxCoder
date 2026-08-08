@@ -25,6 +25,15 @@ interface AgentNewSessionHeroProps {
   onPickChip: (chip: QuickstartChip) => void
 }
 
+/** 首屏输入技巧提示：与输入框 placeholder 一致，帮助企业新用户快速熟悉符号能力 */
+const INPUT_TIPS: Array<{ symbol: string; label: string }> = [
+  { symbol: '@', label: '引用文件' },
+  { symbol: '/', label: '调用 Skill' },
+  { symbol: '#', label: '使用 MCP' },
+  { symbol: '&', label: '引用会话' },
+  { symbol: '～', label: '引用待办/日程' },
+]
+
 export function AgentNewSessionHero({ onPickChip }: AgentNewSessionHeroProps): React.ReactElement {
   const userProfile = useAtomValue(userProfileAtom)
   const [category, setCategory] = React.useState<QuickstartCategory>('office')
@@ -75,6 +84,19 @@ export function AgentNewSessionHero({ onPickChip }: AgentNewSessionHeroProps): R
             </button>
           )
         })}
+      </div>
+
+      {/* 输入技巧提示：输入框 placeholder 的符号能力一览，降低企业新用户上手门槛 */}
+      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[12px] text-muted-foreground/70">
+        <span className="font-medium text-foreground/60">输入技巧</span>
+        {INPUT_TIPS.map((tip) => (
+          <span key={tip.symbol} className="flex items-center gap-1.5">
+            <kbd className="flex h-5 min-w-5 items-center justify-center rounded-[6px] border border-border bg-background/70 px-1.5 font-mono text-[11px] leading-none text-foreground/80">
+              {tip.symbol}
+            </kbd>
+            <span>{tip.label}</span>
+          </span>
+        ))}
       </div>
     </div>
   )

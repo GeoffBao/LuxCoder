@@ -28,7 +28,7 @@ const STATUS_CONFIG: Record<WeChatBridgeStatus, { color: string; label: string }
   scanned: { color: 'bg-blue-400 animate-pulse', label: '已扫码，确认中...' },
   connecting: { color: 'bg-amber-400 animate-pulse', label: '连接中...' },
   connected: { color: 'bg-green-500', label: '已连接' },
-  error: { color: 'bg-red-500', label: '连接错误' },
+  error: { color: 'bg-destructive', label: '连接错误' },
 }
 
 export function WeChatSettings(): React.ReactElement {
@@ -170,7 +170,7 @@ export function WeChatSettings(): React.ReactElement {
 
         {/* 错误信息 */}
         {bridgeState.status === 'error' && bridgeState.errorMessage && (
-          <div className="mt-2 px-3 py-2.5 rounded-lg bg-red-500/10 text-red-700 dark:text-red-400 text-sm">
+          <div className="mt-2 px-3 py-2.5 rounded-lg bg-destructive/10 text-red-700 dark:text-red-400 text-sm">
             {bridgeState.errorMessage}
           </div>
         )}

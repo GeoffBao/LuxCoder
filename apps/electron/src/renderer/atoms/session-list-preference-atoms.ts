@@ -3,7 +3,7 @@
  *
  * 持久化到 ~/.yoda/settings.json 的 `sessionListPreference` 字段
  * （遵循"配置文件优于 localStorage"约束，与 sidebar-module-atoms.ts 同一套模式）。
- * 只影响 Code 模式的会话列表——Chat 模式的归档切换继续用独立的 sidebarViewModeAtom。
+ * 只影响 Project 模式的会话列表——Chat 模式的归档切换继续用独立的 sidebarViewModeAtom。
  */
 
 import { atom } from 'jotai'

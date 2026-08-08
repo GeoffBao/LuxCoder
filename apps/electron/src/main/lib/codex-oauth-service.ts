@@ -102,29 +102,34 @@ export async function loginCodexOAuth(options?: CodexLoginOptions): Promise<Code
         credentials: createEphemeralCredentialStore(),
         allowModelNetwork: false,
       })
-      const credentials = await runtime.login('openai-codex', 'oauth', {
-        signal: abort.signal,
-        prompt: async (prompt) => {
-          if (prompt.type === 'select') return method
-          return new Promise<string>((_resolve, reject) => {
-            prompt.signal?.addEventListener('abort', () => reject(new Error('登录已取消')), { once: true })
-            abort.signal.addEventListener('abort', () => reject(new Error('登录已取消')), { once: true })
-          })
-        },
-        notify: (event) => {
-          if (event.type === 'auth_url') {
-            options?.onAuthUrl?.(event.url)
-            shell.openExternal(event.url).catch((err) => console.error('[Codex OAuth] 打开浏览器失败:', err))
-          } else if (event.type === 'device_code') {
-            console.log(`[Codex OAuth] 请在浏览器中授权（设备码：${event.userCode}）`)
-            options?.onDeviceCode?.({ userCode: event.userCode, verificationUri: event.verificationUri })
-            shell.openExternal(event.verificationUri).catch((err) => console.error('[Codex OAuth] 打开设备授权页面失败:', err))
-          } else if (event.type === 'progress' || event.type === 'info') {
-            console.log(`[Codex OAuth] ${event.message}`)
-            options?.onProgress?.(event.message)
-          }
-        },
-      })
+      // 浏览器授权完成后 token 交换在受限网络下可能长期挂起（SDK 底层请求无超时），
+      // 会让 login 永不 settle、UI 永久停在"等待授权完成…"。用 withLoginTimeout 兜底。
+      const credentials = await withLoginTimeout(
+        runtime.login('openai-codex', 'oauth', {
+          signal: abort.signal,
+          prompt: async (prompt) => {
+            if (prompt.type === 'select') return method
+            return new Promise<string>((_resolve, reject) => {
+              prompt.signal?.addEventListener('abort', () => reject(new Error('登录已取消')), { once: true })
+              abort.signal.addEventListener('abort', () => reject(new Error('登录已取消')), { once: true })
+            })
+          },
+          notify: (event) => {
+            if (event.type === 'auth_url') {
+              options?.onAuthUrl?.(event.url)
+              shell.openExternal(event.url).catch((err) => console.error('[Codex OAuth] 打开浏览器失败:', err))
+            } else if (event.type === 'device_code') {
+              console.log(`[Codex OAuth] 请在浏览器中授权（设备码：${event.userCode}）`)
+              options?.onDeviceCode?.({ userCode: event.userCode, verificationUri: event.verificationUri })
+              shell.openExternal(event.verificationUri).catch((err) => console.error('[Codex OAuth] 打开设备授权页面失败:', err))
+            } else if (event.type === 'progress' || event.type === 'info') {
+              console.log(`[Codex OAuth] ${event.message}`)
+              options?.onProgress?.(event.message)
+            }
+          },
+        }),
+        abort,
+      )
       return normalizeCredentials(credentials)
     })
   } finally {
@@ -159,4 +164,31 @@ export async function refreshCodexOAuth(refreshToken: string): Promise<CodexOAut
     await runtime.getAuth('openai-codex')
     return normalizeCredentials(await store.read())
   })
+}
+
+/**
+ * 给 Codex OAuth 登录流程加兜底超时。
+ *
+ * Pi SDK 的 OAuth code→token 交换在受限网络下可能长期挂起（底层请求无超时），
+ * 导致 runtime.login 永不 settle——此时浏览器可能已显示授权成功、但 UI 永远停在
+ * "等待授权完成…"而无法复位。这里在超时后主动 abort 内部流程并抛出可读错误，
+ * 让上层 ipc handler 能及时返回错误、渲染层复位登录态。
+ */
+const LOGIN_TIMEOUT_MS = 5 * 60 * 1000
+
+async function withLoginTimeout<T>(operation: Promise<T>, abort: AbortController): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      // 先 reject 超时错误，再 abort：保证 Promise.race 拿到的是可读的超时提示，
+      // 而不是 SDK 被 abort 后的"登录已取消"。
+      reject(new Error('ChatGPT 登录超时：请在浏览器中完成授权后重试；若多次超时，可改用设备码登录。'))
+      abort.abort()
+    }, LOGIN_TIMEOUT_MS)
+  })
+  try {
+    return await Promise.race([operation, timeout])
+  } finally {
+    clearTimeout(timer)
+  }
 }

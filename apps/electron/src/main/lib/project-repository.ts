@@ -35,7 +35,7 @@ import {
 
 const WorkspaceIdSchema = z.string().min(1, 'workspaceId 必填')
 const ProjectSlugSchema = z.string().regex(/^[a-z0-9][a-z0-9-]*$/, 'project slug 必须是 URL-safe slug')
-const ProjectNameSchema = z.string().trim().min(1, '项目名称不能为空')
+const ProjectNameSchema = z.string().trim().min(1, '工作区名称不能为空')
 const OptionalProjectStringSchema = z.string().optional()
 const ProjectKindSchema = z.enum(['project', 'home', 'ad-hoc'])
 const CreateProjectInputSchema = z.object({
@@ -72,7 +72,7 @@ function resolveWorkspaceRootFromManager(workspaceId: string): string {
 
 function requireLoadedProject(workspaceRoot: string, slug: string): LoadedProject {
   const project = loadProject(workspaceRoot, slug)
-  if (!project) throw new Error(`项目创建或更新后无法重新加载: ${slug}`)
+  if (!project) throw new Error(`工作区创建或更新后无法重新加载: ${slug}`)
   return project
 }
 
@@ -246,7 +246,7 @@ export class ProjectRepository {
     return this.createProjectAtRoot(workspaceRoot, { ...input, kind }).config
   }
 
-  /** Home 模式对话的隐藏容器；workingDirectory 固定为该 Workspace 的 workspace-files/ 目录。 */
+  /** Chat 模式对话的隐藏容器；workingDirectory 固定为该 Workspace 的 workspace-files/ 目录。 */
   ensureHomeProject(workspaceRoot: string): ProjectConfig {
     const workspaceFilesDir = join(workspaceRoot, 'workspace-files')
     mkdirSync(workspaceFilesDir, { recursive: true })

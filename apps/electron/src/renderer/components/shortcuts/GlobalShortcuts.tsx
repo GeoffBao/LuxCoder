@@ -25,6 +25,7 @@ import {
   agentPendingPromptAtom,
   agentSessionDraftHtmlAtom,
   agentSessionDraftsAtom,
+  agentSessionDraftSyncVersionsAtom,
   agentSessionsAtom,
   currentAgentSessionIdAtom,
   agentChannelIdAtom,
@@ -36,6 +37,7 @@ import {
 import {
   chatPendingMessageAtom,
   conversationDraftsAtom,
+  conversationDraftSyncVersionsAtom,
   conversationsAtom,
   currentConversationIdAtom,
   selectedModelAtom,
@@ -274,12 +276,12 @@ export function GlobalShortcuts(): null {
     }, []),
   )
 
-  // Cmd+Shift+T / Ctrl+Shift+T → 打开或聚焦独立任务/日程窗口
+  // Cmd+Shift+T / Ctrl+Shift+T → 打开或聚焦独立定时任务窗口
   useShortcut(
     'open-planning',
     useCallback(() => {
       void window.electronAPI.openPlanningWindow().catch((error) => {
-        console.error('[任务/日程] 打开独立窗口失败:', error)
+        console.error('[定时任务] 打开独立窗口失败:', error)
       })
     }, []),
   )
@@ -501,6 +503,11 @@ export function GlobalShortcuts(): null {
           map.delete(sessionId)
           return map
         })
+        store.set(agentSessionDraftSyncVersionsAtom, (prev) => {
+          const map = new Map(prev)
+          map.set(sessionId, (map.get(sessionId) ?? 0) + 1)
+          return map
+        })
         window.dispatchEvent(new CustomEvent('yoda:focus-input'))
         acknowledgeDelivery(true)
         return
@@ -516,6 +523,11 @@ export function GlobalShortcuts(): null {
           const map = new Map(prev)
           const current = map.get(conversationId) ?? ''
           map.set(conversationId, current ? `${current}\n${trimmed}` : trimmed)
+          return map
+        })
+        store.set(conversationDraftSyncVersionsAtom, (prev) => {
+          const map = new Map(prev)
+          map.set(conversationId, (map.get(conversationId) ?? 0) + 1)
           return map
         })
         window.dispatchEvent(new CustomEvent('yoda:focus-input'))

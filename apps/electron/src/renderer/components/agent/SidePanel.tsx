@@ -581,38 +581,42 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
                     placeholder="搜索文件..."
                     sessionId={sessionId}
                     onFilePreview={handleFilePreview}
-                  >
-                    <div className="file-source-tabbar main-tabbar mt-1.5 flex h-7 border-b border-border/80" role="tablist" aria-label="文件来源">
-                      <button
-                        type="button"
-                        role="tab"
-                        className={cn(
-                          'relative flex-1 h-7 px-2 text-[11px] transition-colors select-none',
-                          fileSourceFilter === 'session'
-                            ? 'app-tab-active text-foreground'
-                            : 'app-tab-inactive text-muted-foreground hover:text-foreground',
-                        )}
-                        aria-selected={fileSourceFilter === 'session'}
-                        onClick={() => setFileSourceFilter('session')}
-                      >
-                        会话文件
-                      </button>
-                      <button
-                        type="button"
-                        role="tab"
-                        className={cn(
-                          'relative flex-1 h-7 px-2 text-[11px] transition-colors select-none',
-                          fileSourceFilter === 'project'
-                            ? 'app-tab-active text-foreground'
-                            : 'app-tab-inactive text-muted-foreground hover:text-foreground',
-                        )}
-                        aria-selected={fileSourceFilter === 'project'}
-                        onClick={() => setFileSourceFilter('project')}
-                      >
-                        项目文件
-                      </button>
-                    </div>
-                  </FileSearchBar>
+                  />
+                  {/* 来源切换 tab 独立于 FileSearchBar 渲染：
+                      当会话未绑定 Project（projectFilesPath 为 null）且处于"项目文件"tab 时，
+                      FileSearchBar 的 hasAnyRoot 为 false 会整体返回 null（含 children）。
+                      若 tab bar 作为其 children 会随之消失，用户将被锁死在"项目文件"视图
+                      无法切回会话文件（提示文案却引导切回）。这里独立渲染保证始终可切换。 */}
+                  <div className="file-source-tabbar main-tabbar mt-1.5 mx-2 flex h-7 border-b border-border/80" role="tablist" aria-label="文件来源">
+                    <button
+                      type="button"
+                      role="tab"
+                      className={cn(
+                        'relative flex-1 h-7 px-2 text-[11px] transition-colors select-none',
+                        fileSourceFilter === 'session'
+                          ? 'app-tab-active text-foreground'
+                          : 'app-tab-inactive text-muted-foreground hover:text-foreground',
+                      )}
+                      aria-selected={fileSourceFilter === 'session'}
+                      onClick={() => setFileSourceFilter('session')}
+                    >
+                      会话文件
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      className={cn(
+                        'relative flex-1 h-7 px-2 text-[11px] transition-colors select-none',
+                        fileSourceFilter === 'project'
+                          ? 'app-tab-active text-foreground'
+                          : 'app-tab-inactive text-muted-foreground hover:text-foreground',
+                      )}
+                      aria-selected={fileSourceFilter === 'project'}
+                      onClick={() => setFileSourceFilter('project')}
+                    >
+                      项目文件
+                    </button>
+                  </div>
                   <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin pt-1">
                     {showProjectFiles && wsAttachedFiles.length > 0 && (
                       <AttachedFilesSection
@@ -697,7 +701,7 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
                           />
                         </div>
                         {hasVisibleWorkspaceAttachedItems && (
-                          <div className="text-[11px] font-medium text-muted-foreground mb-1 px-3 pt-2">工作区附加文件（项目外）</div>
+                          <div className="text-[11px] font-medium text-muted-foreground mb-1 px-3 pt-2">工作区附加文件（空间外）</div>
                         )}
                         <FileBrowser rootPath={projectFilesPath} access={fileAccess} hideToolbar embedded hideEmpty={hasVisibleWorkspaceAttachedItems} onAddToChat={handleAddToChat} onFilePreview={handleFilePreview} />
                       </>
@@ -707,7 +711,7 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
                         <div className="flex items-start gap-1.5">
                           <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
                           <div className="min-w-0">
-                            <div>项目目录不可用，可能已被移动或删除：</div>
+                            <div>工作区目录不可用，可能已被移动或删除：</div>
                             <div className="mt-0.5 truncate font-mono text-[11px] opacity-80" title={projectUnavailablePath}>{projectUnavailablePath}</div>
                           </div>
                         </div>
@@ -718,13 +722,22 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
                           className="mt-2 h-6 border-destructive/30 px-2 text-[11px] text-destructive hover:bg-destructive/10"
                           onClick={openProjectSettings}
                         >
-                          前往项目设置重新关联
+                          前往工作区设置重新关联
                         </Button>
                       </div>
                     )}
                     {showProjectFiles && !projectFilesPath && !projectUnavailablePath && (
-                      <div className="mx-2 my-2 px-3 py-2 text-xs text-muted-foreground bg-muted/40 rounded-md">
-                        当前会话尚未绑定可用项目目录；可切回会话文件查看沙箱内容。
+                      <div className="mx-2 my-2 flex flex-col gap-2 rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                        <div>当前会话尚未绑定可用工作区目录；可切回会话文件查看沙箱内容。</div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-6 self-start px-2 text-[11px]"
+                          onClick={() => setFileSourceFilter('session')}
+                        >
+                          查看会话文件
+                        </Button>
                       </div>
                     )}
                     {showSessionFiles && (
@@ -1102,7 +1115,7 @@ function AttachedDirTree({ dirPath, onDetach, selectedPaths, onSelect, refreshVe
         />
         <ChevronRight
           className={cn(
-            'relative z-10 size-3.5 text-muted-foreground flex-shrink-0 transition-transform duration-150',
+            'relative z-10 size-3.5 text-muted-foreground flex-shrink-0 transition-transform duration-fast',
             expanded && 'rotate-90',
           )}
         />
@@ -1353,7 +1366,7 @@ function AttachedDirItem({ entry, depth, selectedPaths, onSelect, refreshVersion
         {entry.isDirectory ? (
           <ChevronRight
             className={cn(
-              'relative z-10 size-3.5 text-muted-foreground flex-shrink-0 transition-transform duration-150',
+              'relative z-10 size-3.5 text-muted-foreground flex-shrink-0 transition-transform duration-fast',
               expanded && 'rotate-90',
             )}
           />

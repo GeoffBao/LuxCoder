@@ -1,15 +1,15 @@
 /**
  * AgentRecommendBanner — Agent 模式推荐横幅
  *
- * 当 AI 通过 suggest_agent_mode 工具推荐切换到 Code 模式时，
+ * 当 AI 通过 suggest_agent_mode 工具推荐切换到 Project 模式时，
  * 在 ChatInput 上方展示推荐横幅（与 AskUserBanner 同风格同位置）。
- * 用户可点击"切换到 Code 模式"按钮迁移，或点击 × 关闭。
+ * 用户可点击"切换到 Project 模式"按钮迁移，或点击 × 关闭。
  *
  * 迁移流程：
  * 1. 清除推荐状态（先清再切换，避免 ChatView 副作用）
- * 2. 创建 Agent 会话（绑定默认工作区）
+ * 2. 创建 Agent 会话（绑定当前空间）
  * 3. 将 Chat 对话历史复制到新 Agent 会话
- * 4. 切换到默认工作区 + Agent 模式
+ * 4. 切换到当前空间 + Agent 模式
  * 5. 在 Agent 输入区显示建议提示（prompt suggestion）
  */
 
@@ -59,13 +59,14 @@ export function AgentRecommendBanner(): React.ReactElement | null {
     setMigrating(true)
     try {
       const workspaces = store.get(agentWorkspacesAtom)
-      const defaultWorkspaceId = workspaces[0]?.id ?? null
+      // 优先使用用户当前所在的空间，避免迁移后跳去列表第一个空间（workspaces[0]）
+      const targetWorkspaceId = store.get(currentAgentWorkspaceIdAtom) ?? workspaces[0]?.id ?? null
 
       // 1. 创建 Agent 会话
       const session = await window.electronAPI.createAgentSession(
         undefined,
         agentChannelId,
-        defaultWorkspaceId ?? undefined,
+        targetWorkspaceId ?? undefined,
         store.get(agentModelIdAtom) || undefined,
       )
 
@@ -76,11 +77,11 @@ export function AgentRecommendBanner(): React.ReactElement | null {
       const sessions = await window.electronAPI.listAgentSessions()
       store.set(agentSessionsAtom, sessions)
 
-      // 4. 切换到默认工作区（确保 AgentView 能正确显示新会话）
-      if (defaultWorkspaceId) {
-        store.set(currentAgentWorkspaceIdAtom, defaultWorkspaceId)
+      // 4. 切换到目标空间（保持用户当前所在空间）
+      if (targetWorkspaceId) {
+        store.set(currentAgentWorkspaceIdAtom, targetWorkspaceId)
         window.electronAPI.updateSettings({
-          agentWorkspaceId: defaultWorkspaceId,
+          agentWorkspaceId: targetWorkspaceId,
         }).catch(console.error)
       }
 
@@ -108,25 +109,25 @@ export function AgentRecommendBanner(): React.ReactElement | null {
       })
 
       // 8. 通知用户
-      toast.success('已切换到 Code 模式', {
+      toast.success('已切换到 Project 模式', {
         description: '对话历史已迁移到新的 Agent 会话',
       })
     } catch (error) {
       console.error('[AgentRecommendBanner] 迁移失败:', error)
-      toast.error('切换到 Code 模式失败')
+      toast.error('切换到 Project 模式失败')
     } finally {
       setMigrating(false)
     }
   }
 
   return (
-    <div className="mx-4 mb-3 rounded-xl bg-card shadow-lg overflow-hidden animate-in slide-in-from-bottom-2 duration-200">
+    <div className="mx-4 mb-3 rounded-xl bg-card shadow-lg overflow-hidden animate-in slide-in-from-bottom-2 duration-base">
       {/* 头部 */}
       <div className="px-4 pt-3 pb-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="size-4 text-primary" />
-            <span className="text-sm font-medium text-foreground">推荐切换到 Code 模式</span>
+            <span className="text-sm font-medium text-foreground">推荐切换到 Project 模式</span>
           </div>
           <button
             type="button"
@@ -154,7 +155,7 @@ export function AgentRecommendBanner(): React.ReactElement | null {
           disabled={migrating}
           className="h-7 px-3 text-xs"
         >
-          {migrating ? '切换中...' : '切换到 Code 模式'}
+          {migrating ? '切换中...' : '切换到 Project 模式'}
           {!migrating && <ArrowRight className="size-3 ml-1" />}
         </Button>
       </div>

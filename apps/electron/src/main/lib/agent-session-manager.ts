@@ -810,7 +810,7 @@ export function moveSessionToWorkspace(sessionId: string, targetWorkspaceId: str
 
   const targetWs = getAgentWorkspace(targetWorkspaceId)
   if (!targetWs) {
-    throw new Error(`目标工作区不存在: ${targetWorkspaceId}`)
+    throw new Error(`目标空间不存在: ${targetWorkspaceId}`)
   }
 
   const sessionTreeIds = collectSessionTreeIds(index.sessions, sessionId)

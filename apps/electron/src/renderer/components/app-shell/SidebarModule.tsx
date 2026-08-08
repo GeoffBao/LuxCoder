@@ -125,7 +125,7 @@ export function SidebarModule({
           <ChevronRight
             size={14}
             className={cn(
-              'text-foreground/30 transition-transform duration-150',
+              'text-foreground/30 transition-transform duration-fast',
               !isCollapsed && 'rotate-90',
             )}
           />
@@ -135,7 +135,7 @@ export function SidebarModule({
   )
 
   const rowClass = cn(
-    'sidebar-module-row flex w-full items-center justify-between rounded-md px-3 py-2 text-[13px] transition-colors duration-100 titlebar-no-drag',
+    'sidebar-module-row flex w-full items-center justify-between rounded-md px-3 py-2 text-[13px] transition-colors duration-fast titlebar-no-drag',
     active && 'sidebar-module-row-active',
     active
       ? 'bg-accent-foreground/[0.10] text-foreground shadow-[0_1px_2px_0_rgba(0,0,0,0.05)]'

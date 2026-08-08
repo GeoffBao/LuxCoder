@@ -47,7 +47,7 @@ interface DiffChangesListProps {
   sessionId: string
   /** 会话工作目录（用于 badge 计算） */
   sessionPath?: string
-  /** 工作区共享文件目录（用于 badge 计算） */
+  /** 空间共享文件目录（用于 badge 计算） */
   workspaceFilesPath?: string
   /** 点击文件回调 */
   onFileClick: (filePath: string, isUntracked: boolean, gitRoot?: string) => void
@@ -57,7 +57,7 @@ interface DiffChangesListProps {
   selectedFilePath?: string
   /** 额外的候选目录（附加目录等） */
   extraPaths?: string[]
-  /** 工作区 slug，用于 WorktreeSelector 拉取 worktree 列表 */
+  /** 空间 slug，用于 WorktreeSelector 拉取 worktree 列表 */
   workspaceSlug?: string
   /** 用于自动发现 worktree 的仓库候选路径 */
   worktreeRepoPaths?: string[]
@@ -78,8 +78,8 @@ interface DiffChangesListProps {
 /** 文件来源 badge 的颜色和文案 */
 const SOURCE_CONFIG: Record<string, { color: string; label: string }> = {
   session: { color: 'bg-blue-500/10 text-blue-500', label: '会话文件' },
-  workspace: { color: 'bg-purple-500/10 text-purple-500', label: '工作区' },
-  both: { color: 'bg-cyan-500/10 text-cyan-500', label: '会话+工作区文件' },
+  workspace: { color: 'bg-purple-500/10 text-purple-500', label: '空间' },
+  both: { color: 'bg-cyan-500/10 text-cyan-500', label: '会话+空间文件' },
   none: { color: 'bg-muted text-muted-foreground', label: '附加目录文件' },
 }
 
@@ -598,7 +598,7 @@ function GitStatusMarker({
 }): React.ReactElement {
   const config: Record<ChangedFileStatus, { label: string; description: string; color: string }> = {
     modified: { label: 'M', description: '已修改', color: 'text-amber-500' },
-    deleted: { label: 'D', description: '已删除', color: 'text-red-500' },
+    deleted: { label: 'D', description: '已删除', color: 'text-destructive' },
     untracked: { label: 'U', description: '未追踪', color: 'text-emerald-500' },
   }
   const { label, description, color } = config[status]

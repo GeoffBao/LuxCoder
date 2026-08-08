@@ -53,6 +53,7 @@ import { getAgentWorkspace, getWorkspaceMcpConfig, ensurePluginManifest, getWork
 import { getAgentWorkspacePath, getAgentSessionWorkspacePath, getSdkConfigDir, getWorkspaceFilesDir, getBundledCliPath, getWorkspaceSkillsDir, resolveClaudeAgentBinaryPath } from './config-paths'
 import { projectRepository } from './project-repository'
 import { resolveSessionCwd } from './agent-cwd-resolver'
+import { appendVisionRelayAllowedRoot } from './vision-relay-roots'
 import { resolveAgentSessionFileRoots } from './agent-file-roots'
 import { captureAgentTurnOutputs, snapshotOutputFiles } from './agent-output-capture'
 import { getRuntimeStatus } from './runtime-init'
@@ -68,6 +69,7 @@ import { removeYodaAutoCompactSettings } from './agent-auto-compact-settings'
 import { applyClaudeSdkAttributionSettings, isGitAttributionEnabled } from './agent-git-attribution'
 import { validateToolInput } from './agent-tool-input-validator'
 import { estimateTokenCount, WRITE_CONTENT_TOKEN_THRESHOLD } from './agent-tool-token-estimator'
+import { injectBashDefaultTimeout } from './agent-bash-timeout'
 import { injectBuiltinMcpServers } from './builtin-mcp/registry'
 import { injectChromeDevtoolsMcpServer } from './builtin-mcp/chrome-devtools'
 import { isBuiltinMcpUserEnabled } from './builtin-mcp/settings'
@@ -299,6 +301,8 @@ function collectAttachedDirectories(params: {
   return result
 }
 
+// 视觉助手授权根（含项目工作目录）的纯函数逻辑在 vision-relay-roots.ts，避免与 orchestrator 的 electron 依赖耦合，便于单测。
+
 function escapePromptXml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -406,6 +410,10 @@ export class AgentOrchestrator {
       // 导致 HTTP MCP 服务器（如 Nowledge Mem）的工具无法直接调用。
       // Yoda 自行管理工具呈现和 MCP 连接，不依赖此机制。
       ENABLE_TOOL_SEARCH: 'false',
+      // MCP 工具单次调用硬超时（Claude runtime 识别；Pi runtime 的 MCP 客户端已有自己的
+      // DEFAULT_MCP_REQUEST_TIMEOUT_MS=60s 硬超时，不依赖此变量）。防止某个 MCP 工具
+      // 挂起不返回时，SDK 子进程无限等待导致会话卡死。
+      MCP_TOOL_TIMEOUT: '120000',
       // 禁用 attribution block：SDK 默认会在 system prompt 最前面注入一段
       // 文本（含客户端版本号与基于会话内容计算的指纹），且每次请求都变化。
       // 经第三方 Anthropic 兼容代理/网关中转时，会导致缓存前缀变化、命中率骤降。
@@ -1257,8 +1265,8 @@ export class AgentOrchestrator {
           if ('unavailable' in cwdResolution) {
             reportPreflightError({
               code: 'project_directory_unavailable',
-              title: '项目目录不可用',
-              message: `该会话绑定的项目目录「${cwdResolution.displayPath ?? '未知路径'}」已不可访问，可能已被移动或删除。请在项目设置里重新关联或恢复该目录后再继续。`,
+              title: '工作区目录不可用',
+              message: `该会话绑定的工作区目录「${cwdResolution.displayPath ?? '未知路径'}」已不可访问，可能已被移动或删除。请在工作区设置里重新关联或恢复该目录后再继续。`,
               canRetry: false,
               actions: [],
             })
@@ -1309,6 +1317,10 @@ export class AgentOrchestrator {
         sessionMeta,
         workspaceSlug,
       })
+
+      // 视觉助手授权根：在附加目录基础上，把当前会话的实际工作目录（项目 workingDirectory）
+      // 也纳入，但不动 allAdditionalDirectories（它仍用于 additionalDirectories / prompt）。
+      const visionRelayAllowedRoots = appendVisionRelayAllowedRoot(allAdditionalDirectories, agentCwd)
 
       // 9.5 确保 SDK 项目设置（plansDirectory → .context）
       if (agentRuntime === 'claude') {
@@ -1394,7 +1406,7 @@ export class AgentOrchestrator {
               agentRuntime,
               workspaceId,
               workspaceSlug,
-              allowedRoots: allAdditionalDirectories,
+              allowedRoots: visionRelayAllowedRoots,
               permissionMode: permissionModeOverride ?? sessionMeta?.permissionMode ?? YODA_DEFAULT_PERMISSION_MODE,
               triggeredBy: input.triggeredBy,
             })
@@ -1619,6 +1631,26 @@ export class AgentOrchestrator {
               message:
                 `The content for Write tool (~${estimatedTokens} estimated tokens, ${input.content.length} chars) is too large and may be truncated. ` +
                 `Please split the write into smaller sequential steps: write the first portion of the file now, then use Edit tool to append remaining sections incrementally.`,
+            }
+          }
+        }
+
+        // ── Bash 默认超时注入（工具卡死防护） ──
+        // 模型发起 Bash 命令时往往不传 timeout，遇到死循环（如 awk 读到 EOF 后 while 永真）
+        // 会无限空转、SDK 子进程永不返回，导致整个会话永久卡在运行中。
+        // 这里在 canUseTool 阶段给「未指定 timeout」的 Bash 注入默认超时，
+        // 模型已显式指定 timeout 时尊重原值。注意 runtime 单位与默认值都不同：
+        //   - Claude runtime：120s / 毫秒，对齐官方 CLI 本来就有的默认值，非新增限制
+        //   - Pi runtime：600s / 秒（resolveTimeoutMs 按秒×1000）。Pi 原生未传 timeout
+        //     时无限等待，600s 是刻意放宽的新增兜底，避免误杀 Android/iOS 等长编译命令；
+        //     真正的死循环由会话级看门狗（15min 零 SDK 消息）兜底，两者独立不冲突。
+        // 两者经各自的 canUseTool updatedInput 改写机制注入，共用此统一入口。
+        if (toolName === 'Bash') {
+          const updatedInput = injectBashDefaultTimeout(input, agentRuntime)
+          if (updatedInput !== input) {
+            return {
+              behavior: 'allow' as const,
+              updatedInput,
             }
           }
         }

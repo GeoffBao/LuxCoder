@@ -3,7 +3,7 @@
  *
  * 控制 MainArea 显示的内容：
  * - conversations: 对话视图（Chat/Agent 模式内容）
- * - planning: Task 日历视图（Todo / 日历 / 定时任务合一）
+ * - planning: 定时任务视图（Task 日历已收窄为只保留定时任务）
  * - agent-skills: Yoda 插件（专家 / 专家团 / Skills / MCP / API）全屏管理视图，Home / Code 共享
  * - workspace-context: Yoda 记忆（CLAUDE.md + auto-memory），已迁入设置面板；枚举保留兼容
  * - repo-wiki: Home 模式 知识库（个人知识库 / 企业知识库）主页面

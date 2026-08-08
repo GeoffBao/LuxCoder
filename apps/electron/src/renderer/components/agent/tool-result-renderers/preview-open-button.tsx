@@ -35,7 +35,7 @@ export function PreviewOpenButton({ filePath, className }: PreviewOpenButtonProp
         'inline-flex shrink-0 items-center px-1.5 py-px rounded text-[11px] text-muted-foreground/60',
         'hover:text-foreground/70 hover:bg-muted/50',
         'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
-        'transition-colors duration-150 cursor-pointer',
+        'transition-colors duration-fast cursor-pointer',
         className,
       )}
       onClick={(e) => {

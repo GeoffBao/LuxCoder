@@ -1,8 +1,8 @@
 /**
- * ImportSkillDialog — 从其他工作区批量导入 Skill
+ * ImportSkillDialog — 从其他空间批量导入 Skill
  *
- * 列出其他工作区可用的 Skill（自动过滤已安装的同名项），
- * 勾选多个后一键批量导入到当前项目。导入完成后通过 toast 反馈结果。
+ * 列出其他空间可用的 Skill（自动过滤已安装的同名项），
+ * 勾选多个后一键批量导入到当前空间。导入完成后通过 toast 反馈结果。
  */
 
 import * as React from 'react'
@@ -40,7 +40,7 @@ export function ImportSkillDialog({
   installedSkills,
   onImported,
 }: ImportSkillDialogProps): React.ReactElement {
-  // 导入方式：从其他项目 / 从本地文件
+  // 导入方式：从其他空间 / 从本地文件
   const [tab, setTab] = React.useState<'workspace' | 'local'>('workspace')
   const [localSource, setLocalSource] = React.useState<{ kind: 'zip' | 'folder'; path: string } | null>(null)
   const [localImporting, setLocalImporting] = React.useState(false)
@@ -96,7 +96,7 @@ export function ImportSkillDialog({
         if (requestIdRef.current !== requestId) return
         console.error('[Agent 技能] 加载其他工作区 Skill 失败:', error)
         setOtherWorkspaces([])
-        toast.error('加载其他项目 Skill 失败', {
+        toast.error('加载其他空间 Skill 失败', {
           description: error instanceof Error ? error.message : '未知错误',
         })
       } finally {
@@ -120,7 +120,7 @@ export function ImportSkillDialog({
     [otherWorkspaces, installedSlugs],
   )
 
-  // 来源项目下拉默认选中第一个可用工作区（保持当前值仍有效时不切换）
+  // 来源空间下拉默认选中第一个可用空间（保持当前值仍有效时不切换）
   React.useEffect(() => {
     if (!open || loadingWorkspaces || availableWorkspaces.length === 0) {
       if (!loadingWorkspaces) setSelectedWorkspaceSlug('')
@@ -267,17 +267,17 @@ export function ImportSkillDialog({
         <DialogHeader className="px-6 pb-4 pt-6">
           <DialogTitle>导入 Skill</DialogTitle>
           <DialogDescription>
-            从其他项目批量导入，或从本地 zip 压缩包 / 文件夹导入到当前项目。已安装的同名 Skill 会自动跳过。
+            从其他空间批量导入，或从本地 zip 压缩包 / 文件夹导入到当前空间。已安装的同名 Skill 会自动跳过。
           </DialogDescription>
         </DialogHeader>
 
-        {/* 导入方式切换：从其他项目 / 从本地文件 */}
+        {/* 导入方式切换：从其他空间 / 从本地文件 */}
         <div className="px-6 pb-4">
           <SectionTabs
             value={tab}
             onChange={setTab}
             options={[
-              { value: 'workspace', label: '从其他项目' },
+              { value: 'workspace', label: '从其他空间' },
               { value: 'local', label: '从本地文件' },
             ]}
           />
@@ -289,20 +289,20 @@ export function ImportSkillDialog({
           {loadingWorkspaces ? (
             <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
               <Loader2 size={15} className="animate-spin" />
-              正在加载其他项目 Skill...
+              正在加载其他空间 Skill...
             </div>
           ) : availableWorkspaces.length === 0 ? (
             <SettingsCard divided={false}>
               <div className="py-10 text-center text-sm text-muted-foreground">
-                没有可导入的 Skill。其他项目暂无 Skill，或者它们都已经安装到当前项目了。
+                没有可导入的 Skill。其他空间暂无 Skill，或者它们都已经安装到当前空间了。
               </div>
             </SettingsCard>
           ) : (
             <div className="space-y-2">
-              <div className="text-sm font-medium text-foreground">选择来源项目</div>
+              <div className="text-sm font-medium text-foreground">选择来源空间</div>
               <Select value={selectedWorkspaceSlug} onValueChange={handleWorkspaceChange} disabled={loadingWorkspaces || importing}>
                 <SelectTrigger>
-                  <SelectValue placeholder="选择来源项目" />
+                  <SelectValue placeholder="选择来源空间" />
                 </SelectTrigger>
                 <SelectContent>
                   {availableWorkspaces.map((w) => (
@@ -383,7 +383,7 @@ export function ImportSkillDialog({
                   <div className="text-sm font-medium text-foreground">选择本地 Skill 源</div>
                   <p className="text-xs leading-5 text-muted-foreground">
                     支持 .zip 压缩包或文件夹，包内任意含 SKILL.md 的目录都会识别为一个 Skill（单 / 多 Skill 均可）；
-                    与当前项目同名的 Skill 会自动跳过。
+                    与当前空间同名的 Skill 会自动跳过。
                   </p>
                   <div className="flex items-center gap-2">
                     <Button variant="outline" size="sm" onClick={() => void handlePickLocalSource()} disabled={localImporting}>
@@ -457,7 +457,7 @@ export function ImportSkillDialog({
             <>
               <span className="text-xs text-muted-foreground">
                 {loadingWorkspaces
-                  ? '正在加载其他项目 Skill...'
+                  ? '正在加载其他空间 Skill...'
                   : '勾选要导入的 Skill，已安装的同名 Skill 会自动过滤'}
               </span>
               <Button size="sm" onClick={() => void handleImport()} disabled={loadingWorkspaces || importing || selectedCount === 0}>

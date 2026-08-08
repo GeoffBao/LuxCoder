@@ -145,7 +145,7 @@ export function DraftGitContextPicker({
   const visibleBranches = filterGitBranches(branches, query)
   const selectedBranch = branches.find((candidate) => candidate.name === branch)
   const hintText = mode === 'local'
-    ? 'Local 模式与该项目其他 Local 会话共享同一工作目录，切分支会互相影响'
+    ? 'Local 模式与该工作区其他 Local 会话共享同一工作目录，切分支会互相影响'
     : !newBranchName.trim()
       ? '不填新分支名将以 detached HEAD 创建 worktree，未合并的提交在清理该 worktree 时可能丢失'
       : null

@@ -36,7 +36,6 @@ const CATEGORY_ORDER: ShortcutCategory[] = ['app', 'navigation', 'edit', 'global
 const SHORTCUT_DISPLAY_ORDER: Record<ShortcutCategory, readonly string[]> = {
   app: [
     'new-session',
-    'new-todo',
     'toggle-sidebar',
     'zoom-in',
     'zoom-out',
@@ -45,6 +44,8 @@ const SHORTCUT_DISPLAY_ORDER: Record<ShortcutCategory, readonly string[]> = {
     'toggle-mode',
     'close-tab',
     'toggle-right-panel',
+    'quick-task-chat',
+    'quick-task-agent',
   ],
   navigation: [
     'cycle-sessions',
@@ -57,6 +58,7 @@ const SHORTCUT_DISPLAY_ORDER: Record<ShortcutCategory, readonly string[]> = {
   edit: [
     'clear-context',
     'stop-generation',
+    'save-excalidraw',
     'send-message',
     'insert-line-break',
     'editor-bold',
@@ -178,20 +180,6 @@ export function ShortcutGuideDialog(): React.ReactElement {
     }
 
     const primaryModifier = isMac ? 'Cmd' : 'Ctrl'
-    groups.get('navigation')?.push(
-      {
-        id: 'quick-switch-session',
-        name: '直达会话',
-        description: '按住主修饰键后，继续按 1-9 跳转对应会话',
-        accelerator: `${primaryModifier}+1-9`,
-      },
-      {
-        id: 'cycle-sessions',
-        name: '循环切换会话',
-        description: 'Ctrl+Shift+Tab 可反向切换，松开 Ctrl 确认',
-        accelerator: 'Ctrl+Tab',
-      },
-    )
     groups.get('edit')?.push(
       {
         id: 'send-message',
@@ -218,10 +206,10 @@ export function ShortcutGuideDialog(): React.ReactElement {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-[100] bg-black/40 titlebar-no-drag transition-opacity duration-100 data-[state=open]:opacity-100 data-[state=closed]:opacity-0" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-[100] bg-black/40 titlebar-no-drag transition-opacity duration-fast data-[state=open]:opacity-100 data-[state=closed]:opacity-0" />
         <DialogPrimitive.Content
           aria-describedby={undefined}
-          className="fixed left-1/2 top-1/2 z-[100] flex h-[85vh] max-h-[752px] w-[85vw] max-w-[992px] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl bg-dialog text-dialog-foreground shadow-2xl titlebar-no-drag transition-all duration-100 data-[state=open]:opacity-100 data-[state=open]:scale-100 data-[state=closed]:opacity-0 data-[state=closed]:scale-[0.98]"
+          className="fixed left-1/2 top-1/2 z-[100] flex h-[85vh] max-h-[752px] w-[85vw] max-w-[992px] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl bg-dialog text-dialog-foreground shadow-2xl titlebar-no-drag transition-[opacity,transform] duration-fast data-[state=open]:opacity-100 data-[state=open]:scale-100 data-[state=closed]:opacity-0 data-[state=closed]:scale-[0.98]"
         >
           <div className="flex h-14 flex-shrink-0 items-center justify-between border-b border-border/50 px-6">
             <div className="flex items-center gap-3">

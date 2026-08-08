@@ -2,8 +2,10 @@ import { describe, expect, test } from 'bun:test'
 import {
   findRecallableDraftSession,
   resolveCreateAgentWorkspaceId,
+  resolveDefaultProjectId,
   shouldMarkDraft,
   type DraftSessionCandidate,
+  type ProjectRecencyCandidate,
 } from '../create-agent-session-flow.ts'
 
 describe('create-agent-session-flow', () => {
@@ -76,5 +78,51 @@ describe('findRecallableDraftSession', () => {
       workspaceId: 'ws-1',
     })
     expect(result).toBeNull()
+  })
+})
+
+describe('resolveDefaultProjectId', () => {
+  const sessions: ProjectRecencyCandidate[] = [
+    { workspaceId: 'ws-1', updatedAt: 100 }, // 无项目的历史会话，不参与
+    { workspaceId: 'ws-1', projectId: 'proj-old', updatedAt: 200 },
+    { workspaceId: 'ws-1', projectId: 'proj-new', updatedAt: 300 },
+    { workspaceId: 'ws-2', projectId: 'proj-other-ws', updatedAt: 400 }, // 别的工作区，不参与
+  ]
+
+  test('显式指定 projectId 时直接返回，不做默认绑定', () => {
+    const result = resolveDefaultProjectId({
+      explicitProjectId: 'proj-explicit',
+      recallDraft: true,
+      sessions,
+      workspaceId: 'ws-1',
+    })
+    expect(result).toBe('proj-explicit')
+  })
+
+  test('非 recallDraft（程序化建会话）不做默认绑定', () => {
+    const result = resolveDefaultProjectId({
+      recallDraft: false,
+      sessions,
+      workspaceId: 'ws-1',
+    })
+    expect(result).toBeUndefined()
+  })
+
+  test('recallDraft 且未显式指定项目时，绑定同工作区最近更新的项目', () => {
+    const result = resolveDefaultProjectId({
+      recallDraft: true,
+      sessions,
+      workspaceId: 'ws-1',
+    })
+    expect(result).toBe('proj-new')
+  })
+
+  test('同工作区没有任何带项目的历史会话时返回 undefined', () => {
+    const result = resolveDefaultProjectId({
+      recallDraft: true,
+      sessions,
+      workspaceId: 'ws-3',
+    })
+    expect(result).toBeUndefined()
   })
 })

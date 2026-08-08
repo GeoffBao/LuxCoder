@@ -28,7 +28,7 @@ export function resolveTaskBoardEmptyState(input: TaskBoardEmptyStateInput): Tas
   if (input.scope.kind === 'project') {
     return {
       kind: 'scope-empty',
-      title: `“${input.projectName ?? '当前项目'}”中还没有 Task`,
+      title: `“${input.projectName ?? '当前工作区'}”中还没有 Task`,
       action: 'create',
     }
   }

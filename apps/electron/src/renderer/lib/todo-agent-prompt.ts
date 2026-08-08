@@ -11,6 +11,6 @@ export function buildTodoAgentPrompt(todoId: string, supportsPlanningMcp: boolea
     `请处理关联的 Todo（ID: ${todoId}）。`,
     '',
     sourceInstruction,
-    '随后检查当前项目状态，并根据任务目标推进工作；需要澄清或遇到高风险操作时先询问用户。不要把 Todo 标记为完成，除非工作确实完成或用户明确要求。',
+    '随后检查当前工作区状态，并根据任务目标推进工作；需要澄清或遇到高风险操作时先询问用户。不要把 Todo 标记为完成，除非工作确实完成或用户明确要求。',
   ].join('\n')
 }

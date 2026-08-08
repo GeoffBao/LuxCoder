@@ -424,7 +424,7 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, access
             <AlertDialogTitle>确认删除</AlertDialogTitle>
             <AlertDialogDescription>
               {deleteCount > 1 ? (
-                <>确定要删除选中的 <strong>{deleteCount}</strong> 个项目吗？</>
+                <>确定要删除选中的 <strong>{deleteCount}</strong> 个文件吗？</>
               ) : (
                 <>
                   确定要删除 <strong>{deleteTarget?.name}</strong> 吗？
@@ -764,7 +764,7 @@ function FileTreeItem({
         {entry.isDirectory ? (
           <ChevronRight
             className={cn(
-              'relative z-10 size-3.5 text-muted-foreground flex-shrink-0 transition-transform duration-150',
+              'relative z-10 size-3.5 text-muted-foreground flex-shrink-0 transition-transform duration-fast',
               expanded && 'rotate-90',
             )}
           />

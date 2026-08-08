@@ -85,7 +85,7 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
               <div className="flex-1">
                 <h3 className="text-sm font-semibold text-foreground">查看使用指南</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  了解 Chat / Code 模式、项目管理、任务编排、Skills 系统等核心功能
+                  了解 Chat / Project 模式、工作区管理、任务编排、Skills 系统等核心功能
                 </p>
               </div>
               <ChevronRight size={16} className="text-muted-foreground/50 flex-shrink-0" />
@@ -171,7 +171,7 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
           <div className="mb-6 text-center">
             <h2 className="text-2xl font-semibold mb-2">运行环境检测</h2>
             <p className="text-sm text-muted-foreground">
-              Code 模式在 Windows 上需要 Git Bash 或 WSL 才能执行 Shell 命令
+              Project 模式在 Windows 上需要 Git Bash 或 WSL 才能执行 Shell 命令
             </p>
           </div>
 

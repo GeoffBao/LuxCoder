@@ -7,7 +7,7 @@
 
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { PROJECT_IPC_CHANNELS, TASK_IPC_CHANNELS, SESSION_COMMAND_CHANNEL, SESSION_GROUP_IPC_CHANNELS, TEAMBITION_IPC_CHANNELS, TEAMBITION_BOARD_IPC_CHANNELS, EXPERT_IPC_CHANNELS } from '@yoda/shared/channels'
-import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS, PLANNING_IPC_CHANNELS, CODECLAW_IPC_CHANNELS } from '@yoda/shared'
+import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, RELEASE_NOTES_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS, PLANNING_IPC_CHANNELS, CODECLAW_IPC_CHANNELS } from '@yoda/shared'
 import type { TaskAggregateSummary, TaskMetadataPatch, TaskWorkflow } from '@yoda/shared/tasks'
 import type { StartTodoAgentInput, StartTodoAgentResult, TodoAgentSessionActivation, PlanningWorkspaceScope } from '@yoda/shared'
 import { LABEL_IPC_CHANNELS } from '@yoda/shared/channels'
@@ -99,6 +99,7 @@ import type {
   SystemProxyDetectResult,
   GitHubRelease,
   GitHubReleaseListOptions,
+  ReleaseNote,
   PermissionRequest,
   PermissionResponse,
   ProjectDeleteImpact,
@@ -1298,6 +1299,11 @@ export interface ElectronAPI {
   getLatestRelease: () => Promise<GitHubRelease | null>
   listReleases: (options?: GitHubReleaseListOptions) => Promise<GitHubRelease[]>
   getReleaseByTag: (tag: string) => Promise<GitHubRelease | null>
+
+  // 本地化版本历史（Release Notes）
+  listReleaseNotes: () => Promise<ReleaseNote[]>
+  getLatestReleaseVersion: () => Promise<string | undefined>
+  getCombinedReleaseNotes: () => Promise<string>
 
   // 工作区文件变化通知
   onCapabilitiesChanged: (callback: () => void) => () => void
@@ -2905,6 +2911,19 @@ const electronAPI: ElectronAPI = {
 
   getReleaseByTag: (tag) => {
     return ipcRenderer.invoke(GITHUB_RELEASE_IPC_CHANNELS.GET_RELEASE_BY_TAG, tag)
+  },
+
+  // 本地化版本历史（Release Notes）
+  listReleaseNotes: () => {
+    return ipcRenderer.invoke(RELEASE_NOTES_IPC_CHANNELS.LIST)
+  },
+
+  getLatestReleaseVersion: () => {
+    return ipcRenderer.invoke(RELEASE_NOTES_IPC_CHANNELS.LATEST)
+  },
+
+  getCombinedReleaseNotes: () => {
+    return ipcRenderer.invoke(RELEASE_NOTES_IPC_CHANNELS.COMBINED)
   },
 
   // ===== 飞书集成 =====

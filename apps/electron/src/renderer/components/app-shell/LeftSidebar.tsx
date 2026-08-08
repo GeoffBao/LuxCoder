@@ -11,11 +11,13 @@
 import * as React from 'react'
 import { useAtom, useSetAtom, useAtomValue, useStore } from 'jotai'
 import { toast } from 'sonner'
-import { Pin, PinOff, Settings, Plus, Trash2, Pencil, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MoreHorizontal, FolderOpen, GripVertical, Clock, CalendarDays, ChevronRight, GitBranch, Download, Loader2, RotateCw, Layers, LayoutDashboard, PenTool, Library, Puzzle, Boxes } from 'lucide-react'
+import { Pin, PinOff, Settings, Plus, Trash2, Pencil, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MoreHorizontal, FolderOpen, GripVertical, Clock, Zap, ChevronRight, GitBranch, Download, Loader2, RotateCw, Layers, LayoutDashboard, PenTool, Library, Puzzle, Boxes } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { MarqueeText } from '@/components/ui/marquee-text'
 import { SearchDialog } from './SearchDialog'
+import { ReleaseNotesPopover } from '@/components/settings/ReleaseNotesPopover'
+import { useReleaseNotes } from '@/hooks/useReleaseNotes'
 import { SidebarToggleButton } from './SidebarToggleButton'
 import { ModeSwitcher } from './ModeSwitcher'
 import { TabNavigationControls } from '@/components/tabs/TabNavigationControls'
@@ -274,8 +276,8 @@ const noopVoid = (): void => {}
 const noopAsync = async (): Promise<void> => {}
 const noopDragEvent = (_e: React.DragEvent, _workspaceId?: string): void => {}
 /** 非当前工作区组的空项目列表；模块级常量保证引用稳定，不破坏 React.memo */
-/** 项目组内会话预览数量（折叠态显示的非活跃会话上限） */
-const PROJECT_SESSION_PREVIEW_LIMIT = 10
+/** 会话列表预览数量（折叠态显示的非活跃会话上限；活跃会话不受此限制） */
+const PROJECT_SESSION_PREVIEW_LIMIT = 25
 /** 最近会话窗口（ms），超过此窗口的旧会话仅在"显示更多"后出现 */
 const PROJECT_SESSION_RECENT_WINDOW_MS = 7 * 86_400_000
 /** 「显示更多」每次点击额外展开的会话数（增量分页，可多次点击叠加，对齐 Claude 的「Show N more」） */
@@ -664,6 +666,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   const isMac = React.useMemo(() => detectIsMac(), [])
   const hasUpdate = useAtomValue(hasUpdateAtom)
   const updateStatus = useAtomValue(updateStatusAtom)
+  const { version: appVersion, unseen: hasUnseenReleaseNotes, recentNotes: releaseNotesRecent, markSeen: markReleaseNotesSeen } = useReleaseNotes()
   const hasEnvironmentIssues = useAtomValue(hasEnvironmentIssuesAtom)
   const promptConfig = useAtomValue(promptConfigAtom)
   const setSelectedPromptId = useSetAtom(selectedPromptIdAtom)
@@ -902,7 +905,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   /**
    * 当前工作区的 craft Project 列表。
    * ProjectsInitializer 按 slug 加载，这里再按 workspaceId 过滤，
-   * 避免工作区切换瞬间 atom 尚未清空时把旧工作区项目渲到新工作区组（闪一帧空子分组）。
+   * 避免空间切换瞬间 atom 尚未清空时把旧工作区渲到新空间组（闪一帧空子分组）。
    */
   const currentWorkspaceProjects = React.useMemo(() => {
     if (!currentWorkspaceSlug) return EMPTY_PROJECTS
@@ -1037,7 +1040,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     return () => window.removeEventListener('focus', handleFocus)
   }, [setConversations, setAgentSessions])
 
-  /** 打开/关闭 Task 日历（Todo / 日历 / 定时任务） */
+  /** 打开/关闭定时任务主界面（Task 日历已收窄为只保留定时任务） */
   const handleOpenPlanning = React.useCallback((): void => {
     if (activeView === 'planning') {
       // 编辑页 → 关表单回列表；列表页 → 退出到对话
@@ -1345,12 +1348,12 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       const updated = await window.electronAPI.sendSessionCommand(sessionId, { kind: 'set_project_id', projectId })
       setAgentSessions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
     } catch (error) {
-      console.error('[侧边栏] 移动到项目失败:', error)
-      toast.error('移动到项目失败')
+      console.error('[侧边栏] 移动到工作区失败:', error)
+      toast.error('移动到工作区失败')
     }
   }, [setAgentSessions])
 
-  /** 项目模式下全局「+」新建项目（KanbanProject，不是 Workspace） */
+  /** 工作区模式下全局「+」新建工作区（KanbanProject，不是 Workspace） */
   const handleCreateKanbanProject = React.useCallback(async (input: Parameters<typeof window.electronAPI.projects.create>[1]): Promise<void> => {
     if (!workspaceRoot) return
     setCreatingProject(true)
@@ -1358,13 +1361,13 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       const project = await window.electronAPI.projects.create(workspaceRoot, input)
       setKanbanProjects((prev) => [project, ...prev.filter((existing) => existing.id !== project.id)])
       setCreateProjectOpen(false)
-      toast.success('项目已创建')
+      toast.success('工作区已创建')
       // 新建后进入唯一任务看板并按该 Project 筛选。
       setSelectedProjectId(project.id)
       setCodeMainView('tasks')
       setActiveView('conversations')
     } catch (cause) {
-      toast.error('创建项目失败', { description: cause instanceof Error ? cause.message : String(cause) })
+      toast.error('创建工作区失败', { description: cause instanceof Error ? cause.message : String(cause) })
     } finally {
       setCreatingProject(false)
     }
@@ -1506,7 +1509,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     if (!workspaceId || !workspace) return
 
     if (!canDeleteWorkspace(workspace)) {
-      toast.error(workspace.slug === 'default' ? '默认空间不能删除' : '至少需要保留一个工作空间')
+      toast.error(workspace.slug === 'default' ? '默认空间不能删除' : '至少需要保留一个空间')
       setPendingDeleteWorkspaceId(null)
       return
     }
@@ -1586,12 +1589,12 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         }
       }
 
-      toast.success('工作空间已删除', {
+      toast.success('空间已删除', {
         description: `已删除「${workspace.name}」及其绑定资源`,
       })
     } catch (error) {
-      console.error('[侧边栏] 删除工作区失败:', error)
-      const msg = error instanceof Error ? error.message : '删除工作区失败'
+      console.error('[侧边栏] 删除空间失败:', error)
+      const msg = error instanceof Error ? error.message : '删除空间失败'
       toast.error(msg)
     } finally {
       setDeletingWorkspaceId(null)
@@ -1749,9 +1752,9 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         .reorderAgentWorkspaces(newWorkspaceIds)
         .then(setWorkspaces)
         .catch((error) => {
-          console.error('[侧边栏] 工作区排序失败:', error)
+          console.error('[侧边栏] 空间排序失败:', error)
           setWorkspaces(workspaces)
-          toast.error('工作区排序失败')
+          toast.error('空间排序失败')
         })
     }
   }, [dragProjectId, projectDropIndicator, automationGroup, automationGroupOrder, setWorkspaces, workspaces])
@@ -1978,7 +1981,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       const updated = await window.electronAPI.updateAgentWorkspace(workspaceId, { name: newName })
       setWorkspaces((prev) => prev.map((w) => (w.id === updated.id ? updated : w)))
     } catch (error) {
-      console.error('[侧边栏] 重命名工作区失败:', error)
+      console.error('[侧边栏] 重命名空间失败:', error)
       const msg = error instanceof Error ? error.message : '重命名失败'
       toast.error(msg)
     }
@@ -2542,7 +2545,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     </AlertDialog>
   )
 
-  // 工作空间删除确认弹窗（会同时删除其下的会话与绑定资源）
+  // 空间删除确认弹窗（会同时删除其下的会话与绑定资源）
   const projectDeleteDialog = (
     <AlertDialog
       open={pendingDeleteWorkspaceId !== null}
@@ -2560,9 +2563,9 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         }}
       >
         <AlertDialogHeader>
-          <AlertDialogTitle>确认删除工作空间</AlertDialogTitle>
+          <AlertDialogTitle>确认删除空间</AlertDialogTitle>
           <AlertDialogDescription>
-            将删除「{pendingDeleteWorkspace?.name ?? '该工作空间'}」及其绑定的所有会话、自动任务、MCP、Skills、工作区文件和本地工作区目录。附加目录和附加文件只会移除引用，不会删除原始文件。删除后无法恢复。
+            将删除「{pendingDeleteWorkspace?.name ?? '该空间'}」及其绑定的所有会话、自动任务、MCP、Skills、工作区文件和本地工作区目录。附加目录和附加文件只会移除引用，不会删除原始文件。删除后无法恢复。
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -2572,7 +2575,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             onClick={handleConfirmDeleteWorkspace}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {deletingWorkspaceId ? '删除中...' : '删除工作空间'}
+            {deletingWorkspaceId ? '删除中...' : '删除空间'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -2618,12 +2621,12 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
         <div className="my-3 h-px w-8 bg-border/70" />
 
-        {/* 主入口：Code 模式（悬停查看工作区）——Home 模式切换入口已下线，主入口固定 Code */}
+        {/* 主入口：Project 模式（悬停查看工作区）——Chat 模式切换入口已下线，主入口固定 Project */}
         <div className="flex flex-col items-center gap-1.5">
           <CollapsedWorkspacePopover>
             <button
               type="button"
-              aria-label="切换到 Code 模式（悬停查看工作区）"
+              aria-label="切换到 Project 模式（悬停查看空间）"
               onClick={() => handleRailModeSwitch('agent')}
               className={cn(
                 'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag',
@@ -2642,7 +2645,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                 type="button"
                 aria-label="搜索"
                 onClick={() => setSearchDialogOpen(true)}
-                className="size-10 flex items-center justify-center rounded-[12px] text-foreground/45 hover:bg-foreground/[0.08] hover:text-foreground/80 transition-colors duration-150 titlebar-no-drag"
+                className="size-10 flex items-center justify-center rounded-[12px] text-foreground/45 hover:bg-foreground/[0.08] hover:text-foreground/80 transition-colors duration-fast titlebar-no-drag"
               >
                 <Search size={16} />
               </button>
@@ -2659,13 +2662,13 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                 type="button"
                 aria-label={mode === 'agent' ? '新建 Agent 会话' : '新建 Chat 对话'}
                 onClick={mode === 'agent' ? handleNewAgentSession : handleNewConversation}
-                className="size-10 flex items-center justify-center rounded-[12px] text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-150 titlebar-no-drag"
+                className="size-10 flex items-center justify-center rounded-[12px] text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-fast titlebar-no-drag"
               >
                 <Plus size={16} />
               </button>
             </TooltipTrigger>
             <TooltipContent side="right">
-              {mode === 'agent' ? '新会话' : '新对话'} ({getAcceleratorDisplay(getActiveAccelerator('new-session'))})
+              {mode === 'agent' ? '新建会话' : '新对话'} ({getAcceleratorDisplay(getActiveAccelerator('new-session'))})
             </TooltipContent>
           </Tooltip>
 
@@ -2677,7 +2680,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                   type="button"
                   aria-label="新建任务"
                   onClick={handleNewTask}
-                  className="size-10 flex items-center justify-center rounded-[12px] text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-150 titlebar-no-drag"
+                  className="size-10 flex items-center justify-center rounded-[12px] text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-fast titlebar-no-drag"
                 >
                   <Layers size={16} />
                 </button>
@@ -2725,7 +2728,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             <TooltipTrigger asChild>
               <button
                 type="button"
-                aria-label={`Task 日历，${automationCount} 个任务已创建`}
+                aria-label={`定时任务，${automationCount} 个已创建`}
                 onClick={handleOpenPlanning}
                 className={cn(
                   'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag border',
@@ -2734,7 +2737,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                     : 'border-border/45 bg-foreground/[0.025] text-foreground/45 hover:border-border/70 hover:bg-foreground/[0.045] hover:text-primary',
                 )}
               >
-                <CalendarDays size={16} />
+                <Zap size={16} />
                 {automationCount > 0 && (
                   <span
                     className={cn(
@@ -2750,18 +2753,18 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               </button>
             </TooltipTrigger>
             <TooltipContent side="right">
-              Task 日历（{automationCount} 个任务已创建）
+              定时任务（{automationCount} 个已创建）
             </TooltipContent>
           </Tooltip>
 
           {/* 插件与 Yoda 记忆已并入设置面板（设置 > Yoda 插件 / Yoda 记忆），Home / Code 共享；左栏不再单独露出 */}
 
-          {/* Excalidraw 画板：通用创作工具，pwork（agent 模式）可见 */}
+          {/* Yoda 画布：通用创作工具，pwork（agent 模式）可见 */}
           <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  aria-label="Excalidraw 画板"
+                  aria-label="Yoda 画布"
                   onClick={handleOpenExcalidraw}
                   className={cn(
                     'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag border',
@@ -2785,7 +2788,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                   )}
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="right">Excalidraw 画板{excalidrawCount > 0 ? `（${excalidrawCount} 个画布）` : ''}</TooltipContent>
+              <TooltipContent side="right">Yoda 画布{excalidrawCount > 0 ? `（${excalidrawCount} 个画布）` : ''}</TooltipContent>
             </Tooltip>
 
           {/* 知识库：单入口，pwork（agent 模式）可见 */}
@@ -2793,7 +2796,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  aria-label="知识库"
+                  aria-label="Yoda 知识库"
                   onClick={handleOpenKnowledge}
                   className={cn(
                     'relative size-10 flex items-center justify-center rounded-[12px] transition-colors titlebar-no-drag border',
@@ -2805,7 +2808,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                   <Library size={16} />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="right">知识库</TooltipContent>
+              <TooltipContent side="right">Yoda 知识库</TooltipContent>
             </Tooltip>
 
         </div>
@@ -2852,13 +2855,25 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               >
                 <UserAvatar avatar={userProfile.avatar} size={28} />
                 {hasEnvironmentIssues && (
-                  <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-red-500" />
+                  <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-destructive" />
                 )}
               </button>
             </TooltipTrigger>
             <TooltipContent side="right">设置</TooltipContent>
           </Tooltip>
         </div>
+
+        {/* 更新日志与帮助入口（折叠窄栏） */}
+        <ReleaseNotesPopover
+          version={appVersion}
+          unseen={hasUnseenReleaseNotes}
+          recentNotes={releaseNotesRecent}
+          onMarkSeen={markReleaseNotesSeen}
+          triggerClassName="flex size-10 items-center justify-center rounded-[12px] text-foreground/45 transition-colors titlebar-no-drag hover:bg-foreground/5 hover:text-foreground/80"
+          tooltipSide="right"
+          side="right"
+          align="end"
+        />
 
         {deleteDialog}
         {projectDeleteDialog}
@@ -3051,7 +3066,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               aria-label="搜索"
               onClick={() => setSearchDialogOpen(true)}
               className={cn(
-                'size-6 flex items-center justify-center rounded-md text-foreground/50 transition-colors duration-150',
+                'size-6 flex items-center justify-center rounded-md text-foreground/50 transition-colors duration-fast',
                 isClassic
                   ? 'sidebar-control-surface hover:text-foreground/70'
                   : 'hover:bg-foreground/[0.08] hover:text-foreground/85'
@@ -3080,14 +3095,14 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
           <TooltipTrigger asChild>
             <button
               onClick={mode === 'agent' ? handleNewAgentSession : handleNewConversation}
-              className="flex-1 flex items-center gap-2 h-9 px-3 rounded-[10px] text-[13px] font-medium text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-150 titlebar-no-drag"
+              className="flex-1 flex items-center gap-2 h-9 px-3 rounded-[10px] text-[13px] font-medium text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-fast titlebar-no-drag"
             >
               <Plus size={14} />
-              <span>{mode === 'agent' ? '新会话' : '新对话'}</span>
+              <span>{mode === 'agent' ? '新建会话' : '新对话'}</span>
             </button>
           </TooltipTrigger>
           <TooltipContent side="bottom">
-            {mode === 'agent' ? '新会话' : '新对话'} ({getAcceleratorDisplay(getActiveAccelerator('new-session'))})
+            {mode === 'agent' ? '新建会话' : '新对话'} ({getAcceleratorDisplay(getActiveAccelerator('new-session'))})
           </TooltipContent>
         </Tooltip>
         {/* 新任务入口（暂隐藏，功能保留）：与「新会话」平级按钮，改 SHOW_NEW_TASK_ENTRY=true 恢复 */}
@@ -3097,7 +3112,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               <button
                 type="button"
                 onClick={handleNewTask}
-                className="flex-1 flex items-center gap-2 h-9 px-3 rounded-[10px] text-[13px] font-medium text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-150 titlebar-no-drag"
+                className="flex-1 flex items-center gap-2 h-9 px-3 rounded-[10px] text-[13px] font-medium text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-fast titlebar-no-drag"
               >
                 <Plus size={14} />
                 <span>新任务</span>
@@ -3121,16 +3136,16 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         />
       )}
 
-      {/* Task 日历入口：Todo / 日历 / 定时任务合一，作为任务中心入口排在侧栏最上方。 */}
+      {/* 定时任务入口：Task 日历已收窄为只保留定时任务，作为任务中心入口排在侧栏最上方。 */}
       <div className="sidebar-module-zone px-3 pt-2 pb-0.5">
         <SidebarModule
-          icon={CalendarDays}
-          title="Task 日历"
+          icon={Zap}
+          title="定时任务"
           count={automationCount}
           active={activeView === 'planning'}
           onClick={handleOpenPlanning}
           keycapShortcutId="open-planning"
-          ariaLabel={`Task 日历，${automationCount} 个任务已创建`}
+          ariaLabel={`定时任务，${automationCount} 个已创建`}
           classNames={{
             row: cn('automation-entry', activeView === 'planning' && 'automation-entry-selected'),
             icon: 'automation-entry-icon',
@@ -3139,7 +3154,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         />
       </div>
 
-      {/* 任务看板：Workspace 级正式工作项入口，与 Task 日历相邻。 */}
+      {/* 任务看板：Workspace 级正式工作项入口，与定时任务相邻。 */}
       {mode === 'agent' && (
         <div className="sidebar-module-zone px-3 pb-0.5">
           <SidebarModule
@@ -3179,15 +3194,15 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
       {/* 插件与 Yoda 记忆已并入设置面板（设置 > Yoda 插件 / Yoda 记忆），Home / Code 共享；左栏不再单独露出 */}
 
-      {/* Excalidraw 画板：手绘风格白板，通用创作工具，pwork（agent 模式）可见 */}
+      {/* Yoda 画布：手绘风格白板，通用创作工具，pwork（agent 模式）可见 */}
       <div className="sidebar-module-zone px-3 pb-0.5">
         <SidebarModule
           icon={PenTool}
-          title="Excalidraw 画板"
+          title="Yoda 画布"
           count={excalidrawCount}
           active={activeView === 'excalidraw-gallery' || activeView === 'excalidraw-editor'}
           onClick={handleOpenExcalidraw}
-          ariaLabel={`Excalidraw 画板，${excalidrawCount} 个画布`}
+          ariaLabel={`Yoda 画布，${excalidrawCount} 个画布`}
         />
       </div>
 
@@ -3195,10 +3210,10 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       <div className="sidebar-module-zone px-3 pb-0.5">
         <SidebarModule
           icon={Library}
-          title="知识库"
+          title="Yoda 知识库"
           active={activeView === 'repo-wiki'}
           onClick={handleOpenKnowledge}
-          ariaLabel="知识库"
+          ariaLabel="Yoda 知识库"
         />
       </div>
 
@@ -3253,7 +3268,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             >
               <ChevronRight
                 size={12}
-                className={cn('transition-transform duration-150', isPinnedAgentGroupCollapsed ? '' : 'rotate-90')}
+                className={cn('transition-transform duration-fast', isPinnedAgentGroupCollapsed ? '' : 'rotate-90')}
               />
             </button>
           </div>
@@ -3355,11 +3370,11 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
       {/* 会话列表筛选行：对标 Claude 的分组标题行（如「Today」右侧筛选图标），
           不再是孤立的图标，而是左边带标签、右边带筛选的全宽标题行；
-          项目模式下额外包含「新建项目 +」按钮 */}
+          工作区模式下额外包含「新建工作区 +」按钮 */}
       {mode === 'agent' && (
         <div className="flex items-center justify-between px-3 pt-1 pb-1 border-b border-border/50">
           <span className="px-1.5 text-[11px] font-medium text-foreground/35 select-none">
-            {agentGroupBy === 'project' ? '项目' : '会话'}
+            {agentGroupBy === 'project' ? '工作区' : '会话'}
           </span>
           <span className="flex items-center gap-0.5">
             {agentGroupBy === 'project' && (
@@ -3367,14 +3382,14 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    aria-label="新建项目"
+                    aria-label="新建工作区"
                     onClick={() => setCreateProjectOpen(true)}
                     className="grid size-6 place-items-center rounded-md text-foreground/50 transition-colors hover:bg-foreground/[0.06] hover:text-foreground/80"
                   >
                     <Plus size={14} />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom">新建项目</TooltipContent>
+                <TooltipContent side="bottom">新建工作区</TooltipContent>
               </Tooltip>
             )}
             <SessionListFilterMenu />
@@ -3545,7 +3560,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                         >
                           <ChevronRight
                             size={12}
-                            className={cn('transition-transform duration-150', isFlatGroupCollapsed ? '' : 'rotate-90')}
+                            className={cn('transition-transform duration-fast', isFlatGroupCollapsed ? '' : 'rotate-90')}
                           />
                         </button>
                       </div>
@@ -3655,9 +3670,9 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         </div>
       )}
 
-      {/* 底部：用户资料 + 设置入口 */}
+      {/* 底部：用户资料 + 版本号/更新日志 + 设置入口（同一行，避免占用两行高度） */}
       <div className="sidebar-footer px-3 pb-3">
-        <div className="sidebar-profile-row flex items-center gap-2 rounded-[10px] px-3 py-2 text-foreground/70 transition-colors titlebar-no-drag hover:bg-foreground/[0.04] hover:text-foreground">
+        <div className="sidebar-profile-row flex items-center gap-1 rounded-[10px] px-3 py-2 text-foreground/70 transition-colors titlebar-no-drag hover:bg-foreground/[0.04] hover:text-foreground">
           <button
             onClick={handleOpenSettings}
             className="min-w-0 flex flex-1 items-center gap-3 text-left"
@@ -3665,7 +3680,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             <UserAvatar avatar={userProfile.avatar} size={28} />
             <span className="flex-1 text-sm truncate text-left">{userProfile.userName}</span>
           </button>
-          {hasUpdate && (
+          {hasUpdate ? (
             <SidebarUpdateButton
               status={updateStatus}
               onClick={handleUpdateButtonClick}
@@ -3674,6 +3689,17 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               readyDotClassName="hidden"
               showText
               hideIcon
+            />
+          ) : (
+            <ReleaseNotesPopover
+              version={appVersion}
+              unseen={hasUnseenReleaseNotes}
+              recentNotes={releaseNotesRecent}
+              onMarkSeen={markReleaseNotesSeen}
+              triggerClassName="flex size-7 flex-shrink-0 items-center justify-center rounded-[8px] text-foreground/40 transition-colors hover:bg-foreground/[0.05] hover:text-foreground/70"
+              tooltipSide="top"
+              side="top"
+              align="end"
             />
           )}
           <button
@@ -3685,7 +3711,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             <div className="relative flex-shrink-0 text-foreground/40">
               <Settings size={16} />
               {hasEnvironmentIssues && (
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500" />
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-destructive" />
               )}
             </div>
           </button>
@@ -3831,7 +3857,7 @@ const ConversationItem = React.memo(function ConversationItem({
             startEdit()
           }}
           className={cn(
-            'session-quick-switch-row group relative w-full flex items-center gap-1.5 rounded-md py-1 pl-2 pr-1.5 transition-colors duration-100 titlebar-no-drag text-left',
+            'session-quick-switch-row group relative w-full flex items-center gap-1.5 rounded-md py-1 pl-2 pr-1.5 transition-colors duration-fast titlebar-no-drag text-left',
             active && 'session-item-selected',
             streaming
               ? 'text-foreground font-medium hover:bg-foreground/[0.03]'
@@ -3910,7 +3936,7 @@ interface ChildSessionItemProps {
   agentIndicatorMap: Map<string, SessionIndicatorStatus>
   relativeTimeNow: number
   workspaceName?: string
-  /** 当前工作区项目列表 + 移动回调；透传给会话行的「移动到项目」子菜单 */
+  /** 当前工作区列表 + 移动回调；透传给会话行的「移动到工作区」子菜单 */
   projects?: KanbanProject[]
   onMoveToProject?: (sessionId: string, projectId?: string) => void | Promise<void>
   /** 当前工作区自定义分组 + 移动/新建回调；透传给会话行的「移动到分组」子菜单 */
@@ -4013,7 +4039,7 @@ const DraftSessionRecallSection = React.memo(function DraftSessionRecallSection(
             type="button"
             onClick={() => onOpen(item.id, item.title)}
             title={item.text}
-            className="flex h-8 w-full items-center gap-2 rounded-lg px-2.5 text-left text-[12.5px] text-foreground/60 transition-colors duration-150 hover:bg-foreground/[0.06] hover:text-foreground/85"
+            className="flex h-8 w-full items-center gap-2 rounded-lg px-2.5 text-left text-[12.5px] text-foreground/60 transition-colors duration-fast hover:bg-foreground/[0.06] hover:text-foreground/85"
           >
             <Pencil size={12} className="shrink-0 text-foreground/35" />
             <span className="truncate">{item.text}</span>
@@ -4282,7 +4308,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
             <ChevronRight
               size={12}
               className={cn(
-                'flex-shrink-0 text-foreground/30 transition-transform duration-150',
+                'flex-shrink-0 text-foreground/30 transition-transform duration-fast',
                 collapsed ? '-rotate-90' : 'rotate-90',
               )}
             />
@@ -4353,7 +4379,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
               onSelect={() => onRequestDeleteWorkspace(group.workspace.id)}
             >
               <Trash2 size={14} />
-              删除工作空间
+              删除空间
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -4430,7 +4456,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
                           >
                             <ChevronRight
                               size={12}
-                              className={cn('transition-transform duration-150', isDateCollapsed ? '' : 'rotate-90')}
+                              className={cn('transition-transform duration-fast', isDateCollapsed ? '' : 'rotate-90')}
                             />
                           </button>
                         </div>

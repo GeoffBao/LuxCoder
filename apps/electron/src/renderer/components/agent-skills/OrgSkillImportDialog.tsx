@@ -142,7 +142,7 @@ export function OrgSkillImportDialog({ open, onOpenChange, workspaceSlug, instal
             从企业导入技能
           </DialogTitle>
           <DialogDescription>
-            按企业 SkillHub 分类浏览、筛选，单个或批量导入到当前工作区。
+            按企业 SkillHub 分类浏览、筛选，单个或批量导入到当前空间。
           </DialogDescription>
         </DialogHeader>
 

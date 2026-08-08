@@ -266,7 +266,7 @@ export async function exportData(options: ExportOptions): Promise<ExportResult> 
   const warnings: string[] = []
 
   const workspace = getAgentWorkspace(workspaceId)
-  if (!workspace) throw new Error(`工作区不存在: ${workspaceId}`)
+  if (!workspace) throw new Error(`空间不存在: ${workspaceId}`)
 
   const manifest: MigrationManifest = {
     mode,
@@ -318,7 +318,7 @@ export async function exportDataV2(options: ExportOptionsV2): Promise<ExportResu
     targetWorkspaces = allWorkspaces.map((ws) => ({ workspace: ws }))
   }
 
-  if (targetWorkspaces.length === 0) throw new Error('没有可导出的工作区')
+  if (targetWorkspaces.length === 0) throw new Error('没有可导出的空间')
 
   const workspaceEntries: WorkspaceExportEntry[] = targetWorkspaces.map(({ workspace, skillSlugs, mcpServerNames }) => ({
     workspaceId: workspace.id,
@@ -806,7 +806,7 @@ export async function confirmImport(options: ConfirmImportOptions | ConfirmImpor
       targetWorkspace = workspaces.find((w) => w.slug === (manifest as MigrationManifest).workspaceSlug) ?? workspaces[0]
     }
 
-    if (!targetWorkspace) throw new Error('无法确定目标工作区')
+    if (!targetWorkspace) throw new Error('无法确定目标空间')
 
     if (manifest.components.includes('sessions')) {
       await _importSessions(tempDir, targetWorkspace)
@@ -1342,7 +1342,7 @@ function _addDirToZip(zip: AdmZip, srcDir: string, zipPrefix: string, warnings: 
       try {
         zip.addLocalFile(fullPath, zipPrefix)
       } catch (error) {
-        addExportWarning(warnings, `已跳过无法读取的备份项目: ${fullPath} (${formatErrorMessage(error)})`)
+        addExportWarning(warnings, `已跳过无法读取的备份文件: ${fullPath} (${formatErrorMessage(error)})`)
       }
     }
   }

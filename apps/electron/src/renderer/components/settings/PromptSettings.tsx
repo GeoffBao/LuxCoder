@@ -161,7 +161,7 @@ export function PromptSettings(): React.ReactElement {
       {/* 提示词列表 */}
       <SettingsSection
         title="系统提示词"
-        description="管理 Home 模式的系统提示词"
+        description="管理 Chat 模式的系统提示词"
         action={
           <Button size="sm" onClick={handleCreate}>
             <Plus className="size-4 mr-1" />

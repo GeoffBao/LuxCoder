@@ -57,9 +57,9 @@ export function buildSkillClassificationPrompt(input: {
     })
     .join('\n')
 
-  return `请帮我整理当前工作区 Skills 的分组。
+  return `请帮我整理当前空间 Skills 的分组。
 
-工作区：${input.workspaceName || '当前工作区'}
+空间：${input.workspaceName || '当前空间'}
 Skills 目录：${input.skillsDir}
 
 当前已安装 Skills：
@@ -275,7 +275,7 @@ export function AgentSkillsView({
   const handleClassifySkills = React.useCallback(async (): Promise<void> => {
     if (classifyingSkills) return
     if (!data.skillsDir) {
-      toast.error('无法定位当前工作区 Skills 目录')
+      toast.error('无法定位当前空间 Skills 目录')
       return
     }
     setClassifyingSkills(true)
@@ -302,8 +302,8 @@ export function AgentSkillsView({
     }
   }, [classifyingSkills, createAgent, data.skills, data.skillsDir, data.workspaceName, setPendingPrompt])
 
-  // 注意：不在这里整体拦截 —— 专家 / 专家团 / API 数据不依赖工作区，应始终可用；
-  // 仅 Skills / MCP 需要工作区，在内容区按 Tab 单独拦截。
+  // 注意：不在这里整体拦截 —— 专家 / 专家团 / API 数据不依赖空间，应始终可用；
+  // 仅 Skills / MCP 需要空间，在内容区按 Tab 单独拦截。
 
   return (
     <div className={embedded ? 'flex flex-col' : 'flex h-full flex-col overflow-hidden'}>
@@ -344,7 +344,7 @@ export function AgentSkillsView({
               key={value}
               onClick={() => setTab(value)}
               className={cn(
-                'relative z-[1] flex min-w-[96px] items-center justify-center gap-1.5 rounded-lg px-4 text-sm font-medium transition-colors duration-200',
+                'relative z-[1] flex min-w-[96px] items-center justify-center gap-1.5 rounded-lg px-4 text-sm font-medium transition-colors duration-base',
                 tab === value ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
               )}
             >
@@ -392,7 +392,7 @@ export function AgentSkillsView({
           </button>
         )}
 
-        {/* Skills：从其他工作区导入 */}
+        {/* Skills：从其他空间导入 */}
         {tab === 'skills' && (
           <>
             <Tooltip>
@@ -465,8 +465,8 @@ export function AgentSkillsView({
           ) : !data.hasWorkspace ? (
             <EmptyState
               icon={<Blocks className="size-8 text-foreground/30" />}
-              title="未选择工作区"
-              hint="请先选择或创建一个工作区，再来管理它的 Skills 与 MCP。"
+              title="未选择空间"
+              hint="请先选择或创建一个空间，再来管理它的 Skills 与 MCP。"
             />
           ) : tab === 'skills' ? (
             <SkillsTab
@@ -645,7 +645,7 @@ function SkillsTab({
   onUpdate,
 }: SkillsTabProps): React.ReactElement {
   if (total === 0) {
-    return <EmptyState icon={<Blocks className="size-8 text-foreground/30" />} title="暂无 Skill" hint="可以在 Code 模式下让 Yoda 帮你联网查找并安装 Skill，或从其他工作区导入。" />
+    return <EmptyState icon={<Blocks className="size-8 text-foreground/30" />} title="暂无 Skill" hint="可以在 Project 模式下让 Yoda 帮你联网查找并安装 Skill，或从其他空间导入。" />
   }
   if (customSkills.length === 0 && builtinSkills.length === 0) {
     return <EmptyState icon={<Search className="size-8 text-foreground/30" />} title="没有匹配的 Skill" hint="试试更换搜索关键词。" />
@@ -754,7 +754,7 @@ function McpTab({ userEntries, builtinServers, total, onOpen, onOpenBuiltin, onT
       <EmptyState
         icon={<Plus className="size-8 text-foreground/30" />}
         title="还没有 MCP 服务器"
-        hint="点击右上角「添加服务器」开始，或在 Code 模式下让 Yoda 帮你查找并配置。"
+        hint="点击右上角「添加服务器」开始，或在 Project 模式下让 Yoda 帮你查找并配置。"
         action={
           <button
             type="button"

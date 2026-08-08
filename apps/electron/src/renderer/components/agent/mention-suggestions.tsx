@@ -392,7 +392,7 @@ function formatSessionReferenceDescription(input: AgentSessionReferenceSearchRes
       ? `${input.workspaceName} (${input.workspaceSlug})`
       : input.workspaceName
     : input.workspaceSlug
-  const parts = [workspace ? `项目：${workspace}` : undefined, input.snippet]
+  const parts = [workspace ? `工作区：${workspace}` : undefined, input.snippet]
     .filter((part): part is string => Boolean(part))
 
   return parts.length > 0 ? parts.join(' · ') : undefined

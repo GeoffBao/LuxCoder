@@ -555,7 +555,7 @@ export function McpServerForm({ server, workspaceSlug, onSaved, onChanged, onCan
                   'flex items-start gap-2 px-3 py-2 rounded-md text-sm',
                   testResult.success
                     ? 'bg-green-500/10 text-green-700 dark:text-green-400'
-                    : 'bg-red-500/10 text-red-700 dark:text-red-400'
+                    : 'bg-destructive/10 text-red-700 dark:text-red-400'
                 )}
               >
                 {testResult.success ? (

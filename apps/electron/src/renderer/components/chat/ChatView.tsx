@@ -700,7 +700,7 @@ function ChatViewInner({ conversationId }: ChatViewProps): React.ReactElement {
         promptSidebarOpen ? 'w-[300px] border-l' : 'w-10'
       )}>
         <div className={cn(
-          'w-[300px] h-full transition-opacity duration-200 titlebar-no-drag',
+          'w-[300px] h-full transition-opacity duration-base titlebar-no-drag',
           promptSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
         )}>
           <PromptEditorSidebar />

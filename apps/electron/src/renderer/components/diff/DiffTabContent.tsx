@@ -1499,7 +1499,7 @@ export function DiffTabContent({ filePath, dirPath, sessionId, gitRoot, previewO
           >
             <div
               className={cn(
-                'absolute top-0.5 bottom-0.5 w-[calc(50%-2px)] rounded-md bg-background shadow-sm transition-transform duration-200 ease-in-out',
+                'absolute top-0.5 bottom-0.5 w-[calc(50%-2px)] rounded-md bg-background shadow-sm transition-transform duration-base ease-out',
                 viewMode === 'unified' ? 'translate-x-full' : 'translate-x-0',
               )}
             />
@@ -1540,7 +1540,7 @@ export function DiffTabContent({ filePath, dirPath, sessionId, gitRoot, previewO
                 className={cn(
                   'p-1 rounded hover:bg-foreground/[0.06] disabled:opacity-50 shrink-0 transition-colors duration-base',
                   autosaveStatus === 'saved' && 'text-green-500 hover:text-green-500',
-                  autosaveStatus === 'error' && 'text-red-500 hover:text-red-500',
+                  autosaveStatus === 'error' && 'text-destructive hover:text-destructive',
                   autosaveStatus !== 'saved' && autosaveStatus !== 'error' && 'text-foreground/40 hover:text-foreground/60',
                 )}
                 title={

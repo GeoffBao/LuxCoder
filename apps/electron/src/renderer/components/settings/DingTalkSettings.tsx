@@ -53,7 +53,7 @@ const STATUS_CONFIG: Record<DingTalkBridgeStatus, { color: string; label: string
   disconnected: { color: 'bg-gray-400', label: '未连接' },
   connecting: { color: 'bg-amber-400 animate-pulse', label: '连接中...' },
   connected: { color: 'bg-green-500', label: '已连接' },
-  error: { color: 'bg-red-500', label: '连接错误' },
+  error: { color: 'bg-destructive', label: '连接错误' },
 }
 
 // ===== 主组件 =====
@@ -115,7 +115,7 @@ export function DingTalkSettings(): React.ReactElement {
       {/* Bot 列表 */}
       <SettingsSection
         title="钉钉 Bot 列表"
-        description="管理多个钉钉机器人，每个 Bot 可绑定不同的工作区和模型"
+        description="管理多个钉钉机器人，每个 Bot 可绑定不同的空间和模型"
         action={
           <Button size="sm" variant="outline" onClick={handleAddBot}>
             <Plus size={14} className="mr-1.5" />
@@ -390,7 +390,7 @@ function BotConfigCard({ bot, state, onSaved, onRemoved }: BotConfigCardProps): 
           {testResult && (
             <div className={cn(
               'p-3 rounded-lg flex items-start gap-2 text-sm',
-              testResult.success ? 'bg-green-500/10 text-green-700 dark:text-green-400' : 'bg-red-500/10 text-red-700 dark:text-red-400'
+              testResult.success ? 'bg-green-500/10 text-green-700 dark:text-green-400' : 'bg-destructive/10 text-red-700 dark:text-red-400'
             )}>
               {testResult.success
                 ? <CheckCircle2 size={16} className="flex-shrink-0 mt-0.5" />
@@ -401,7 +401,7 @@ function BotConfigCard({ bot, state, onSaved, onRemoved }: BotConfigCardProps): 
           )}
 
           {state?.status === 'error' && state.errorMessage && (
-            <div className="p-2.5 rounded-lg bg-red-500/10 text-red-700 dark:text-red-400 text-sm">
+            <div className="p-2.5 rounded-lg bg-destructive/10 text-red-700 dark:text-red-400 text-sm">
               {state.errorMessage}
             </div>
           )}

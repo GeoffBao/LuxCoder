@@ -31,7 +31,7 @@ function LabelColorDot({ color, selected, onPick }: { color: string; selected: b
       type="button"
       onClick={onPick}
       className={cn(
-        'size-6 rounded-full border-2 transition-all',
+        'size-6 rounded-full border-2 transition-[border-color,transform] duration-fast active:scale-[0.97]',
         selected ? 'border-foreground/80 scale-110' : 'border-transparent hover:scale-105',
       )}
       style={{ backgroundColor: color }}

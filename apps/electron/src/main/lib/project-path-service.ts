@@ -134,7 +134,7 @@ export function restoreProjectWorkingDirectory(
 /** Agent / Task 运行前校验：不可用主目录不得静默回退 */
 export function assertRunnableCwd(result: EffectiveCwdResult): string {
   if (result.status === 'unavailable' || !result.cwd) {
-    throw new Error('项目主目录不可用，请重新定位后再运行 Agent')
+    throw new Error('工作区主目录不可用，请重新定位后再运行 Agent')
   }
   return result.cwd
 }

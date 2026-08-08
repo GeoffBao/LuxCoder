@@ -230,7 +230,7 @@ export function SessionItemActions({
           不占布局宽度——标题因此可以顶到行尾。 */}
       <div
         className={cn(
-          'flex items-center transition-opacity duration-100',
+          'flex items-center transition-opacity duration-fast',
           forceVisible
             ? 'opacity-100 pointer-events-auto'
             : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto',
@@ -302,7 +302,7 @@ export interface AgentSessionItemProps {
   /** 所属项目主题色（已移除：原左缘 2px 色条随竖条一起去掉）
    * @deprecated 不再渲染任何色条 */
   projectColor?: never
-  /** 当前工作区项目列表；空数组时不渲染「移动到项目」入口 */
+  /** 当前工作区列表；空数组时不渲染「移动到工作区」入口 */
   projects?: KanbanProject[]
   onMoveToProject?: (sessionId: string, projectId?: string) => void | Promise<void>
   /** 当前工作区自定义分组列表；undefined 时不渲染「移动到分组」入口 */
@@ -440,7 +440,7 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
         <MenuSub>
           <MenuSubTrigger className="text-xs py-1 [&>svg]:size-3.5">
             <FolderInput size={14} />
-            移动到项目
+            移动到工作区
           </MenuSubTrigger>
           <MenuSubContent className="w-44 z-[9999] min-w-0 p-0.5">
             {projects.map((project) => (
@@ -458,7 +458,7 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
               <>
                 <MenuSeparator className="my-0.5" />
                 <MenuItem className="text-xs py-1" onSelect={() => onMoveToProject(session.id, undefined)}>
-                  移出项目
+                  移出工作区
                 </MenuItem>
               </>
             )}
@@ -565,7 +565,7 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
           onMouseEnter={preview.handleMouseEnter}
           onMouseLeave={preview.handleMouseLeave}
           className={cn(
-            'session-quick-switch-row group relative w-full flex items-center gap-1.5 rounded-md py-1 pl-2 pr-1.5 transition-colors duration-100 titlebar-no-drag text-left',
+            'session-quick-switch-row group relative w-full flex items-center gap-1.5 rounded-md py-1 pl-2 pr-1.5 transition-colors duration-fast titlebar-no-drag text-left',
             'hover:bg-foreground/[0.03]',
             active && 'agent-session-item-active',
             // 选中态背景：浅色叠加深色变深、深色叠加浅色变浅，自动适配主题。
@@ -656,7 +656,7 @@ export const AgentSessionItem = React.memo(function AgentSessionItem({
                     <ChevronRight
                       size={11}
                       className={cn(
-                        'transition-transform duration-150',
+                        'transition-transform duration-fast',
                         childSummary.expanded && 'rotate-90',
                       )}
                     />

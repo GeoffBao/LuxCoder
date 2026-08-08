@@ -249,7 +249,7 @@ export function ExcalidrawGallery(): React.ReactElement {
   const handleCreate = React.useCallback(async () => {
     console.log('[ExcalidrawGallery] handleCreate, workspaceSlug:', workspaceSlug)
     if (!workspaceSlug) {
-      toast.warning('请先选择一个工作区')
+      toast.warning('请先选择一个空间')
       return
     }
     try {
@@ -356,7 +356,7 @@ export function ExcalidrawGallery(): React.ReactElement {
     return (
       <div className="flex flex-col items-center justify-center h-full text-foreground/40 gap-3">
         <PenTool size={40} strokeWidth={1} />
-        <p className="text-[14px]">请先选择一个工作区</p>
+        <p className="text-[14px]">请先选择一个空间</p>
       </div>
     )
   }
@@ -369,7 +369,7 @@ export function ExcalidrawGallery(): React.ReactElement {
       <div className="titlebar-no-drag flex items-center justify-between px-5 pb-3 pt-14 border-b border-border/50">
         <div className="flex items-center gap-2.5">
           <PenTool className="size-6 text-foreground/70" />
-          <h1 className="text-2xl font-semibold text-foreground">Excalidraw 画板</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Yoda 画布</h1>
         </div>
         <button
           type="button"
@@ -401,7 +401,7 @@ export function ExcalidrawGallery(): React.ReactElement {
                     role="button"
                     tabIndex={0}
                     aria-label={`打开画布：${file.title || '未命名'}`}
-                    className="group flex flex-col rounded-lg border border-border/50 bg-card hover:border-primary/40 hover:shadow-sm transition-all text-left overflow-hidden cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="group flex flex-col rounded-lg border border-border/50 bg-card hover:border-primary/40 hover:shadow-sm transition-[border-color,box-shadow,transform] duration-fast text-left overflow-hidden cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     onClick={() => {
                       if (renamingSlug !== file.slug) handleOpen(file.slug)
                     }}

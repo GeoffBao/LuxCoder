@@ -1,5 +1,5 @@
 /**
- * Code 模式主区视图 - 纯逻辑（视图模型）
+ * Project 模式主区视图 - 纯逻辑（视图模型）
  *
  * MainArea 的分支判定逻辑，抽成纯函数保证优先级规则单点可测。
  */
@@ -74,7 +74,7 @@ export function normalizeAppModeForUi(mode: AppMode): PrimaryUiMode {
   return 'agent'
 }
 
-/** 是否仍为遗留顶栏 Work（cowork）模式，需迁移到 Code Work 主区 */
+/** 是否仍为遗留顶栏 Work（cowork）模式，需迁移到 Project 主区 */
 export function isLegacyCoworkMode(mode: AppMode): boolean {
   return mode === 'cowork'
 }

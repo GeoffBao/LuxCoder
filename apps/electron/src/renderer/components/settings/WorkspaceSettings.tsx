@@ -78,7 +78,7 @@ export function WorkspaceSettings(): React.ReactElement {
     try {
       await window.electronAPI.updateAgentWorkspace(workspace.id, { name: trimmed })
       setWorkspaces((prev) => prev.map((w) => (w.id === workspace.id ? { ...w, name: trimmed } : w)))
-      toast.success('工作区已重命名')
+      toast.success('空间已重命名')
       setEditingId(null)
     } catch (error) {
       const msg = error instanceof Error ? error.message : '重命名失败'
@@ -104,7 +104,7 @@ export function WorkspaceSettings(): React.ReactElement {
         }
       }
       setActiveView('conversations')
-      toast.success(`已删除工作区「${deleteTarget.name}」`)
+      toast.success(`已删除空间「${deleteTarget.name}」`)
       setDeleteTarget(null)
     } catch (error) {
       const msg = error instanceof Error ? error.message : '删除失败'
@@ -117,8 +117,8 @@ export function WorkspaceSettings(): React.ReactElement {
   return (
     <div className="space-y-8">
       <SettingsSection
-        title="工作区"
-        description="工作区是会话、项目、Skills 与 MCP 的隔离边界。当前默认单工作区；如需多套环境隔离（如工作 / 私人、客户 A / 客户 B），可在此创建并切换。"
+        title="空间"
+        description="空间是会话、工作区、Skills 与 MCP 的隔离边界。当前默认单空间；如需多套环境隔离（如工作 / 私人、客户 A / 客户 B），可在此创建并切换。"
       >
         <SettingsCard>
           {workspaces.map((workspace) => {
@@ -216,7 +216,7 @@ export function WorkspaceSettings(): React.ReactElement {
                             ? 'text-foreground/45 hover:bg-destructive/10 hover:text-destructive'
                             : 'cursor-not-allowed text-foreground/20',
                         )}
-                        aria-label={deletable ? `删除「${workspace.name}」` : '默认工作区不可删除'}
+                        aria-label={deletable ? `删除「${workspace.name}」` : '默认空间不可删除'}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -233,7 +233,7 @@ export function WorkspaceSettings(): React.ReactElement {
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') void handleCreate() }}
-            placeholder="新工作区名称…"
+            placeholder="新空间名称…"
             className="h-8 max-w-[280px] text-[13px]"
             maxLength={50}
           />
@@ -244,7 +244,7 @@ export function WorkspaceSettings(): React.ReactElement {
             className="flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3 text-[13px] font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Plus size={14} />
-            <span>{creating ? '创建中…' : '新建工作区'}</span>
+            <span>{creating ? '创建中…' : '新建空间'}</span>
           </button>
         </div>
       </SettingsSection>
@@ -252,9 +252,9 @@ export function WorkspaceSettings(): React.ReactElement {
       <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open && !deleting) setDeleteTarget(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>删除工作区「{deleteTarget?.name}」？</AlertDialogTitle>
+            <AlertDialogTitle>删除空间「{deleteTarget?.name}」？</AlertDialogTitle>
             <AlertDialogDescription>
-              将同时删除该工作区下的会话与项目引用，且无法恢复。确定要删除吗？
+              将同时删除该空间下的会话与工作区引用，且无法恢复。确定要删除吗？
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -50,7 +50,7 @@ import {
 import { updateStatusAtom, initializeUpdater } from './atoms/updater'
 import { automationsAtom } from './atoms/automation-atoms'
 import { draftSessionIdsAtom } from './atoms/draft-session-atoms'
-import { todosAtom, calendarEventsAtom, planningWorkspaceScopeAtom } from './atoms/planning-atoms'
+import { planningWorkspaceScopeAtom } from './atoms/planning-atoms'
 import {
   notificationsEnabledAtom,
   notificationSoundEnabledAtom,
@@ -103,6 +103,7 @@ import type { GitHubRelease, WorkspaceCapabilities } from '@yoda/shared'
 import { showCapabilityChangeToasts } from './lib/capabilities-toast'
 import { ProjectsInitializer } from './components/ProjectsInitializer'
 import { GlobalShortcuts } from './components/shortcuts/GlobalShortcuts'
+import { ShortcutGuideDialog } from './components/shortcuts/ShortcutGuideDialog'
 import { VoiceDictationApp } from './components/voice-dictation/VoiceDictationApp'
 import { TabSwitcher } from './components/tabs/TabSwitcher'
 import { htmlToMarkdown, markdownToHtml } from './lib/markdown-rich-text'
@@ -587,13 +588,27 @@ function AutomationInitializer(): null {
       window.electronAPI.listAutomations(workspaceScope, currentWorkspaceId ?? undefined).then(setAutomations).catch(console.error)
       window.electronAPI.listAgentSessions().then((sessions) => {
         setAgentSessions(sessions)
-        // 一次性迁移：将未发送过消息的空 draft 会话补入持久化 draft 集合
-        // （createdAt === updatedAt → 创建后从未更新过，视为空会话）
+        // 双向对账 draft 集合（防漂移，自愈历史脏数据）：
+        // 1) 补入：真空会话（未发消息、无 SDK 运行痕迹、标题仍为默认）补入 draft；
+        // 2) 移除：已真正发过消息 / 已绑定 SDK 运行 / 已重命名的会话从 draft 移除。
+        // 背景：draft 标记在 useCreateSession 创建时默认写入，正常由 AgentView handleSend
+        // 等发送路径移除；但 PlanningView 启动 Todo Agent、external run、automation 注入等
+        // 路径可能漏掉移除，导致已发消息的会话被持久化 draft 标记永久隐藏（重启也无效）。
+        // 此处以索引权威状态为准双向收敛：不用 createdAt !== updatedAt 判定（历史空会话
+        // 的 updatedAt 可能被 touch，仅凭时间差会误移出 draft），改用 messageCount/sdkSessionId/
+        // piSessionFile/title 等“确已发消息”信号。
         setDraftSessionIds((prev) => {
           const next = new Set(prev)
           let changed = false
+          const isActiveSession = (s: { messageCount?: number; sdkSessionId?: string; piSessionFile?: string; title?: string }): boolean =>
+            (s.messageCount ?? 0) > 0 || !!s.sdkSessionId || !!s.piSessionFile || s.title !== '新 Agent 会话'
           for (const s of sessions) {
-            if (s.createdAt === s.updatedAt && s.title === '新 Agent 会话' && !next.has(s.id)) {
+            if (isActiveSession(s)) {
+              if (next.has(s.id)) {
+                next.delete(s.id)
+                changed = true
+              }
+            } else if (!next.has(s.id)) {
               next.add(s.id)
               changed = true
             }
@@ -606,32 +621,6 @@ function AutomationInitializer(): null {
     const unsub = window.electronAPI.onAutomationChanged(load)
     return unsub
   }, [setAutomations, setAgentSessions, setDraftSessionIds, workspaceScope, currentWorkspaceId])
-
-  return null
-}
-
-/**
- * 任务/日程（Planning：Todo + 日程）初始化组件
- *
- * 加载当前工作区范围内的 Todo 与日程列表，并订阅主进程的变更事件刷新。
- */
-function PlanningInitializer(): null {
-  const setTodos = useSetAtom(todosAtom)
-  const setCalendarEvents = useSetAtom(calendarEventsAtom)
-  const workspaceScope = useAtomValue(planningWorkspaceScopeAtom)
-  const currentWorkspaceId = useAtomValue(currentAgentWorkspaceIdAtom)
-
-  useEffect(() => {
-    const load = (): void => {
-      window.electronAPI.listTodos(workspaceScope, currentWorkspaceId ?? undefined).then(setTodos).catch(console.error)
-      window.electronAPI.listCalendarEvents(workspaceScope, currentWorkspaceId ?? undefined).then(setCalendarEvents).catch(console.error)
-    }
-    load()
-    const unsub = window.electronAPI.onPlanningChanged((change) => {
-      if (change.resources.includes('todos') || change.resources.includes('calendar_events')) load()
-    })
-    return unsub
-  }, [setTodos, setCalendarEvents, workspaceScope, currentWorkspaceId])
 
   return null
 }
@@ -1222,7 +1211,6 @@ if (isQuickTaskWindow) {
         <ThemeInitializer />
         <AgentSettingsInitializer />
         <AutomationInitializer />
-        <PlanningInitializer />
         <PlanningWindowApp />
         <Toaster position="bottom-right" />
       </React.StrictMode>
@@ -1254,7 +1242,6 @@ if (isQuickTaskWindow) {
       <AgentListenersInitializer />
       <UpdaterInitializer />
       <AutomationInitializer />
-      <PlanningInitializer />
       <ProjectsInitializer />
       <FeishuInitializer />
       <DingTalkInitializer />
@@ -1262,6 +1249,7 @@ if (isQuickTaskWindow) {
       <ScratchPadPersistence />
       <VoiceDictationApp embedded />
       <GlobalShortcuts />
+      <ShortcutGuideDialog />
       <TabSwitcher />
       <App />
       <Toaster position="bottom-right" />

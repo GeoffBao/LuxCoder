@@ -115,7 +115,7 @@ export function AttachmentPreviewItem({
             'absolute top-1 right-1 size-[18px] rounded-full',
             'bg-black/50 text-white backdrop-blur-sm',
             'flex items-center justify-center',
-            'opacity-0 group-hover/attachment:opacity-100 transition-opacity duration-200',
+            'opacity-0 group-hover/attachment:opacity-100 transition-opacity duration-base',
             'hover:bg-black/70'
           )}
         >

@@ -553,6 +553,11 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
         return
       }
       const credentials = result.credentials
+      // 登录已成功拿到凭据：立即复位登录态。后续拉模型 / 建渠道 / 关表单可能因外部原因
+      // （网络、fs 阻塞等）挂起，若只依赖 finally 复位，UI 会长时间停在"等待授权完成…"
+      // 转圈（实测模型/渠道都已出来但转圈不恢复，只能手动取消）。拿到凭据即代表授权完成。
+      codexLoggingInRef.current = false
+      setCodexLoggingIn(false)
       // 凭据 JSON 已含 accountId，写入 apiKey 后由 codexCredentials 派生展示，无需单独 state。
       setApiKey(credentials)
 
@@ -709,6 +714,11 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
         return
       }
       const credentials = result.credentials
+      // 与 handleCodexLogin 同样的理由：拿到凭据即代表授权完成，立即复位登录态，
+      // 避免后续拉模型 / updateChannel / createChannel 挂起时 finally 未执行、
+      // UI 永久停在"等待浏览器授权…"转圈。
+      xaiLoggingInRef.current = false
+      setXaiLoggingIn(false)
       setApiKey(credentials)
 
       let xaiModels: ChannelModel[] = []
@@ -1243,7 +1253,7 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
                   </div>
                 ) : (
                   <div className="text-xs text-muted-foreground">
-                    使用 Claude Pro/Max/Team/Enterprise 订阅登录，通过官方浏览器授权，无需 API Key。仅支持 Code 模式。
+                    使用 Claude Pro/Max/Team/Enterprise 订阅登录，通过官方浏览器授权，无需 API Key。仅支持 Project 模式。
                   </div>
                 )}
               </div>
