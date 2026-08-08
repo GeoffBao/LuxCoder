@@ -4,6 +4,9 @@ import type { TaskWorkflow } from '@luxcoder/shared/tasks'
 /** Workflow 筛选：'all' 表示不筛选。 */
 export const taskBoardWorkflowFilterAtom = atom<'all' | TaskWorkflow>('all')
 
+/** 是否在看板中展示已归档 Task（默认关闭；开启后已归档卡片灰显，可取消归档）。 */
+export const taskBoardShowArchivedAtom = atom<boolean>(false)
+
 /** 来源筛选：'all' 表示不筛选。manual=手动创建，teambition=TB 同步，other=其他来源。 */
 export type TaskBoardSourceFilter = 'all' | 'manual' | 'teambition' | 'other'
 export const taskBoardSourceFilterAtom = atom<TaskBoardSourceFilter>('all')
@@ -20,6 +23,7 @@ export const taskBoardFilterCountAtom = atom<number>((get) => {
   if (get(taskBoardWorkflowFilterAtom) !== 'all') count++
   if (get(taskBoardSourceFilterAtom) !== 'all') count++
   if (get(taskBoardLabelFilterAtom).length > 0 || get(taskBoardIncludeUnlabeledAtom)) count++
+  if (get(taskBoardShowArchivedAtom)) count++
   return count
 })
 
@@ -29,4 +33,5 @@ export const clearTaskBoardFiltersAtom = atom(null, (_get, set) => {
   set(taskBoardSourceFilterAtom, 'all')
   set(taskBoardLabelFilterAtom, [])
   set(taskBoardIncludeUnlabeledAtom, false)
+  set(taskBoardShowArchivedAtom, false)
 })

@@ -546,6 +546,18 @@ export function KanbanBoardContainer({
               toast.error('更新 Task 状态失败', { description: cause instanceof Error ? cause.message : String(cause) })
             })
         }}
+        onAccept={(item) => {
+          // 待验收一键流转到已完成（与「更改状态 → 已完成」同一更新链路）
+          if (!workspaceRoot || !workspace || !item.task || item.task.legacyIdentity) return
+          void window.electronAPI.tasks.updateWorkflow(workspaceRoot, workspace.id, item.task.taskId, 'done', item.task.revision)
+            .then((updated) => {
+              setTaskSummaries((tasks) => tasks?.map((task) => task.taskId === updated.taskId ? updated : task))
+              toast.success('验收成功，任务已流转到已完成')
+            })
+            .catch((cause: unknown) => {
+              toast.error('验收失败', { description: cause instanceof Error ? cause.message : String(cause) })
+            })
+        }}
         onSetLabels={(item, labelIds) => {
           if (!workspaceRoot || !workspace || !item.task || item.task.legacyIdentity) return
           void window.electronAPI.labels.setTaskLabels(workspaceRoot, workspace.id, item.task.taskId, labelIds)
