@@ -40,7 +40,7 @@ describe('isOlderThan', () => {
 
 describe('extractReleaseHeadline', () => {
   test('取第一个二级标题作为摘要', () => {
-    const content = '# MyYoda v0.7.1 更新\n\n## 品牌视觉：应用图标全面替换为最新素材\n\n- 详情...\n\n## 修复\n\n- 其他'
+    const content = '# Yoda v0.7.1 更新\n\n## 品牌视觉：应用图标全面替换为最新素材\n\n- 详情...\n\n## 修复\n\n- 其他'
     expect(extractReleaseHeadline(content)).toBe('品牌视觉：应用图标全面替换为最新素材')
   })
 
@@ -57,7 +57,7 @@ describe('extractReleaseHeadline', () => {
   })
 
   test('没有二级标题时回退到首个正文行', () => {
-    const content = '# MyYoda v0.4.0 更新\n\n- 首个要点\n- 第二条'
+    const content = '# Yoda v0.4.0 更新\n\n- 首个要点\n- 第二条'
     expect(extractReleaseHeadline(content)).toBe('首个要点')
   })
 

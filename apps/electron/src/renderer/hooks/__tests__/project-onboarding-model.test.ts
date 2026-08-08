@@ -3,7 +3,7 @@ import { getProjectOnboardingStorageKey, shouldPromptProjectOnboarding } from '.
 
 describe('getProjectOnboardingStorageKey', () => {
   test('按 workspaceId 生成稳定的 key', () => {
-    expect(getProjectOnboardingStorageKey('ws-1')).toBe('luxcoder:workspace:ws-1:projectOnboardingSeen')
+    expect(getProjectOnboardingStorageKey('ws-1')).toBe('yoda:workspace:ws-1:projectOnboardingSeen')
   })
 })
 

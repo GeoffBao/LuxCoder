@@ -58,7 +58,7 @@ export function ReleaseNotesDialog({
       <DialogContent className="max-w-2xl max-h-[70vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>更新日志</DialogTitle>
-          <DialogDescription>MyYoda 各版本更新内容</DialogDescription>
+          <DialogDescription>Yoda 各版本更新内容</DialogDescription>
         </DialogHeader>
         {content === null && !error ? (
           <p className="text-sm text-muted-foreground flex items-center gap-2">
