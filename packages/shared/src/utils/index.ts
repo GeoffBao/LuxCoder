@@ -24,6 +24,12 @@ export {
 export { calculateContextUsageRatio } from './context-usage'
 export { slugify } from './slug'
 export {
+  parseReleaseVersion,
+  compareReleaseSemver,
+  isOlderThan,
+  extractReleaseHeadline,
+} from './release-notes'
+export {
   inferMcpTransportType,
   normalizeMcpTransportType,
 } from './mcp-transport'

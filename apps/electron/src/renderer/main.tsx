@@ -103,6 +103,7 @@ import type { GitHubRelease, WorkspaceCapabilities } from '@myyoda/shared'
 import { showCapabilityChangeToasts } from './lib/capabilities-toast'
 import { ProjectsInitializer } from './components/ProjectsInitializer'
 import { GlobalShortcuts } from './components/shortcuts/GlobalShortcuts'
+import { ShortcutGuideDialog } from './components/shortcuts/ShortcutGuideDialog'
 import { VoiceDictationApp } from './components/voice-dictation/VoiceDictationApp'
 import { TabSwitcher } from './components/tabs/TabSwitcher'
 import { htmlToMarkdown, markdownToHtml } from './lib/markdown-rich-text'
@@ -1274,6 +1275,7 @@ if (isQuickTaskWindow) {
       <ScratchPadPersistence />
       <VoiceDictationApp embedded />
       <GlobalShortcuts />
+      <ShortcutGuideDialog />
       <TabSwitcher />
       <App />
       <Toaster position="bottom-right" />

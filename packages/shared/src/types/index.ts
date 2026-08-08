@@ -37,6 +37,9 @@ export * from './installer'
 // GitHub Release 相关类型
 export * from './github'
 
+// 本地化版本历史（Release Notes）相关类型
+export * from './release-notes'
+
 // 系统提示词相关类型
 export * from './system-prompt'
 

@@ -9,7 +9,7 @@ import { join, resolve, sep, dirname } from 'node:path'
 import { existsSync, realpathSync, rmSync, readFileSync, writeFileSync, mkdirSync, statSync, readdirSync, copyFileSync, renameSync } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS, EXPERT_IPC_CHANNELS, AGENT_THINKING_LEVELS, isMyYodaPermissionMode, normalizePathForCompare, PLANNING_IPC_CHANNELS, type PlanningWorkspaceScope } from '@myyoda/shared'
+import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS, EXPERT_IPC_CHANNELS, AGENT_THINKING_LEVELS, isMyYodaPermissionMode, normalizePathForCompare, PLANNING_IPC_CHANNELS, RELEASE_NOTES_IPC_CHANNELS, type PlanningWorkspaceScope } from '@myyoda/shared'
 import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, SCRATCH_PAD_IPC_CHANNELS, EXCALIDRAW_IPC_CHANNELS, QUICK_TASK_IPC_CHANNELS, VOICE_DICTATION_IPC_CHANNELS, DOCK_BADGE_IPC_CHANNELS, STORAGE_IPC_CHANNELS } from '../types'
 import type {
   QuickTaskSubmitInput,
@@ -376,6 +376,11 @@ import {
   listReleases as listGitHubReleases,
   getReleaseByTag,
 } from './lib/github-release-service'
+import {
+  getReleaseNotesList,
+  getLatestReleaseVersion,
+  getCombinedReleaseNotes,
+} from './lib/release-notes-service'
 import { watchAttachedDirectory, unwatchAttachedDirectory } from './lib/workspace-watcher'
 import {
   getFeishuConfig,
@@ -4504,6 +4509,33 @@ export function registerIpcHandlers(): void {
     GITHUB_RELEASE_IPC_CHANNELS.GET_RELEASE_BY_TAG,
     async (_, tag: string): Promise<GitHubRelease | null> => {
       return getReleaseByTag(tag)
+    }
+  )
+
+  // ===== 本地化版本历史（Release Notes）=====
+  // 版本历史读本地 resources/release-notes/*.md，完全离线可用，不依赖 GitHub 网络
+
+  // 获取版本历史列表（semver 降序，最近 N 条）
+  ipcMain.handle(
+    RELEASE_NOTES_IPC_CHANNELS.LIST,
+    async (): Promise<ReturnType<typeof getReleaseNotesList>> => {
+      return getReleaseNotesList()
+    }
+  )
+
+  // 获取最新版本号
+  ipcMain.handle(
+    RELEASE_NOTES_IPC_CHANNELS.LATEST,
+    async (): Promise<string | undefined> => {
+      return getLatestReleaseVersion()
+    }
+  )
+
+  // 获取合并后的完整版本历史 Markdown
+  ipcMain.handle(
+    RELEASE_NOTES_IPC_CHANNELS.COMBINED,
+    async (): Promise<string> => {
+      return getCombinedReleaseNotes()
     }
   )
 
