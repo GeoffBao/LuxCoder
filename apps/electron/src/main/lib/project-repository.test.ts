@@ -142,7 +142,28 @@ describe('ProjectRepository', () => {
       cwd: external,
       displayPath: external,
     })
-    expect(repository.buildPromptContext(root, created.config.id)?.name).toBe('Kanban Proj')
+    const promptContext = repository.buildPromptContext(root, created.config.id)
+    expect(promptContext?.name).toBe('Kanban Proj')
+    expect(promptContext?.memoryPath).toBe(join(external, '.context', 'MEMORY.md'))
+  })
+
+  test('本地目录 Project 的记忆经 readProjectMemory/writeProjectMemory 全链路落在项目真实目录下', () => {
+    const root = createTempWorkspaceRoot()
+    const external = join(createTempWorkspaceRoot(), 'repo')
+    mkdirSync(external)
+    const repository = createRepository({ 'ws-alpha': root })
+    const created = repository.createProjectAtRoot(root, {
+      name: 'Local Memory Proj',
+      workingDirectory: external,
+    })
+
+    expect(repository.readProjectMemory('ws-alpha', created.config.slug)).toBe('')
+    repository.writeProjectMemory('ws-alpha', created.config.slug, '# 项目记忆\n经 repository 写入')
+    expect(repository.readProjectMemory('ws-alpha', created.config.slug)).toBe('# 项目记忆\n经 repository 写入')
+
+    const promptContext = repository.buildPromptContext(root, created.config.id)
+    expect(promptContext?.memoryContent).toBe('# 项目记忆\n经 repository 写入')
+    expect(promptContext?.memoryPath).toBe(join(external, '.context', 'MEMORY.md'))
   })
 
   test('无外部目录时 resolveWorkingDirectory 返回托管 workdir', () => {

@@ -242,6 +242,15 @@ export function getAgentSessionMessagesPath(id: string): string {
 }
 
 /**
+ * 获取 Agent 用量聚合缓存文件路径
+ *
+ * @returns ~/.myyoda/agent-usage-cache.json
+ */
+export function getAgentUsageCachePath(): string {
+  return join(getConfigDir(), 'agent-usage-cache.json')
+}
+
+/**
  * 获取 Agent 工作区索引文件路径
  *
  * @returns ~/.myyoda/agent-workspaces.json

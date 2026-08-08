@@ -28,6 +28,7 @@ import {
   Brain,
   Eye,
   Building2,
+  BarChart3,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -68,6 +69,7 @@ import { ShortcutSettings } from "./ShortcutSettings";
 import { VoiceInputSettings } from "./VoiceInputSettings";
 import { MigrationSettings } from "./MigrationSettings";
 import { StorageSettings } from "./StorageSettings";
+import { UsageSettings } from "./UsageSettings";
 import { WorkspaceSettings } from "./WorkspaceSettings";
 import { AgentSkillsView } from '@/components/agent-skills/AgentSkillsView'
 import { WorkspaceContextView } from '@/components/agent-skills/WorkspaceContextView'
@@ -116,6 +118,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: "bots", label: "远程连接", icon: <Bot size={16} /> },
       { id: "migration", label: "数据迁移", icon: <HardDriveDownload size={16} /> },
       { id: "storage", label: "磁盘管理", icon: <HardDrive size={16} /> },
+      { id: "usage", label: "用量统计", icon: <BarChart3 size={16} /> },
     ],
   },
   {
@@ -168,6 +171,8 @@ function renderTabContent(tab: SettingsTab): React.ReactElement {
       return <MigrationSettings />;
     case "storage":
       return <StorageSettings />;
+    case "usage":
+      return <UsageSettings />;
     case "workspace":
       return <WorkspaceSettings />;
     default:

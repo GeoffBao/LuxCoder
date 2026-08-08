@@ -678,3 +678,9 @@ export const STORAGE_IPC_CHANNELS = {
   /** 仅清理临时文件（启动时/快速清理） */
   CLEANUP_TEMP: 'storage:cleanup-temp',
 } as const
+
+/** 用量统计 IPC 通道 */
+export const USAGE_IPC_CHANNELS = {
+  /** 获取跨会话用量聚合统计 */
+  GET_STATS: 'usage:get-stats',
+} as const

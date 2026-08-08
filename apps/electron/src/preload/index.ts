@@ -12,7 +12,7 @@ import type { TaskAggregateSummary, TaskMetadataPatch, TaskWorkflow } from '@myy
 import type { StartTodoAgentInput, StartTodoAgentResult, TodoAgentSessionActivation, PlanningWorkspaceScope } from '@myyoda/shared'
 import { LABEL_IPC_CHANNELS } from '@myyoda/shared/channels'
 import type { WorkspaceLabel } from '@myyoda/shared/labels'
-import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, SCRATCH_PAD_IPC_CHANNELS, EXCALIDRAW_IPC_CHANNELS, DOCK_BADGE_IPC_CHANNELS, STORAGE_IPC_CHANNELS } from '../types'
+import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, SCRATCH_PAD_IPC_CHANNELS, EXCALIDRAW_IPC_CHANNELS, DOCK_BADGE_IPC_CHANNELS, STORAGE_IPC_CHANNELS, USAGE_IPC_CHANNELS } from '../types'
 import type {
   RuntimeStatus,
   GitRepoStatus,
@@ -1419,6 +1419,11 @@ export interface ElectronAPI {
   cleanupStorage: (options: unknown) => Promise<unknown>
   /** 清理临时文件（快速） */
   cleanupTempStorage: () => Promise<unknown>
+
+  // ===== 用量统计 =====
+
+  /** 获取跨会话用量聚合统计（range: all | 30d | 7d） */
+  getUsageStats: (range: unknown) => Promise<unknown>
   /** 取消迁移导入（清理临时解压目录） */
   migrationCancelImport: (tempDir: string) => Promise<void>
 
@@ -3215,6 +3220,12 @@ const electronAPI: ElectronAPI = {
 
   cleanupTempStorage: () => {
     return ipcRenderer.invoke(STORAGE_IPC_CHANNELS.CLEANUP_TEMP)
+  },
+
+  // ===== 用量统计 =====
+
+  getUsageStats: (range: unknown) => {
+    return ipcRenderer.invoke(USAGE_IPC_CHANNELS.GET_STATS, range)
   },
 
   migrationCancelImport: (tempDir: string) => {
