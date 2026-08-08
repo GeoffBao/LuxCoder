@@ -429,6 +429,50 @@ export function getDefaultSkillsDir(): string {
 }
 
 /**
+ * 获取 Agent 专家模板目录（~/.luxcoder/default-experts/templates/）
+ */
+export function getDefaultExpertTemplatesDir(): string {
+  return join(getConfigDir(), 'default-experts', 'templates')
+}
+
+/**
+ * 从 app bundle 同步内置专家模板到 ~/.luxcoder/default-experts/templates/
+ *
+ * 打包模式从 process.resourcesPath/default-experts 复制，开发模式从源码 default-experts/。
+ * 模板文件很小且「缺失即写」即可：新模板随应用分发自动出现，已存在的不覆盖
+ * （与 seedBuiltinExperts 同模式；semver 版本契约暂不引入，模板仅是新建专家参考目录）。
+ */
+export function seedDefaultExpertTemplates(): void {
+  const { app } = require('electron')
+  const bundledDir = app.isPackaged
+    ? join(process.resourcesPath, 'default-experts')
+    : join(__dirname, '../default-experts')
+
+  if (!existsSync(bundledDir)) {
+    console.log('[配置] 未找到内置 default-experts 目录，跳过')
+    return
+  }
+
+  const userDir = getDefaultExpertTemplatesDir()
+  mkdirSync(userDir, { recursive: true })
+
+  const templatesDir = join(bundledDir, 'templates')
+  if (!existsSync(templatesDir)) return
+
+  try {
+    for (const entry of readdirSync(templatesDir, { withFileTypes: true })) {
+      if (!entry.isFile() || !entry.name.endsWith('.json')) continue
+      const target = join(userDir, entry.name)
+      if (existsSync(target)) continue
+      cpSync(join(templatesDir, entry.name), target)
+      console.log(`[配置] 已同步默认专家模板: ${entry.name}`)
+    }
+  } catch (err) {
+    console.warn('[配置] 同步默认专家模板失败，跳过:', err)
+  }
+}
+
+/**
  * 获取 Agent 专家包根目录路径
  *
  * 内置与自定义专家包均存放于此目录下的 {id}/ 子目录。

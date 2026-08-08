@@ -89,6 +89,8 @@ export const TaskDefaultsSchema = z.object({
   permissionMode: z.enum(PERMISSION_MODES).optional(),
   /** Agent 专家 slug；Kanban TaskRunner 注入 IDENTITY/SOUL/RULES + 合并 skill 引用 */
   expertId: z.string().min(1).optional(),
+  /** 专家团 id；设置时该任务以团队模式运行（团长编排 → 成员 DAG → 团长汇总），与 expertId 互斥 */
+  teamId: z.string().min(1).optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -104,6 +106,8 @@ const TaskNodeObject = z.object({
   model: z.string().min(1).optional(),
   llmConnection: z.string().min(1).optional(),
   permissionMode: z.enum(PERMISSION_MODES).optional(),
+  /** 节点级专家 slug；覆盖任务级 defaults.expertId（团队展开时成员节点各自指定） */
+  expertId: z.string().min(1).optional(),
   labels: z.array(z.string()).optional(),
   status: z.string().optional(),
 

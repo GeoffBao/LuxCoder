@@ -3,6 +3,8 @@ import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { TaskSpec } from '@myyoda/shared/tasks/schema'
+import type { ExpertPackage, TeamSquad } from '@myyoda/shared/experts'
+import { buildTeamExecutionSpec } from './team-run'
 import {
   appendRunLog,
   initializeRun,
@@ -785,5 +787,90 @@ describe('TaskRunner', () => {
     runner.run('demo-task', { verifyOnComplete: false })
     await flushAsyncWork()
     expect(host.sentMessages.get('session-1')?.[0]).toContain('qa identity')
+  })
+
+  test('团队展开：成员节点注入各自专家 preamble，汇总节点引用成员输出后完成（最小闭环）', async () => {
+    const workspaceRoot = createTempWorkspaceRoot()
+    const team: TeamSquad = {
+      id: 'dev-team',
+      label: '软件研发全流程团',
+      kind: 'team',
+      leaderExpertId: 'delivery-manager',
+      members: [
+        { expertId: 'architect', role: '架构设计' },
+        { expertId: 'general', role: '编码实现' },
+      ],
+    }
+    const baseSpec = buildSpec()
+    const leaderOutput: TaskSpec = {
+      id: 'plan',
+      title: '委派计划',
+      goal: baseSpec.goal,
+      runner: 'conduct',
+      nodes: [
+        { id: 'design', kind: 'session', title: '设计', expertId: 'architect', prompt: '出架构方案' },
+        { id: 'impl', kind: 'session', title: '实现', expertId: 'general', prompt: '按设计实现', depends_on: ['design'] },
+      ],
+    }
+    const built = buildTeamExecutionSpec({ team, leaderSpec: leaderOutput, baseSpec })
+    expect(built.ok).toBe(true)
+    const expandedSpec = built.spec!
+    saveTaskSpec(workspaceRoot, expandedSpec)
+
+    const host = new FakeConductorSessionHost()
+    const expertPackages: Record<string, ExpertPackage> = {
+      architect: {
+        id: 'architect', label: '软件架构师', skillSlugs: ['brainstorming'], mcpIds: [], channelBindings: [],
+        identityMd: '架构师身份', soulMd: '', rulesMd: '',
+      },
+      general: {
+        id: 'general', label: '通用软件专家', skillSlugs: [], mcpIds: [], channelBindings: [],
+        identityMd: '通用专家身份', soulMd: '', rulesMd: '',
+      },
+      'delivery-manager': {
+        id: 'delivery-manager', label: '软件交付经理', skillSlugs: [], mcpIds: [], channelBindings: [],
+        identityMd: '交付经理身份', soulMd: '', rulesMd: '',
+      },
+    }
+    const runner = createRunner(workspaceRoot, host, 'run-team', {
+      getExpert: (id) => expertPackages[id] ?? null,
+    })
+
+    runner.runWithSpec(expandedSpec, 'demo-task', { verifyOnComplete: false })
+    await flushAsyncWork()
+
+    // 第一批：design（architect）
+    expect(host.sentMessages.get('session-1')?.[0]).toContain('<agent_expert id="architect"')
+    expect(host.sentMessages.get('session-1')?.[0]).toContain('架构师身份')
+    // impl 依赖 design，尚未派发
+    expect(host.sentMessages.has('session-2')).toBe(false)
+
+    host.completeSession('session-1', { workspaceId: 'ws-1', finalText: '架构方案产出' })
+    await flushAsyncWork()
+
+    // 第二批：impl（general）
+    expect(host.sentMessages.get('session-2')?.[0]).toContain('<agent_expert id="general"')
+    expect(host.sentMessages.get('session-2')?.[0]).toContain('通用专家身份')
+
+    host.completeSession('session-2', { workspaceId: 'ws-1', finalText: '实现代码产出' })
+    await flushAsyncWork()
+
+    // 第三批：团长汇总节点（delivery-manager），引用成员输出
+    const summaryPrompt = host.sentMessages.get('session-3')?.[0] ?? ''
+    expect(summaryPrompt).toContain('<agent_expert id="delivery-manager"')
+    expect(summaryPrompt).toContain('架构方案产出')
+    expect(summaryPrompt).toContain('实现代码产出')
+
+    host.completeSession('session-3', { workspaceId: 'ws-1', finalText: '最终交付' })
+    await expect(runner.waitUntilSettled('demo-task', 'run-team')).resolves.toEqual(
+      expect.objectContaining({
+        status: 'completed',
+        nodes: expect.arrayContaining([
+          expect.objectContaining({ id: 'design', state: 'done' }),
+          expect.objectContaining({ id: 'impl', state: 'done' }),
+          expect.objectContaining({ id: 'team-summary', state: 'done' }),
+        ]),
+      }),
+    )
   })
 })

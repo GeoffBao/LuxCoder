@@ -40,6 +40,7 @@ export function createTaskEditorDraft(
   target: TaskEditorTarget,
   defaultModel: string,
   initialExpertId?: string,
+  initialTeamId?: string,
 ): TaskEditorDraft {
   // edit 模式且没有 taskSlug：没有既有 spec 可读（不会有异步 effect 覆盖这份初始值），
   // 直接用卡片当前标题/模型起草——即"升级"这个普通会话的起点。
@@ -51,6 +52,7 @@ export function createTaskEditorDraft(
     orchModel: (promoting && target.initialModel) ? target.initialModel : defaultModel,
     permissionMode: 'allow-all',
     ...(initialExpertId ? { expertId: initialExpertId } : {}),
+    ...(initialTeamId ? { teamId: initialTeamId } : {}),
     subtasks: [],
   }
 }
@@ -71,6 +73,7 @@ export function taskSpecToEditorDraft(
     orchConnection: spec.defaults?.llmConnection,
     permissionMode: spec.defaults?.permissionMode ?? 'allow-all',
     expertId: spec.defaults?.expertId,
+    teamId: spec.defaults?.teamId,
     subtasks: specToSubtasks(spec.nodes),
     cwd: spec.cwd,
     sourceSlugs: spec.sources,

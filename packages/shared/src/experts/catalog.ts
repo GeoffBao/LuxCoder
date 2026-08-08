@@ -1,4 +1,4 @@
-import type { ExpertDefinition } from './types.ts'
+import type { ExpertDefinition, TeamSquad } from './types.ts'
 
 /** 内置专家目录（5 个默认专家，去除工程平台细分与职能重叠角色） */
 export const BUILTIN_EXPERT_DEFINITIONS: readonly ExpertDefinition[] = [
@@ -14,6 +14,42 @@ export const BUILTIN_EXPERT_DEFINITIONS: readonly ExpertDefinition[] = [
  * 本质仍是单 Agent 人设包（kind: 'team'），通过 identityMd/soulMd/rulesMd
  * 覆盖种子文案，让一个 Agent 按阶段/视角切换扮演多角色，不涉及真实多 Agent 编排。
  */
+/**
+ * 内置专家团目录（2 个默认专家团）。
+ * 老结构（ExpertDefinition）仍保留用于兼容读取；新结构 TeamSquad 用于 team.json seed 与迁移。
+ * 团长统一用 delivery-manager（软件交付经理，天然协调者），members 按 roleLabels 拆解到真实专家。
+ */
+export const BUILTIN_EXPERT_TEAM_SQUADS: readonly TeamSquad[] = [
+  {
+    id: 'dev-team',
+    label: '软件研发全流程团',
+    kind: 'team',
+    description: '按需求分析→架构设计→编码实现→测试验收四阶段协作交付',
+    avatar: { icon: 'Users', accent: 'primary' },
+    leaderExpertId: 'delivery-manager',
+    instructions: '按需求分析→架构设计→编码实现→测试验收四阶段协作交付；每个阶段产出经得起下一阶段检验。',
+    members: [
+      { expertId: 'general', role: '需求分析 / 编码实现' },
+      { expertId: 'architect', role: '架构设计' },
+      { expertId: 'qa', role: '测试验收' },
+    ],
+  },
+  {
+    id: 'quality-team',
+    label: '代码质量攻坚团',
+    kind: 'team',
+    description: '按架构评审→安全审计→性能优化→测试补全四视角体检代码',
+    avatar: { icon: 'ShieldCheck', accent: 'primary' },
+    leaderExpertId: 'delivery-manager',
+    instructions: '按架构评审→安全审计→性能优化→测试补全四视角体检代码；只报告有实际影响的问题。',
+    members: [
+      { expertId: 'reviewer', role: '架构评审' },
+      { expertId: 'general', role: '安全审计 / 性能优化' },
+      { expertId: 'qa', role: '测试补全' },
+    ],
+  },
+]
+
 export const BUILTIN_EXPERT_TEAM_DEFINITIONS: readonly ExpertDefinition[] = [
   {
     id: 'dev-team',

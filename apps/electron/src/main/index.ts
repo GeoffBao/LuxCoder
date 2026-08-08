@@ -93,7 +93,7 @@ import { registerIpcHandlers } from './ipc'
 import { registerTaskHandlers, rehydrateIncompleteTaskRuns, healOrphanedTaskRuns } from './lib/task-handlers'
 import { createTray, destroyTray, getTray } from './tray'
 import { initializeRuntime } from './lib/runtime-init'
-import { seedDefaultSkills, getExpertsDir } from './lib/config-paths'
+import { seedDefaultSkills, seedDefaultExpertTemplates, getExpertsDir } from './lib/config-paths'
 import { initializeReleaseNotes } from './lib/release-notes-service'
 import { seedBuiltinExperts } from './lib/expert-service'
 import { upgradeDefaultSkillsInWorkspaces } from './lib/agent-workspace-manager'
@@ -618,6 +618,7 @@ async function bootstrap(): Promise<void> {
 
   // 同步默认 Skills 模板到 ~/.myyoda/default-skills/
   safeRun('seedDefaultSkills', seedDefaultSkills)
+  safeRun('seedDefaultExpertTemplates', seedDefaultExpertTemplates)
 
   // 同步本地化版本历史到 ~/.myyoda/release-notes/
   safeRun('initializeReleaseNotes', initializeReleaseNotes)

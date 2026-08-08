@@ -68,6 +68,8 @@ import type {
   AgentAttachDirectoryInput,
   AgentAttachFileInput,
   WorkspaceAttachDirectoryInput,
+  SpawnExpertCoworkInput,
+  SpawnExpertCoworkResult,
   WorkspaceAttachFileInput,
   GetTaskOutputInput,
   GetTaskOutputResult,
@@ -186,7 +188,8 @@ import type {
   CodeClawSize,
 } from '@myyoda/shared'
 import type { ProjectConfig } from '@myyoda/shared/projects'
-import type { ExpertManifest, ExpertPackage } from '@myyoda/shared/experts'
+import type { ExpertManifest, ExpertPackage, ExpertTemplate, TeamSquad } from '@myyoda/shared/experts'
+import type { CreateTeamInput, UpdateTeamInput } from '../main/lib/expert-service'
 import type { ValidationResult } from '../../../../packages/shared/src/tasks/validate.ts'
 import type {
   UserProfile,
@@ -783,6 +786,9 @@ export interface ElectronAPI {
 
   /** 中止 Agent 执行 */
   stopAgent: (sessionId: string) => Promise<void>
+
+  /** 会话级拉专家/专家团 cowork（创建注入专家人设的子会话） */
+  spawnExpertCowork: (input: SpawnExpertCoworkInput) => Promise<SpawnExpertCoworkResult>
 
   // ===== Agent 队列消息 =====
 
@@ -1447,15 +1453,20 @@ export interface ElectronAPI {
   experts: {
     list: () => Promise<ExpertPackage[]>
     get: (id: string) => Promise<ExpertPackage | null>
-    create: (input: { id: string; label: string; identitySummary?: string }) => Promise<ExpertPackage>
+    create: (input: { id: string; label: string; identitySummary?: string; description?: string; avatar?: { icon?: string; accent?: string }; defaultProviderChannelId?: string; defaultModel?: string; skillSlugs?: string[] }) => Promise<ExpertPackage>
     updateManifest: (
       id: string,
-      patch: Partial<Pick<ExpertManifest, 'skillSlugs' | 'mcpIds' | 'label'>>,
+      patch: Partial<Pick<ExpertManifest, 'skillSlugs' | 'mcpIds' | 'label' | 'description' | 'avatar' | 'defaultProviderChannelId' | 'defaultModel'>>,
     ) => Promise<ExpertPackage>
     updateFiles: (
       id: string,
       files: Partial<{ identityMd: string; soulMd: string; rulesMd: string }>,
     ) => Promise<ExpertPackage>
+    listTeams: () => Promise<TeamSquad[]>
+    getTeam: (id: string) => Promise<TeamSquad | null>
+    createTeam: (input: CreateTeamInput) => Promise<TeamSquad>
+    updateTeam: (id: string, patch: UpdateTeamInput) => Promise<TeamSquad>
+    listTemplates: () => Promise<ExpertTemplate[]>
   }
 
   // ===== Projects / Tasks Kanban（新版 typed bridge） =====
@@ -2198,6 +2209,10 @@ const electronAPI: ElectronAPI = {
 
   stopAgent: (sessionId: string) => {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.STOP_AGENT, sessionId)
+  },
+
+  spawnExpertCowork: (input: SpawnExpertCoworkInput) => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.SPAWN_EXPERT_COWORK, input)
   },
 
   // Agent 队列消息
@@ -3256,11 +3271,11 @@ const electronAPI: ElectronAPI = {
       invokeTyped<ExpertPackage[]>(EXPERT_IPC_CHANNELS.LIST),
     get: (id: string): Promise<ExpertPackage | null> =>
       invokeTyped<ExpertPackage | null>(EXPERT_IPC_CHANNELS.GET, id),
-    create: (input: { id: string; label: string; identitySummary?: string }): Promise<ExpertPackage> =>
+    create: (input: { id: string; label: string; identitySummary?: string; description?: string; avatar?: { icon?: string; accent?: string }; defaultProviderChannelId?: string; defaultModel?: string; skillSlugs?: string[] }): Promise<ExpertPackage> =>
       invokeTyped<ExpertPackage>(EXPERT_IPC_CHANNELS.CREATE, input),
     updateManifest: (
       id: string,
-      patch: Partial<Pick<ExpertManifest, 'skillSlugs' | 'mcpIds' | 'label'>>,
+      patch: Partial<Pick<ExpertManifest, 'skillSlugs' | 'mcpIds' | 'label' | 'description' | 'avatar' | 'defaultProviderChannelId' | 'defaultModel'>>,
     ): Promise<ExpertPackage> =>
       invokeTyped<ExpertPackage>(EXPERT_IPC_CHANNELS.UPDATE_MANIFEST, id, patch),
     updateFiles: (
@@ -3268,6 +3283,16 @@ const electronAPI: ElectronAPI = {
       files: Partial<{ identityMd: string; soulMd: string; rulesMd: string }>,
     ): Promise<ExpertPackage> =>
       invokeTyped<ExpertPackage>(EXPERT_IPC_CHANNELS.UPDATE_FILES, id, files),
+    listTeams: (): Promise<TeamSquad[]> =>
+      invokeTyped<TeamSquad[]>(EXPERT_IPC_CHANNELS.TEAMS_LIST),
+    getTeam: (id: string): Promise<TeamSquad | null> =>
+      invokeTyped<TeamSquad | null>(EXPERT_IPC_CHANNELS.TEAMS_GET, id),
+    createTeam: (input: CreateTeamInput): Promise<TeamSquad> =>
+      invokeTyped<TeamSquad>(EXPERT_IPC_CHANNELS.TEAMS_CREATE, input),
+    updateTeam: (id: string, patch: UpdateTeamInput): Promise<TeamSquad> =>
+      invokeTyped<TeamSquad>(EXPERT_IPC_CHANNELS.TEAMS_UPDATE, id, patch),
+    listTemplates: (): Promise<ExpertTemplate[]> =>
+      invokeTyped<ExpertTemplate[]>(EXPERT_IPC_CHANNELS.TEMPLATES_LIST),
   },
 
   // ===== Projects / Tasks Kanban（新版 typed bridge） =====

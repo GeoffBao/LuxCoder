@@ -9,12 +9,14 @@ import * as React from 'react'
 import { Bot, Plus, Search, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import type { ExpertKind, ExpertPackage } from '@myyoda/shared/experts'
+import type { ExpertKind, ExpertPackage, ExpertTemplate, TeamSquad } from '@myyoda/shared/experts'
+import type { Channel } from '@myyoda/shared'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ExpertCard } from './ExpertCard'
 import { ExpertDetailSheet } from './ExpertDetailSheet'
 import { CreateExpertDialog, type CreateExpertDraft } from './CreateExpertDialog'
+import { CreateTeamDialog, type CreateTeamDraft } from './CreateTeamDialog'
 
 type ExpertsTab = 'expert' | 'team'
 
@@ -36,12 +38,17 @@ export function AgentExpertsView({
   kind = 'all',
 }: AgentExpertsViewProps): React.ReactElement {
   const [experts, setExperts] = React.useState<ExpertPackage[]>([])
+  const [teams, setTeams] = React.useState<TeamSquad[]>([])
   const [loading, setLoading] = React.useState(true)
   const [tab, setTab] = React.useState<ExpertsTab>('expert')
   const [search, setSearch] = React.useState('')
   const [selectedExpertId, setSelectedExpertId] = React.useState<string | null>(null)
   const [createOpen, setCreateOpen] = React.useState(false)
   const [creating, setCreating] = React.useState(false)
+  const [createTeamOpen, setCreateTeamOpen] = React.useState(false)
+  const [creatingTeam, setCreatingTeam] = React.useState(false)
+  const [templates, setTemplates] = React.useState<ExpertTemplate[]>([])
+  const [channels, setChannels] = React.useState<Channel[]>([])
 
   // embedded 模式下搜索词由宿主统一管理；非 embedded 使用本地状态。
   const activeSearch = embedded ? externalSearch : search
@@ -58,8 +65,16 @@ export function AgentExpertsView({
   const loadExperts = React.useCallback(async (): Promise<void> => {
     setLoading(true)
     try {
-      const list = await window.electronAPI.experts.list()
+      const [list, teamList, templateList, channelList] = await Promise.all([
+        window.electronAPI.experts.list(),
+        window.electronAPI.experts.listTeams(),
+        window.electronAPI.experts.listTemplates(),
+        window.electronAPI.listChannels(),
+      ])
       setExperts(list)
+      setTeams(teamList)
+      setTemplates(templateList)
+      setChannels(channelList)
     } catch (cause) {
       console.error('[AgentExperts] 加载专家列表失败:', cause)
       toast.error('加载专家列表失败', {
@@ -99,6 +114,21 @@ export function AgentExpertsView({
 
   const selectedExpert = experts.find((expert) => expert.id === selectedExpertId) ?? null
 
+  // 专家 label 索引（解析团队卡团长/成员名称）
+  const expertLabels = React.useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const expert of experts) map[expert.id] = expert.label
+    for (const team of teams) map[team.id] = team.label
+    return map
+  }, [experts, teams])
+
+  // 团长候选：只能选专家（kind==='expert'），排除团队
+  const leaderOptions = React.useMemo(
+    () => experts.filter((expert) => (expert.kind ?? 'expert') === 'expert')
+      .map((expert) => ({ id: expert.id, label: expert.label })),
+    [experts],
+  )
+
   const handleSaved = (updated: ExpertPackage): void => {
     setExperts((current) =>
       current.map((expert) => (expert.id === updated.id ? updated : expert)),
@@ -112,6 +142,11 @@ export function AgentExpertsView({
         id: draft.id,
         label: draft.label,
         identitySummary: draft.identitySummary || undefined,
+        description: draft.description,
+        avatar: draft.avatar,
+        defaultProviderChannelId: draft.defaultProviderChannelId,
+        defaultModel: draft.defaultModel,
+        skillSlugs: draft.skillSlugs,
       })
       setExperts((current) => [...current, created].sort((a, b) => a.id.localeCompare(b.id)))
       setCreateOpen(false)
@@ -123,6 +158,26 @@ export function AgentExpertsView({
       })
     } finally {
       setCreating(false)
+    }
+  }
+
+  const handleCreateTeam = async (draft: CreateTeamDraft): Promise<void> => {
+    setCreatingTeam(true)
+    try {
+      const created = await window.electronAPI.experts.createTeam(draft)
+      setTeams((current) => [...current, created].sort((a, b) => a.id.localeCompare(b.id)))
+      // 老结构兼容：重新拉取专家包（seed 会把 kind:'team' expert.json 补齐）
+      const list = await window.electronAPI.experts.list()
+      setExperts(list)
+      setCreateTeamOpen(false)
+      setTab('team')
+      toast.success('专家团已创建')
+    } catch (cause) {
+      toast.error('创建专家团失败', {
+        description: cause instanceof Error ? cause.message : String(cause),
+      })
+    } finally {
+      setCreatingTeam(false)
     }
   }
 
@@ -140,6 +195,12 @@ export function AgentExpertsView({
             <Button size="sm" onClick={() => setCreateOpen(true)}>
               <Plus className="h-4 w-4" />
               新建专家
+            </Button>
+          )}
+          {tab === 'team' && (
+            <Button size="sm" onClick={() => setCreateTeamOpen(true)}>
+              <Plus className="h-4 w-4" />
+              新建专家团
             </Button>
           )}
         </div>
@@ -193,6 +254,8 @@ export function AgentExpertsView({
                 <ExpertCard
                   key={expert.id}
                   expert={expert}
+                  teams={teams}
+                  expertLabels={expertLabels}
                   onOpen={() => setSelectedExpertId(expert.id)}
                 />
               ))}
@@ -212,8 +275,18 @@ export function AgentExpertsView({
       <CreateExpertDialog
         open={createOpen}
         busy={creating}
+        templates={templates}
+        channels={channels}
         onOpenChange={setCreateOpen}
         onSubmit={(draft) => void handleCreate(draft)}
+      />
+
+      <CreateTeamDialog
+        open={createTeamOpen}
+        busy={creatingTeam}
+        expertOptions={leaderOptions}
+        onOpenChange={setCreateTeamOpen}
+        onSubmit={(draft) => void handleCreateTeam(draft)}
       />
     </div>
   )

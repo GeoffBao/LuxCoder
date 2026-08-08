@@ -17,9 +17,10 @@ import * as React from 'react'
 import { unstable_batchedUpdates } from 'react-dom'
 import { useAtom, useAtomValue, useSetAtom, useStore } from 'jotai'
 import { toast } from 'sonner'
-import { Box, CornerDownLeft, Square, Settings, X, Copy, Check, Brain, Sparkles, ChevronDown, ListTodo, Paperclip } from 'lucide-react'
+import { Box, CornerDownLeft, Square, Settings, X, Copy, Check, Brain, Sparkles, ChevronDown, ListTodo, Paperclip, UserPlus } from 'lucide-react'
 import { AgentMessages } from './AgentMessages'
 import { AgentHeader } from './AgentHeader'
+import { CoworkTeamStrip } from './CoworkTeamStrip'
 import { AgentMessageQueue } from './AgentMessageQueue'
 import { ContextUsageBadge } from './ContextUsageBadge'
 import { PermissionBanner } from './PermissionBanner'
@@ -28,6 +29,8 @@ import { AskUserBanner } from './AskUserBanner'
 import { ExitPlanModeBanner } from './ExitPlanModeBanner'
 import { DraftProjectPicker } from './DraftProjectPicker'
 import { DraftGitContextPicker, type DraftGitContextSelection } from './DraftGitContextPicker'
+import { ExpertCoworkPicker } from './ExpertCoworkPicker'
+import { useExpertOptions } from '@/components/agent-experts/useExpertOptions'
 import { PlanModeDashedBorder } from './PlanModeDashedBorder'
 import { ModelSelector } from '@/components/chat/ModelSelector'
 import { AttachmentPreviewItem } from '@/components/chat/AttachmentPreviewItem'
@@ -443,6 +446,8 @@ function AgentRuntimeSelector({ runtime, disabled = false, onChange }: AgentRunt
 }
 
 export function AgentView({ sessionId }: { sessionId: string }): React.ReactElement {
+  const [coworkOpen, setCoworkOpen] = React.useState(false)
+  const { options: expertOptions } = useExpertOptions()
   const [persistedSDKMessages, setPersistedSDKMessages] = React.useState<SDKMessage[]>([])
   const persistedSDKMessagesRef = React.useRef<SDKMessage[]>([])
   persistedSDKMessagesRef.current = persistedSDKMessages
@@ -3038,6 +3043,9 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         {/* AskUserQuestion 交互式问答横幅 */}
         <AskUserBanner sessionId={sessionId} />
 
+        {/* 会话内队友条（拉入的专家/专家团子会话，对齐 Synara subagent strip） */}
+        <CoworkTeamStrip sessionId={sessionId} />
+
 
         {/* ExitPlanMode 计划审批横幅 */}
         <ExitPlanModeBanner sessionId={sessionId} />
@@ -3075,6 +3083,16 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
                 isDraft={isDraftSession || isEmptySession}
                 onSelectionChange={handleDraftGitContextChange}
               />
+              {/* 会话级拉专家/专家团协作（对齐 Synara subagent；显眼入口放在输入区） */}
+              <button
+                type="button"
+                onClick={() => setCoworkOpen(true)}
+                className="ml-auto inline-flex h-7 shrink-0 items-center gap-1 rounded-full border border-border/60 bg-content-area px-2.5 text-xs font-medium text-foreground/80 transition-colors hover:border-primary/40 hover:text-primary"
+                title="拉专家 / 专家团一起协作"
+              >
+                <UserPlus className="size-3.5" />
+                拉专家
+              </button>
             </div>
             {/* 无 Agent 渠道或无可用模型提示 */}
             {(!agentChannelId || !hasAvailableModel) && (
@@ -3195,6 +3213,13 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         </div>
         )}
       </div>
+
+      <ExpertCoworkPicker
+        open={coworkOpen}
+        parentSessionId={sessionId}
+        options={expertOptions}
+        onOpenChange={setCoworkOpen}
+      />
     </AgentSessionProvider>
 
     {/* 回退确认弹窗 */}

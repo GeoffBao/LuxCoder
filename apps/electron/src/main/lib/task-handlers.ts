@@ -50,7 +50,14 @@ import {
   listAgentWorkspaces,
 } from './agent-workspace-manager'
 import { getAgentWorkspacePath, getExpertsDir } from './config-paths'
-import { getExpert } from './expert-service'
+import {
+  getExpert,
+  getTeam,
+  resolveExpertOrTeamKind,
+} from './expert-service'
+import { buildLeaderPlanningPrompt, buildTeamExecutionSpec } from './team-run'
+import { validateTeamSquad, type TeamMemberResolver } from '@myyoda/shared/experts'
+import type { RunSnapshot } from './task-runner'
 import { loadExpertWorkspaceBinding } from './expert-binding-service'
 import { projectRepository } from './project-repository'
 import { analyzeProjectDeleteImpact, analyzeTaskDeleteImpact } from './project-impact-service'
@@ -488,6 +495,98 @@ async function sendGenerationPrompt(
   })
 }
 
+// ---------------------------------------------------------------------------
+// 专家团运行：团长编排 → 展开执行
+// ---------------------------------------------------------------------------
+
+/**
+ * 团队任务运行入口：
+ * 1. 读取并校验团队配置（团长/成员必须存在且是专家）
+ * 2. 创建团长编排会话，注入团长协议 + 协调策略 + 名册 + 任务目标（toolPolicy none，无副作用）
+ * 3. 团长输出委派 task.yaml → parseTaskYaml（失败自动 repair 一次）
+ * 4. buildTeamExecutionSpec 展开（成员节点 + 团长汇总节点）→ runWithSpec 静态执行
+ * 团长编排会话即 orchestratorSessionId（看板可见、可暂停恢复）。
+ */
+async function runTeamTask(
+  workspaceRoot: string,
+  workspaceId: string,
+  slug: string,
+  teamId: string,
+  baseSpec: TaskSpec,
+  options?: RunOptions,
+): Promise<RunSnapshot> {
+  const expertsRoot = getExpertsDir()
+  const team = getTeam(expertsRoot, teamId)
+  if (!team) {
+    throw new Error(`专家团不存在: ${teamId}`)
+  }
+  const issues = validateTeamSquad(team, (id) => resolveExpertOrTeamKind(expertsRoot, id))
+  if (issues.length > 0) {
+    throw new Error(`专家团配置无效: ${issues.map((issue) => issue.message).join('; ')}`)
+  }
+
+  const host = await getSessionHost()
+  const leaderSession = await host.createSession(workspaceId, {
+    name: `团长编排 · ${team.label}`,
+    projectId: baseSpec.project,
+    model: baseSpec.defaults?.model,
+    llmConnection: baseSpec.defaults?.llmConnection,
+    permissionMode: baseSpec.defaults?.permissionMode,
+    parentSessionId: options?.orchestratorSessionId,
+  })
+
+  const resolveMember: TeamMemberResolver = (expertId) => {
+    const expert = getExpert(expertsRoot, expertId)
+    return expert ? { label: expert.label, skills: expert.skillSlugs } : null
+  }
+
+  let prompt = buildLeaderPlanningPrompt(team, baseSpec, resolveMember)
+  let leaderSpec: TaskSpec | null = null
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const text = await sendGenerationPrompt(host, leaderSession.id, prompt)
+    const parsed = parseTaskYaml(extractYaml(text))
+    if (parsed.valid && parsed.spec) {
+      leaderSpec = parsed.spec
+      break
+    }
+    const errors = toTaskIssues(parsed.errors)
+    console.warn(`[TaskRunner] 团长委派计划校验失败 attempt=${attempt + 1} team=${teamId}`, errors)
+    if (attempt === 0) {
+      prompt = buildRepairPrompt(errors.map((issue) => ({ path: issue.path ?? '<root>', message: issue.message })))
+      continue
+    }
+    await host.setSessionStatus(leaderSession.id, 'needs-review').catch(() => undefined)
+    throw new Error(`团长未能产出合法委派计划: ${errors.map((issue) => issue.message).join('; ')}`)
+  }
+
+  const built = buildTeamExecutionSpec({ team, leaderSpec: leaderSpec!, baseSpec })
+  if (!built.ok || !built.spec) {
+    await host.setSessionStatus(leaderSession.id, 'needs-review').catch(() => undefined)
+    throw new Error(`委派计划校验失败: ${(built.errors ?? []).join('; ')}`)
+  }
+
+  const runner = await getRunnerFor(workspaceRoot, workspaceId)
+  return runner.runWithSpec(built.spec, slug, {
+    ...options,
+    orchestratorSessionId: leaderSession.id,
+  })
+}
+
+/** 任务运行入口：defaults.teamId 存在时走专家团展开路径，否则普通运行 */
+async function runTaskOrTeam(
+  workspaceRoot: string,
+  workspaceId: string,
+  slug: string,
+  options?: RunOptions,
+): Promise<RunSnapshot> {
+  const loaded = loadTaskSpec(workspaceRoot, slug)
+  const teamId = loaded?.spec?.defaults?.teamId
+  if (!teamId) {
+    return (await getRunnerFor(workspaceRoot, workspaceId)).run(slug, options)
+  }
+  return runTeamTask(workspaceRoot, workspaceId, slug, teamId, loaded!.spec!, options)
+}
+
 /**
  * 注册所有 Projects、Tasks、Session 与 Teambition IPC handlers。
  * 重建窗口时只更新推送目标，不重复调用 ipcMain.handle。
@@ -715,7 +814,7 @@ export function registerTaskHandlers(window: BrowserWindow): void {
   })
 
   ipcMain.handle(TASK_IPC_CHANNELS.RUN, async (_event, workspaceRoot: string, workspaceId: string, slug: string, options?: RunOptions) => {
-    return (await getRunnerFor(workspaceRoot, workspaceId)).run(slug, options)
+    return runTaskOrTeam(workspaceRoot, workspaceId, slug, options)
   })
 
   ipcMain.handle(TASK_IPC_CHANNELS.PAUSE, async (_event, workspaceRoot: string, workspaceId: string, slug: string, runId: string) => {
