@@ -1380,8 +1380,13 @@ async function getTeambitionBoardDetail(workspaceRoot: string, taskId: string) {
   return (await getTeambitionBoardService(workspaceRoot)).getTaskDetail(taskId)
 }
 
-/** 构造看板网关：优先真实 TB MCP，未配置则 Mock 兜底。 */
+/**
+ * 构造看板网关：优先真实 TB MCP。
+ * 演示数据默认关闭：未配置真实 TB MCP 时抛出明确错误；
+ * 仅当显式设置 YODA_TB_ALLOW_MOCK=1 时才回退本地 Mock（开发/演示兜底）。
+ */
 async function getTeambitionBoardAdapter(workspaceRoot: string): Promise<TeambitionBoardGateway> {
+  const allowMock = process.env.YODA_TB_ALLOW_MOCK === '1'
   try {
     const { getWorkspaceMcpConfig } = await import('./agent-workspace-manager')
     const { findTeambitionMcpEntry } = await import('@yoda/shared')
@@ -1413,12 +1418,23 @@ async function getTeambitionBoardAdapter(workspaceRoot: string): Promise<Teambit
       console.warn(`[TbBoard] 已连接真实 TB MCP (${tb.name})`)
       return adapter
     }
+    if (allowMock) {
+      console.warn('[TbBoard] 未找到已启用的 TB MCP 配置，使用 Mock 兜底（YODA_TB_ALLOW_MOCK=1，演示数据）')
+      return buildMockTeambitionBoardAdapter()
+    }
+    throw new Error('TB 看板未配置已启用的真实 Teambition MCP（工作区 mcp.json）；如需演示数据可设置环境变量 YODA_TB_ALLOW_MOCK=1')
   } catch (error) {
-    console.warn(`[TbBoard] 构造 TB 看板 adapter 失败，使用 Mock 兜底: ${errorMessage(error)}`)
+    if (allowMock) {
+      console.warn(`[TbBoard] 构造 TB 看板 adapter 失败，使用 Mock 兜底（YODA_TB_ALLOW_MOCK=1）: ${errorMessage(error)}`)
+      return buildMockTeambitionBoardAdapter()
+    }
+    throw error
   }
+}
 
+/** 构建 Mock 看板网关（显式 YODA_TB_ALLOW_MOCK=1 时使用） */
+async function buildMockTeambitionBoardAdapter(): Promise<TeambitionBoardGateway> {
   const { MockTeambitionBoardAdapter } = await import('./teambition-board-adapter')
-  console.warn('[TbBoard] 未找到已启用的 TB MCP 配置，使用 Mock 兜底（仅开发/断连降级，不会写回真实 TB）')
   return new MockTeambitionBoardAdapter()
 }
 
@@ -1443,6 +1459,8 @@ async function getTeambitionAdapter(workspaceRoot: string): Promise<import('./te
 }
 
 async function getTeambitionAdapterInfo(workspaceRoot: string): Promise<TeambitionAdapterInfo> {
+  // 演示数据默认关闭：仅显式 YODA_TB_ALLOW_MOCK=1 时回退本地 Mock，否则未配置真实 TB MCP 即抛错
+  const allowMock = process.env.YODA_TB_ALLOW_MOCK === '1'
   // 真实 MCP adapter 可缓存；Mock 不缓存（用户配置 TB 后应能重试真实连接）
   if (teambitionAdapter && !(teambitionAdapter instanceof MockTeambitionAdapter)) {
     return { adapter: teambitionAdapter, isMock: false }
@@ -1475,13 +1493,19 @@ async function getTeambitionAdapterInfo(workspaceRoot: string): Promise<Teambiti
       console.warn(`[Teambition] 已连接 TB MCP (${tb.name})`)
       return { adapter: teambitionAdapter, isMock: false }
     }
-
-    const { MockTeambitionAdapter } = await import('./teambition-adapter')
-    const mock = new MockTeambitionAdapter()
-    console.warn('[Teambition] 未找到已启用的 TB MCP 配置，使用本地 Mock 适配器')
-    return { adapter: mock, isMock: true }
+    if (allowMock) {
+      const mock = new MockTeambitionAdapter()
+      console.warn('[Teambition] 未找到已启用的 TB MCP 配置，使用本地 Mock 适配器（YODA_TB_ALLOW_MOCK=1，演示数据）')
+      return { adapter: mock, isMock: true }
+    }
+    throw new Error('Teambition 未配置已启用的真实 TB MCP（工作区 mcp.json）；如需演示数据可设置环境变量 YODA_TB_ALLOW_MOCK=1')
   } catch (error) {
-    throw new Error(`Teambition adapter 不可用: ${errorMessage(error)}`)
+    if (allowMock) {
+      const mock = new MockTeambitionAdapter()
+      console.warn(`[Teambition] Teambition adapter 不可用，使用 Mock 兜底（YODA_TB_ALLOW_MOCK=1）: ${errorMessage(error)}`)
+      return { adapter: mock, isMock: true }
+    }
+    throw error
   }
 }
 
