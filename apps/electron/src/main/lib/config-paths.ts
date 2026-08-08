@@ -815,9 +815,7 @@ export function getExcalidrawDir(workspaceSlug: string): string {
  * 不根据 bundle 中缺失的目录自动删除，避免误删用户自行安装的 Skills；
  * 后续退役某个内置 Skill 时，显式把它的 slug 加到这里。
  */
-export const RETIRED_DEFAULT_SKILL_SLUGS: readonly string[] = [
-  'brainstorming',
-]
+export const RETIRED_DEFAULT_SKILL_SLUGS: readonly string[] = []
 
 const RETIRED_DEFAULT_SKILL_SLUG_SET = new Set(RETIRED_DEFAULT_SKILL_SLUGS)
 
