@@ -94,6 +94,7 @@ import { registerTaskHandlers, rehydrateIncompleteTaskRuns, healOrphanedTaskRuns
 import { createTray, destroyTray, getTray } from './tray'
 import { initializeRuntime } from './lib/runtime-init'
 import { seedDefaultSkills, getExpertsDir } from './lib/config-paths'
+import { initializeReleaseNotes } from './lib/release-notes-service'
 import { seedBuiltinExperts } from './lib/expert-service'
 import { upgradeDefaultSkillsInWorkspaces } from './lib/agent-workspace-manager'
 import { stopAllAgents, killOrphanedClaudeSubprocesses, isAgentSessionActive, hasActiveAgentSessions } from './lib/agent-service'
@@ -620,6 +621,9 @@ async function bootstrap(): Promise<void> {
 
   // 同步默认 Skills 模板到 ~/.luxcoder/default-skills/
   safeRun('seedDefaultSkills', seedDefaultSkills)
+
+  // 同步本地化版本历史到 ~/.luxcoder/release-notes/
+  safeRun('initializeReleaseNotes', initializeReleaseNotes)
 
   // 种子内置 Agent 专家包到 ~/.luxcoder/experts/
   safeRun('seedBuiltinExperts', () => seedBuiltinExperts(getExpertsDir()))

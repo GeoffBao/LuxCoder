@@ -53,6 +53,7 @@ import { getAgentWorkspace, getWorkspaceMcpConfig, ensurePluginManifest, getWork
 import { getAgentWorkspacePath, getAgentSessionWorkspacePath, getSdkConfigDir, getWorkspaceFilesDir, getBundledCliPath, getWorkspaceSkillsDir, resolveClaudeAgentBinaryPath } from './config-paths'
 import { projectRepository } from './project-repository'
 import { resolveSessionCwd } from './agent-cwd-resolver'
+import { appendVisionRelayAllowedRoot } from './vision-relay-roots'
 import { resolveAgentSessionFileRoots } from './agent-file-roots'
 import { captureAgentTurnOutputs, snapshotOutputFiles } from './agent-output-capture'
 import { getRuntimeStatus } from './runtime-init'
@@ -298,6 +299,8 @@ function collectAttachedDirectories(params: {
 
   return result
 }
+
+// 视觉助手授权根（含项目工作目录）的纯函数逻辑在 vision-relay-roots.ts，避免与 orchestrator 的 electron 依赖耦合，便于单测。
 
 function escapePromptXml(value: string): string {
   return value
@@ -1310,6 +1313,10 @@ export class AgentOrchestrator {
         workspaceSlug,
       })
 
+      // 视觉助手授权根：在附加目录基础上，把当前会话的实际工作目录（项目 workingDirectory）
+      // 也纳入，但不动 allAdditionalDirectories（它仍用于 additionalDirectories / prompt）。
+      const visionRelayAllowedRoots = appendVisionRelayAllowedRoot(allAdditionalDirectories, agentCwd)
+
       // 9.5 确保 SDK 项目设置（plansDirectory → .context）
       if (agentRuntime === 'claude') {
         const claudeSettingsDir = join(agentCwd, '.claude')
@@ -1394,7 +1401,7 @@ export class AgentOrchestrator {
               agentRuntime,
               workspaceId,
               workspaceSlug,
-              allowedRoots: allAdditionalDirectories,
+              allowedRoots: visionRelayAllowedRoots,
               permissionMode: permissionModeOverride ?? sessionMeta?.permissionMode ?? LUXCODER_DEFAULT_PERMISSION_MODE,
               triggeredBy: input.triggeredBy,
             })

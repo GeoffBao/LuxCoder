@@ -16,6 +16,8 @@ import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { MarqueeText } from '@/components/ui/marquee-text'
 import { SearchDialog } from './SearchDialog'
+import { ReleaseNotesPopover } from '@/components/settings/ReleaseNotesPopover'
+import { useReleaseNotes } from '@/hooks/useReleaseNotes'
 import { SidebarToggleButton } from './SidebarToggleButton'
 import { ModeSwitcher } from './ModeSwitcher'
 import { TabNavigationControls } from '@/components/tabs/TabNavigationControls'
@@ -664,6 +666,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   const isMac = React.useMemo(() => detectIsMac(), [])
   const hasUpdate = useAtomValue(hasUpdateAtom)
   const updateStatus = useAtomValue(updateStatusAtom)
+  const { version: appVersion, unseen: hasUnseenReleaseNotes, recentNotes: releaseNotesRecent, markSeen: markReleaseNotesSeen } = useReleaseNotes()
   const hasEnvironmentIssues = useAtomValue(hasEnvironmentIssuesAtom)
   const promptConfig = useAtomValue(promptConfigAtom)
   const setSelectedPromptId = useSetAtom(selectedPromptIdAtom)
@@ -2860,6 +2863,18 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
           </Tooltip>
         </div>
 
+        {/* 更新日志与帮助入口（折叠窄栏） */}
+        <ReleaseNotesPopover
+          version={appVersion}
+          unseen={hasUnseenReleaseNotes}
+          recentNotes={releaseNotesRecent}
+          onMarkSeen={markReleaseNotesSeen}
+          triggerClassName="flex size-10 items-center justify-center rounded-[12px] text-foreground/45 transition-colors titlebar-no-drag hover:bg-foreground/5 hover:text-foreground/80"
+          tooltipSide="right"
+          side="right"
+          align="end"
+        />
+
         {deleteDialog}
         {projectDeleteDialog}
         {moveDialog}
@@ -3655,9 +3670,9 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         </div>
       )}
 
-      {/* 底部：用户资料 + 设置入口 */}
+      {/* 底部：用户资料 + 版本号/更新日志 + 设置入口（同一行，避免占用两行高度） */}
       <div className="sidebar-footer px-3 pb-3">
-        <div className="sidebar-profile-row flex items-center gap-2 rounded-[10px] px-3 py-2 text-foreground/70 transition-colors titlebar-no-drag hover:bg-foreground/[0.04] hover:text-foreground">
+        <div className="sidebar-profile-row flex items-center gap-1 rounded-[10px] px-3 py-2 text-foreground/70 transition-colors titlebar-no-drag hover:bg-foreground/[0.04] hover:text-foreground">
           <button
             onClick={handleOpenSettings}
             className="min-w-0 flex flex-1 items-center gap-3 text-left"
@@ -3665,7 +3680,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             <UserAvatar avatar={userProfile.avatar} size={28} />
             <span className="flex-1 text-sm truncate text-left">{userProfile.userName}</span>
           </button>
-          {hasUpdate && (
+          {hasUpdate ? (
             <SidebarUpdateButton
               status={updateStatus}
               onClick={handleUpdateButtonClick}
@@ -3674,6 +3689,17 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
               readyDotClassName="hidden"
               showText
               hideIcon
+            />
+          ) : (
+            <ReleaseNotesPopover
+              version={appVersion}
+              unseen={hasUnseenReleaseNotes}
+              recentNotes={releaseNotesRecent}
+              onMarkSeen={markReleaseNotesSeen}
+              triggerClassName="flex size-7 flex-shrink-0 items-center justify-center rounded-[8px] text-foreground/40 transition-colors hover:bg-foreground/[0.05] hover:text-foreground/70"
+              tooltipSide="top"
+              side="top"
+              align="end"
             />
           )}
           <button

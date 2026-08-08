@@ -1,45 +1,36 @@
 /**
  * VersionHistory - 版本历史组件
  *
- * 显示 GitHub Release 历史版本列表
+ * 展示本地化版本历史（读 resources/release-notes/*.md），完全离线可用，
+ * 不再依赖 GitHub 网络。按 semver 降序展示最近 N 条，可点击展开详情。
  */
 
 import * as React from 'react'
-import type { GitHubRelease } from '@luxcoder/shared'
+import type { ReleaseNote } from '@luxcoder/shared'
 import { RefreshCw, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
-import { ReleaseNotesViewer } from './ReleaseNotesViewer'
+import { ReleaseNoteMarkdown } from './ReleaseNoteMarkdown'
 import { SettingsCard } from './primitives'
 
 /**
  * VersionHistory 组件
  */
 export function VersionHistory(): React.ReactElement {
-  const [releases, setReleases] = React.useState<GitHubRelease[]>([])
+  const [notes, setNotes] = React.useState<ReleaseNote[]>([])
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
-  const [expandedIds, setExpandedIds] = React.useState<Set<number>>(new Set())
+  const [expandedVersions, setExpandedVersions] = React.useState<Set<string>>(new Set())
 
-  // 加载 releases
-  const loadReleases = React.useCallback(async () => {
+  // 加载本地版本历史
+  const loadReleaseNotes = React.useCallback(async () => {
     setLoading(true)
     setError(null)
 
     try {
-      const data = await window.electronAPI.listReleases({
-        perPage: 3,
-        includePrerelease: false,
-      })
-      setReleases(data)
+      const data = await window.electronAPI.listReleaseNotes()
+      setNotes(data)
     } catch (err) {
       console.error('[版本历史] 加载失败:', err)
-      let errorMessage = err instanceof Error ? err.message : '加载失败'
-      // 过滤掉 Electron IPC 的英文前缀，只保留中文错误信息
-      // IPC 错误格式: "Error invoking remote method 'xxx': Error: 中文错误信息"
-      const ipcPrefixMatch = errorMessage.match(/Error invoking remote method[^:]*:\s*Error:\s*(.+)/s)
-      if (ipcPrefixMatch && ipcPrefixMatch[1]) {
-        errorMessage = ipcPrefixMatch[1].trim()
-      }
-      setError(errorMessage)
+      setError('加载失败')
     } finally {
       setLoading(false)
     }
@@ -47,17 +38,17 @@ export function VersionHistory(): React.ReactElement {
 
   // 初始加载
   React.useEffect(() => {
-    loadReleases()
-  }, [loadReleases])
+    loadReleaseNotes()
+  }, [loadReleaseNotes])
 
   // 切换展开/折叠
-  const toggleExpand = (id: number): void => {
-    setExpandedIds(prev => {
+  const toggleExpand = (version: string): void => {
+    setExpandedVersions(prev => {
       const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
+      if (next.has(version)) {
+        next.delete(version)
       } else {
-        next.add(id)
+        next.add(version)
       }
       return next
     })
@@ -70,7 +61,7 @@ export function VersionHistory(): React.ReactElement {
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium">版本历史</h3>
           <button
-            onClick={loadReleases}
+            onClick={loadReleaseNotes}
             disabled={loading}
             className="inline-flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors disabled:opacity-50"
           >
@@ -86,7 +77,7 @@ export function VersionHistory(): React.ReactElement {
 
       {/* 版本列表 */}
       <div className="divide-y">
-        {loading && releases.length === 0 ? (
+        {loading && notes.length === 0 ? (
           <div className="p-8 text-center">
             <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
             <p className="text-sm text-muted-foreground mt-2">加载中...</p>
@@ -96,43 +87,31 @@ export function VersionHistory(): React.ReactElement {
             <p className="text-sm text-muted-foreground">加载失败</p>
             <p className="text-xs text-muted-foreground mt-1">{error}</p>
           </div>
-        ) : releases.length === 0 ? (
+        ) : notes.length === 0 ? (
           <div className="p-8 text-center">
             <p className="text-sm text-muted-foreground">暂无版本历史</p>
           </div>
         ) : (
-          releases.map((release, index) => {
-            const isExpanded = expandedIds.has(release.id)
+          notes.map((note, index) => {
+            const isExpanded = expandedVersions.has(note.version)
             const isLatest = index === 0
 
             return (
-              <div key={release.id} className="p-4">
+              <div key={note.version} className="p-4">
                 {/* 版本标题（可点击展开） */}
                 <button
-                  onClick={() => toggleExpand(release.id)}
+                  onClick={() => toggleExpand(note.version)}
                   className="w-full flex items-center justify-between text-left hover:bg-accent/50 -m-4 p-4 rounded-lg transition-colors"
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium font-mono truncate">
-                          {release.tag_name}
-                        </span>
-                        {isLatest && (
-                          <span className="text-xs text-primary font-medium">
-                            最新
-                          </span>
-                        )}
-                      </div>
-                      {release.name && release.name !== release.tag_name && (
-                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                          {release.name}
-                        </p>
-                      )}
-                    </div>
-                    <span className="text-xs text-muted-foreground shrink-0">
-                      {new Date(release.published_at).toLocaleDateString('zh-CN')}
+                    <span className="text-sm font-medium font-mono truncate">
+                      v{note.version}
                     </span>
+                    {isLatest && (
+                      <span className="text-xs text-primary font-medium shrink-0">
+                        最新
+                      </span>
+                    )}
                   </div>
                   {isExpanded ? (
                     <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0 ml-2" />
@@ -144,11 +123,7 @@ export function VersionHistory(): React.ReactElement {
                 {/* Release Notes（展开时显示） */}
                 {isExpanded && (
                   <div className="mt-4 pt-4 border-t">
-                    <ReleaseNotesViewer
-                      release={release}
-                      showHeader={false}
-                      compact
-                    />
+                    <ReleaseNoteMarkdown content={note.content} compact />
                   </div>
                 )}
               </div>
