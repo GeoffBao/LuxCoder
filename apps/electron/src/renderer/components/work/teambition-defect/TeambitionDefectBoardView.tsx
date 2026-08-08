@@ -22,6 +22,9 @@ import { tbDefectLastSyncAtAtom } from '@/atoms/tb-defect-sync-atoms'
 import { tbDefectAnalysisAtom, tbDefectExecutionAtom } from '@/atoms/tb-defect-analysis-atoms'
 import { serverKanbanRunsAtom, serverKanbanSessionsAtom, serverTaskSummariesAtom } from '@/atoms/kanban-atoms'
 import { tabsAtom } from '@/atoms/tab-atoms'
+import { agentSkillsTabAtom, activeViewAtom } from '@/atoms/active-view'
+import { TeambitionConnectHint } from '@/components/app-shell/kanban/TeambitionConnectHint'
+import type { TeambitionMcpRecognition } from '@yoda/shared'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useOpenSession } from '@/hooks/useOpenSession'
@@ -70,6 +73,29 @@ export function TeambitionDefectBoardView({ workspaceRoot, workspaceId, defaultP
   const [error, setError] = useAtom(tbDefectErrorAtom)
   /** 是否 Mock 网关（无真实 TB 配置时的本地兜底，展示「演示数据」角标） */
   const [isMock, setIsMock] = React.useState(false)
+  /** TB MCP 连接识别（preferred / custom / missing）——复用 task 看板提示机制 */
+  const [tbRecognition, setTbRecognition] = React.useState<TeambitionMcpRecognition | null>(null)
+  React.useEffect(() => {
+    if (!workspaceRoot) return
+    let cancelled = false
+    void window.electronAPI.teambition?.recognize?.(workspaceRoot)
+      .then((result) => { if (!cancelled) setTbRecognition(result) })
+      .catch(() => { if (!cancelled) setTbRecognition({ status: 'missing' }) })
+    return () => { cancelled = true }
+  }, [workspaceRoot])
+
+  // 跳转 MCP 设置（agent-skills 的 mcp tab）
+  const setAgentSkillsTab = useSetAtom(agentSkillsTabAtom)
+  const setActiveView = useSetAtom(activeViewAtom)
+  const navigateToMcpSettings = React.useCallback(() => {
+    setAgentSkillsTab('mcp')
+    setActiveView('agent-skills')
+  }, [setAgentSkillsTab, setActiveView])
+  // workspaceRoot → slug（TeambitionConfigDialog 一键配置 Token 保存用）
+  const workspaceSlug = React.useMemo(
+    () => workspaceRoot.split(/[\\/]/).filter(Boolean).pop() ?? undefined,
+    [workspaceRoot],
+  )
   const [detail, setDetail] = useAtom(tbDefectDetailAtom)
   const [detailCache, setDetailCache] = useAtom(tbDefectDetailCacheAtom)
   const [taskDetail, setTaskDetail] = useAtom(tbDefectTaskDetailAtom)
@@ -539,12 +565,22 @@ export function TeambitionDefectBoardView({ workspaceRoot, workspaceId, defaultP
   }
 
   if (error) {
+    const missingMcp = tbRecognition?.status === 'missing'
     return (
       <div className="grid h-full place-items-center bg-background p-6">
         <div className="max-w-sm text-center">
           <Bug className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-          <h1 className="font-semibold">TB 任务加载失败</h1>
-          <p className="mt-1 break-words text-xs text-muted-foreground">{error}</p>
+          <h1 className="font-semibold">{missingMcp ? '未连接 Teambition MCP' : 'TB 任务加载失败'}</h1>
+          <p className="mt-1 break-words text-xs text-muted-foreground">
+            {missingMcp
+              ? '看板同步 Teambition 数据需要先配置 TB-Connect MCP，配置后点击重试即可连接真实企业数据。'
+              : error}
+          </p>
+          {missingMcp && tbRecognition && (
+            <div className="mt-3 flex justify-center">
+              <TeambitionConnectHint recognition={tbRecognition} onNavigateToMcp={navigateToMcpSettings} workspaceSlug={workspaceSlug} />
+            </div>
+          )}
           <Button variant="outline" size="sm" className="mt-4" onClick={() => void loadList()}>
             <RefreshCw className="mr-1 h-3.5 w-3.5" />重试
           </Button>
@@ -576,6 +612,9 @@ export function TeambitionDefectBoardView({ workspaceRoot, workspaceId, defaultP
           </div>
         </div>
         <div className="titlebar-no-drag flex items-center gap-2">
+          {tbRecognition && (
+            <TeambitionConnectHint recognition={tbRecognition} onNavigateToMcp={navigateToMcpSettings} workspaceSlug={workspaceSlug} />
+          )}
           <SectionTabs
             value={viewRole}
             onChange={(role) => setViewRole(role as TbViewRole)}
