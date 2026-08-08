@@ -13,6 +13,9 @@
 
 name: Release
 
+# run 标题统一为「chore: bump version to vX.Y.Z」，push tag 或手动补跑时都显示目标版本
+run-name: "chore: bump version to ${{ github.event_name == 'workflow_dispatch' && (inputs.tag || github.ref_name) || github.ref_name }}"
+
 on:
   push:
     tags:
@@ -66,13 +69,18 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
-            echo "Release ${GITHUB_REF_NAME} 已存在，跳过创建"
+          # workflow_dispatch 时 GITHUB_REF_NAME 是分支名（main），必须用解析后的目标 tag
+          tag="${GITHUB_REF_NAME}"
+          if [[ -n "${{ github.event.inputs.tag }}" ]]; then
+            tag="${{ github.event.inputs.tag }}"
+          fi
+          if gh release view "${tag}" >/dev/null 2>&1; then
+            echo "Release ${tag} 已存在，跳过创建"
           else
-            gh release create "${GITHUB_REF_NAME}" \
-              --title "MyYoda ${GITHUB_REF_NAME}" \
+            gh release create "${tag}" \
+              --title "MyYoda ${tag}" \
               --notes-file apps/electron/RELEASE_NOTES.md
-            echo "已创建 Release ${GITHUB_REF_NAME}"
+            echo "已创建 Release ${tag}"
           fi
 
   build-mac-arm64:
