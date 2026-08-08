@@ -160,6 +160,12 @@ function payloadToLegacyEvents(payload: AgentStreamPayload): AgentEvent[] {
         return [{ type: 'permission_mode_changed', mode: evt.mode }]
       case 'run_resumed':
         return [{ type: 'run_resumed' }]
+      case 'watchdog_timeout':
+        // 会话无进展看门狗触发：主进程已 abort 子进程并释放运行态，前端把超时原因展示为错误
+        return [{
+          type: 'error',
+          message: `Agent 会话长时间无进展（${Math.round((evt.timeoutMs ?? 15 * 60 * 1000) / 60000)} 分钟），已自动终止。可能是某个工具调用卡死，请重试或检查命令。`,
+        }]
       case 'retry': {
         const events: AgentEvent[] = []
         const retryScope = {

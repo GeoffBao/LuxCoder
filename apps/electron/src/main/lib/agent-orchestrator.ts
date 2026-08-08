@@ -1640,9 +1640,11 @@ export class AgentOrchestrator {
         // 模型发起 Bash 命令时往往不传 timeout，遇到死循环（如 awk 读到 EOF 后 while 永真）
         // 会无限空转、SDK 子进程永不返回，导致整个会话永久卡在运行中。
         // 这里在 canUseTool 阶段给「未指定 timeout」的 Bash 注入默认超时，
-        // 模型已显式指定 timeout 时尊重原值。注意 runtime 单位差异：
-        //   - Pi runtime：timeout 单位是「秒」（Pi 的 bash 工具 resolveTimeoutMs 按秒×1000）
-        //   - Claude runtime：timeout 单位是「毫秒」（Claude SDK BashInput.timeout）
+        // 模型已显式指定 timeout 时尊重原值。注意 runtime 单位与默认值都不同：
+        //   - Claude runtime：120s / 毫秒，对齐官方 CLI 本来就有的默认值，非新增限制
+        //   - Pi runtime：600s / 秒（resolveTimeoutMs 按秒×1000）。Pi 原生未传 timeout
+        //     时无限等待，600s 是刻意放宽的新增兜底，避免误杀 Android/iOS 等长编译命令；
+        //     真正的死循环由会话级看门狗（15min 零 SDK 消息）兜底，两者独立不冲突。
         // 两者经各自的 canUseTool updatedInput 改写机制注入，共用此统一入口。
         if (toolName === 'Bash') {
           const updatedInput = injectBashDefaultTimeout(input, agentRuntime)

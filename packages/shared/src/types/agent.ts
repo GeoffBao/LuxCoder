@@ -637,6 +637,8 @@ export type MyYodaEvent =
   /** 普通桌面会话已开始执行；startedAt 用于区分同一会话的连续运行。 */
   | { type: 'run_started'; startedAt: number }
   | { type: 'run_resumed'; sessionId: string }
+  /** 会话无进展看门狗触发：长时间无任何 SDK 消息判定卡死，已强制终止 */
+  | { type: 'watchdog_timeout'; sessionId: string; timeoutMs: number }
   /** 用户主动停止当前执行；startedAt 防止旧运行的终态覆盖新一轮执行。 */
   | { type: 'run_stopped'; startedAt?: number }
   // 协作子会话阻塞事件上浮
